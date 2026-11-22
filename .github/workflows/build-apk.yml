@@ -1,0 +1,83 @@
+name: Build Ollama Pocket Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - '.github/workflows/build-apk.yml'
+      - '*.gradle'
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Ollama Pocket
+        uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform + NDK
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.2.12479018'
+          cmake --version
+          ninja --version
+
+      - name: Checkout Ollama Android runtime fork
+        uses: actions/checkout@v4
+        with:
+          repository: RadekParek/Rllama
+          ref: main
+          path: runtime
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Set up Go matching Ollama source
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: runtime/go.mod
+          cache-dependency-path: runtime/go.sum
+
+      - name: Compile native Ollama and llama.cpp (ARM64 Android)
+        shell: bash
+        run: |
+          set -euxo pipefail
+          export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
+          export OLLAMA_ANDROID_JNI_LIBS_DIR="$GITHUB_WORKSPACE/app/src/main/jniLibs"
+          cd runtime
+          bash scripts/build_android.sh -a arm64-v8a
+          file "$OLLAMA_ANDROID_JNI_LIBS_DIR/arm64-v8a/"*.so
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Compile Android app
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Confirm embedded ARM64 inference payload
+        run: |
+          unzip -l app/build/outputs/apk/debug/app-debug.apk | grep 'lib/arm64-v8a/libollama.so'
+          unzip -l app/build/outputs/apk/debug/app-debug.apk | grep 'lib/arm64-v8a/libllama-server.so'
+          sha256sum app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: OllamaPocket-Android-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14

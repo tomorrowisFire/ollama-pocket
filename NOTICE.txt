@@ -1,0 +1,11 @@
+Ollama Pocket Android example project
+Copyright (c) 2026. This project's original app source may be used under MIT-0.
+
+The Ollama native runtime IS NOT included in the source zip. The documented build
+process fetches and compiles the independent community Android fork:
+  https://github.com/RadekParek/Rllama
+  based on https://github.com/ollama/ollama
+  with llama.cpp from https://github.com/ggml-org/llama.cpp
+
+Each dependency carries its own open-source licenses. This project's license does
+not override the licenses of any native runtime or model weights.

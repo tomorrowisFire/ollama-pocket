@@ -1,0 +1,48 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.ollamapocket.app'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.ollamapocket.app'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '0.1.0'
+        ndk { abiFilters 'arm64-v8a' }
+    }
+
+    buildTypes {
+        release { minifyEnabled false }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    packaging {
+        jniLibs { useLegacyPackaging true }
+    }
+}
+
+tasks.register('checkNativePayload') {
+    doLast {
+        def nativeDir = file('src/main/jniLibs/arm64-v8a')
+        ['libollama.so', 'libllama-server.so'].each { name ->
+            def f = new File(nativeDir, name)
+            if (!f.isFile() || f.length() < 1000000) {
+                throw new GradleException("Missing Android ARM64 Ollama runtime: ${f}. See README_ko.md")
+            }
+            def bytes = new byte[4]
+            f.withInputStream { stream -> stream.read(bytes) }
+            if (bytes[0] != 0x7f || bytes[1] != 69 || bytes[2] != 76 || bytes[3] != 70) {
+                throw new GradleException("Not an ELF binary: ${f}")
+            }
+        }
+    }
+}
+preBuild.dependsOn checkNativePayload
