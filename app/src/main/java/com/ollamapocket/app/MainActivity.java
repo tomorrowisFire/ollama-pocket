@@ -144,7 +144,7 @@ public final class MainActivity extends Activity {
         return e;
     }
     private Button button(String label, boolean primary) {
-        Button b = new Button(this); b.setText(label); b.setTextAllCaps(false);
+        Button b = new Button(this); b.setText(label); b.setAllCaps(false);
         b.setTextSize(13); b.setTextColor(primary ? BG : WHITE);
         b.setPadding(dp(11), dp(4), dp(11), dp(4)); b.setMinHeight(0); b.setMinimumHeight(0);
         b.setBackground(bg(primary ? ACCENT : FIELD, 10)); return b;
@@ -515,7 +515,7 @@ public final class MainActivity extends Activity {
         progressStatus.setText("GGUF 가져오는 중 · 화면을 유지하세요");
         io.execute(() -> {
             File copied = null, modelfile = null;
-            String result = "";
+            String importStatus = "";
             try {
                 File imports = new File(getFilesDir(), "imports");
                 if (!imports.exists() && !imports.mkdirs()) throw new Exception("저장 폴더 생성 실패");
@@ -554,15 +554,15 @@ public final class MainActivity extends Activity {
                 }
                 int exit = p.waitFor();
                 if (exit != 0) throw new Exception("ollama create 종료 코드 " + exit + ": " + output);
-                result = "GGUF 등록 완료: " + modelName;
+                importStatus = "GGUF 등록 완료: " + modelName;
                 // The created Ollama model has its own blob, so remove the temporary copy.
                 if (copied != null) copied.delete();
-            } catch (Exception e) { result = "GGUF 가져오기 실패: " + e.getMessage(); }
+            } catch (Exception e) { importStatus = "GGUF 가져오기 실패: " + e.getMessage(); }
             finally {
                 if (modelfile != null) modelfile.delete();
                 if (copied != null) copied.delete();
             }
-            String finalResult = result;
+            String finalResult = importStatus;
             ui.post(() -> { progressStatus.setText(finalResult); refreshModels(); });
         });
     }
