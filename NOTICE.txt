@@ -1,11 +1,25 @@
-Ollama Pocket Android example project
-Copyright (c) 2026. This project's original app source may be used under MIT-0.
+AI in Pocket - Client for Ollama (unofficial independent Android application)
+Copyright (c) 2026 AI in Pocket contributors.
 
-The Ollama native runtime IS NOT included in the source zip. The documented build
-process fetches and compiles the independent community Android fork:
+The original Android UI and application glue code are distributed under MIT-0.
+This program is NOT endorsed by, affiliated with, or an official product of Ollama.
+"Ollama" is used solely to explain protocol compatibility and the underlying runtime.
+No Ollama brand marks or logos are bundled with this app.
+
+The Android APK compiles and redistributes the community Android fork:
   https://github.com/RadekParek/Rllama
-  based on https://github.com/ollama/ollama
-  with llama.cpp from https://github.com/ggml-org/llama.cpp
+This fork incorporates upstream Ollama and llama.cpp components:
+  https://github.com/ollama/ollama
+  https://github.com/ggml-org/llama.cpp
+Their original copyright notices and license terms apply independently.
+Do not assume model weights are covered by this app's MIT-0 license: check each model.
 
-Each dependency carries its own open-source licenses. This project's license does
-not override the licenses of any native runtime or model weights.
+Google Mobile Ads and User Messaging Platform are third-party services.
+This development build uses Google official sample/demo IDs (no publisher revenue).
+Banner requests can transmit device/network data to Google after UMP consent handling.
+By contrast, local LLM prompts are sent only to http://127.0.0.1:11434.
+Network data is used when downloading models and displaying ads; mobile data fees
+may apply under the user's carrier plan.
+
+Before public distribution, complete license review, UMP/privacy configuration,
+replace sample AdMob IDs, provide privacy policy and complete device QA.

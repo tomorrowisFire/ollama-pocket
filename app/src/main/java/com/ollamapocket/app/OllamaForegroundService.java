@@ -36,7 +36,7 @@ public final class OllamaForegroundService extends Service {
     }
 
     private static synchronized void log(String line) {
-        Log.i("OllamaPocket", line);
+        Log.i("AIinPocket", line);
         recentLog.append(line).append('\n');
         if (recentLog.length() > 6000) {
             recentLog.delete(0, recentLog.length() - 4000);
@@ -100,7 +100,7 @@ public final class OllamaForegroundService extends Service {
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         return new Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.stat_notify_sync)
-            .setContentTitle("Ollama Pocket")
+            .setContentTitle("AI in Pocket")
             .setContentText("이 기기에서 로컬 LLM 서버 실행 중 · 127.0.0.1")
             .setContentIntent(pi)
             .setOngoing(true)

@@ -1,4 +1,4 @@
-name: Build Ollama Pocket Android APK
+name: Build AI in Pocket Android APK
 
 on:
   workflow_dispatch:
@@ -25,15 +25,8 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Locate preinstalled Android SDK
-        shell: bash
-        run: |
-          set -e
-          sdk="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
-          test -d "$sdk" || { echo "::error::Android SDK not found: $sdk"; exit 1; }
-          echo "ANDROID_HOME=$sdk" >> "$GITHUB_ENV"
-          echo "ANDROID_SDK_ROOT=$sdk" >> "$GITHUB_ENV"
-          echo "$sdk/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+      - name: Install Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Install Android platform + NDK
         run: |
@@ -72,6 +65,18 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      - name: Include upstream open-source license notices
+        shell: bash
+        run: |
+          set -eu
+          mkdir -p app/src/main/assets/licenses
+          if [ -f runtime/LICENSE ]; then cp runtime/LICENSE app/src/main/assets/licenses/Rllama-LICENSE.txt; fi
+          if [ -d runtime/android/app/src/main/assets/licenses ]; then
+            cp -R runtime/android/app/src/main/assets/licenses/. app/src/main/assets/licenses/
+          fi
+          cp LICENSE app/src/main/assets/licenses/App-MIT-0-LICENSE.txt
+          cp NOTICE.txt app/src/main/assets/licenses/App-NOTICE.txt
+
       - name: Compile Android app
         run: gradle --no-daemon :app:assembleDebug
 
@@ -81,10 +86,15 @@ jobs:
           unzip -l app/build/outputs/apk/debug/app-debug.apk | grep 'lib/arm64-v8a/libllama-server.so'
           sha256sum app/build/outputs/apk/debug/app-debug.apk
 
+      - name: Prepare named APK
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/AI-in-Pocket-v0.2.0-android-arm64.apk
+
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
-          name: OllamaPocket-Android-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: AI-in-Pocket-Android-APK
+          path: dist/*.apk
           if-no-files-found: error
           retention-days: 14

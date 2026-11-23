@@ -2,6 +2,9 @@ package com.ollamapocket.app;
 
 import android.Manifest;
 import android.app.Activity;
+import android.widget.ProgressBar;
+import android.content.ClipboardManager;
+import android.content.ClipData;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -48,7 +51,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/** All UI is native Android, with no account, cloud SDK, WebView or remote backend. */
+/** Native Android UI. Local inference only; optional Google demo banners use the network. */
 public final class MainActivity extends Activity {
     private static final int PICK_GGUF = 701;
     private static final int BG = Color.rgb(12, 18, 30);
@@ -63,6 +66,13 @@ public final class MainActivity extends Activity {
     private final ExecutorService io = Executors.newCachedThreadPool();
     private FrameLayout pages;
     private LinearLayout chatPage, modelPage, serverPage;
+    private DeviceProfiler.Profile deviceProfile;
+    private TextView deviceSummary;
+    private LinearLayout recommendationRows;
+    private ProgressBar downloadProgress;
+    private FrameLayout downloadAdSlot;
+    private AdSupport ads;
+    private Button[] navButtons;
     private LinearLayout messages, modelRows;
     private ScrollView messageScroll;
     private Spinner modelChooser;
@@ -102,6 +112,8 @@ public final class MainActivity extends Activity {
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
         getWindow().getDecorView().setSystemUiVisibility(0);
+        deviceProfile = DeviceProfiler.scan(this);
+        ads = new AdSupport(this);
         currentModel = getPreferences(MODE_PRIVATE).getString("model", "");
         createUi();
         loadHistory();
@@ -113,6 +125,11 @@ public final class MainActivity extends Activity {
         }
         startServer();
         ui.postDelayed(this::refreshModels, 2000);
+        if (!getPreferences(MODE_PRIVATE).getBoolean("welcome_v2_seen", false)) {
+            ui.postDelayed(this::showFirstRunGuide, 400);
+        } else {
+            ads.prepareConsent();
+        }
     }
 
     @Override protected void onResume() { super.onResume(); ui.post(poll); }
@@ -121,6 +138,7 @@ public final class MainActivity extends Activity {
         if (chatConnection != null) chatConnection.disconnect();
         if (pullConnection != null) pullConnection.disconnect();
         io.shutdownNow();
+        ads.destroy();
         super.onDestroy();
     }
 
@@ -159,20 +177,22 @@ public final class MainActivity extends Activity {
     private void createUi() {
         LinearLayout root = column(); root.setBackgroundColor(BG); root.setPadding(dp(15), dp(12), dp(15), dp(8));
         setContentView(root);
-        TextView heading = text("Ollama  Pocket", 25, WHITE, true); margin(heading, root, 1, 3);
-        miniStatus = text("○ 서버 확인 중", 12, ACCENT, false); margin(miniStatus, root, 0, 12);
+        TextView heading = text("AI in Pocket", 25, WHITE, true); margin(heading, root, 1, 2);
+        margin(text("Client for Ollama · 비공식 독립 앱", 11, MUTED, false), root, 0, 5);
+        miniStatus = text("○ 기기 내 AI 엔진 확인 중", 12, ACCENT, false); margin(miniStatus, root, 0, 12);
         LinearLayout tabs = row();
-        Button chatTab = button("대화", true), modelsTab = button("모델", false), serverTab = button("서버", false);
-        rowItem(tabs, chatTab, 1, 6); rowItem(tabs, modelsTab, 1, 6); rowItem(tabs, serverTab, 1, 0);
-        root.addView(tabs, lp(-1, 42));
-        chatTab.setOnClickListener(v -> showTab(0));
-        modelsTab.setOnClickListener(v -> showTab(1));
-        serverTab.setOnClickListener(v -> showTab(2));
+        navButtons = new Button[]{button("① 채팅", true), button("② 모델", false), button("⚙ 설정", false)};
+        for (int i = 0; i < navButtons.length; i++) {
+            final int page = i;
+            rowItem(tabs, navButtons[i], 1, i < 2 ? 6 : 0);
+            navButtons[i].setOnClickListener(v -> showTab(page));
+        }
+        root.addView(tabs, lp(-1, 46));
         pages = new FrameLayout(this); LinearLayout.LayoutParams contentParams = new LinearLayout.LayoutParams(-1, 0, 1);
         contentParams.topMargin = dp(13); root.addView(pages, contentParams);
         createChatPage(); createModelPage(); createServerPage();
         pages.addView(chatPage); pages.addView(modelPage); pages.addView(serverPage);
-        TextView foot = text("100% 기기 내 추론  ·  클라우드 전송 없음", 11, MUTED, false);
+        TextView foot = text("채팅은 기기 내 처리 · 모델 다운로드와 광고에는 인터넷 필요", 11, MUTED, false);
         foot.setGravity(Gravity.CENTER); margin(foot, root, 8, 0);
     }
 
@@ -222,9 +242,27 @@ public final class MainActivity extends Activity {
         ScrollView scroll = new ScrollView(this); scroll.setFillViewport(true);
         LinearLayout content = column(); content.setPadding(dp(2), dp(4), dp(2), dp(12));
         scroll.addView(content); modelPage.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        margin(text("내 기기에 맞는 모델 선택", 20, WHITE, true), content, 3, 6);
+        deviceSummary = text(deviceProfile.description(), 12, WHITE, false);
+        deviceSummary.setPadding(dp(12), dp(12), dp(12), dp(12));
+        deviceSummary.setBackground(bg(CARD, 12));
+        margin(deviceSummary, content, 0, 9);
+        Button scan = button("기기 다시 진단", false);
+        margin(scan, content, 0, 9);
+        scan.setOnClickListener(v -> {
+            deviceProfile = DeviceProfiler.scan(this);
+            deviceSummary.setText(deviceProfile.description());
+            renderRecommendations();
+        });
+        recommendationRows = column(); margin(recommendationRows, content, 0, 14);
+        margin(text("① 모델을 고르고  ② 다운로드  ③ 채팅", 13, ACCENT, true), content, 0, 10);
         margin(text("모델 다운로드", 20, WHITE, true), content, 3, 5);
         margin(text("최초 다운로드에만 인터넷이 필요합니다. 이후 오프라인 실행됩니다.", 12, MUTED, false), content, 0, 9);
-        modelInput = edit("예: gemma3:1b 또는 qwen2.5:0.5b", "gemma3:1b", false);
+        String recommendedDefault = "qwen2.5:0.5b";
+        for (DeviceProfiler.Recommendation rec : DeviceProfiler.recommend(deviceProfile)) {
+            if (rec.selectable) { recommendedDefault = rec.model; break; }
+        }
+        modelInput = edit("모델 선택 또는 직접 입력", recommendedDefault, false);
         margin(modelInput, content, 0, 8);
         LinearLayout pullRow = row(); pullButton = button("모델 다운로드", true); cancelPullButton = button("취소", false);
         rowItem(pullRow, pullButton, 1, 7); rowItem(pullRow, cancelPullButton, 1, 0);
@@ -232,8 +270,19 @@ public final class MainActivity extends Activity {
         cancelPullButton.setEnabled(false); cancelPullButton.setAlpha(0.5f);
         pullButton.setOnClickListener(v -> pullModel());
         cancelPullButton.setOnClickListener(v -> { pullCancelled = true; if (pullConnection != null) pullConnection.disconnect(); });
-        progressStatus = text("작은 모델 권장: qwen2.5:0.5b / gemma3:1b", 12, MUTED, false);
-        margin(progressStatus, content, 0, 14);
+        progressStatus = text("다운로드 전에 데이터 요금 안내를 확인합니다.", 12, MUTED, false);
+        margin(progressStatus, content, 0, 5);
+        downloadProgress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        downloadProgress.setMax(100);
+        downloadProgress.setProgress(0);
+        downloadProgress.setVisibility(View.GONE);
+        margin(downloadProgress, content, 0, 8);
+        margin(text("광고 · Google 테스트 배너", 11, MUTED, false), content, 0, 3);
+        downloadAdSlot = new FrameLayout(this);
+        margin(downloadAdSlot, content, 0, 4);
+        ads.register(downloadAdSlot);
+        margin(text("광고는 네트워크 데이터를 사용하며 요금제에 따라 통신료가 발생할 수 있습니다.",
+            11, MUTED, false), content, 0, 16);
         LinearLayout titleRow = row();
         rowItem(titleRow, text("설치된 모델", 20, WHITE, true), 1, 0);
         Button refresh = button("새로고침", false); rowItem(titleRow, refresh, 0, 0);
@@ -251,11 +300,27 @@ public final class MainActivity extends Activity {
         });
         margin(text("GGUF를 선택하면 앱 내부로 복사한 뒤 Ollama에 등록합니다.\n등록 성공 시 임시 복사본은 삭제됩니다.",
             12, MUTED, false), content, 0, 8);
+        renderRecommendations();
     }
 
     private void createServerPage() {
         serverPage = column();
-        margin(text("로컬 Ollama 엔진", 20, WHITE, true), serverPage, 4, 8);
+        margin(text("설정 · 로컬 엔진", 20, WHITE, true), serverPage, 4, 8);
+        Button privacy = button("광고 개인정보 설정", false);
+        margin(privacy, serverPage, 0, 6);
+        privacy.setOnClickListener(v -> ads.showPrivacyChoices());
+        margin(text("광고에는 인터넷 연결이 필요하고 데이터 요금이 발생할 수 있습니다. " +
+            "현재 광고는 Google 제공 테스트 광고로 수익이 발생하지 않습니다.",
+            12, MUTED, false), serverPage, 0, 9);
+        Button license = button("오픈소스·상표 안내", false);
+        margin(license, serverPage, 0, 10);
+        license.setOnClickListener(v -> new AlertDialog.Builder(this)
+            .setTitle("오픈소스 · 비공식 클라이언트")
+            .setMessage("AI in Pocket - Client for Ollama는 Ollama 공식 제품이 아니며 Ollama와 제휴하지 않습니다. " +
+                "Ollama 명칭은 호환 소프트웨어의 출처 설명에만 사용합니다. " +
+                "앱의 독자 코드: MIT-0. Ollama 및 llama.cpp의 라이선스와 모델별 라이선스는 각각 적용됩니다. " +
+                "모델 다운로드 전 해당 모델의 사용 조건도 확인하세요.")
+            .setPositiveButton("확인", null).show());
         serverStatus = text("상태 확인 중", 15, ACCENT, true); margin(serverStatus, serverPage, 0, 8);
         LinearLayout controls = row();
         Button start = button("서버 시작", true), stop = button("서버 종료", false);
@@ -275,6 +340,64 @@ public final class MainActivity extends Activity {
         chatPage.setVisibility(index == 0 ? View.VISIBLE : View.GONE);
         modelPage.setVisibility(index == 1 ? View.VISIBLE : View.GONE);
         serverPage.setVisibility(index == 2 ? View.VISIBLE : View.GONE);
+        for (int i = 0; i < navButtons.length; i++) {
+            boolean selected = i == index;
+            navButtons[i].setBackground(bg(selected ? ACCENT : FIELD, 10));
+            navButtons[i].setTextColor(selected ? BG : WHITE);
+        }
+    }
+
+    private void renderRecommendations() {
+        if (recommendationRows == null || modelInput == null) return;
+        recommendationRows.removeAllViews();
+        margin(text("기기 성능을 바탕으로 한 추정 추천입니다. 실제 성능은 다를 수 있습니다.",
+            11, MUTED, false), recommendationRows, 0, 7);
+        List<DeviceProfiler.Recommendation> choices = DeviceProfiler.recommend(deviceProfile);
+        int added = 0;
+        for (DeviceProfiler.Recommendation item : choices) {
+            if (!item.selectable) continue;
+            LinearLayout card = column();
+            card.setPadding(dp(12), dp(10), dp(12), dp(10));
+            card.setBackground(bg(CARD, 12));
+            margin(text(item.label(), 12, WHITE, false), card, 0, 5);
+            Button select = button("이 모델 선택", item.category.equals("추천"));
+            margin(select, card, 3, 0);
+            select.setOnClickListener(v -> {
+                modelInput.setText(item.model);
+                toast(item.model + " 선택 완료 · 다운로드를 누르세요");
+            });
+            margin(card, recommendationRows, 3, 4);
+            if (++added >= 3) break;
+        }
+        if (added == 0)
+            margin(text("이 기기에서 안전하게 추천할 모델이 없습니다. RAM 또는 저장공간을 확인하세요.",
+                12, DANGER, false), recommendationRows, 4, 8);
+    }
+
+    private void showFirstRunGuide() {
+        LinearLayout guide = column(); guide.setPadding(dp(20), dp(12), dp(20), dp(5));
+        margin(text("AI in Pocket 시작 안내", 20, WHITE, true), guide, 0, 8);
+        margin(text("1. 모델 탭에서 휴대폰 성능을 진단하세요.\n" +
+            "2. 추천 모델을 선택하고 다운로드하세요.\n" +
+            "3. 채팅 탭에서 오프라인으로 질문할 수 있습니다.\n\n" +
+            "필수 안내: 모델 다운로드(수백 MB~수 GB)와 광고 표시에는 " +
+            "인터넷 데이터가 사용되며 요금제에 따라 통신료가 발생할 수 있습니다. " +
+            "Wi-Fi 이용을 권장합니다. 이 화면은 언제든 닫을 수 있습니다.",
+            13, WHITE, false), guide, 0, 11);
+        margin(text("광고 · Google 테스트 배너", 11, MUTED, false), guide, 0, 4);
+        FrameLayout guideAd = new FrameLayout(this);
+        margin(guideAd, guide, 0, 4);
+        ads.register(guideAd);
+        AlertDialog dialog = new AlertDialog.Builder(this).setView(guide)
+            .setNegativeButton("닫고 채팅", (d,w) -> showTab(0))
+            .setPositiveButton("모델 선택 시작", (d,w) -> showTab(1)).create();
+        dialog.setOnDismissListener(d -> {
+            getPreferences(MODE_PRIVATE).edit().putBoolean("welcome_v2_seen", true).apply();
+            ads.detach(guideAd);
+        });
+        dialog.show();
+        ads.showBanner(guideAd);
+        ads.prepareConsent();
     }
 
     private void startServer() {
@@ -367,7 +490,27 @@ public final class MainActivity extends Activity {
             toast("모델명을 확인하세요"); return;
         }
         if (pullBusy) return;
+        new AlertDialog.Builder(this)
+            .setTitle("다운로드 · 데이터 요금 안내")
+            .setMessage("선택 모델: " + model + "\n\n모델 다운로드는 수백 MB~수 GB의 " +
+                "인터넷 데이터를 사용할 수 있습니다. Wi-Fi나 모바일 데이터 요금제에 따라 " +
+                "통신료가 발생할 수 있습니다. 저장공간과 인터넷 연결을 확인하세요.\n\n" +
+                "다운로드 중 표시되는 광고에도 인터넷 데이터가 사용될 수 있습니다.")
+            .setNegativeButton("취소", null)
+            .setPositiveButton("확인 후 다운로드", (d,w) -> beginDownload(model))
+            .show();
+    }
+
+    private void beginDownload(String model) {
+        if (pullBusy) return;
+        if (!OllamaForegroundService.isRunning()) {
+            toast("로컬 서버 시작 중입니다. 연결되면 다시 다운로드하세요.");
+            startServer(); return;
+        }
         pullBusy = true; pullCancelled = false;
+        downloadProgress.setVisibility(View.VISIBLE);
+        downloadProgress.setIndeterminate(true);
+        ads.showBanner(downloadAdSlot);
         pullButton.setEnabled(false); pullButton.setAlpha(0.5f);
         cancelPullButton.setEnabled(true); cancelPullButton.setAlpha(1f);
         progressStatus.setText(model + " 다운로드 준비 중…");
@@ -379,7 +522,15 @@ public final class MainActivity extends Activity {
                     String status = item.optString("status", "진행 중");
                     long total = item.optLong("total", 0), completed = item.optLong("completed", 0);
                     String info = model + " · " + status + (total > 0 ? " (" + (completed * 100 / total) + "%)" : "");
-                    ui.post(() -> progressStatus.setText(info));
+                    ui.post(() -> {
+                        progressStatus.setText(info);
+                        if (total > 0) {
+                            downloadProgress.setIndeterminate(false);
+                            downloadProgress.setProgress((int)Math.max(0, Math.min(100, completed * 100 / total)));
+                        } else {
+                            downloadProgress.setIndeterminate(true);
+                        }
+                    });
                 });
             } catch (Exception ex) { error = ex.getMessage(); }
             finally { pullConnection = null; }
@@ -390,7 +541,16 @@ public final class MainActivity extends Activity {
                 cancelPullButton.setEnabled(false); cancelPullButton.setAlpha(0.5f);
                 progressStatus.setText(pullCancelled ? "다운로드 중단" : failure != null ?
                     "다운로드 실패: " + failure : "모델 설치 완료: " + model);
-                if (failure == null && !pullCancelled) refreshModels();
+                downloadProgress.setIndeterminate(false);
+                if (failure == null && !pullCancelled) downloadProgress.setProgress(100);
+                else downloadProgress.setVisibility(View.GONE);
+                if (failure == null && !pullCancelled) {
+                    refreshModels();
+                    new AlertDialog.Builder(this).setTitle("모델 준비 완료")
+                        .setMessage(model + "이 설치됐습니다. 이제 이 기기에서 질문할 수 있습니다.")
+                        .setNegativeButton("모델 화면 유지", null)
+                        .setPositiveButton("채팅 시작", (d,w) -> showTab(0)).show();
+                }
             });
         });
     }
@@ -416,7 +576,7 @@ public final class MainActivity extends Activity {
         if (messages == null) return;
         messages.removeAllViews();
         if (history.length() == 0) {
-            margin(text("Ollama가 이 스마트폰에서 직접 답변합니다.\n먼저 모델 탭에서 작은 모델을 설치하세요.",
+            margin(text("휴대폰에서 AI와 대화하세요.\n② 모델 탭에서 기기에 맞는 모델을 설치하세요.",
                 14, MUTED, false), messages, 13, 12);
         }
         for (int i = 0; i < history.length(); i++) {
@@ -427,7 +587,7 @@ public final class MainActivity extends Activity {
     }
     private TextView bubble(String role, String content) {
         boolean user = "user".equals(role);
-        TextView t = text((user ? "나" : "Ollama") + "\n" + content, 14, WHITE, false);
+        TextView t = text((user ? "나" : "AI in Pocket") + "\n" + content, 14, WHITE, false);
         t.setPadding(dp(13), dp(11), dp(13), dp(11));
         t.setBackground(bg(user ? Color.rgb(32, 79, 76) : FIELD, 13));
         margin(t, messages, 3, 7);
@@ -470,7 +630,7 @@ public final class MainActivity extends Activity {
                         if (!part.isEmpty()) {
                             answer.append(part);
                             String display = answer.toString();
-                            ui.post(() -> { assistant.setText("Ollama\n" + display); scrollBottom(); });
+                            ui.post(() -> { assistant.setText("AI in Pocket\n" + display); scrollBottom(); });
                         }
                     }
                 });
@@ -479,12 +639,12 @@ public final class MainActivity extends Activity {
             String finalError = error, finalAnswer = answer.toString();
             ui.post(() -> {
                 if (!finalAnswer.isEmpty()) {
-                    assistant.setText("Ollama\n" + finalAnswer + (chatCancelled ? "\n\n[생성 중단]" : ""));
+                    assistant.setText("AI in Pocket\n" + finalAnswer + (chatCancelled ? "\n\n[생성 중단]" : ""));
                     // Keep incomplete responses visible but out of next turn's request context.
                     if (!chatCancelled && finalError == null && modelAtStart.equals(currentModel))
                         addHistory("assistant", finalAnswer);
                 } else {
-                    assistant.setText("Ollama\n" + (chatCancelled ? "생성 중단됨" : "오류: " + finalError));
+                    assistant.setText("AI in Pocket\n" + (chatCancelled ? "생성 중단됨" : "오류: " + finalError));
                 }
                 setChatBusy(false);
                 scrollBottom();
