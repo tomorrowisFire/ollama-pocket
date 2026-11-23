@@ -106,6 +106,63 @@ public final class OllamaQuantCatalog {
         return Collections.unmodifiableList(new ArrayList<>(list.subList(0,Math.min(30,list.size()))));
     }
 
+    /**
+     * Search results identify model FAMILIES, not a specific size. Read the
+     * actual /library/{family}/tags links so users can choose size and
+     * quantization together, without creating unlisted versions.
+     */
+    public static List<Variant> parseFamily(String family,String html,List<String> installed){
+        if(family==null || !family.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,68}"))
+            throw new IllegalArgumentException("지원하지 않는 모델 이름");
+        if(html==null)html="";
+        Set<String> tags=new LinkedHashSet<>();
+        if(installed!=null)for(String name:installed){
+            if(name!=null && name.toLowerCase(Locale.ROOT).startsWith(
+                family.toLowerCase(Locale.ROOT)+":") && validBaseTag(name))
+                tags.add(name);
+        }
+        Pattern links=Pattern.compile(
+            "(?i)\\bhref\\s*=\\s*[\"'](?:https?://(?:www\\.)?ollama\\.com)?/library/"+
+            Pattern.quote(family)+":([A-Za-z0-9][A-Za-z0-9._-]{0,65})(?:[?#][^\"']*)?[\"']");
+        Matcher link=links.matcher(html);
+        int scans=0;
+        while(link.find()&&scans++<1800&&tags.size()<250){
+            String name=family+":"+link.group(1);
+            // Cloud-only variants cannot run in the Android on-device engine.
+            if(validBaseTag(name)&&!name.toLowerCase(Locale.ROOT).contains("-cloud"))
+                tags.add(name);
+        }
+        List<Variant> out=new ArrayList<>();
+        for(String model:tags){
+            String size=model.substring(model.indexOf(':')+1).split("-")[0];
+            String base=family+":"+size;
+            String kind=quantization(base,model);
+            if(kind==null)kind="기본/기타 버전";
+            boolean local=installed!=null&&installed.contains(model);
+            out.add(new Variant(model,size+" · "+kind,local,"latest".equalsIgnoreCase(size)));
+        }
+        out.sort((a,b)->{
+            if(a.installed!=b.installed)return a.installed?-1:1;
+            double sa=parameterBillions(a.tag),sb=parameterBillions(b.tag);
+            if(sa!=sb)return Double.compare(sa,sb);
+            return a.tag.compareToIgnoreCase(b.tag);
+        });
+        return Collections.unmodifiableList(
+            new ArrayList<>(out.subList(0,Math.min(40,out.size()))));
+    }
+
+    private static double parameterBillions(String tag) {
+        int at=tag.indexOf(':');
+        if(at<0)return Double.MAX_VALUE;
+        Matcher size=Pattern.compile("(?i)^(\\d+(?:\\.\\d+)?)([bm])(?:-|$)")
+             .matcher(tag.substring(at+1));
+        if(!size.find())return Double.MAX_VALUE;
+        try {
+            double value=Double.parseDouble(size.group(1));
+            return "m".equalsIgnoreCase(size.group(2))?value/1000.0:value;
+        }catch(Exception ignored){return Double.MAX_VALUE;}
+    }
+
     private static int rank(String q){
         if(q.startsWith("Q4"))return 0;
         if(q.startsWith("Q5"))return 1;

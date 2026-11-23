@@ -93,7 +93,14 @@ public final class MainActivity extends Activity {
     private LinearLayout chatPage, modelPage, serverPage, diagnosticPage, nodeRows;
     private TextView localConnectionStatus, connectionSessionStatus, modelListHeader;
     private EditText modelFilter;
+    private TextView modelSearchStatus;
     private Spinner familyFilter, quantizationFilter;
+    private final List<String> onlineFamilies = new ArrayList<>();
+    private final java.util.Set<String> onlineFamilyTileIds = new java.util.HashSet<>();
+    private long onlineSearchSerial = 0;
+    private boolean onlineSearchPending = false;
+    private String onlineSearchError = "";
+    private Runnable onlineSearchRunnable;
     private String selectedModelFamily="전체 모델";
     private String selectedQuantization="전체 양자화";
     private final Map<String,String> modelMetadata = new HashMap<>();
@@ -436,11 +443,16 @@ public final class MainActivity extends Activity {
         Button refresh=button("새로고침",false);rowItem(top,refresh,0,0);
         refresh.setOnClickListener(v->refreshModels());
         margin(top,content,0,7);
-        modelFilter=edit("모델 검색 · 이름 또는 용도","",false);
-        margin(modelFilter,content,0,9);
+        modelFilter=edit("전체 모델 검색 · Qwen, Llama, Phi 등","",false);
+        margin(modelFilter,content,0,5);
+        modelSearchStatus=text("검색어를 입력하면 설치 모델 전체와 Ollama 공개 모델을 찾습니다. " +
+            "온라인 검색에는 인터넷 데이터가 사용될 수 있습니다.",11,MUTED,false);
+        margin(modelSearchStatus,content,0,9);
         modelFilter.addTextChangedListener(new TextWatcher(){
             @Override public void beforeTextChanged(CharSequence s,int start,int count,int after){}
-            @Override public void onTextChanged(CharSequence s,int start,int before,int count){renderInstalledModels();}
+            @Override public void onTextChanged(CharSequence s,int start,int before,int count){
+                onModelSearchChanged(s.toString());
+            }
             @Override public void afterTextChanged(Editable s){}
         });
         LinearLayout filterRow=row();
@@ -1237,20 +1249,22 @@ public final class MainActivity extends Activity {
             toast("진행 중인 추론·다운로드·벤치마크를 마친 뒤 변경하세요");
             return;
         }
-        // Always show the quantization picker for a model title/card tap.
-        // The available versions are read from Ollama's real library tag list.
-        OllamaQuantPicker.show(this,tile.id,new ArrayList<>(knownModels),(tag,installed)->{
-            if(isUiBusy()){
-                toast("먼저 진행 중인 작업을 마치세요");return;
-            }
+        OllamaQuantPicker.Listener choice=(tag,installed)->{
+            if(isUiBusy()){toast("먼저 진행 중인 작업을 마치세요");return;}
             if(installed&&knownModels.contains(tag)){
-                selectModel(tag);
-                showTab(0);
+                selectModel(tag);showTab(0);
             }else{
                 modelInput.setText(tag);
                 pullModel(); // Mandatory data charges warning remains in effect.
             }
-        });
+        };
+        if(onlineFamilyTileIds.contains(tile.id)){
+            String family=tile.id.substring(0,tile.id.indexOf(':'));
+            OllamaFamilyPicker.show(this,family,new ArrayList<>(knownModels),choice);
+        }else{
+            // Recommended size-specific card or local model variant.
+            OllamaQuantPicker.show(this,tile.id,new ArrayList<>(knownModels),choice);
+        }
     }
 
     /** Compact contents fit inside an actual square at narrow phone widths. */
@@ -1278,8 +1292,16 @@ public final class MainActivity extends Activity {
             10,ink,true);
         statusText.setSingleLine(true);
         statusText.setEllipsize(TextUtils.TruncateAt.END);
-        statusText.setGravity(Gravity.CENTER);
-        margin(statusText,card,0,2);
+        statusText.setGravity(Gravity.CENTER_VERTICAL|Gravity.START);
+        LinearLayout statusRow=row();
+        rowItem(statusRow,statusText,1,3);
+        if(item.featured){
+            TextView recommendation=text("(추천)",10,secondary,true);
+            recommendation.setGravity(Gravity.CENTER_VERTICAL|Gravity.END);
+            recommendation.setSingleLine(true);
+            rowItem(statusRow,recommendation,0,0);
+        }
+        margin(statusRow,card,0,2);
         tileStatusLabels.put(item.id,statusText);
 
         TextView name=text(item.title,sideDp<168?16:18,ink,true);
@@ -1337,29 +1359,134 @@ public final class MainActivity extends Activity {
         }
     }
 
+    /**
+     * Empty query = six device recommendations. Nonempty = ALL installed matches,
+     * plus a debounced public Ollama directory query (>= 2 characters).
+     */
+    private void onModelSearchChanged(String nextValue){
+        onlineSearchSerial++;
+        long sequence=onlineSearchSerial;
+        if(onlineSearchRunnable!=null)ui.removeCallbacks(onlineSearchRunnable);
+        onlineSearchRunnable=null;
+        onlineFamilies.clear();
+        onlineFamilyTileIds.clear();
+        onlineSearchError="";
+        String query=nextValue==null?"":nextValue.trim();
+        onlineSearchPending=query.length()>=2;
+
+        if(!query.isEmpty()&&(!"전체 모델".equals(selectedModelFamily)
+                ||!"전체 양자화".equals(selectedQuantization))){
+            selectedModelFamily="전체 모델";
+            selectedQuantization="전체 양자화";
+            populateModelFilters(); // prevent stale recommendation-only filters
+        }
+        updateModelSearchStatus();
+        renderInstalledModels();
+        if(query.length()<2)return;
+
+        onlineSearchRunnable=()->io.execute(()->{
+            List<String> discovered=null;
+            String error=null;
+            try{discovered=OllamaLibrarySearch.search(query);}
+            catch(Exception ex){error=ex.getMessage()==null?"온라인 연결 오류":ex.getMessage();}
+            final List<String> results=discovered;
+            final String failure=error;
+            ui.post(()->{
+                if(isFinishing()||isDestroyed()||sequence!=onlineSearchSerial)return;
+                onlineSearchPending=false;
+                onlineSearchError=failure==null?"":failure;
+                onlineFamilies.clear();
+                if(results!=null)onlineFamilies.addAll(results);
+                updateModelSearchStatus();
+                animateNextTileUpdate=true;
+                renderInstalledModels();
+            });
+        });
+        ui.postDelayed(onlineSearchRunnable,480);
+    }
+
+    private void updateModelSearchStatus(){
+        if(modelSearchStatus==null)return;
+        String query=modelFilter==null?"":modelFilter.getText().toString().trim();
+        if(query.isEmpty())
+            modelSearchStatus.setText("기기 맞춤 추천 최대 6개 · 검색 시 설치된 다른 모델과 " +
+                "온라인 Ollama 공개 모델도 조회합니다. 온라인 검색은 데이터 사용.");
+        else if(query.length()<2)
+            modelSearchStatus.setText("두 글자 이상 입력하면 Ollama 온라인 검색을 시작합니다. " +
+                "설치 모델 검색은 바로 적용됩니다.");
+        else if(onlineSearchPending)
+            modelSearchStatus.setText("온라인 공개 모델 검색 중… · 설치 모델은 바로 표시됩니다.");
+        else if(!onlineSearchError.isEmpty())
+            modelSearchStatus.setText("온라인 검색 실패: "+onlineSearchError+
+                " · 설치 모델은 계속 검색할 수 있습니다.");
+        else
+            modelSearchStatus.setText("Ollama 온라인 모델 "+onlineFamilies.size()+
+                "개 발견 · 터치하여 크기와 양자화 선택");
+    }
+
+    private List<ModelTileCatalog.Tile> allSearchTiles(String query) {
+        List<ModelTileCatalog.Tile> tiles=new ArrayList<>();
+        onlineFamilyTileIds.clear();
+        java.util.Set<String> seen=new java.util.LinkedHashSet<>();
+        for(String name:knownModels){
+            String meta=modelMetadata.getOrDefault(name,"로컬 모델");
+            String quant=modelQuantization.getOrDefault(name,"미확인");
+            if(!ModelListFilter.matches(name,meta,quant,query,
+                    selectedModelFamily,selectedQuantization))continue;
+            if(!seen.add(name))continue;
+            tiles.add(new ModelTileCatalog.Tile(name,
+                ModelTileCatalog.familyName(name),"이 기기에 설치됨",
+                quant,modelBytes.getOrDefault(name,0L),true,false));
+        }
+        for(String family:onlineFamilies){
+            if(!family.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,68}"))continue;
+            String id=family+":latest";
+            onlineFamilyTileIds.add(id);
+            if(!seen.add(id))continue;
+            tiles.add(new ModelTileCatalog.Tile(id,
+                ModelTileCatalog.familyName(id),"Ollama 공개 모델 · 버전 선택",
+                "미확인",0,false,false));
+        }
+        return tiles;
+    }
+
     private void renderInstalledModels() {
         if(modelRows==null)return;
         modelRows.removeAllViews();
         tileStatusLabels.clear();
         tileDownloadBars.clear();
         String filter=modelFilter==null?"":modelFilter.getText().toString().trim();
-        List<ModelTileCatalog.Tile> all=deviceRecommendedTiles();
+        boolean searching=!filter.isEmpty();
+        List<ModelTileCatalog.Tile> all=searching?
+            allSearchTiles(filter):deviceRecommendedTiles();
         List<ModelTileCatalog.Tile> shown=new ArrayList<>();
         for(ModelTileCatalog.Tile item:all){
-            String description=modelMetadata.getOrDefault(item.id,
-                item.description+" · "+installedSize(item.bytes));
-            if(ModelListFilter.matches(item.id,description+" "+item.title,
-                    modelQuantization.getOrDefault(item.id,item.quantization),
-                    filter,selectedModelFamily,selectedQuantization)){
+            if(searching){
+                // Local rows were text-filtered already; official online hits
+                // may match by their DESCRIPTION, not just their family name.
                 shown.add(item);
+            }else{
+                String description=modelMetadata.getOrDefault(item.id,
+                    item.description+" · "+installedSize(item.bytes));
+                if(ModelListFilter.matches(item.id,description+" "+item.title,
+                        modelQuantization.getOrDefault(item.id,item.quantization),
+                        filter,selectedModelFamily,selectedQuantization))
+                    shown.add(item);
             }
         }
         if(modelListHeader!=null)
-            modelListHeader.setText("맞춤 추천 "+all.size()+"개 · 표시 "+shown.size()+"개");
+            modelListHeader.setText(searching?
+                "검색 결과 "+shown.size()+"개  ·  설치 및 Ollama 온라인":
+                "맞춤 추천 "+all.size()+"개 · 표시 "+shown.size()+"개");
         if(shown.isEmpty()){
-            TextView empty=text(all.isEmpty()?
+            String emptyMessage=searching?
+                (onlineSearchPending?"Ollama 온라인 모델을 검색 중입니다…":
+                (filter.length()<2?"설치된 일치 모델이 없습니다. 두 글자 이상 입력하세요.":
+                "조건에 맞는 모델이 없습니다. 다른 검색어를 시도하세요.")):
+                (all.isEmpty()?
                 "현재 RAM·저장공간 조건에서 안전하게 추천할 모델이 없습니다.\n진단 탭에서 기기 상태를 확인하세요.":
-                "검색 조건에 맞는 추천 모델이 없습니다. 검색어 또는 필터를 변경하세요.",
+                "추천 모델이 없습니다. 필터 조건을 조정하세요.");
+            TextView empty=text(emptyMessage,
                 14,MUTED,false);
             empty.setPadding(dp(16),dp(22),dp(16),dp(22));
             empty.setBackground(bg(CARD,14));

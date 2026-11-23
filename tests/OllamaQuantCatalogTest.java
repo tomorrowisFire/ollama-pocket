@@ -24,6 +24,22 @@ public final class OllamaQuantCatalogTest {
         ok(!OllamaQuantCatalog.belongsToModel("qwen3:1.7b","qwen3:14b"),"does not belong");
         ok(OllamaQuantCatalog.parse("gemma3:1b","",Collections.emptyList()).size()==1,
             "offline fallback only base");
-        System.out.println("PASS: OllamaQuantCatalog (13 assertions)");
+        String familyPage="<a href='/library/qwen3:0.6b'>0.6b</a>"+
+            "<a href='/library/qwen3:0.6b-q4_K_M'>q4</a>"+
+            "<a href='/library/qwen3:1.7b-q8_0'>q8</a>"+
+            "<a href='/library/qwen3:4b'>4b</a>"+
+            "<a href='/library/qwen3:235b-cloud'>cloud</a>"+
+            "<a href='/library/llama3:8b'>not qwen</a>";
+        List<OllamaQuantCatalog.Variant> family=OllamaQuantCatalog.parseFamily(
+            "qwen3",familyPage,Collections.emptyList());
+        ok(family.size()==4,"family registry versions");
+        ok("qwen3:0.6b".equals(family.get(0).tag),"sort small models first");
+        ok(family.stream().anyMatch(x->x.tag.equals("qwen3:0.6b-q4_K_M")),"family q4");
+        ok(family.stream().anyMatch(x->x.tag.equals("qwen3:1.7b-q8_0")),"family q8");
+        ok(family.stream().noneMatch(x->x.tag.contains("llama")),"no other family");
+        ok(family.stream().noneMatch(x->x.tag.contains("-cloud")),"no cloud-only on Android");
+        ok(OllamaQuantCatalog.parseFamily("qwen3","",Collections.emptyList()).isEmpty(),
+           "offline no invented versions");
+        System.out.println("PASS: OllamaQuantCatalog (20 assertions)");
     }
 }
