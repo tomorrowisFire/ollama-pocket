@@ -86,4 +86,41 @@ public final class ModelTileCatalog {
         }
         return Collections.unmodifiableList(result);
     }
+
+    /**
+     * Only device-admitted recommendations appear in the visible tile grid.
+     * Installed recommended tags appear first; remaining slots use the
+     * advisor's priority order. Never add unsupported/filler tiles.
+     */
+    public static List<Tile> forDevice(List<String> recommendedIds,
+            Map<String,String> summaries,Map<String,Long> estimatedBytes,
+            List<String> installed,Map<String,Long> sizes,
+            Map<String,String> quantizations,int limit) {
+        List<Tile> result=new ArrayList<>();
+        if(recommendedIds==null||limit<=0)return Collections.emptyList();
+        Set<String> already=new LinkedHashSet<>();
+        Set<String> installedIds=installed==null?Collections.emptySet():
+                new LinkedHashSet<>(installed);
+        // Two passes: recommended models already present first, then new ones.
+        for(int pass=0;pass<2;pass++){
+            for(String id:recommendedIds){
+                if(id==null||id.trim().isEmpty()||result.size()>=limit)continue;
+                if(already.contains(id))continue;
+                boolean isInstalled=installedIds.contains(id);
+                if((pass==0)!=isInstalled)continue;
+                long bytes=isInstalled&&sizes!=null
+                        ?Math.max(0,sizes.getOrDefault(id,0L)):
+                        estimatedBytes==null?0:Math.max(0,estimatedBytes.getOrDefault(id,0L));
+                String quant=quantizations==null?"미확인":
+                    quantizations.getOrDefault(id,"미확인");
+                String explanation=summaries==null?"기기에 맞춘 추천":
+                    summaries.getOrDefault(id,"기기에 맞춘 추천");
+                result.add(new Tile(id,familyName(id),explanation,
+                        quant,bytes,isInstalled,true));
+                already.add(id);
+            }
+        }
+        return Collections.unmodifiableList(result);
+    }
+
 }

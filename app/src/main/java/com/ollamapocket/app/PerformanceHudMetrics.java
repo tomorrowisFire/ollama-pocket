@@ -31,6 +31,16 @@ public final class PerformanceHudMetrics {
         return Math.max(0,Math.min(100,100.0*(total-idle)/total));
     }
 
+    /**
+     * App-process CPU time per wall time, normalized by available cores.
+     * Not the device-wide or separate native inference subprocess load.
+     */
+    public static Double processCpuPercent(long usedCpuMs,long wallMs,int cores) {
+        if(wallMs<=0 || usedCpuMs<0 || cores<=0)return null;
+        double percent=100.0*usedCpuMs/(wallMs*(double)cores);
+        return Double.isFinite(percent)?Math.max(0.0,Math.min(100.0,percent)):null;
+    }
+
     /** sysfs GPU provider output; returns null if inaccessible/unknown. */
     public static Double gpuPercent(String line) {
         if(line==null||line.length()>100)return null;

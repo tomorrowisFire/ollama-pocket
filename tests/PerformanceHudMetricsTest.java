@@ -13,6 +13,10 @@ public final class PerformanceHudMetricsTest {
         ok(PerformanceHudMetrics.gpuPercent("126") == null,"invalid GPU metric rejected");
         ok(PerformanceHudMetrics.gpuPercent(null)==null,"unknown GPU");
         ok("조회 불가".equals(PerformanceHudMetrics.percent(null)),"missing values explicit");
-        System.out.println("PASS: PerformanceHudMetrics (8 assertions)");
+        ok(Math.abs(PerformanceHudMetrics.processCpuPercent(500,1000,4)-12.5)<1e-7,
+                "app CPU utilization normalized by cores");
+        ok(PerformanceHudMetrics.processCpuPercent(10,0,4)==null,"invalid wall time");
+        ok(PerformanceHudMetrics.processCpuPercent(10,100,0)==null,"invalid core count");
+        System.out.println("PASS: PerformanceHudMetrics (11 assertions)");
     }
 }

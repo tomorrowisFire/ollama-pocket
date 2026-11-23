@@ -23,6 +23,7 @@ on:
       - 'tests/ModelListFilterTest.java'
       - 'tests/ModelPerformanceAdvisorTest.java'
       - 'tests/ModelTileCatalogTest.java'
+      - 'tests/DeviceRecommendationGridTest.java'
       - 'app/src/main/java/com/ollamapocket/app/ModelTileCatalog.java'
       - 'app/src/main/res/anim/**'
       - 'app/src/main/res/values/**'
@@ -84,6 +85,14 @@ jobs:
             app/src/main/java/com/ollamapocket/app/ModelTileCatalog.java \
             tests/ModelTileCatalogTest.java
           java -cp /tmp/coop-tests ModelTileCatalogTest
+      - name: Verify six-device-recommendation grid selection
+        shell: bash
+        run: |
+          set -euo pipefail
+          javac -d /tmp/coop-tests \
+            app/src/main/java/com/ollamapocket/app/ModelTileCatalog.java \
+            tests/DeviceRecommendationGridTest.java
+          java -cp /tmp/coop-tests DeviceRecommendationGridTest
 
   cooperative-apk:
     runs-on: ubuntu-24.04
@@ -170,11 +179,18 @@ jobs:
           assert 'navButtons' not in src
           assert 'private void showChatList()' not in src
           assert 'buildModelTile(' in src
-          assert 'ModelTileCatalog.combine(' in src
+          assert 'deviceRecommendedTiles()' in src
+          assert 'ModelTileCatalog.forDevice(' in src
+          assert 'lp(sideDp,sideDp)' in src
+          assert '이 기기에 추천하는 모델' not in src
+          assert 'recommendationRows' not in src
+          assert 'renderRecommendations' not in src
+          assert 'WindowInsets.Type.statusBars()' in src
+          assert 'performanceHudView.setText(identity+' in src
           assert 'updateTileDownloadProgress()' in src
           assert 'AiPocketDrawerMotion' in src
           assert 'ViewPropertyAnimator' not in src or 'animate()' in src
-          print('PASS: drawer-only navigation, two-column model cards, real download state, UI motion')
+          print('PASS: drawer navigation, max-six square device models, dynamic HUD, statusbar safe-area')
           PY
       - name: Compile app with cooperative session and RPC tunnel
         run: gradle --no-daemon :app:assembleDebug
@@ -204,7 +220,7 @@ jobs:
         run: |
           mkdir -p dist
           cp app/build/outputs/apk/debug/app-debug.apk \
-            dist/AI-in-Pocket-v0.9.5-Model-Grid-ARM64.apk
+            dist/AI-in-Pocket-v0.9.6-Six-Recommendations-HUD-ARM64.apk
           cp signature-report.txt dist/signature-report.txt
       - name: Make official Android apksigner available for offline stable re-signing
         shell: bash
