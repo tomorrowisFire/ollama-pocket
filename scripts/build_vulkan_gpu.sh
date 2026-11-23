@@ -23,7 +23,7 @@ for dep in Vulkan-Headers SPIRV-Headers; do
 done
 HDR="-I$ROOT/vulkan-build/headers/Vulkan-Headers/include -I$ROOT/vulkan-build/headers/SPIRV-Headers/include"
 cmake -S "$SRC" -B "$ROOT/vulkan-build/build" -G Ninja \
- -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" \
+ -DCMAKE_TOOLCHAIN_FILE="$ROOT/scripts/android_vulkan_toolchain.cmake" \
  -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-28 \
  -DCMAKE_BUILD_TYPE=Release \
  -DCMAKE_C_FLAGS="$HDR" -DCMAKE_CXX_FLAGS="$HDR" \
