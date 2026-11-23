@@ -12,6 +12,7 @@ import android.util.Base64;
 import android.util.Log;
 
 import org.json.JSONObject;
+import org.json.JSONArray;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -54,7 +55,7 @@ public final class CoopSession {
     private static final long NODE_TIMEOUT_MS = 30_000;
     private static final String NSD_TYPE = "_aipocket-coop._tcp.";
     private static final String TAG = "AiPocketCoop";
-    private static final String PROTOCOL = "coop-3";
+    private static final String PROTOCOL = "coop-4";
     private static volatile CoopSession INSTANCE;
 
     public static CoopSession get(Context context) {
@@ -81,6 +82,7 @@ public final class CoopSession {
     private volatile long startedAt;
     private volatile String lastError = "";
     private volatile String workerDigest = "";
+    private volatile String peerSnapshotJson = "[]";
     private volatile ServerSocket controlListener, guestListener;
     private volatile Process worker;
     private volatile NsdManager.RegistrationListener registration;
@@ -98,7 +100,22 @@ public final class CoopSession {
         public volatile String state = "connected";
         public volatile int cpuPermille=-1, gpuPermille=-1, batteryTenths=-1, thermalStatus=-1;
         public volatile boolean workerOk=true;
+        public volatile String deviceModel="미확인", chip="미확인", abi="미확인";
+        public volatile int cpuCores, androidApi, nnapiAccelerators;
+        public volatile long totalRamMiB, freeStorageMiB;
+        public volatile boolean vulkanCompute;
         volatile RpcRelay relay;
+        void updateHardware(JSONObject hardware) {
+            deviceModel=boundedText(hardware.optString("model","미확인"));
+            chip=boundedText(hardware.optString("chip","미확인"));
+            abi=boundedText(hardware.optString("abi","미확인"));
+            cpuCores=Math.max(0,Math.min(128,hardware.optInt("cores",0)));
+            androidApi=Math.max(0,Math.min(100,hardware.optInt("api",0)));
+            nnapiAccelerators=Math.max(0,Math.min(128,hardware.optInt("npu",0)));
+            totalRamMiB=Math.max(0,Math.min(524288,hardware.optLong("ram_total",0)));
+            freeStorageMiB=Math.max(0,Math.min(10000000,hardware.optLong("storage_free",0)));
+            vulkanCompute=hardware.optBoolean("vulkan",false);
+        }
         void updateTelemetry(int cpu,int gpu,int battery,int thermal,boolean worker) {
             cpuPermille=cpu;gpuPermille=gpu;batteryTenths=battery;
             thermalStatus=thermal;workerOk=worker;
@@ -107,6 +124,84 @@ public final class CoopSession {
             this.id=id; this.name=name; this.ip=ip; this.port=port;
             this.safeRamMiB=ramMiB; this.lastSeen=SystemClock.elapsedRealtime();
         }
+    }
+
+    private static String boundedText(String text) {
+        if(text==null||text.trim().isEmpty())return "미확인";
+        text=text.replaceAll("[\\r\\n\\t|]"," ").trim();
+        return text.length()>72?text.substring(0,72):text;
+    }
+
+    private JSONObject localHardware() throws Exception {
+        DeviceProfiler.Profile profile=DeviceProfiler.scan(app);
+        ComputeProfiler.Report compute=ComputeProfiler.scan(app);
+        JSONObject device=new JSONObject();
+        device.put("model",boundedText(profile.device));
+        device.put("chip",boundedText(profile.chip));
+        device.put("abi",boundedText(profile.abi));
+        device.put("cores",profile.cores);
+        device.put("api",profile.androidApi);
+        device.put("ram_total",Math.max(0,Math.round(profile.ramGb*1024)));
+        device.put("storage_free",Math.max(0,Math.round(profile.freeStorageGb*1024)));
+        device.put("vulkan",compute.gpuCompute);
+        device.put("npu",compute.nnapiQueried?compute.nnapiAccelerators:0);
+        return device;
+    }
+
+    private String peersJson() throws Exception {
+        JSONArray list=new JSONArray();
+        PerformanceHud.Sample local=PerformanceHud.sample(app);
+        list.put(new JSONObject()
+            .put("id","host").put("name",boundedText(Build.MANUFACTURER+" "+Build.MODEL))
+            .put("ip",hostIp).put("info",localHardware())
+            .put("ram_safe",safeRamMiB()).put("cpu",local.cpuPermille())
+            .put("gpu",local.gpuPermille()).put("battery",local.batteryTenths)
+            .put("thermal",local.thermalStatus).put("worker",true).put("age",0));
+        for(Node node:nodes.values()) {
+            if(SystemClock.elapsedRealtime()-node.lastSeen>=NODE_TIMEOUT_MS)continue;
+            JSONObject detail=new JSONObject()
+                .put("model",node.deviceModel).put("chip",node.chip).put("abi",node.abi)
+                .put("cores",node.cpuCores).put("api",node.androidApi)
+                .put("ram_total",node.totalRamMiB).put("storage_free",node.freeStorageMiB)
+                .put("vulkan",node.vulkanCompute).put("npu",node.nnapiAccelerators);
+            list.put(new JSONObject().put("id",node.id).put("name",node.name)
+                .put("ip",node.ip).put("info",detail)
+                .put("ram_safe",node.safeRamMiB).put("cpu",node.cpuPermille)
+                .put("gpu",node.gpuPermille).put("battery",node.batteryTenths)
+                .put("thermal",node.thermalStatus).put("worker",node.workerOk)
+                .put("age",(SystemClock.elapsedRealtime()-node.lastSeen)/1000));
+        }
+        return list.toString();
+    }
+
+    public String peerDiagnostics() {
+        if(!"guest".equals(role))return "호스트 모드에서 연결된 기기를 확인하세요.";
+        try {
+            JSONArray all=new JSONArray(peerSnapshotJson);
+            StringBuilder text=new StringBuilder();
+            for(int i=0;i<all.length();i++){
+                JSONObject node=all.optJSONObject(i);
+                if(node==null||guestId.equals(node.optString("id")))continue;
+                JSONObject info=node.optJSONObject("info");
+                if(info==null)info=new JSONObject();
+                text.append("• ").append(node.optString("name","기기"))
+                    .append(" · ").append(node.optBoolean("worker",false)?"연결":"확인 필요")
+                    .append("\nIP ").append(node.optString("ip","미확인"))
+                    .append(" · ").append(info.optString("model","미확인"))
+                    .append("\n칩셋 ").append(info.optString("chip","미확인"))
+                    .append(" · CPU ").append(info.optInt("cores",0)).append("코어")
+                    .append(" · RAM ").append(info.optLong("ram_total",0)).append(" MiB")
+                    .append(" · 안전 ").append(node.optLong("ram_safe",0)).append(" MiB")
+                    .append("\n저장공간 ").append(info.optLong("storage_free",0)).append(" MiB")
+                    .append(" · Android API ").append(info.optInt("api",0))
+                    .append("\nCPU 사용률 ").append(node.optInt("cpu",-1)<0?"조회 불가":node.optInt("cpu")/10.0+"%")
+                    .append(" · GPU ").append(node.optInt("gpu",-1)<0?"조회 불가":node.optInt("gpu")/10.0+"%")
+                    .append(" · NPU 후보 ").append(info.optInt("npu",0)).append("개")
+                    .append("\n배터리 ").append(node.optInt("battery",-1)<0?"조회 불가":node.optInt("battery")/10.0+"℃")
+                    .append(" · 마지막 보고 ").append(node.optLong("age",0)).append("초 전\n\n");
+            }
+            return text.length()==0?"연결된 다른 기기의 상태 정보가 아직 없습니다.":text.toString();
+        }catch(Exception e){return "세션 상태를 아직 수신하지 못했습니다: "+hostIp;}
     }
 
     private CoopSession(Context context) {
@@ -304,7 +399,7 @@ public final class CoopSession {
     private static String boundedLine(BufferedReader reader) throws IOException {
         StringBuilder b=new StringBuilder();int c;
         while((c=reader.read())!=-1 && c!='\n'){
-            if(b.length()>2048)throw new IOException("Control packet too large");
+            if(b.length()>8192)throw new IOException("Control packet too large");
             b.append((char)c);
         }
         if(c==-1 && b.length()==0)throw new IOException("Connection closed");
@@ -327,15 +422,18 @@ public final class CoopSession {
             int cpu=req.optInt("cpu_permille",-2),gpu=req.optInt("gpu_permille",-2);
             int battery=req.optInt("battery_tenths",-2),thermal=req.optInt("thermal_status",-2);
             boolean worker=req.optBoolean("worker_ok",false);
+            String hardwareString=req.optString("device_info","");
             String telemetry="|"+cpu+"|"+gpu+"|"+battery+"|"+thermal+"|"+worker;
-            String command=type+"|"+sessionId+"|"+nonce+"|"+id+"|"+port+"|"+build+"|"+reportedRam+telemetry;
+            String command=type+"|"+sessionId+"|"+nonce+"|"+id+"|"+port+"|"+build+"|"+reportedRam+
+                telemetry+"|"+hardwareString;
             JSONObject response=new JSONObject();
             if(!"host".equals(role) || !id.matches("[A-Za-z0-9_-]{8,40}") ||
                 !nonce.matches("[A-Za-z0-9_-]{16,32}") || !name.matches("[\\p{L}\\p{N} _.-]{1,45}") ||
                 !("join".equals(type)||"ping".equals(type)) || port<1024 || port>65535 ||
                 !workerDigest.equals(build) || reportedRam<0 || reportedRam>65536 ||
                 cpu< -1 || cpu>1000 || gpu< -1 || gpu>1000 || battery< -1 || battery>1200 ||
-                thermal< -1 || thermal>6 || secret==null ||
+                thermal< -1 || thermal>6 || hardwareString.length()<5 ||
+                hardwareString.length()>800 || secret==null ||
                 !SecureRpcTransport.constantEquals(auth,SecureRpcTransport.hmacHex(secret,command))) {
                 response.put("ok",false).put("error","연결 요청 거부: 코드 또는 RPC 엔진 버전 불일치");
             } else if(seenNonces.putIfAbsent(nonce,SystemClock.elapsedRealtime())!=null){
@@ -348,6 +446,7 @@ public final class CoopSession {
                     Node old=nodes.get(id);if(old!=null && old.relay!=null)old.relay.close();
                     Node node=new Node(id,name,peerIp,port,reportedRam);
                     node.updateTelemetry(cpu,gpu,battery,thermal,worker);
+                    node.updateHardware(new JSONObject(hardwareString));
                     RpcRelay relay=new RpcRelay(peerIp,port,secret);
                     relay.start();node.relay=relay;nodes.put(id,node);
                 }else{
@@ -355,12 +454,16 @@ public final class CoopSession {
                     if(n!=null && n.ip.equals(s.getInetAddress().getHostAddress()) && n.port==port) {
                         n.safeRamMiB=reportedRam;
                         n.updateTelemetry(cpu,gpu,battery,thermal,worker);
+                        n.updateHardware(new JSONObject(hardwareString));
                         n.lastSeen=SystemClock.elapsedRealtime();
                     }
                     else throw new IOException("Unregistered guest heartbeat");
                 }
+                String membership=peersJson();
                 response.put("ok",true).put("session",sessionId)
-                    .put("auth",SecureRpcTransport.hmacHex(secret,"ACK|"+nonce+"|"+sessionId));
+                    .put("members_json",membership)
+                    .put("auth",SecureRpcTransport.hmacHex(secret,
+                        "ACK|"+nonce+"|"+sessionId+"|"+membership));
             }
             writer.write(response.toString()+"\n");writer.flush();
         }catch(Exception e){ Log.w(TAG,"Control channel rejected",e); }
@@ -428,12 +531,14 @@ public final class CoopSession {
         int cpu=snapshot.cpuPermille(),gpu=snapshot.gpuPermille();
         int battery=snapshot.batteryTenths,thermal=snapshot.thermalStatus;
         boolean workerOk=worker!=null && worker.isAlive();
+        String deviceInfo=localHardware().toString();
         String payload=type+"|"+id+"|"+nonce+"|"+guestId+"|"+port+"|"+workerDigest+"|"+safe+
-            "|"+cpu+"|"+gpu+"|"+battery+"|"+thermal+"|"+workerOk;
+            "|"+cpu+"|"+gpu+"|"+battery+"|"+thermal+"|"+workerOk+"|"+deviceInfo;
         request.put("type",type).put("id",guestId).put("name",guestName)
             .put("nonce",nonce).put("port",port).put("build",workerDigest)
             .put("safe_ram_mib",safe).put("cpu_permille",cpu).put("gpu_permille",gpu)
             .put("battery_tenths",battery).put("thermal_status",thermal).put("worker_ok",workerOk)
+            .put("device_info",deviceInfo)
             .put("mac",SecureRpcTransport.hmacHex(secret,payload));
         try(Socket s=new Socket()){
             s.connect(new java.net.InetSocketAddress(hostIp,CONTROL_PORT),4000);
@@ -442,9 +547,12 @@ public final class CoopSession {
             writer.write(request.toString()+"\n");writer.flush();
             JSONObject result=new JSONObject(boundedLine(new BufferedReader(new InputStreamReader(s.getInputStream(),StandardCharsets.UTF_8))));
             if(!result.optBoolean("ok"))throw new IOException(result.optString("error","호스트가 연결을 거부함"));
-            if(!id.equals(result.optString("session")) || !SecureRpcTransport.constantEquals(
-                result.optString("auth"),SecureRpcTransport.hmacHex(secret,"ACK|"+nonce+"|"+id)))
-                throw new IOException("호스트 인증에 실패했습니다");
+            String membership=result.optString("members_json","");
+            if(membership.length()>6000 || !id.equals(result.optString("session")) ||
+                !SecureRpcTransport.constantEquals(result.optString("auth"),
+                    SecureRpcTransport.hmacHex(secret,"ACK|"+nonce+"|"+id+"|"+membership)))
+                throw new IOException("호스트 인증 또는 기기 상태 서명 검증에 실패했습니다");
+            peerSnapshotJson=membership;
             return result;
         }
     }
@@ -551,7 +659,7 @@ public final class CoopSession {
         stopDiscovery();
         if(worker!=null){worker.destroy();worker=null;}
         for(Node n:nodes.values())if(n.relay!=null)n.relay.close();
-        nodes.clear();seenNonces.clear();hostIp="";
+        nodes.clear();seenNonces.clear();hostIp="";peerSnapshotJson="[]";
         releaseResources();
     }
 }

@@ -34,6 +34,11 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.AdapterView;
 import android.widget.Toast;
+import android.text.TextWatcher;
+import android.text.Editable;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Locale;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -54,18 +59,33 @@ import java.util.concurrent.Executors;
 /** Native Android UI. Local inference only; optional Google demo banners use the network. */
 public final class MainActivity extends Activity {
     private static final int PICK_GGUF = 701;
-    private static final int BG = Color.rgb(14, 16, 19);
-    private static final int CARD = Color.rgb(21, 23, 27);
-    private static final int FIELD = Color.rgb(38, 40, 45);
-    private static final int ACCENT = Color.rgb(242, 243, 245);
-    private static final int WHITE = Color.rgb(242, 244, 247);
-    private static final int MUTED = Color.rgb(158, 163, 171);
-    private static final int DANGER = Color.rgb(238, 119, 130);
+    // Palette values are mutable only during Activity creation/theme recreation.
+    private static int BG = Color.rgb(14, 16, 19);
+    private static int CARD = Color.rgb(21, 23, 27);
+    private static int FIELD = Color.rgb(38, 40, 45);
+    private static int ACCENT = Color.rgb(242, 243, 245);
+    private static int WHITE = Color.rgb(242, 244, 247);
+    private static int MUTED = Color.rgb(158, 163, 171);
+    private static int DANGER = Color.rgb(238, 119, 130);
+    private static int BUBBLE = Color.rgb(44,46,51);
+    private String uiTheme = "dark";
+    private float uiTextScale = 1.0f;
+    private int activeTab = 0;
+    private boolean showHud = true;
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newCachedThreadPool();
     private FrameLayout pages;
-    private LinearLayout chatPage, modelPage, serverPage;
+    private LinearLayout chatPage, modelPage, serverPage, diagnosticPage, nodeRows;
+    private TextView localConnectionStatus, connectionSessionStatus, modelListHeader;
+    private EditText modelFilter;
+    private Spinner familyFilter, quantizationFilter;
+    private String selectedModelFamily="전체 모델";
+    private String selectedQuantization="전체 양자화";
+    private final Map<String,String> modelMetadata = new HashMap<>();
+    private final Map<String,String> modelQuantization = new HashMap<>();
+    private final Map<String,Long> modelBytes = new HashMap<>();
+    private TextView suitabilitySummary;
     private DeviceProfiler.Profile deviceProfile;
     private ComputeProfiler.Report computeReport;
     private TextView computeSummary;
@@ -94,6 +114,7 @@ public final class MainActivity extends Activity {
                     lastHud=reading;
                     if(performanceHudView!=null&&!isFinishing())
                         performanceHudView.setText(reading.compact());
+                    if(activeTab==3&&!isFinishing())refreshDiagnosticViews();
                 });
             });
             ui.postDelayed(this,2500);
@@ -127,11 +148,39 @@ public final class MainActivity extends Activity {
         }
     };
 
+    private void applyUiPreferences() {
+        uiTheme=getPreferences(MODE_PRIVATE).getString("ui_theme","dark");
+        String font=getPreferences(MODE_PRIVATE).getString("font_size","normal");
+        uiTextScale="large".equals(font)?1.13f:"extra".equals(font)?1.26f:1.0f;
+        showHud=getPreferences(MODE_PRIVATE).getBoolean("show_hud",true);
+        if("mono_light".equals(uiTheme)) {
+            BG=Color.rgb(250,250,250); CARD=Color.WHITE; FIELD=Color.rgb(234,234,234);
+            ACCENT=Color.rgb(23,23,23); WHITE=Color.rgb(24,24,24);
+            MUTED=Color.rgb(86,86,86); DANGER=Color.rgb(155,35,35);
+            BUBBLE=Color.rgb(231,231,231);
+        } else if("mono_dark".equals(uiTheme)) {
+            BG=Color.BLACK;CARD=Color.rgb(12,12,12);FIELD=Color.rgb(32,32,32);
+            ACCENT=Color.WHITE;WHITE=Color.WHITE;MUTED=Color.rgb(182,182,182);
+            DANGER=Color.rgb(242,140,140);BUBBLE=Color.rgb(38,38,38);
+        } else {
+            BG=Color.rgb(14,16,19);CARD=Color.rgb(21,23,27);FIELD=Color.rgb(38,40,45);
+            ACCENT=Color.rgb(242,243,245);WHITE=Color.rgb(242,244,247);
+            MUTED=Color.rgb(158,163,171);DANGER=Color.rgb(238,119,130);
+            BUBBLE=Color.rgb(44,46,51);
+        }
+    }
     @Override public void onCreate(Bundle state) {
+        String wanted=getPreferences(MODE_PRIVATE).getString("ui_theme","dark");
+        setTheme("mono_light".equals(wanted)?
+            android.R.style.Theme_Material_Light_NoActionBar:
+            android.R.style.Theme_Material_NoActionBar);
         super.onCreate(state);
+        applyUiPreferences();
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
-        getWindow().getDecorView().setSystemUiVisibility(0);
+        getWindow().getDecorView().setSystemUiVisibility(
+            "mono_light".equals(uiTheme)?
+                (View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR):0);
         deviceProfile = DeviceProfiler.scan(this);
         computeReport = ComputeProfiler.scan(this);
         ads = new AdSupport(this);
@@ -139,11 +188,9 @@ public final class MainActivity extends Activity {
         createUi();
         loadHistory();
         renderHistory();
-        showTab(0);
-        if (Build.VERSION.SDK_INT >= 33 &&
-            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 3);
-        }
+        showTab(state==null?0:state.getInt("activeTab",0));
+        if(state!=null&&chatInput!=null)
+            chatInput.setText(state.getString("draftMessage",""));
         startServer();
         ui.postDelayed(this::refreshModels, 2000);
         if (!getPreferences(MODE_PRIVATE).getBoolean("welcome_v2_seen", false)) {
@@ -153,6 +200,11 @@ public final class MainActivity extends Activity {
         }
     }
 
+    @Override protected void onSaveInstanceState(Bundle out) {
+        super.onSaveInstanceState(out);
+        out.putInt("activeTab",activeTab);
+        if(chatInput!=null)out.putString("draftMessage",chatInput.getText().toString());
+    }
     @Override protected void onResume() {
         super.onResume();
         ui.post(poll);
@@ -187,21 +239,22 @@ public final class MainActivity extends Activity {
         GradientDrawable g = new GradientDrawable(); g.setColor(color); g.setCornerRadius(dp(radius)); return g;
     }
     private TextView text(String value, int size, int color, boolean bold) {
-        TextView t = new TextView(this); t.setText(value); t.setTextSize(size); t.setTextColor(color);
+        TextView t = new TextView(this); t.setText(value);
+        t.setTextSize(size*uiTextScale); t.setTextColor(color);
         if (bold) t.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         t.setGravity(Gravity.CENTER_VERTICAL); return t;
     }
     private EditText edit(String hint, String value, boolean multiline) {
         EditText e = new EditText(this); e.setTextColor(WHITE); e.setHintTextColor(MUTED);
-        e.setTextSize(14); e.setHint(hint); e.setText(value); e.setPadding(dp(12), dp(9), dp(12), dp(9));
+        e.setTextSize(15*uiTextScale); e.setHint(hint); e.setText(value); e.setPadding(dp(12), dp(9), dp(12), dp(9));
         e.setBackground(bg(FIELD, 12)); e.setSingleLine(!multiline);
         if (multiline) { e.setMinLines(2); e.setMaxLines(4); }
         return e;
     }
     private Button button(String label, boolean primary) {
         Button b = new Button(this); b.setText(label); b.setAllCaps(false);
-        b.setTextSize(13); b.setTextColor(primary ? BG : WHITE);
-        b.setPadding(dp(11), dp(4), dp(11), dp(4)); b.setMinHeight(0); b.setMinimumHeight(0);
+        b.setTextSize(13*uiTextScale); b.setTextColor(primary ? BG : WHITE);
+        b.setPadding(dp(11), dp(6), dp(11), dp(6)); b.setMinHeight(dp(44)); b.setMinimumHeight(dp(44));
         b.setBackground(bg(primary ? ACCENT : FIELD, 10)); return b;
     }
     private void margin(View v, LinearLayout host, int top, int bottom) {
@@ -234,6 +287,7 @@ public final class MainActivity extends Activity {
         performanceHudView.setPadding(dp(10),dp(8),dp(10),dp(8));
         performanceHudView.setBackground(bg(FIELD,9));
         margin(performanceHudView,root,0,5);
+        performanceHudView.setVisibility(showHud?View.VISIBLE:View.GONE);
         performanceHudView.setOnClickListener(v->{
             PerformanceHud.Sample sample=lastHud;
             String status=sample==null?"기기 성능 지표 확인 중":sample.detail();
@@ -245,16 +299,26 @@ public final class MainActivity extends Activity {
         pages = new FrameLayout(this);
         LinearLayout.LayoutParams contentParams = new LinearLayout.LayoutParams(-1, 0, 1);
         root.addView(pages, contentParams);
-        createChatPage(); createModelPage(); createServerPage();
-        pages.addView(chatPage); pages.addView(modelPage); pages.addView(serverPage);
+        createChatPage(); createModelPage(); createServerPage(); createDiagnosticsPage();
+        pages.addView(chatPage); pages.addView(modelPage);
+        pages.addView(serverPage); pages.addView(diagnosticPage);
         LinearLayout tabs = row();
-        navButtons = new Button[]{button("채팅", true), button("모델 받기", false), button("설정", false)};
-        for (int i = 0; i < navButtons.length; i++) {
-            final int page = i;
-            rowItem(tabs, navButtons[i], 1, i < 2 ? 5 : 0);
-            navButtons[i].setOnClickListener(v -> showTab(page));
+        tabs.setPadding(dp(2),dp(4),dp(2),dp(3));
+        tabs.setBackground(bg(CARD,16));
+        navButtons = new Button[]{
+            button("대화", true), button("모델 선택", false),
+            button("설정", false), button("기기/연결\n진단", false)};
+        for(int i=0;i<navButtons.length;i++){
+            final int page=i;
+            Button tab=navButtons[i];tab.setTextSize((i==3?11:12)*uiTextScale);
+            tab.setMinHeight(dp(54));tab.setMinimumHeight(dp(54));
+            tab.setGravity(Gravity.CENTER);
+            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(56),1);
+            if(i<3)p.rightMargin=dp(4);
+            tabs.addView(tab,p);
+            tab.setOnClickListener(v->showTab(page));
         }
-        margin(tabs, root, 8, 2);
+        margin(tabs,root,7,1);
     }
 
     private void createChatPage() {
@@ -306,81 +370,86 @@ public final class MainActivity extends Activity {
     }
 
     private void createModelPage() {
-        modelPage = column();
-        ScrollView scroll = new ScrollView(this); scroll.setFillViewport(true);
-        LinearLayout content = column(); content.setPadding(dp(2), dp(4), dp(2), dp(12));
-        scroll.addView(content); modelPage.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
-        margin(text("내 기기에 맞는 모델 선택", 20, WHITE, true), content, 3, 6);
-        deviceSummary = text(deviceProfile.description(), 12, WHITE, false);
-        deviceSummary.setPadding(dp(12), dp(12), dp(12), dp(12));
-        deviceSummary.setBackground(bg(CARD, 12));
-        margin(deviceSummary, content, 0, 9);
-        margin(text("CPU · GPU · NPU 연산 상태", 17, WHITE, true), content, 0, 7);
-        computeSummary = text(computeReport.description(), 12, WHITE, false);
-        computeSummary.setPadding(dp(12), dp(12), dp(12), dp(12));
-        computeSummary.setBackground(bg(CARD, 12));
-        margin(computeSummary, content, 0, 9);
-        Button scan = button("기기 다시 진단", false);
-        margin(scan, content, 0, 9);
-        scan.setOnClickListener(v -> {
-            deviceProfile = DeviceProfiler.scan(this);
-            computeReport = ComputeProfiler.scan(this);
-            deviceSummary.setText(deviceProfile.description());
-            computeSummary.setText(computeReport.description());
-            renderRecommendations();
+        modelPage=column();
+        ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);
+        LinearLayout content=column();content.setPadding(dp(4),dp(8),dp(4),dp(18));
+        scroll.addView(content);modelPage.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+
+        margin(text("모델 선택",23,WHITE,true),content,0,3);
+        margin(text("설치된 모델을 탭하면 바로 대화할 수 있습니다.",13,MUTED,false),content,0,10);
+        LinearLayout top=row();
+        modelListHeader=text("설치된 모델",17,WHITE,true);
+        rowItem(top,modelListHeader,1,5);
+        Button refresh=button("새로고침",false);rowItem(top,refresh,0,0);
+        refresh.setOnClickListener(v->refreshModels());
+        margin(top,content,0,7);
+        modelFilter=edit("설치된 모델 검색","",false);
+        margin(modelFilter,content,0,9);
+        modelFilter.addTextChangedListener(new TextWatcher(){
+            @Override public void beforeTextChanged(CharSequence s,int start,int count,int after){}
+            @Override public void onTextChanged(CharSequence s,int start,int before,int count){renderInstalledModels();}
+            @Override public void afterTextChanged(Editable s){}
         });
-        recommendationRows = column(); margin(recommendationRows, content, 0, 14);
-        margin(text("① 모델을 고르고  ② 다운로드  ③ 채팅", 13, ACCENT, true), content, 0, 10);
-        margin(text("모델 다운로드", 20, WHITE, true), content, 3, 5);
-        Button hfBrowse=button("Hugging Face 공개 GGUF 찾아보기",true);
-        margin(hfBrowse,content,0,8);
+        LinearLayout filterRow=row();
+        familyFilter=new Spinner(this);
+        familyFilter.setBackground(bg(FIELD,12));
+        familyFilter.setMinimumHeight(dp(46));
+        quantizationFilter=new Spinner(this);
+        quantizationFilter.setBackground(bg(FIELD,12));
+        quantizationFilter.setMinimumHeight(dp(46));
+        rowItem(filterRow,familyFilter,1,6);
+        rowItem(filterRow,quantizationFilter,1,0);
+        margin(filterRow,content,0,11);
+        margin(text("모델 계열  ·  양자화 등급/버전",11,MUTED,false),content,0,9);
+        populateModelFilters();
+        modelRows=column();margin(modelRows,content,0,14);
+        margin(text("새 모델 다운로드",18,WHITE,true),content,0,6);
+        margin(text("① 모델 선택  →  ② 다운로드  →  ③ 대화 시작",13,MUTED,false),content,0,8);
+        LinearLayout downloadButtons=row();
+        Button hfBrowse=button("Hugging Face 검색",true);
+        Button importButton=button("GGUF 가져오기",false);
+        rowItem(downloadButtons,hfBrowse,1,6);rowItem(downloadButtons,importButton,1,0);
+        margin(downloadButtons,content,0,8);
         hfBrowse.setOnClickListener(v->{
-            if(chatBusy||pullBusy||benchmarkBusy||HuggingFaceCatalog.isDownloading()){toast("진행 중인 작업을 마친 뒤 이용하세요");return;}
+            if(chatBusy||pullBusy||benchmarkBusy||HuggingFaceCatalog.isDownloading()){
+                toast("다른 작업이 종료된 뒤 이용하세요");return;
+            }
             HuggingFaceCatalog.open(this,this::refreshModels);
         });
-        margin(text("최초 다운로드에만 인터넷이 필요합니다. 이후 오프라인 실행됩니다.", 12, MUTED, false), content, 0, 9);
-        String recommendedDefault = "qwen2.5:0.5b";
-        for (DeviceProfiler.Recommendation rec : DeviceProfiler.recommend(deviceProfile)) {
-            if (rec.selectable) { recommendedDefault = rec.model; break; }
-        }
-        modelInput = edit("모델 선택 또는 직접 입력", recommendedDefault, false);
-        margin(modelInput, content, 0, 8);
-        LinearLayout pullRow = row(); pullButton = button("모델 다운로드", true); cancelPullButton = button("취소", false);
-        rowItem(pullRow, pullButton, 1, 7); rowItem(pullRow, cancelPullButton, 1, 0);
-        margin(pullRow, content, 0, 8);
-        cancelPullButton.setEnabled(false); cancelPullButton.setAlpha(0.5f);
-        pullButton.setOnClickListener(v -> pullModel());
-        cancelPullButton.setOnClickListener(v -> { pullCancelled = true; if (pullConnection != null) pullConnection.disconnect(); });
-        progressStatus = text("다운로드 전에 데이터 요금 안내를 확인합니다.", 12, MUTED, false);
-        margin(progressStatus, content, 0, 5);
-        downloadProgress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-        downloadProgress.setMax(100);
-        downloadProgress.setProgress(0);
-        downloadProgress.setVisibility(View.GONE);
-        margin(downloadProgress, content, 0, 8);
-        margin(text("광고" + (BuildConfig.DEBUG ? " · Google 테스트 배너" : ""), 11, MUTED, false), content, 0, 3);
-        downloadAdSlot = new FrameLayout(this);
-        margin(downloadAdSlot, content, 0, 4);
-        ads.register(downloadAdSlot, AdSupport.PLACEMENT_DOWNLOAD);
-        margin(text("광고는 네트워크 데이터를 사용하며 요금제에 따라 통신료가 발생할 수 있습니다.",
-            11, MUTED, false), content, 0, 16);
-        LinearLayout titleRow = row();
-        rowItem(titleRow, text("설치된 모델", 20, WHITE, true), 1, 0);
-        Button refresh = button("새로고침", false); rowItem(titleRow, refresh, 0, 0);
-        margin(titleRow, content, 0, 8);
-        refresh.setOnClickListener(v -> refreshModels());
-        modelRows = column(); margin(modelRows, content, 0, 12);
-        Button importButton = button("GGUF 파일 가져오기", false);
-        margin(importButton, content, 9, 6);
-        importButton.setOnClickListener(v -> {
-            if (!OllamaForegroundService.isRunning()) { toast("서버를 먼저 켜세요"); return; }
-            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        importButton.setOnClickListener(v->{
+            if(!OllamaForegroundService.isRunning()){toast("먼저 Ollama 서버를 켜세요");return;}
+            Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT);
             intent.addCategory(Intent.CATEGORY_OPENABLE);
-            intent.setType("*/*");
-            startActivityForResult(intent, PICK_GGUF);
+            intent.setType("*/*");startActivityForResult(intent,PICK_GGUF);
         });
-        margin(text("GGUF를 선택하면 앱 내부로 복사한 뒤 Ollama에 등록합니다.\n등록 성공 시 임시 복사본은 삭제됩니다.",
-            12, MUTED, false), content, 0, 8);
+        String recommendedDefault="qwen2.5:0.5b";
+        for(DeviceProfiler.Recommendation rec:DeviceProfiler.recommend(deviceProfile)){
+            if(rec.selectable){recommendedDefault=rec.model;break;}
+        }
+        modelInput=edit("모델명 예: qwen2.5:1.5b",recommendedDefault,false);
+        margin(modelInput,content,0,7);
+        LinearLayout pullRow=row();
+        pullButton=button("모델 다운로드",true);cancelPullButton=button("취소",false);
+        rowItem(pullRow,pullButton,1,6);rowItem(pullRow,cancelPullButton,0,0);
+        margin(pullRow,content,0,8);
+        cancelPullButton.setEnabled(false);cancelPullButton.setAlpha(0.55f);
+        pullButton.setOnClickListener(v->pullModel());
+        cancelPullButton.setOnClickListener(v->{
+            pullCancelled=true;if(pullConnection!=null)pullConnection.disconnect();
+        });
+        progressStatus=text("다운로드 전 데이터 요금 안내가 표시됩니다.",12,MUTED,false);
+        margin(progressStatus,content,0,5);
+        downloadProgress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
+        downloadProgress.setMax(100);downloadProgress.setProgress(0);
+        downloadProgress.setVisibility(View.GONE);
+        margin(downloadProgress,content,0,8);
+        margin(text("광고"+(BuildConfig.DEBUG?" · 테스트":""),11,MUTED,false),content,0,3);
+        downloadAdSlot=new FrameLayout(this);margin(downloadAdSlot,content,0,4);
+        ads.register(downloadAdSlot,AdSupport.PLACEMENT_DOWNLOAD);
+        margin(text("모델 다운로드와 광고에는 데이터가 사용되며 통신료가 발생할 수 있습니다.",
+            11,MUTED,false),content,0,15);
+        margin(text("이 기기에 추천하는 모델",18,WHITE,true),content,0,6);
+        recommendationRows=column();margin(recommendationRows,content,0,8);
         renderRecommendations();
     }
 
@@ -392,60 +461,251 @@ public final class MainActivity extends Activity {
     void unregisterHfDownloadAd(FrameLayout slot) { ads.detach(slot); }
 
     private void createServerPage() {
-        serverPage = column();
-        margin(text("설정 · 로컬 엔진", 20, WHITE, true), serverPage, 4, 8);
-        Button compute = button("CPU / GPU / NPU 실행 장치", false);
-        margin(compute, serverPage, 0, 10);
-        compute.setOnClickListener(v -> showComputeChoiceDialog());
-        Button coop = button("협력 추론 · 같은 Wi-Fi 기기 연결", true);
-        margin(coop, serverPage, 0, 8);
-        coop.setOnClickListener(v -> CoopUi.show(this));
-        Button benchmark=button("모델 최적화 벤치마크 · tok/s 비교",true);
-        margin(benchmark,serverPage,0,8);
-        benchmark.setOnClickListener(v->{
-            if(chatBusy||pullBusy||diagnosticBusy||benchmarkBusy||HuggingFaceCatalog.isDownloading()){
-                toast("진행 중인 작업을 마친 뒤 측정하세요");return;
-            }
-            ModelBenchmark.show(this,currentModel,
-                ()->benchmarkBusy=true,()->benchmarkBusy=false);
+        serverPage=column();
+        ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);
+        LinearLayout content=column();content.setPadding(dp(4),dp(8),dp(4),dp(20));
+        scroll.addView(content);
+        serverPage.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        margin(text("설정",23,WHITE,true),content,0,5);
+        margin(text("앱 화면과 추론 방식을 원하는 대로 설정하세요.",13,MUTED,false),
+            content,0,15);
+
+        margin(text("화면 및 가독성",17,WHITE,true),content,0,8);
+        String currentTheme="mono_light".equals(uiTheme)?"흑백 라이트"
+                :"mono_dark".equals(uiTheme)?"흑백 다크":"기본 다크";
+        Button theme=button("화면 스타일  ·  "+currentTheme,false);
+        margin(theme,content,0,8);
+        theme.setOnClickListener(v->new AlertDialog.Builder(this)
+            .setTitle("화면 스타일")
+            .setSingleChoiceItems(new String[]{"기본 다크","흑백 라이트 (흰 배경)","흑백 다크 (검정 배경)"},
+                "mono_light".equals(uiTheme)?1:"mono_dark".equals(uiTheme)?2:0,
+                (dialog,which)->{
+                    dialog.dismiss();
+                    applySetting("ui_theme",which==1?"mono_light":which==2?"mono_dark":"dark");
+                }).setNegativeButton("취소",null).show());
+
+        String f=getPreferences(MODE_PRIVATE).getString("font_size","normal");
+        String sizeLabel="large".equals(f)?"크게":"extra".equals(f)?"매우 크게":"기본";
+        Button typeSize=button("글자 크기  ·  "+sizeLabel,false);
+        margin(typeSize,content,0,8);
+        typeSize.setOnClickListener(v->new AlertDialog.Builder(this)
+            .setTitle("화면 글자 크기")
+            .setSingleChoiceItems(new String[]{"기본 (100%)","크게 (113%)","매우 크게 (126%)"},
+                "large".equals(f)?1:"extra".equals(f)?2:0,
+                (dialog,which)->{
+                    dialog.dismiss();
+                    applySetting("font_size",which==1?"large":which==2?"extra":"normal");
+                }).setNegativeButton("취소",null).show());
+
+        Button hud=button("실시간 성능 HUD  ·  "+(showHud?"표시":"숨김"),false);
+        margin(hud,content,0,14);
+        hud.setOnClickListener(v->{
+            if(isUiBusy()){toast("진행 중인 작업이 끝난 뒤 변경하세요");return;}
+            getPreferences(MODE_PRIVATE).edit().putBoolean("show_hud",!showHud).apply();
+            recreate();
         });
-        Button test = button("CPU · GPU 실제 연산 검사", true);
-        margin(test, serverPage, 0, 7);
-        diagnosticStatus = text("설치된 모델을 실제 실행해 CPU/GPU 결과를 확인합니다. NPU는 미지원입니다.", 12, MUTED, false);
-        margin(diagnosticStatus, serverPage, 0, 8);
-        test.setOnClickListener(v -> beginHardwareSelfTest());
-        Button privacy = button("광고 개인정보 설정", false);
-        margin(privacy, serverPage, 0, 6);
-        privacy.setOnClickListener(v -> ads.showPrivacyChoices());
-        margin(text("광고에는 인터넷 연결이 필요하고 데이터 요금이 발생할 수 있습니다. " +
-            (BuildConfig.DEBUG ? "현재 개발용 앱은 Google 제공 테스트 광고로 수익이 발생하지 않습니다." :
-                "운영 광고는 동의 상태와 네트워크에 따라 표시되지 않을 수도 있습니다."),
-            12, MUTED, false), serverPage, 0, 9);
-        Button license = button("오픈소스·상표 안내", false);
-        margin(license, serverPage, 0, 10);
-        license.setOnClickListener(v -> new AlertDialog.Builder(this)
-            .setTitle("오픈소스 · 비공식 클라이언트")
-            .setMessage("AI in Pocket - Client for Ollama는 Ollama 공식 제품이 아니며 Ollama와 제휴하지 않습니다. " +
-                "Ollama 명칭은 호환 소프트웨어의 출처 설명에만 사용합니다. " +
-                "앱의 독자 코드: MIT-0. Ollama 및 llama.cpp의 라이선스와 모델별 라이선스는 각각 적용됩니다. " +
-                "모델 다운로드 전 해당 모델의 사용 조건도 확인하세요.")
-            .setPositiveButton("확인", null).show());
-        serverStatus = text("상태 확인 중", 15, ACCENT, true); margin(serverStatus, serverPage, 0, 8);
-        LinearLayout controls = row();
-        Button start = button("서버 시작", true), stop = button("서버 종료", false);
-        rowItem(controls, start, 1, 7); rowItem(controls, stop, 1, 0);
-        margin(controls, serverPage, 0, 12);
-        start.setOnClickListener(v -> startServer());
-        stop.setOnClickListener(v -> stopServer());
-        margin(text("모델 저장: 앱 전용 저장소 · 외부 네트워크 공개 없음\n" +
-            "CPU: Ollama / GPU: 별도 Vulkan llama.cpp 엔진 (탑재 시)\n" +
-            "NPU: 지원 드라이버 검색만 수행, 전용 추론 엔진 미포함\n" +
-            "GPU 추론 불가 시 실제 연산 장치를 CPU로 전환합니다.",
-            12, MUTED, false), serverPage, 1, 17);
-        margin(text("실행 로그", 16, WHITE, true), serverPage, 0, 6);
-        ScrollView logScroll = new ScrollView(this); logScroll.setBackground(bg(CARD, 12));
-        logText = text("로딩 중", 11, MUTED, false); logText.setPadding(dp(12), dp(12), dp(12), dp(12));
-        logScroll.addView(logText); serverPage.addView(logScroll, new LinearLayout.LayoutParams(-1, 0, 1));
+
+        margin(text("로컬 추론",17,WHITE,true),content,0,8);
+        Button compute=button("추론 장치 선택  ·  CPU / GPU / 협력",false);
+        margin(compute,content,0,8);
+        compute.setOnClickListener(v->showComputeChoiceDialog());
+        serverStatus=text("로컬 서버 상태 확인 중",13,MUTED,true);
+        margin(serverStatus,content,0,8);
+        LinearLayout controls=row();
+        Button start=button("서버 시작",true),stop=button("서버 종료",false);
+        rowItem(controls,start,1,7);rowItem(controls,stop,1,0);
+        margin(controls,content,0,14);
+        start.setOnClickListener(v->startServer());
+        stop.setOnClickListener(v->stopServer());
+        margin(text("기본적으로 모델 추론은 기기 안에서 실행됩니다. " +
+            "협력 추론은 같은 Wi-Fi의 승인된 기기에만 연결하세요.",
+            12,MUTED,false),content,0,16);
+
+        margin(text("광고 및 개인정보",17,WHITE,true),content,0,8);
+        Button privacy=button("광고 개인정보 설정",false);
+        margin(privacy,content,0,7);
+        privacy.setOnClickListener(v->ads.showPrivacyChoices());
+        margin(text("광고와 모델 다운로드에는 인터넷 데이터가 필요하며 통신료가 " +
+            "발생할 수 있습니다. 개발용 APK에서는 테스트 광고만 표시합니다.",
+            12,MUTED,false),content,0,16);
+
+        margin(text("앱 정보",17,WHITE,true),content,0,8);
+        Button license=button("오픈소스 · 상표 및 모델 라이선스",false);
+        margin(license,content,0,5);
+        license.setOnClickListener(v->new AlertDialog.Builder(this)
+            .setTitle("오픈소스 및 비공식 클라이언트")
+            .setMessage("AI in Pocket - Client for Ollama는 Ollama 공식 앱이 아닙니다. " +
+                "앱 자체 코드는 MIT-0, Ollama/llama.cpp와 모델 가중치는 각자의 " +
+                "라이선스가 적용됩니다. 모델의 상업적 이용 가능 여부를 확인하세요.")
+            .setPositiveButton("닫기",null).show());
+        margin(text("AI in Pocket · 독립 안드로이드 클라이언트",12,MUTED,false),content,8,0);
+    }
+
+    private boolean isUiBusy(){
+        return chatBusy||pullBusy||diagnosticBusy||benchmarkBusy
+               ||HuggingFaceCatalog.isDownloading();
+    }
+
+    private void applySetting(String key,String value){
+        if(isUiBusy()){toast("진행 중인 작업이 끝난 뒤 변경하세요");return;}
+        getPreferences(MODE_PRIVATE).edit().putString(key,value).apply();
+        recreate(); // preserves active tab and draft via onSaveInstanceState.
+    }
+
+    private void createDiagnosticsPage(){
+        diagnosticPage=column();
+        ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);
+        LinearLayout content=column();content.setPadding(dp(4),dp(8),dp(4),dp(20));
+        scroll.addView(content);
+        diagnosticPage.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        margin(text("기기 / 연결 진단",23,WHITE,true),content,0,5);
+        margin(text("현재 기기와 같은 세션에 참가한 기기를 확인합니다.",13,MUTED,false),
+            content,0,12);
+
+        LinearLayout ownTitle=row();
+        rowItem(ownTitle,text("내 기기",18,WHITE,true),1,5);
+        Button refresh=button("진단 새로고침",false);
+        rowItem(ownTitle,refresh,0,0);
+        margin(ownTitle,content,0,7);
+        deviceSummary=text(deviceProfile.description(),13,WHITE,false);
+        deviceSummary.setPadding(dp(14),dp(13),dp(14),dp(13));
+        deviceSummary.setBackground(bg(CARD,14));
+        margin(deviceSummary,content,0,7);
+        margin(text("모델 구동 적합도",18,WHITE,true),content,0,7);
+        suitabilitySummary=text("설치 모델 확인 중…",13,WHITE,false);
+        suitabilitySummary.setPadding(dp(14),dp(13),dp(14),dp(13));
+        suitabilitySummary.setBackground(bg(CARD,14));
+        margin(suitabilitySummary,content,0,10);
+        computeSummary=text(computeReport.description(),12,MUTED,false);
+        computeSummary.setPadding(dp(14),dp(12),dp(14),dp(12));
+        computeSummary.setBackground(bg(CARD,14));
+        margin(computeSummary,content,0,8);
+        localConnectionStatus=text("연결 상태 확인 중",12,MUTED,false);
+        margin(localConnectionStatus,content,0,10);
+        refresh.setOnClickListener(v->{
+            deviceProfile=DeviceProfiler.scan(this);
+            computeReport=ComputeProfiler.scan(this);
+            refreshDiagnosticViews();
+            renderRecommendations();
+        });
+        margin(text("권한 안내",16,WHITE,true),content,0,6);
+        margin(text("기기 모델·CPU·RAM·저장공간 진단은 Android 시스템에서 " +
+            "공개하는 정보로 수행하며 별도 위치 권한은 요청하지 않습니다. " +
+            "일부 GPU 사용률·NPU 정보는 제조사 제한으로 조회할 수 없습니다. " +
+            "Wi-Fi 세션 검색에는 네트워크·멀티캐스트 권한을 사용합니다.",
+            12,MUTED,false),content,0,7);
+        Button notification=button("알림 권한 확인 / 요청",false);
+        margin(notification,content,0,14);
+        notification.setOnClickListener(v->{
+            if(Build.VERSION.SDK_INT<33){
+                toast("Android 12 이하: 알림 권한 별도 요청 불필요");return;
+            }
+            if(checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                    ==PackageManager.PERMISSION_GRANTED){
+                toast("알림 권한이 허용되어 있습니다.");return;
+            }
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},3);
+        });
+
+        margin(text("세션 연결 진단",18,WHITE,true),content,0,6);
+        connectionSessionStatus=text("협력 세션 상태 확인 중",13,WHITE,false);
+        connectionSessionStatus.setPadding(dp(14),dp(12),dp(14),dp(12));
+        connectionSessionStatus.setBackground(bg(CARD,14));
+        margin(connectionSessionStatus,content,0,8);
+        Button coop=button("호스트 세션 생성 · 주변 기기 참가",true);
+        margin(coop,content,0,9);
+        coop.setOnClickListener(v->CoopUi.show(this));
+        nodeRows=column();margin(nodeRows,content,0,10);
+
+        margin(text("성능 및 실제 추론 테스트",18,WHITE,true),content,5,7);
+        Button benchmark=button("모델 최적화 벤치마크 · tok/s",true);
+        margin(benchmark,content,0,7);
+        benchmark.setOnClickListener(v->{
+            if(isUiBusy()){toast("진행 중인 작업이 끝난 뒤 측정하세요");return;}
+            ModelBenchmark.show(this,currentModel,
+                ()->benchmarkBusy=true,()->{
+                    benchmarkBusy=false;
+                    renderInstalledModels();
+                    if(activeTab==3)refreshDiagnosticViews();
+                });
+        });
+        Button test=button("CPU · Vulkan GPU 실측 검사",false);
+        margin(test,content,0,6);
+        diagnosticStatus=text("설치 모델을 CPU/GPU에서 실행해 추론 성공 여부를 확인합니다.",
+            12,MUTED,false);
+        margin(diagnosticStatus,content,0,10);
+        test.setOnClickListener(v->beginHardwareSelfTest());
+
+        margin(text("엔진 실행 로그",16,WHITE,true),content,0,6);
+        logText=text("로그 로딩 중",11,MUTED,false);
+        logText.setTextIsSelectable(true);
+        logText.setPadding(dp(12),dp(10),dp(12),dp(10));
+        logText.setBackground(bg(CARD,12));
+        logText.setMaxLines(24);
+        margin(logText,content,0,6);
+        refreshDiagnosticViews();
+    }
+
+    private String networkDiagnostics(){
+        try {
+            android.net.ConnectivityManager manager=(android.net.ConnectivityManager)
+                    getSystemService(Context.CONNECTIVITY_SERVICE);
+            android.net.Network net=manager==null?null:manager.getActiveNetwork();
+            android.net.NetworkCapabilities cap=net==null?null:manager.getNetworkCapabilities(net);
+            if(cap==null)return "네트워크: 연결 확인 불가 · 세션 검색을 위해 Wi-Fi 연결 필요";
+            String kind=cap.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)
+                    ?"Wi-Fi":cap.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR)
+                    ?"모바일 데이터":"기타 네트워크";
+            boolean internet=cap.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED);
+            String ip=CoopSession.localIPv4();
+            return "네트워크: "+kind+(internet?" · 인터넷 연결 확인":" · 인터넷 확인 불가")
+                    +(ip.isEmpty()?"":"\n로컬 IPv4: "+ip);
+        }catch(Exception ex){return "네트워크: 시스템 정보 접근 제한";}
+    }
+
+    private void refreshDiagnosticViews(){
+        if(deviceSummary==null||computeSummary==null||connectionSessionStatus==null)return;
+        deviceSummary.setText(deviceProfile.description()+
+            (lastHud==null?"":"\n\n실시간: "+lastHud.detail()));
+        computeSummary.setText(computeReport.description());
+        if(suitabilitySummary!=null)suitabilitySummary.setText(suitabilityOverview());
+        if(localConnectionStatus!=null)localConnectionStatus.setText(networkDiagnostics());
+        CoopSession session=CoopSession.get(this);
+        connectionSessionStatus.setText(session.status());
+        if(nodeRows==null)return;
+        nodeRows.removeAllViews();
+        if("host".equals(session.role())&&!session.nodes().isEmpty()){
+            for(CoopSession.Node node:session.nodes()){
+                long age=Math.max(0,(android.os.SystemClock.elapsedRealtime()-node.lastSeen)/1000);
+                String state=(age<30&&node.workerOk)?"연결 정상":"연결 상태 확인 필요";
+                String info=node.name+"  ·  "+state+
+                    "\n기기: "+node.deviceModel+" · Android API "+node.androidApi+
+                    "\n칩셋: "+node.chip+" · "+node.cpuCores+"코어 · "+node.abi+
+                    "\nRAM "+node.totalRamMiB+" MiB / 안전 사용 가능 "+node.safeRamMiB+
+                    " MiB / 저장공간 여유 "+node.freeStorageMiB+" MiB"+
+                    "\nCPU "+(node.cpuPermille<0?"조회 불가":(node.cpuPermille/10.0)+"%")+
+                    " · GPU "+(node.gpuPermille<0?"조회 불가":(node.gpuPermille/10.0)+"%")+
+                    " · Vulkan "+(node.vulkanCompute?"감지":"미확인")+
+                    " · NPU 후보 "+node.nnapiAccelerators+"개"+
+                    "\n배터리 "+(node.batteryTenths<0?"조회 불가":(node.batteryTenths/10.0)+"℃")+
+                    " · 열 상태 "+(node.thermalStatus<0?"조회 불가":node.thermalStatus)+
+                    " · RPC "+(node.workerOk?"실행":"중지")+
+                    "\n마지막 보고 "+age+"초 전";
+                TextView card=text(info,12,WHITE,false);
+                card.setPadding(dp(14),dp(12),dp(14),dp(12));
+                card.setBackground(bg(CARD,14));margin(card,nodeRows,0,8);
+            }
+        }else if("guest".equals(session.role())){
+            String summary=session.peerDiagnostics();
+            TextView text=text(summary,12,WHITE,false);
+            text.setPadding(dp(14),dp(12),dp(14),dp(12));
+            text.setBackground(bg(CARD,14));margin(text,nodeRows,0,7);
+        }else{
+            TextView none=text("참가 중인 보조 기기가 없습니다.\n동일 Wi-Fi에서 세션을 만들거나 참가하세요.",
+                    13,MUTED,false);
+            none.setPadding(dp(14),dp(14),dp(14),dp(14));
+            none.setBackground(bg(CARD,14));margin(none,nodeRows,0,5);
+        }
     }
 
     private void beginHardwareSelfTest() {
@@ -535,14 +795,17 @@ public final class MainActivity extends Activity {
     }
 
     private void showTab(int index) {
-        chatPage.setVisibility(index == 0 ? View.VISIBLE : View.GONE);
-        modelPage.setVisibility(index == 1 ? View.VISIBLE : View.GONE);
-        serverPage.setVisibility(index == 2 ? View.VISIBLE : View.GONE);
-        for (int i = 0; i < navButtons.length; i++) {
-            boolean selected = i == index;
-            navButtons[i].setBackground(bg(selected ? ACCENT : FIELD, 10));
-            navButtons[i].setTextColor(selected ? BG : WHITE);
+        activeTab=Math.max(0,Math.min(3,index));
+        chatPage.setVisibility(activeTab==0?View.VISIBLE:View.GONE);
+        modelPage.setVisibility(activeTab==1?View.VISIBLE:View.GONE);
+        serverPage.setVisibility(activeTab==2?View.VISIBLE:View.GONE);
+        diagnosticPage.setVisibility(activeTab==3?View.VISIBLE:View.GONE);
+        for(int i=0;i<navButtons.length;i++){
+            boolean selected=i==activeTab;
+            navButtons[i].setBackground(bg(selected?ACCENT:FIELD,12));
+            navButtons[i].setTextColor(selected?BG:WHITE);
         }
+        if(activeTab==3)refreshDiagnosticViews();
     }
 
     private void renderRecommendations() {
@@ -557,7 +820,10 @@ public final class MainActivity extends Activity {
             LinearLayout card = column();
             card.setPadding(dp(12), dp(10), dp(12), dp(10));
             card.setBackground(bg(CARD, 12));
-            margin(text(item.label(), 12, WHITE, false), card, 0, 5);
+            ModelPerformanceAdvisor.Result perf=advise(item.model,
+                item.downloadGb*1_000_000_000/(1024.0*1024.0*1024.0));
+            margin(text(item.label()+"\n적합도: "+perf.suitability+
+                " · "+perf.throughput,12,WHITE,false),card,0,5);
             Button select = button("이 모델 선택", item.category.equals("추천"));
             margin(select, card, 3, 0);
             select.setOnClickListener(v -> {
@@ -613,74 +879,302 @@ public final class MainActivity extends Activity {
         Intent intent = new Intent(this, OllamaForegroundService.class).setAction(OllamaForegroundService.ACTION_STOP);
         startService(intent);
     }
+    private static String installedSize(long bytes) {
+        if(bytes<=0)return "용량 미확인";
+        return String.format(Locale.KOREA,"%.2f GB",bytes/1_000_000_000.0);
+    }
+
     private void refreshModels() {
-        io.execute(() -> {
+        io.execute(()->{
             try {
-                JSONObject result = OllamaHttp.get("/api/tags");
-                JSONArray list = result.optJSONArray("models");
-                List<String> names = new ArrayList<>();
-                if (list != null) for (int i = 0; i < list.length(); i++) {
-                    String name = list.optJSONObject(i).optString("name", "");
-                    if (!name.isEmpty()) names.add(name);
+                JSONObject result=OllamaHttp.get("/api/tags");
+                JSONArray list=result.optJSONArray("models");
+                List<String> names=new ArrayList<>();
+                Map<String,String> descriptions=new HashMap<>();
+                Map<String,String> quantizations=new HashMap<>();
+                Map<String,Long> actualSizes=new HashMap<>();
+                if(list!=null)for(int i=0;i<list.length();i++){
+                    JSONObject item=list.optJSONObject(i);
+                    if(item==null)continue;
+                    String name=item.optString("name","");
+                    if(name.isEmpty())continue;
+                    names.add(name);
+                    JSONObject detail=item.optJSONObject("details");
+                    String p=detail==null?"":detail.optString("parameter_size","");
+                    String q=detail==null?"":detail.optString("quantization_level","");
+                    String family=detail==null?"":detail.optString("family","");
+                    quantizations.put(name, normalizeQuantization(q));
+                    StringBuilder meta=new StringBuilder(installedSize(item.optLong("size",0)));
+                    if(!p.isEmpty())meta.append("  ·  ").append(p);
+                    if(!q.isEmpty())meta.append("  ·  ").append(q);
+                    if(!family.isEmpty())meta.append("\n계열: ").append(family);
+                    descriptions.put(name,meta.toString());
+                    actualSizes.put(name,item.optLong("size",0));
                 }
-                ui.post(() -> updateModels(names));
-            } catch (Exception error) {
-                ui.post(() -> {
+                java.util.Collections.sort(names,String.CASE_INSENSITIVE_ORDER);
+                ui.post(()->updateModels(names,descriptions,quantizations,actualSizes));
+            }catch(Exception error){
+                ui.post(()->{
+                    if(modelRows==null)return;
                     modelRows.removeAllViews();
-                    margin(text("서버 응답 없음. 서버 탭에서 확인하세요.", 12, DANGER, false), modelRows, 8, 8);
+                    margin(text("로컬 서버 연결을 확인하세요. 설정에서 서버를 시작할 수 있습니다.",
+                        13,DANGER,false),modelRows,7,8);
                 });
             }
         });
     }
 
-    private void updateModels(List<String> names) {
-        ignoreSelection = true;
-        knownModels.clear(); knownModels.addAll(names);
-        List<String> shown = names.isEmpty() ? java.util.Collections.singletonList("설치된 모델 없음") : names;
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, shown);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+    private void updateModels(List<String> names,Map<String,String> descriptions,
+                              Map<String,String> quantizations,Map<String,Long> sizes) {
+        ignoreSelection=true;
+        knownModels.clear();knownModels.addAll(names);
+        modelMetadata.clear();modelMetadata.putAll(descriptions);
+        modelQuantization.clear();modelQuantization.putAll(quantizations);
+        modelBytes.clear();modelBytes.putAll(sizes);
+        List<String> shown=names.isEmpty()
+            ?java.util.Collections.singletonList("설치된 모델 없음"):names;
+        ArrayAdapter<String> adapter=new ArrayAdapter<String>(this,
+                android.R.layout.simple_spinner_item,shown){
+            @Override public View getView(int position,View convertView,ViewGroup parent){
+                TextView item=text(getItem(position),14,WHITE,true);
+                item.setPadding(dp(12),dp(7),dp(8),dp(7));
+                return item;
+            }
+            @Override public View getDropDownView(int position,View convertView,ViewGroup parent){
+                TextView item=text(getItem(position),14,WHITE,false);
+                item.setPadding(dp(14),dp(12),dp(10),dp(12));
+                item.setBackground(bg(CARD,0));return item;
+            }
+        };
         modelChooser.setAdapter(adapter);
-        int idx = names.indexOf(currentModel);
-        if (!names.isEmpty() && idx < 0) {
-            currentModel = names.get(0);
-            getPreferences(MODE_PRIVATE).edit().putString("model", currentModel).apply();
-            loadHistory(); renderHistory();
-            idx = 0;
+        int idx=names.indexOf(currentModel);
+        if(!names.isEmpty()&&idx<0){
+            currentModel=names.get(0);
+            getPreferences(MODE_PRIVATE).edit().putString("model",currentModel).apply();
+            loadHistory();renderHistory();idx=0;
         }
-        if (idx >= 0) modelChooser.setSelection(idx);
-        modelChooser.setEnabled(!names.isEmpty() && !chatBusy);
-        ignoreSelection = false;
+        if(idx>=0)modelChooser.setSelection(idx);
+        modelChooser.setEnabled(!names.isEmpty()&&!chatBusy);
+        ignoreSelection=false;
+        populateModelFilters();
+        renderInstalledModels();
+        if(activeTab==3)refreshDiagnosticViews();
+    }
+
+    private static String normalizeQuantization(String raw) {
+        return ModelListFilter.normalizeQuantization(raw);
+    }
+    private static String modelFamily(String name,String meta) {
+        return ModelListFilter.family(name,meta);
+    }
+    private static String quantizationBand(String quant) {
+        return ModelListFilter.band(quant);
+    }
+
+    private ArrayAdapter<String> makeFilterAdapter(List<String> options) {
+        ArrayAdapter<String> adapter=new ArrayAdapter<String>(this,
+                android.R.layout.simple_spinner_item,options){
+            @Override public View getView(int pos,View recycled,ViewGroup parent){
+                TextView view=text(getItem(pos),13,WHITE,true);
+                view.setPadding(dp(11),dp(8),dp(3),dp(8));
+                return view;
+            }
+            @Override public View getDropDownView(int pos,View recycled,ViewGroup parent){
+                TextView view=text(getItem(pos),13,WHITE,false);
+                view.setPadding(dp(14),dp(12),dp(10),dp(12));
+                view.setBackground(bg(CARD,0));
+                return view;
+            }
+        };
+        return adapter;
+    }
+
+    private void populateModelFilters(){
+        if(familyFilter==null||quantizationFilter==null)return;
+        List<String> families=new ArrayList<>();
+        families.add("전체 모델");
+        List<String> foundFamilies=new ArrayList<>();
+        List<String> quantized=new ArrayList<>();
+        for(String name:knownModels){
+            String family=modelFamily(name,modelMetadata.getOrDefault(name,""));
+            if(!foundFamilies.contains(family))foundFamilies.add(family);
+            String q=modelQuantization.getOrDefault(name,"미확인");
+            if(!quantized.contains(q))quantized.add(q);
+        }
+        String[] priorities={"Qwen","Llama","Gemma","DeepSeek","Mistral","Phi","GLM","GPT-OSS","기타"};
+        for(String family:priorities)if(foundFamilies.contains(family))families.add(family);
+        List<String> quantOptions=new ArrayList<>();
+        quantOptions.add("전체 양자화");
+        for(String band:new String[]{"Q2","Q3","Q4","Q5","Q6","Q8","F16/BF16","기타","미확인"}){
+            boolean exists=false;
+            for(String q:quantized)if(band.equals(quantizationBand(q)))exists=true;
+            if(exists)quantOptions.add(band+" 전체");
+        }
+        java.util.Collections.sort(quantized);
+        for(String q:quantized)if(!"미확인".equals(q))quantOptions.add(q);
+        int familyIndex=families.indexOf(selectedModelFamily);
+        int quantIndex=quantOptions.indexOf(selectedQuantization);
+        if(familyIndex<0){selectedModelFamily="전체 모델";familyIndex=0;}
+        if(quantIndex<0){selectedQuantization="전체 양자화";quantIndex=0;}
+        ignoreSelection=true;
+        familyFilter.setAdapter(makeFilterAdapter(families));
+        quantizationFilter.setAdapter(makeFilterAdapter(quantOptions));
+        familyFilter.setSelection(familyIndex);
+        quantizationFilter.setSelection(quantIndex);
+        ignoreSelection=false;
+        familyFilter.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
+            @Override public void onNothingSelected(AdapterView<?> parent){}
+            @Override public void onItemSelected(AdapterView<?> parent,View view,int position,long id){
+                if(ignoreSelection)return;
+                String next=String.valueOf(parent.getItemAtPosition(position));
+                if(!next.equals(selectedModelFamily)){selectedModelFamily=next;renderInstalledModels();}
+            }
+        });
+        quantizationFilter.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
+            @Override public void onNothingSelected(AdapterView<?> parent){}
+            @Override public void onItemSelected(AdapterView<?> parent,View view,int position,long id){
+                if(ignoreSelection)return;
+                String next=String.valueOf(parent.getItemAtPosition(position));
+                if(!next.equals(selectedQuantization)){selectedQuantization=next;renderInstalledModels();}
+            }
+        });
+    }
+
+    private boolean matchesQuantization(String quant) {
+        return ModelListFilter.matchesQuantization(selectedQuantization,quant);
+    }
+
+    private ModelPerformanceAdvisor.Result advise(String model,double sizeGiB) {
+        String ownReport=getSharedPreferences("ai_pocket_bench",MODE_PRIVATE)
+            .getString("model_"+model,"");
+        Double ownTps=ModelPerformanceAdvisor.measuredCpuTps(ownReport);
+        Double baselineTps=null;
+        double baselineSize=0;
+        if(ownTps==null){
+            for(String reference:knownModels){
+                if(reference.equals(model))continue;
+                long bytes=modelBytes.getOrDefault(reference,0L);
+                if(bytes<=0)continue;
+                String report=getSharedPreferences("ai_pocket_bench",MODE_PRIVATE)
+                    .getString("model_"+reference,"");
+                Double tps=ModelPerformanceAdvisor.measuredCpuTps(report);
+                if(tps!=null){
+                    baselineTps=tps;
+                    baselineSize=bytes/(1024.0*1024.0*1024.0);
+                    break;
+                }
+            }
+        }
+        return ModelPerformanceAdvisor.evaluate(
+            deviceProfile.arm64,deviceProfile.lowMemory,
+            deviceProfile.ramGb,deviceProfile.availableRamGb,
+            sizeGiB,ownTps,baselineTps,baselineSize);
+    }
+
+    private String suitabilityOverview(){
+        StringBuilder display=new StringBuilder();
+        display.append("기기: ").append(deviceProfile.device)
+           .append("  ·  RAM ").append(String.format(Locale.KOREA,"%.1f",deviceProfile.ramGb))
+           .append("GB · CPU ").append(deviceProfile.cores).append("코어\n");
+        if(!currentModel.isEmpty()&&modelBytes.containsKey(currentModel)){
+            long weight=modelBytes.getOrDefault(currentModel,0L);
+            ModelPerformanceAdvisor.Result current=advise(currentModel,
+                weight/(1024.0*1024.0*1024.0));
+            display.append("\n현재 모델: ").append(currentModel).append("\n")
+                .append(current.summary()).append("\n");
+        }else display.append("\n설치된 모델을 선택하면 적합도가 표시됩니다.\n");
+        display.append("\n추천 후보 (CPU 단독 기준):");
+        int shown=0;
+        for(DeviceProfiler.Recommendation recommended:DeviceProfiler.recommend(deviceProfile)){
+            if(!recommended.selectable)continue;
+            ModelPerformanceAdvisor.Result score=advise(recommended.model,
+                recommended.downloadGb*1_000_000_000/(1024.0*1024.0*1024.0));
+            display.append("\n • ").append(recommended.model).append(" · ")
+                .append(score.suitability).append(" · ").append(score.throughput);
+            if(++shown>=3)break;
+        }
+        if(shown==0)display.append("\n추천 가능한 모델이 없습니다.");
+        display.append("\n\n기기 스펙만으로 실제 tok/s를 정확히 알 수 없습니다."+
+            " 실측 전 숫자는 표시하지 않거나 비교 측정 기반 참고 추정치로 표기합니다.");
+        return display.toString();
+    }
+
+    private void renderInstalledModels() {
+        if(modelRows==null)return;
         modelRows.removeAllViews();
-        if (names.isEmpty()) {
-            margin(text("모델이 없습니다. 위에서 모델을 다운로드하세요.", 13, MUTED, false), modelRows, 10, 8);
-            return;
-        }
-        for (String name : names) {
-            LinearLayout entry = row(); entry.setPadding(dp(11), dp(7), dp(11), dp(7)); entry.setBackground(bg(CARD, 11));
-            TextView label = text(name, 14, WHITE, false); label.setSingleLine(false);
-            rowItem(entry, label, 1, 4);
-            Button use = button("선택", false); rowItem(entry, use, 0, 4);
-            Button delete = button("삭제", false); rowItem(entry, delete, 0, 0);
-            margin(entry, modelRows, 3, 3);
-            use.setOnClickListener(v -> {
-                if (chatBusy) { toast("생성 중에는 변경할 수 없습니다"); return; }
-                currentModel = name;
-                getPreferences(MODE_PRIVATE).edit().putString("model", currentModel).apply();
-                ignoreSelection = true; modelChooser.setSelection(knownModels.indexOf(name)); ignoreSelection = false;
-                loadHistory(); renderHistory(); showTab(0);
+        String filter=modelFilter==null?"":modelFilter.getText().toString().trim()
+             .toLowerCase(Locale.ROOT);
+        int matched=0;
+        for(String name:knownModels){
+            String meta=modelMetadata.getOrDefault(name,"로컬 모델");
+            String family=modelFamily(name,meta);
+            String quant=modelQuantization.getOrDefault(name,"미확인");
+            if(!ModelListFilter.matches(name,meta,quant,filter,
+                    selectedModelFamily,selectedQuantization))continue;
+            matched++;
+            boolean selected=name.equals(currentModel);
+            LinearLayout card=column();
+            card.setPadding(dp(14),dp(12),dp(14),dp(12));
+            card.setBackground(bg(CARD,14));
+            LinearLayout heading=row();
+            TextView title=text(name,16,WHITE,true);
+            title.setMaxLines(2);
+            rowItem(heading,title,1,4);
+            if(selected)rowItem(heading,text("● 선택됨",11,MUTED,true),0,0);
+            margin(heading,card,0,6);
+            ModelPerformanceAdvisor.Result perf=advise(name,
+                modelBytes.getOrDefault(name,0L)/(1024.0*1024.0*1024.0));
+            margin(text("계열: "+family+"   ·   양자화: "+quant+
+                "\n"+meta+"\n적합도: "+perf.suitability+"   ·   "+perf.throughput,
+                12,MUTED,false),card,0,8);
+            LinearLayout actions=row();
+            Button use=button(selected?"대화 계속":"선택하고 대화",selected);
+            Button delete=button("삭제",false);
+            rowItem(actions,use,1,7);rowItem(actions,delete,0,0);
+            margin(actions,card,0,0);
+            margin(card,modelRows,0,7);
+            use.setOnClickListener(v->{
+                if(chatBusy||benchmarkBusy||diagnosticBusy) {
+                    toast("진행 중인 작업을 끝낸 뒤 모델을 바꾸세요");return;
+                }
+                if(!selected)selectModel(name);
+                showTab(0);
             });
-            delete.setOnClickListener(v -> new AlertDialog.Builder(this)
-                .setTitle("모델 삭제").setMessage(name + " 파일을 기기에서 삭제할까요?")
-                .setNegativeButton("취소", null).setPositiveButton("삭제", (d, w) -> {
-                    io.execute(() -> {
-                        try {
-                            JSONObject body = new JSONObject(); body.put("model", name);
-                            OllamaHttp.post("/api/delete", body, "DELETE");
-                            ui.post(() -> { toast("삭제 완료"); refreshModels(); });
-                        } catch (Exception ex) { ui.post(() -> toast("삭제 실패: " + ex.getMessage())); }
-                    });
-                }).show());
+            delete.setOnClickListener(v->new AlertDialog.Builder(this)
+                .setTitle("모델 삭제")
+                .setMessage(name+" 모델 파일을 이 기기에서 삭제할까요?")
+                .setNegativeButton("취소",null)
+                .setPositiveButton("삭제",(d,w)->io.execute(()->{
+                    try {
+                        JSONObject body=new JSONObject();body.put("model",name);
+                        OllamaHttp.post("/api/delete",body,"DELETE");
+                        ui.post(()->{toast("모델 삭제 완료");refreshModels();});
+                    }catch(Exception ex){
+                        ui.post(()->toast("삭제 실패: "+ex.getMessage()));
+                    }
+                })).show());
         }
+        if(modelListHeader!=null)
+            modelListHeader.setText("설치 모델  "+knownModels.size()+"개  ·  표시 "+matched+"개");
+        if(matched==0) {
+            String hint=knownModels.isEmpty()?"모델이 없습니다.\n아래에서 모델을 다운로드하세요."
+                :"조건에 일치하는 모델이 없습니다. 검색어 또는 필터를 변경하세요.";
+            TextView empty=text(hint,14,MUTED,false);
+            empty.setPadding(dp(14),dp(18),dp(14),dp(18));
+            empty.setBackground(bg(CARD,14));
+            margin(empty,modelRows,0,8);
+        }
+    }
+
+    private void selectModel(String name) {
+        if(!knownModels.contains(name))return;
+        currentModel=name;
+        getPreferences(MODE_PRIVATE).edit().putString("model",name).apply();
+        ignoreSelection=true;
+        if(modelChooser!=null)modelChooser.setSelection(knownModels.indexOf(name));
+        ignoreSelection=false;
+        loadHistory();renderHistory();renderInstalledModels();
+        if(activeTab==3)refreshDiagnosticViews();
     }
 
     private void pullModel() {
@@ -868,7 +1362,7 @@ public final class MainActivity extends Activity {
         TextView t = text((user ? "" : "AI in Pocket\n") + content, 14, WHITE, false);
         t.setPadding(dp(12), dp(12), dp(12), dp(12));
         if (user) {
-            t.setBackground(bg(Color.rgb(44, 46, 51), 17));
+            t.setBackground(bg(BUBBLE,17));
         } else {
             t.setBackgroundColor(BG);
         }

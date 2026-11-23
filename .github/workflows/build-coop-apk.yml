@@ -20,6 +20,10 @@ on:
       - 'tests/CoopMemoryPlannerTest.java'
       - 'tests/BenchmarkStatsTest.java'
       - 'tests/PerformanceHudMetricsTest.java'
+      - 'tests/ModelListFilterTest.java'
+      - 'tests/ModelPerformanceAdvisorTest.java'
+      - 'app/src/main/java/com/ollamapocket/app/ModelListFilter.java'
+      - 'app/src/main/java/com/ollamapocket/app/ModelPerformanceAdvisor.java'
       - 'app/src/main/java/com/ollamapocket/app/ModelBenchmark.java'
       - 'app/src/main/java/com/ollamapocket/app/HuggingFaceCatalog.java'
       - 'app/src/main/java/com/ollamapocket/app/PerformanceHud*.java'
@@ -59,6 +63,15 @@ jobs:
             tests/PerformanceHudMetricsTest.java
           java -cp /tmp/coop-tests BenchmarkStatsTest
           java -cp /tmp/coop-tests PerformanceHudMetricsTest
+      - name: Test model family quantization and performance suitability
+        run: |
+          javac -d /tmp/coop-tests \
+            app/src/main/java/com/ollamapocket/app/ModelListFilter.java \
+            tests/ModelListFilterTest.java \
+            app/src/main/java/com/ollamapocket/app/ModelPerformanceAdvisor.java \
+            tests/ModelPerformanceAdvisorTest.java
+          java -cp /tmp/coop-tests ModelListFilterTest
+          java -cp /tmp/coop-tests ModelPerformanceAdvisorTest
 
   cooperative-apk:
     runs-on: ubuntu-24.04
@@ -153,13 +166,13 @@ jobs:
           unzip -l "$apk" | grep -E 'res/(mipmap|drawable)' >/dev/null
           sha256sum "$apk"
           echo "## Build-only verification" >> "$GITHUB_STEP_SUMMARY"
-          echo "Java, secure relay, safe RAM, benchmark and HUD unit tests passed. Android hardware inference and HF downloads are not validated on devices." >> "$GITHUB_STEP_SUMMARY"
+          echo "Java, encryption, safe RAM, benchmark, HUD, model filtering and suitability unit tests passed. Android hardware inference and model downloads are not validated on devices." >> "$GITHUB_STEP_SUMMARY"
       - name: Publish installation artifact
         shell: bash
         run: |
           mkdir -p dist
           cp app/build/outputs/apk/debug/app-debug.apk \
-            dist/AI-in-Pocket-v0.9.2-Llama-Icon-ARM64.apk
+            dist/AI-in-Pocket-v0.9.3-UI-Diagnostics-ARM64.apk
           cp signature-report.txt dist/signature-report.txt
       - name: Make official Android apksigner available for offline stable re-signing
         shell: bash

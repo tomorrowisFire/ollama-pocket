@@ -14,6 +14,11 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
+import android.widget.Spinner;
+import android.widget.ArrayAdapter;
+import android.widget.AdapterView;
+import android.text.TextWatcher;
+import android.text.Editable;
 import android.widget.TextView;
 
 import org.json.JSONArray;
@@ -159,6 +164,20 @@ public final class HuggingFaceCatalog {
         EditText query=new EditText(activity);
         query.setSingleLine(true);query.setHint("모델 검색: Qwen, Gemma 등");query.setText("Qwen GGUF");
         add(root,query);
+        add(root,label(activity,"주요 모델 계열"));
+        Spinner family=new Spinner(activity);
+        String[] families={"전체·직접 검색","Qwen","Llama","Gemma","DeepSeek","Mistral","Phi","GLM","GPT-OSS"};
+        ArrayAdapter<String> familiesAdapter=new ArrayAdapter<>(activity,
+            android.R.layout.simple_spinner_item,families);
+        familiesAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        family.setAdapter(familiesAdapter);
+        add(root,family);
+        family.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
+            @Override public void onNothingSelected(AdapterView<?> parent){}
+            @Override public void onItemSelected(AdapterView<?> parent,View view,int pos,long id){
+                if(pos>0)query.setText(families[pos]+" GGUF");
+            }
+        });
         Button search=new Button(activity);search.setAllCaps(false);search.setText("모델 찾기");
         add(root,search);
         ScrollView scroller=new ScrollView(activity);
@@ -244,6 +263,18 @@ public final class HuggingFaceCatalog {
             }catch(Exception e){onUi(()->{loading.dismiss();fail("파일 목록 실패: "+e.getMessage());});}
         });
     }
+    private static String ggufQuantization(String path) {
+        java.util.regex.Matcher match=java.util.regex.Pattern.compile(
+                "(?i)(?:^|[^A-Za-z0-9])(Q[2-8](?:_[A-Z0-9]+){0,3}|BF16|F16)(?:[^A-Za-z0-9]|$)")
+                .matcher(path);
+        return match.find()?match.group(1).toUpperCase(Locale.ROOT):"미확인";
+    }
+    private static String quantBand(String value) {
+        if(value.startsWith("Q")&&value.length()>1&&Character.isDigit(value.charAt(1)))
+            return value.substring(0,2);
+        if("BF16".equals(value)||"F16".equals(value))return "F16/BF16";
+        return value;
+    }
     private void showFileOptions(Model model,String license,List<Weight> files){
         LinearLayout content=panel(activity);
         add(content,label(activity,"저장소: "+model.id+"\n라이선스: "+license+
@@ -253,22 +284,66 @@ public final class HuggingFaceCatalog {
         add(content,card);
         card.setOnClickListener(v->activity.startActivity(new Intent(Intent.ACTION_VIEW,
             Uri.parse(BASE+"/"+model.id))));
+        add(content,label(activity,"파일 양자화 · 정확한 Q4_K_M 등 버전 선택"));
+        Spinner quant=new Spinner(activity);
+        List<String> options=new ArrayList<>();
+        options.add("전체 양자화");
+        List<String> variants=new ArrayList<>();
+        for(Weight w:files){
+            String q=ggufQuantization(w.path);
+            if(!variants.contains(q))variants.add(q);
+        }
+        for(String band:new String[]{"Q2","Q3","Q4","Q5","Q6","Q8","F16/BF16","미확인"}){
+            for(String q:variants)if(band.equals(quantBand(q))){
+                options.add(band+" 전체");break;
+            }
+        }
+        java.util.Collections.sort(variants);
+        for(String variant:variants)if(!"미확인".equals(variant))options.add(variant);
+        ArrayAdapter<String> adapter=new ArrayAdapter<>(activity,
+            android.R.layout.simple_spinner_item,options);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        quant.setAdapter(adapter);add(content,quant);
+        EditText filter=new EditText(activity);
+        filter.setSingleLine(true);filter.setHint("파일명 검색 (예: Q4_K_M)");add(content,filter);
         ScrollView scroll=new ScrollView(activity);
         LinearLayout list=panel(activity);scroll.addView(list);
-        content.addView(scroll,new LinearLayout.LayoutParams(-1,dp(330)));
+        content.addView(scroll,new LinearLayout.LayoutParams(-1,dp(300)));
         AlertDialog dialog=new AlertDialog.Builder(activity).setTitle("GGUF 파일 선택")
             .setView(content).setNegativeButton("닫기",null).create();
-        for(int i=0;i<Math.min(35,files.size());i++){
-            Weight w=files.get(i);
-            Button b=new Button(activity);b.setAllCaps(false);
-            b.setText(w.path+"\n"+size(w.size));
-            add(list,b);
-            b.setOnClickListener(v->{
-                dialog.dismiss();
-                confirmDownload(model,license,w);
-            });
-        }
-        if(files.isEmpty())add(list,label(activity,"지원되는 단일 GGUF 파일이 없습니다."));
+        Runnable refresh=()->{
+            list.removeAllViews();
+            String selected=String.valueOf(quant.getSelectedItem());
+            String find=filter.getText().toString().trim().toLowerCase(Locale.ROOT);
+            int shown=0;
+            for(Weight w:files){
+                String q=ggufQuantization(w.path);
+                boolean match="전체 양자화".equals(selected) ||
+                    (selected.endsWith(" 전체") &&
+                        quantBand(q).equals(selected.substring(0,selected.length()-3))) ||
+                    selected.equals(q);
+                if(!match||(!find.isEmpty()&&!w.path.toLowerCase(Locale.ROOT).contains(find)))continue;
+                shown++;
+                if(shown>50)break;
+                Button item=new Button(activity);item.setAllCaps(false);
+                item.setText(w.path+"\n"+size(w.size)+" · "+q);
+                add(list,item);
+                item.setOnClickListener(v->{dialog.dismiss();confirmDownload(model,license,w);});
+            }
+            if(shown==0)add(list,label(activity,"조건에 맞는 단일 GGUF 파일이 없습니다."));
+        };
+        quant.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
+            @Override public void onNothingSelected(AdapterView<?> parent){}
+            @Override public void onItemSelected(AdapterView<?> parent,View view,int pos,long id){
+                refresh.run();
+            }
+        });
+        filter.addTextChangedListener(new TextWatcher(){
+            @Override public void beforeTextChanged(CharSequence s,int start,int count,int after){}
+            @Override public void onTextChanged(CharSequence s,int start,int before,int count){refresh.run();}
+            @Override public void afterTextChanged(Editable s){}
+        });
+        refresh.run();
         dialog.show();
     }
     private void confirmDownload(Model repo,String license,Weight weight){

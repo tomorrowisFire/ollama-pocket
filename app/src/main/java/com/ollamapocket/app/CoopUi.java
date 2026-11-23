@@ -22,24 +22,30 @@ import java.util.Map;
 
 /** Android-native host/guest UI; never auto-joins a network without user approval. */
 public final class CoopUi {
-    private static final int BG=Color.rgb(21,23,27);
-    private static final int TXT=Color.rgb(241,243,247);
+    private static int background(Activity a) {
+        return "mono_light".equals(a.getPreferences(Context.MODE_PRIVATE).getString("ui_theme","dark"))
+            ? Color.rgb(250,250,250) : Color.rgb(21,23,27);
+    }
+    private static int foreground(Activity a) {
+        return "mono_light".equals(a.getPreferences(Context.MODE_PRIVATE).getString("ui_theme","dark"))
+            ? Color.rgb(24,24,24) : Color.rgb(241,243,247);
+    }
     private CoopUi() { }
     private static TextView label(Activity a,String s){
-        TextView v=new TextView(a);v.setText(s);v.setTextColor(TXT);v.setTextSize(13);
+        TextView v=new TextView(a);v.setText(s);v.setTextColor(foreground(a));v.setTextSize(13);
         v.setPadding(8,8,8,8);return v;
     }
     private static Button button(Activity a,String s){Button b=new Button(a);b.setAllCaps(false);b.setText(s);return b;}
     private static void add(LinearLayout l,View v){l.addView(v,new LinearLayout.LayoutParams(-1,-2));}
     private static EditText edit(Activity a,String hint){
-        EditText e=new EditText(a);e.setTextSize(13);e.setTextColor(TXT);e.setHintTextColor(0xffadb3c0);
+        EditText e=new EditText(a);e.setTextSize(13);e.setTextColor(foreground(a));e.setHintTextColor(0xff8b8b8b);
         e.setHint(hint);e.setSingleLine(true);return e;
     }
     public static void show(Activity a){
         CoopSession session=CoopSession.get(a);
         ScrollView scroll=new ScrollView(a);
         LinearLayout col=new LinearLayout(a);col.setOrientation(LinearLayout.VERTICAL);col.setPadding(25,15,25,20);
-        col.setBackgroundColor(BG);scroll.addView(col);
+        col.setBackgroundColor(background(a));scroll.addView(col);
         add(col,label(a,"하나의 호스트가 세션을 열면 같은 Wi-Fi의 보조 기기가 검색해 참가합니다.\n"+
             "RPC는 기기 내부에서 실행하고 기기 사이 연결은 암호화 중계합니다.\n"+
             "신뢰하는 Wi-Fi에서만 사용하세요. 최대 3대 · 45분 뒤 종료."));
@@ -63,7 +69,8 @@ public final class CoopUi {
         Button enable=button(a,"협력 채팅 모드 사용 (호스트에서 선택)");add(col,enable);
         add(col,label(a,"협력 모드는 큰 모델 실행을 위한 실험 기능입니다.\n"+
             "호스트에만 GGUF 파일이 필요하며, 전송 시간·배터리·발열이 증가할 수 있습니다.\n"+
-            "일반 채팅은 단독 모드 그대로 사용 가능합니다."));
+            "일반 채팅은 단독 모드 그대로 사용 가능합니다.\n" +
+            "참가 시 기기·성능 상태가 암호화된 세션 안에서 공유됩니다."));
         AlertDialog dialog=new AlertDialog.Builder(a).setTitle("협력 추론 · LAN 세션")
             .setView(scroll).setPositiveButton("닫기",null).create();
         Handler handler=new Handler(Looper.getMainLooper());
