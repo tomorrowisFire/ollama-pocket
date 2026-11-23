@@ -82,6 +82,8 @@ public final class MainActivity extends Activity {
     private TextView serverStatus, miniStatus, progressStatus, logText, activeEngineLabel;
     private EditText chatInput, modelInput;
     private Button sendButton, stopChatButton, pullButton, cancelPullButton;
+    private boolean diagnosticBusy;
+    private TextView diagnosticStatus;
     private volatile HttpURLConnection chatConnection, pullConnection;
     private volatile boolean chatBusy, pullBusy, chatCancelled, pullCancelled;
     private volatile boolean serverPollBusy;
@@ -352,6 +354,11 @@ public final class MainActivity extends Activity {
         Button compute = button("CPU / GPU / NPU 실행 장치", false);
         margin(compute, serverPage, 0, 10);
         compute.setOnClickListener(v -> showComputeChoiceDialog());
+        Button test = button("CPU · GPU 실제 연산 검사", true);
+        margin(test, serverPage, 0, 7);
+        diagnosticStatus = text("설치된 모델을 실제 실행해 CPU/GPU 결과를 확인합니다. NPU는 미지원입니다.", 12, MUTED, false);
+        margin(diagnosticStatus, serverPage, 0, 8);
+        test.setOnClickListener(v -> beginHardwareSelfTest());
         Button privacy = button("광고 개인정보 설정", false);
         margin(privacy, serverPage, 0, 6);
         privacy.setOnClickListener(v -> ads.showPrivacyChoices());
@@ -384,6 +391,55 @@ public final class MainActivity extends Activity {
         ScrollView logScroll = new ScrollView(this); logScroll.setBackground(bg(CARD, 12));
         logText = text("로딩 중", 11, MUTED, false); logText.setPadding(dp(12), dp(12), dp(12), dp(12));
         logScroll.addView(logText); serverPage.addView(logScroll, new LinearLayout.LayoutParams(-1, 0, 1));
+    }
+
+    private void beginHardwareSelfTest() {
+        if (diagnosticBusy || chatBusy || pullBusy) {
+            toast("다른 작업이 끝난 뒤 검사하세요"); return;
+        }
+        if (currentModel == null || currentModel.isEmpty() || knownModels.isEmpty()) {
+            toast("모델을 먼저 설치한 뒤 검사하세요"); showTab(1); return;
+        }
+        if (!OllamaForegroundService.isRunning()) {
+            toast("로컬 Ollama 서버가 실행 중이어야 합니다"); return;
+        }
+        new AlertDialog.Builder(this)
+            .setTitle("실제 추론 확인")
+            .setMessage("모델: " + currentModel + "\n\n기기에서 CPU 응답을 생성하고 GPU가 지원되면 " +
+                "Vulkan 오프로드와 토큰 생성까지 확인합니다. 발열과 배터리 사용량이 증가할 수 있습니다. " +
+                "새 모델은 다운로드하지 않으며 NPU 실행은 현재 지원하지 않습니다.")
+            .setNegativeButton("취소", null)
+            .setPositiveButton("검사 시작", (d,which) -> {
+                diagnosticBusy = true;
+                diagnosticStatus.setText("실측 검사 시작...");
+                final String model = currentModel;
+                io.execute(() -> {
+                    final String result;
+                    try {
+                        result = HardwareSelfTest.run(getApplicationContext(), model,
+                            message -> ui.post(() -> {
+                                if (!isFinishing() && diagnosticStatus != null)
+                                    diagnosticStatus.setText(message);
+                            }));
+                    } catch (Throwable e) {
+                        result = "검사 실행 오류: " + e.getClass().getSimpleName() + " · " + e.getMessage();
+                    }
+                    ui.post(() -> {
+                        diagnosticBusy = false;
+                        if (isFinishing()) return;
+                        diagnosticStatus.setText("검사가 완료됐습니다. 보고서를 확인하세요.");
+                        new AlertDialog.Builder(this)
+                            .setTitle("기기 내 CPU/GPU/NPU 진단 결과")
+                            .setMessage(result)
+                            .setNegativeButton("닫기", null)
+                            .setPositiveButton("결과 복사", (dialog, action) -> {
+                                ClipboardManager clipboard = (ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
+                                clipboard.setPrimaryClip(ClipData.newPlainText("AI in Pocket 진단 결과", result));
+                                toast("진단 결과 복사됨");
+                            }).show();
+                    });
+                });
+            }).show();
     }
 
     private String computePreference() {
