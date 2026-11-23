@@ -109,6 +109,8 @@ public final class OllamaHttp {
         body.put("keep_alive", "5m");
         JSONObject options = new JSONObject();
         options.put("num_ctx", 2048);
+        options.put("num_gpu", 0); // Current packaged runner is CPU-only; never silently report GPU use.
+        options.put("num_thread", Math.max(1, Math.min(6, Runtime.getRuntime().availableProcessors())));
         body.put("options", options);
         return body;
     }

@@ -13,8 +13,8 @@ android {
         applicationId 'com.ollamapocket.app'
         minSdk 26
         targetSdk 35
-        versionCode 2
-        versionName '0.2.0'
+        versionCode 3
+        versionName '0.3.0'
         ndk { abiFilters 'arm64-v8a' }
     }
 
@@ -59,6 +59,16 @@ tasks.register('checkNativePayload') {
     }
 }
 preBuild.dependsOn checkNativePayload
+
+tasks.register('checkComputeProbe') {
+    doLast {
+        def probe = file('src/main/jniLibs/arm64-v8a/libdeviceprobe.so')
+        if (!probe.isFile() || probe.length() < 3000) {
+            throw new GradleException('Missing Android ARM64 NNAPI diagnostic probe: ' + probe)
+        }
+    }
+}
+preBuild.dependsOn checkComputeProbe
 
 // Production requires the publisher's AdMob app ID (with ~), not an ad unit ID (with /).
 tasks.register('verifyReleaseAdMobId') {

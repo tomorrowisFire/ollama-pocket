@@ -67,6 +67,8 @@ public final class MainActivity extends Activity {
     private FrameLayout pages;
     private LinearLayout chatPage, modelPage, serverPage;
     private DeviceProfiler.Profile deviceProfile;
+    private ComputeProfiler.Report computeReport;
+    private TextView computeSummary;
     private TextView deviceSummary;
     private LinearLayout recommendationRows;
     private ProgressBar downloadProgress;
@@ -114,6 +116,7 @@ public final class MainActivity extends Activity {
         getWindow().setNavigationBarColor(BG);
         getWindow().getDecorView().setSystemUiVisibility(0);
         deviceProfile = DeviceProfiler.scan(this);
+        computeReport = ComputeProfiler.scan(this);
         ads = new AdSupport(this);
         currentModel = getPreferences(MODE_PRIVATE).getString("model", "");
         createUi();
@@ -261,11 +264,18 @@ public final class MainActivity extends Activity {
         deviceSummary.setPadding(dp(12), dp(12), dp(12), dp(12));
         deviceSummary.setBackground(bg(CARD, 12));
         margin(deviceSummary, content, 0, 9);
+        margin(text("CPU · GPU · NPU 연산 상태", 17, WHITE, true), content, 0, 7);
+        computeSummary = text(computeReport.description(), 12, WHITE, false);
+        computeSummary.setPadding(dp(12), dp(12), dp(12), dp(12));
+        computeSummary.setBackground(bg(CARD, 12));
+        margin(computeSummary, content, 0, 9);
         Button scan = button("기기 다시 진단", false);
         margin(scan, content, 0, 9);
         scan.setOnClickListener(v -> {
             deviceProfile = DeviceProfiler.scan(this);
+            computeReport = ComputeProfiler.scan(this);
             deviceSummary.setText(deviceProfile.description());
+            computeSummary.setText(computeReport.description());
             renderRecommendations();
         });
         recommendationRows = column(); margin(recommendationRows, content, 0, 14);
@@ -320,6 +330,9 @@ public final class MainActivity extends Activity {
     private void createServerPage() {
         serverPage = column();
         margin(text("설정 · 로컬 엔진", 20, WHITE, true), serverPage, 4, 8);
+        Button compute = button("CPU / GPU / NPU 실행 장치", false);
+        margin(compute, serverPage, 0, 10);
+        compute.setOnClickListener(v -> showComputeChoiceDialog());
         Button privacy = button("광고 개인정보 설정", false);
         margin(privacy, serverPage, 0, 6);
         privacy.setOnClickListener(v -> ads.showPrivacyChoices());
@@ -349,6 +362,31 @@ public final class MainActivity extends Activity {
         ScrollView logScroll = new ScrollView(this); logScroll.setBackground(bg(CARD, 12));
         logText = text("로딩 중", 11, MUTED, false); logText.setPadding(dp(12), dp(12), dp(12), dp(12));
         logScroll.addView(logText); serverPage.addView(logScroll, new LinearLayout.LayoutParams(-1, 0, 1));
+    }
+
+    private void showComputeChoiceDialog() {
+        String gpu = computeReport.gpuCompute ? "GPU (Vulkan 감지 · 추론 엔진 미탑재)" :
+            "GPU (Vulkan 연산 미확인 · 추론 엔진 미탑재)";
+        String npu = computeReport.nnapiAccelerators > 0 ? "NPU 후보 감지 (추론 엔진 미탑재)" :
+            "NPU (드라이버 확인 불가 · 추론 엔진 미탑재)";
+        String[] items = {"자동 선택 (현재 CPU)", "CPU 고정", gpu, npu};
+        new AlertDialog.Builder(this).setTitle("로컬 연산 장치")
+            .setMessage("현재 포함된 Ollama ARM64 엔진은 CPU 추론만 지원합니다. " +
+                "GPU/NPU가 감지되어도 그 장치로 추론했다고 표시하지 않습니다.")
+            .setItems(items, (dialog, selected) -> {
+                if (selected < 2) {
+                    getPreferences(MODE_PRIVATE).edit()
+                        .putString("compute_preference", selected == 0 ? "auto" : "cpu").apply();
+                    toast(selected == 0 ? "자동 선택 · 현재 CPU 실행" : "CPU 모드 선택됨");
+                } else {
+                    new AlertDialog.Builder(this)
+                        .setTitle(selected == 2 ? "GPU 연산 미지원" : "NPU 연산 미지원")
+                        .setMessage("하드웨어 감지는 추론 가속과 다릅니다. " +
+                            "별도 Vulkan GPU / 제조사 NPU 백엔드가 검증·탑재되기 전까지 " +
+                            "이 앱의 추론은 CPU에서만 실행됩니다.")
+                        .setPositiveButton("확인", null).show();
+                }
+            }).setNegativeButton("닫기", null).show();
     }
 
     private void showTab(int index) {

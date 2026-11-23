@@ -11,4 +11,14 @@ export OLLAMA_ANDROID_JNI_LIBS_DIR="$ROOT/app/src/main/jniLibs"
   cd "$RUNTIME_ROOT"
   bash ./scripts/build_android.sh -a arm64-v8a
 )
-echo "Ready: $ROOT/app/src/main/jniLibs/arm64-v8a/{libollama.so,libllama-server.so}"
+NDK="${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-${ANDROID_NDK:-}}}"
+if [[ -z "$NDK" ]]; then
+  echo "Set ANDROID_NDK_HOME to compile the CPU/GPU/NPU diagnostic probe" >&2
+  exit 1
+fi
+HOST="$(uname -s | tr '[:upper:]' '[:lower:]')-x86_64"
+CC="$NDK/toolchains/llvm/prebuilt/$HOST/bin/aarch64-linux-android26-clang"
+"$CC" -fPIC -O2 -shared -Wl,-z,max-page-size=16384 \
+  -o "$OLLAMA_ANDROID_JNI_LIBS_DIR/arm64-v8a/libdeviceprobe.so" \
+  "$ROOT/app/src/main/cpp/deviceprobe.c" -ldl
+echo "Ready: $ROOT/app/src/main/jniLibs/arm64-v8a/{libollama.so,libllama-server.so,libdeviceprobe.so}"

@@ -67,6 +67,15 @@ jobs:
           bash scripts/build_android.sh -a arm64-v8a
           file "$OLLAMA_ANDROID_JNI_LIBS_DIR/arm64-v8a/"*.so
 
+      - name: Compile native Android CPU-GPU-NPU device probe
+        shell: bash
+        run: |
+          set -euxo pipefail
+          NDK="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
+          CC="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang"
+          "$CC" -fPIC -O2 -shared -Wl,-z,max-page-size=16384 -o app/src/main/jniLibs/arm64-v8a/libdeviceprobe.so app/src/main/cpp/deviceprobe.c -ldl
+          file app/src/main/jniLibs/arm64-v8a/libdeviceprobe.so
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -91,12 +100,13 @@ jobs:
         run: |
           unzip -l app/build/outputs/apk/debug/app-debug.apk | grep 'lib/arm64-v8a/libollama.so'
           unzip -l app/build/outputs/apk/debug/app-debug.apk | grep 'lib/arm64-v8a/libllama-server.so'
+          unzip -l app/build/outputs/apk/debug/app-debug.apk | grep 'lib/arm64-v8a/libdeviceprobe.so'
           sha256sum app/build/outputs/apk/debug/app-debug.apk
 
       - name: Prepare named APK
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk dist/AI-in-Pocket-v0.2.0-android-arm64.apk
+          cp app/build/outputs/apk/debug/app-debug.apk dist/AI-in-Pocket-v0.3.0-android-arm64.apk
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v4

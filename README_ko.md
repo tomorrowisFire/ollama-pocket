@@ -1,4 +1,4 @@
-# AI in Pocket - Client for Ollama (v0.2.0)
+# AI in Pocket - Client for Ollama (v0.3.0)
 
 안드로이드 기기 자체에서 **Ollama Android ARM64 엔진**을 실행하는 비공식 독립 클라이언트입니다. PC·Termux·원격 서버 없이 기기에서 모델 다운로드와 로컬 텍스트 대화를 수행하도록 개발했습니다. 실행용 바이너리는 공개 커뮤니티 포크(Rllama) 소스에서 빌드합니다. 이미지/영상 탭은 요청에 따라 제거했습니다.
 
@@ -18,7 +18,7 @@
 
 1. GitHub 저장소 **Actions → Build AI in Pocket Android APK**에 접속합니다.
 2. 최신 성공 기록을 연 뒤 아래의 **Artifacts → AI-in-Pocket-Android-APK**를 내려받습니다.
-3. ZIP 내부의 **AI-in-Pocket-v0.2.0-android-arm64.apk**를 설치합니다.
+3. ZIP 내부의 **AI-in-Pocket-v0.3.0-android-arm64.apk**를 설치합니다.
 4. 처음 실행하면 안내를 확인하고 **모델 선택 시작**을 선택합니다.
 5. 기기 추천 모델을 선택합니다. 데이터 요금 안내 확인 뒤 모델을 다운로드합니다.
 6. 채팅 탭에서 설치 모델을 사용합니다. 다운로드 뒤 로컬 대화에는 인터넷 연결이 필요하지 않습니다.
@@ -55,3 +55,13 @@ GitHub Actions가 Android SDK 35, NDK, Go, Rllama 소스를 이용해 `libollama
 - 최초 실행 닫기 가능한 안내 배너: `ca-app-pub-4763897710237099/9558835282`
 
 **중요:** AdMob 앱 ID는 광고 단위 ID와 다릅니다. AdMob 앱 설정의 `ca-app-pub-...~...` 형식 앱 ID가 추가로 필요합니다. 개발용 `assembleDebug`는 Google 테스트 앱/광고 단위 ID를 사용해 무효 트래픽을 방지합니다. 실제 광고가 연동된 release APK를 빌드하려면 `ADMOB_APP_ID=ca-app-pub-...~...` 환경변수나 Gradle 속성을 설정해야 합니다. 앱 ID가 없으면 release는 빌드 오류를 발생시켜 잘못된 배포를 방지합니다. 수익 광고 전에는 AdMob 앱 연결 및 계정 검토, 개인정보·동의(UMP), 테스트 기기 설정을 확인하세요.
+
+
+## CPU / GPU / NPU 연산 구분 (v0.3)
+
+- 기기 진단은 CPU 코어 수, Android Vulkan Compute 지원 여부, NNAPI 드라이버 유형(CPU/GPU/ACCELERATOR)을 각각 표시합니다.
+- 이 진단은 개인 식별정보 없이 기기에서만 수행되며, NNAPI의 ACCELERATOR는 **NPU일 가능성이 있는 가속기 후보**일 뿐 NPU 성능을 보증하지 않습니다. Android 15 이후 NNAPI는 deprecated이며 제조사별 노출 정책이 다릅니다.
+- 설치되는 Ollama Android 빌드는 **CPU 추론 전용**입니다. `num_gpu=0`, `OLLAMA_VULKAN=0`이며 GPU/NPU 추론으로 오인하지 않도록 UI에 명확히 표기합니다.
+- GPU·NPU 백엔드가 탑재되지 않은 상태에서 두 모드를 선택하면 미지원 사유만 안내합니다. CPU/자동(현재 CPU) 모드는 실제로 선택할 수 있습니다.
+- GPU에서 실제 추론하려면 Vulkan/OpenCL 네이티브 backend와 Ollama runner 통합 검증이 필요합니다. NPU는 Snapdragon Hexagon 등의 별도 backend·드라이버·양자화 호환성 검증이 선행돼야 합니다. **GPU/NPU 추론 가속은 아직 구현되지 않았습니다.**
+- GitHub Actions가 NNAPI 장치 드라이버 탐지용 `libdeviceprobe.so`를 Android NDK로 컴파일해 APK에 포함합니다.
