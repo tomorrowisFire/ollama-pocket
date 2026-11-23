@@ -17,6 +17,7 @@ on:
       - 'app/src/main/java/com/ollamapocket/app/SecureRpcTransport.java'
       - 'app/src/main/AndroidManifest.xml'
       - 'app/src/main/java/com/ollamapocket/app/MainActivity.java'
+      - 'tests/CoopMemoryPlannerTest.java'
 
 jobs:
   secure-relay-unit-test:
@@ -34,6 +35,13 @@ jobs:
             app/src/main/java/com/ollamapocket/app/SecureRpcTransport.java \
             tests/SecureRpcTransportTest.java
           java -cp /tmp/coop-tests SecureRpcTransportTest
+      - name: Test live-RAM budget and RPC split planner (pure Java)
+        run: |
+          mkdir -p /tmp/coop-tests
+          javac -d /tmp/coop-tests \
+            app/src/main/java/com/ollamapocket/app/CoopMemoryPlanner.java \
+            tests/CoopMemoryPlannerTest.java
+          java -cp /tmp/coop-tests CoopMemoryPlannerTest
 
   cooperative-apk:
     runs-on: ubuntu-24.04
@@ -103,13 +111,13 @@ jobs:
           unzip -t "$apk" | tail -2
           sha256sum "$apk"
           echo "## Build-only verification" >> "$GITHUB_STEP_SUMMARY"
-          echo "Java compile: passed; host/worker ELF: present. No Android device inference test performed." >> "$GITHUB_STEP_SUMMARY"
+          echo "Java compile and RAM planner tests: passed; host/worker ELF: present. No Android device inference test performed." >> "$GITHUB_STEP_SUMMARY"
       - name: Publish installation artifact
         shell: bash
         run: |
           mkdir -p dist
           cp app/build/outputs/apk/debug/app-debug.apk \
-            dist/AI-in-Pocket-v0.7-cooperative-android-arm64-debug.apk
+            dist/AI-in-Pocket-v0.8-coop-safe-ram-arm64-debug.apk
       - uses: actions/upload-artifact@v4
         with:
           name: AI-in-Pocket-Cooperative-RPC-APK

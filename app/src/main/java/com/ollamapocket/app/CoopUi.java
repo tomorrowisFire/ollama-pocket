@@ -56,6 +56,7 @@ public final class CoopUi {
         code.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
         add(col,code);
         Button join=button(a,"③ 이 기기를 보조 노드로 연결");add(col,join);
+        Button preflight=button(a,"선택 모델의 RAM 안전 배정량 점검");add(col,preflight);
         Button enable=button(a,"협력 채팅 모드 사용 (호스트에서 선택)");add(col,enable);
         add(col,label(a,"협력 모드는 큰 모델 실행을 위한 실험 기능입니다.\n"+
             "호스트에만 GGUF 파일이 필요하며, 전송 시간·배터리·발열이 증가할 수 있습니다.\n"+
@@ -128,6 +129,19 @@ public final class CoopUi {
                 CoopService.start(a,CoopService.STOP,null,null,null,null);
                 a.getPreferences(Context.MODE_PRIVATE).edit().putString("compute_preference","auto").apply();
             }).show());
+        preflight.setOnClickListener(v->{
+            if(!"host".equals(session.role())){message(a,"호스트 세션을 만든 뒤 점검하세요");return;}
+            String model=a.getPreferences(Context.MODE_PRIVATE).getString("model","");
+            if(model.isEmpty()){message(a,"모델을 먼저 선택하세요");return;}
+            preflight.setEnabled(false);
+            new Thread(()->{
+                String result=DistributedRunner.preview(a.getApplicationContext(),model);
+                a.runOnUiThread(()->{
+                    preflight.setEnabled(true);
+                    if(!a.isFinishing())message(a,result);
+                });
+            },"coop-ram-preflight").start();
+        });
         enable.setOnClickListener(v->{
             if(!"host".equals(session.role()) || session.readyNodes().isEmpty()){
                 message(a,"호스트에서 보조 노드 연결을 먼저 완료하세요");return;

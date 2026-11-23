@@ -1,4 +1,4 @@
-# AI in Pocket - Client for Ollama (v0.4.0)
+# AI in Pocket - Client for Ollama (v0.8.0 / Cooperative Safe RAM)
 
 안드로이드 기기 자체에서 **Ollama Android ARM64 엔진**을 실행하는 비공식 독립 클라이언트입니다. PC·Termux·원격 서버 없이 기기에서 모델 다운로드와 로컬 텍스트 대화를 수행하도록 개발했습니다. 실행용 바이너리는 공개 커뮤니티 포크(Rllama) 소스에서 빌드합니다. 이미지/영상 탭은 요청에 따라 제거했습니다.
 
@@ -98,3 +98,15 @@ GPU runner 소스는 MIT 라이선스 `ggml-org/llama.cpp` 태그 `b11913`을 �
 - Android 8+/ARM64 대상. 보조 기기 CPU RPC를 우선 구현한 **실험 빌드**입니다. Vulkan GPU RPC·NPU RPC는 검증 전이며, 실물 2대에서 분산된 토큰 생성·속도·발열·장애 복구를 아직 검증하지 않았습니다.
 - RPC 원본은 실험적이며 안전하지 않습니다. 앱은 암호화 중계를 사용하지만 실기 보안 검증 전에는 공개 Wi-Fi/인터넷에서 사용하지 마세요.
 - 빌드: GitHub Actions → `Experimental cooperative RPC Android APK` → `AI-in-Pocket-Cooperative-RPC-APK` 다운로드.
+
+## v0.8 협력 추론 RAM 안전 예산 (2026-11-23)
+
+- 호스트와 보조 기기의 실제 `ActivityManager.MemoryInfo` 값(`totalMem`, `availMem`, `threshold`, `lowMemory`)으로 **현재 추정 안전 할당량**을 계산합니다. 고정 물리 RAM 합산이 아닙니다.
+- 보조 노드는 연결 시 및 10초 주기 인증된 헬스체크에서 추정 안전 RAM을 갱신하며, RAM 필드 자체가 메시지 HMAC에 포함됩니다. 기존 세션과 호환되지 않으므로 **모든 기기를 v0.8 APK로 통일**합니다.
+- 호스트에서는 보조 기기를 ID 순으로 정렬해 RPC 포트 및 `--tensor-split` 비율을 동일 순서로 만듭니다. 안전 RAM 384 MiB 미만 노드는 새 모델 로딩 대상에서 제외됩니다.
+- 모델 파일의 실제 GGUF 바이트 수를 기준으로 `가중치 + max(768 MiB, 가중치의 20%)`를 최소 필요량으로 추정하고 안전 메모리보다 크면 **시작하지 않습니다**.
+- 분산 엔진에 `--gpu-layers auto --fit on --fit-target 512 --tensor-split <remote-budgets>`를 전달합니다. 호스트 CPU는 tensor-split 목록에 넣지 않습니다. 이는 **보수적인 계획·휴리스틱**으로 Android 프로세스의 하드 메모리 상한을 강제하지 않습니다.
+- 협력 세션 화면의 **선택 모델의 RAM 안전 배정량 점검**을 누르면 로딩 전에 안전 합계·필요량·보조 기기별 분할 비율을 확인할 수 있습니다.
+- 16GB 호스트 + 4GB 보조 2대에서 14B Q4 실행은 조건부입니다. 기기별 실시간 여유 RAM이 부족하면 차단합니다. 한 번 로딩된 모델은 실행 중 메모리 변동만을 이유로 재시작하지 않습니다.
+- 자동 검사: pure Java RAM 예산·분할 단위 테스트와 암호화 중계 테스트, Android Java 컴파일, ARM64 바이너리 및 APK 검사.
+- **실제 2~3대 Android 기기 RPC 토큰 생성·성능·발열 검증은 별도 필요**하며 빌드 성공만으로 실측 검증 완료라고 보고하지 않습니다.

@@ -45,39 +45,98 @@ public final class DistributedRunner {
         }catch(Exception ignored){return false;}
         finally{if(c!=null)c.disconnect();}
     }
-    /** Called only from a background thread; requires a currently paired node. */
+    private static final class BudgetSelection {
+        final CoopMemoryPlanner.Plan budget;
+        final List<CoopSession.Node> selected;
+        final String endpoints;
+        BudgetSelection(CoopMemoryPlanner.Plan budget,List<CoopSession.Node> selected,
+                        String endpoints) {
+            this.budget=budget;this.selected=selected;this.endpoints=endpoints;
+        }
+    }
+
+    private static BudgetSelection plan(Context context, File modelWeights) {
+        CoopSession coop=CoopSession.get(context);
+        List<CoopSession.Node> ready=coop.readyNodes(); // ID-sorted, matching RPC order
+        List<Long> capacities=new ArrayList<>();
+        for(CoopSession.Node node:ready) capacities.add(node.safeRamMiB);
+        long weightMiB=(modelWeights.length()+1048575L)/1048576L;
+        CoopMemoryPlanner.Plan budget=CoopMemoryPlanner.evaluate(
+                weightMiB,coop.localSafeRamMiB(),capacities);
+        List<CoopSession.Node> picked=new ArrayList<>();
+        for(int index:budget.selectedIndices)picked.add(ready.get(index));
+        return new BudgetSelection(budget,picked,coop.rpcEndpointsFor(picked));
+    }
+
+    /** Model-size and current RAM preflight, no model allocation or network transfer. */
+    public static String preview(Context context,String model) {
+        CoopSession coop=CoopSession.get(context);
+        if(!"host".equals(coop.role()))return "호스트 세션을 만든 뒤 모델을 점검하세요.";
+        try {
+            File weights=findModel(context,model);
+            BudgetSelection selection=plan(context,weights);
+            return "모델: "+model+"\n"+selection.budget.summary()+
+                "\nRPC 분할(보조 노드 순서): "+selection.budget.tensorSplit;
+        }catch(Exception e){return "모델 사전 점검 실패: "+e.getMessage();}
+    }
+
+    /** Called only from a worker thread, before the distributed server is started. */
     public static boolean ensure(Context context,String model,StringBuilder reason){
         CoopSession coop=CoopSession.get(context);
         if(!"host".equals(coop.role()) || coop.readyNodes().isEmpty()){
             reason.append("호스트 세션 또는 활성 보조 노드가 없습니다");return false;
         }
-        String endpoints=coop.rpcEndpoints();
-        if(endpoints.isEmpty()){reason.append("안전한 RPC 중계 포트가 준비되지 않았습니다");return false;}
-        if(process!=null && process.isAlive() && activeModel.equals(model) &&
-              rpcEndpointSet.equals(endpoints) && healthy())return true;
-        stop();
-        File binary=new File(context.getApplicationInfo().nativeLibraryDir,"libllama-distributed-server.so");
-        if(!binary.isFile()){reason.append("RPC CPU llama-server 실행 파일이 APK에 없습니다");return false;}
+        File binary=new File(context.getApplicationInfo().nativeLibraryDir,
+                             "libllama-distributed-server.so");
+        if(!binary.isFile()){reason.append("RPC llama-server 실행 파일이 APK에 없습니다");return false;}
         File weights;
-        try{weights=findModel(context,model);}catch(Exception e){reason.append("GGUF 모델 준비 실패: ").append(e.getMessage());return false;}
-        try{
-            long estimatedMiB=weights.length()/(1024*1024)+768;
-            if(estimatedMiB>coop.aggregatedSafeMiB()*1.65){
-                reason.append("현재 기기들의 안전 가용 RAM 약 ").append(coop.aggregatedSafeMiB())
-                      .append(" MiB로 모델 약 ").append(estimatedMiB)
-                      .append(" MiB 구동이 어려울 수 있습니다. 노드를 추가하거나 더 작은 모델을 선택하세요.");
-                return false;
-            }
-            // Drop Ollama's active model before holding a second set of weights.
-            try{OllamaHttp.post("/api/generate",new JSONObject().put("model",model)
-                .put("keep_alive",0).put("stream",false),"POST");}catch(Exception ignored){}
+        try { weights=findModel(context,model); }
+        catch(Exception e){reason.append("호스트의 GGUF 모델 확인 실패: ").append(e.getMessage());return false;}
+
+        // An already-loaded model consumes RAM; never re-evaluate its admission
+        // against the reduced availMem, but do detect a disconnected node.
+        if(process!=null && process.isAlive() && activeModel.equals(model)
+                && healthy()){
+            boolean stillConnected=true;
+            String current=coop.rpcEndpoints();
+            for(String endpoint:rpcEndpointSet.split(","))
+                if(!(","+current+",").contains(","+endpoint+","))stillConnected=false;
+            if(stillConnected)return true;
+        }
+        stop();
+
+        BudgetSelection selection=plan(context,weights);
+        CoopMemoryPlanner.Plan budget=selection.budget;
+        if(!budget.allowed){
+            reason.append(budget.summary())
+                  .append("\n더 작은 모델 또는 메모리 여유가 있는 노드로 재시도하세요.");
+            return false;
+        }
+        if(selection.endpoints.isEmpty() || budget.tensorSplit.isEmpty()){
+            reason.append("RAM 조건을 만족하는 RPC 노드가 없습니다");return false;
+        }
+        log("RAM admission: "+budget.summary().replace('\n',' '));
+        log("RPC endpoints="+selection.endpoints+" tensor-split="+budget.tensorSplit);
+
+        try {
+            // Free previous Ollama weights before starting another engine.
+            try {OllamaHttp.post("/api/generate",new JSONObject().put("model",model)
+                .put("keep_alive",0).put("stream",false),"POST");}
+            catch(Exception ignored){}
             GpuRunner.stop();
             List<String> args=new ArrayList<>();
             args.add(binary.getAbsolutePath());args.add("-m");args.add(weights.getAbsolutePath());
             args.add("--host");args.add("127.0.0.1");args.add("--port");args.add(Integer.toString(PORT));
-            args.add("-ngl");args.add("99");args.add("--rpc");args.add(endpoints);
+            // RPC CPU workers appear as offloadable devices in llama.cpp.
+            // Auto-fit can keep layers on the host when remote RAM is insufficient.
+            args.add("--gpu-layers");args.add("auto");
+            args.add("--fit");args.add("on");
+            args.add("--fit-target");args.add("512");
+            args.add("--rpc");args.add(selection.endpoints);
+            args.add("--tensor-split");args.add(budget.tensorSplit);
             args.add("-c");args.add("2048");
-            args.add("--threads");args.add(Integer.toString(Math.max(1,Math.min(4,Runtime.getRuntime().availableProcessors()/2))));
+            args.add("--threads");args.add(Integer.toString(
+                Math.max(1,Math.min(4,Runtime.getRuntime().availableProcessors()/2))));
             ProcessBuilder pb=new ProcessBuilder(args);
             pb.redirectErrorStream(true);pb.directory(context.getFilesDir());
             pb.environment().put("LD_LIBRARY_PATH",context.getApplicationInfo().nativeLibraryDir);
@@ -85,25 +144,34 @@ public final class DistributedRunner {
             pb.environment().put("HOME",context.getFilesDir().getAbsolutePath());
             pb.environment().put("TMPDIR",context.getCacheDir().getAbsolutePath());
             final Process current=pb.start();
-            synchronized(DistributedRunner.class){process=current;activeModel=model;rpcEndpointSet=endpoints;}
+            synchronized(DistributedRunner.class){
+                process=current;activeModel=model;rpcEndpointSet=selection.endpoints;
+            }
             new Thread(()->{
-                try(BufferedReader r=new BufferedReader(new InputStreamReader(current.getInputStream(),StandardCharsets.UTF_8))){
+                try(BufferedReader r=new BufferedReader(new InputStreamReader(
+                        current.getInputStream(),StandardCharsets.UTF_8))){
                     String line;while((line=r.readLine())!=null)log(line);
                 }catch(Exception e){log("RPC host log ended: "+e.getMessage());}
             },"llama-rpc-host-logs").start();
-            // A multi-GB model may take many minutes to move over Wi-Fi and warm caches.
+            // Cache warming/network transfer can take minutes for a large GGUF.
             long seconds=Math.max(180,Math.min(900,weights.length()/(12L*1024*1024)));
             long until=SystemClock.elapsedRealtime()+seconds*1000;
             while(SystemClock.elapsedRealtime()<until && current.isAlive()){
-                if(coop.readyNodes().isEmpty()){reason.append("보조 노드가 연결 해제됐습니다");stop();return false;}
+                String now=coop.rpcEndpoints();
+                for(String endpoint:selection.endpoints.split(",")){
+                    if(!(","+now+",").contains(","+endpoint+",")){
+                        reason.append("모델 로딩 중 보조 노드가 연결 해제되었습니다");
+                        stop();return false;
+                    }
+                }
                 if(healthy()){
-                    log("RPC host HTTP ready; physical remote offload requires a token benchmark");
+                    log("RPC HTTP ready; real remote compute needs measured token output");
                     return true;
                 }
                 Thread.sleep(400);
             }
-            reason.append(current.isAlive()?"RPC 모델 로딩 시간 초과 (대형 가중치 전송 지연 가능)":
-                "RPC 호스트가 종료됐습니다 (RAM 부족·모델/버전 호환 확인)");
+            reason.append(current.isAlive()?"RPC 모델 로딩 시간 초과":
+                "RPC 호스트 종료 · RAM/버전/모델 호환성 확인");
             stop();return false;
         }catch(Exception e){reason.append(e.getMessage());stop();return false;}
     }

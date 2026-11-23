@@ -54,7 +54,7 @@ public final class CoopSession {
     private static final long NODE_TIMEOUT_MS = 30_000;
     private static final String NSD_TYPE = "_aipocket-coop._tcp.";
     private static final String TAG = "AiPocketCoop";
-    private static final String PROTOCOL = "coop-1";
+    private static final String PROTOCOL = "coop-2";
     private static volatile CoopSession INSTANCE;
 
     public static CoopSession get(Context context) {
@@ -93,7 +93,7 @@ public final class CoopSession {
     public static final class Node {
         public final String id, name, ip;
         public final int port;
-        public final long safeRamMiB;
+        public volatile long safeRamMiB;
         public volatile long lastSeen;
         public volatile String state = "connected";
         volatile RpcRelay relay;
@@ -129,7 +129,8 @@ public final class CoopSession {
     public String status() {
         String v = "호스트".equals(role) ? "host" : role;
         StringBuilder s=new StringBuilder("협력 모드: "+v+" · "+secondsRemaining()/60+"분 남음");
-        if ("host".equals(role)) s.append("\n연결 노드: ").append(readyNodes().size()).append(" / ").append(MAX_NODES);
+        if ("host".equals(role)) s.append("\n연결 노드: ").append(readyNodes().size()).append(" / ").append(MAX_NODES)
+              .append("\n안전 RAM 추정 합계: ").append(aggregatedSafeMiB()).append(" MiB (호스트 포함)");
         if ("guest".equals(role)) s.append("\n연결 호스트: ").append(hostIp)
                .append("\nRPC worker: ").append(worker!=null && worker.isAlive()?"running":"stopped");
         if (!lastError.isEmpty()) s.append("\n상태: ").append(lastError);
@@ -139,13 +140,17 @@ public final class CoopSession {
         long now=SystemClock.elapsedRealtime();
         List<Node> out=new ArrayList<>();
         for (Node n:nodes.values()) if(now-n.lastSeen<NODE_TIMEOUT_MS && n.relay!=null) out.add(n);
+        // Stable node order is essential for remote --tensor-split ratios.
+        Collections.sort(out,(a,b)->a.id.compareTo(b.id));
         return out;
     }
-    public String rpcEndpoints() {
+    public String rpcEndpoints() { return rpcEndpointsFor(readyNodes()); }
+    public String rpcEndpointsFor(List<Node> selected) {
         List<String> ports=new ArrayList<>();
-        for(Node n:readyNodes()) ports.add("127.0.0.1:"+n.relay.localPort());
+        for(Node n:selected) if(n.relay!=null) ports.add("127.0.0.1:"+n.relay.localPort());
         return String.join(",",ports);
     }
+    public long localSafeRamMiB() { return safeRamMiB(); }
     public long aggregatedSafeMiB() {
         long local=safeRamMiB();
         for(Node n:readyNodes()) local+=n.safeRamMiB;
@@ -153,9 +158,11 @@ public final class CoopSession {
     }
     private long safeRamMiB() {
         ActivityManager mgr=(ActivityManager)app.getSystemService(Context.ACTIVITY_SERVICE);
+        if(mgr==null)return 0;
         ActivityManager.MemoryInfo m=new ActivityManager.MemoryInfo();
-        if(mgr!=null) mgr.getMemoryInfo(m);
-        return Math.max(0,((m.availMem>>20)-1024)*65/100);
+        mgr.getMemoryInfo(m);
+        return CoopMemoryPlanner.safeMiB(m.totalMem>>20,m.availMem>>20,
+                m.threshold>>20,m.lowMemory,"host".equals(role));
     }
     private String digest() throws Exception {
         if(!workerDigest.isEmpty())return workerDigest;
@@ -308,12 +315,13 @@ public final class CoopSession {
             String type=req.optString("type","");
             String build=req.optString("build","");
             int port=req.optInt("port",0);
-            String command=type+"|"+sessionId+"|"+nonce+"|"+id+"|"+port+"|"+build;
+            long reportedRam=req.optLong("safe_ram_mib",-1);
+            String command=type+"|"+sessionId+"|"+nonce+"|"+id+"|"+port+"|"+build+"|"+reportedRam;
             JSONObject response=new JSONObject();
             if(!"host".equals(role) || !id.matches("[A-Za-z0-9_-]{8,40}") ||
                 !nonce.matches("[A-Za-z0-9_-]{16,32}") || !name.matches("[\\p{L}\\p{N} _.-]{1,45}") ||
                 !("join".equals(type)||"ping".equals(type)) || port<1024 || port>65535 ||
-                !workerDigest.equals(build) || secret==null ||
+                !workerDigest.equals(build) || reportedRam<0 || reportedRam>65536 || secret==null ||
                 !SecureRpcTransport.constantEquals(auth,SecureRpcTransport.hmacHex(secret,command))) {
                 response.put("ok",false).put("error","연결 요청 거부: 코드 또는 RPC 엔진 버전 불일치");
             } else if(seenNonces.putIfAbsent(nonce,SystemClock.elapsedRealtime())!=null){
@@ -324,13 +332,15 @@ public final class CoopSession {
                 if("join".equals(type)) {
                     String peerIp=s.getInetAddress().getHostAddress();
                     Node old=nodes.get(id);if(old!=null && old.relay!=null)old.relay.close();
-                    Node node=new Node(id,name,peerIp,port,Math.max(0,Math.min(16384,req.optLong("safe_ram_mib",0))));
+                    Node node=new Node(id,name,peerIp,port,reportedRam);
                     RpcRelay relay=new RpcRelay(peerIp,port,secret);
                     relay.start();node.relay=relay;nodes.put(id,node);
                 }else{
                     Node n=nodes.get(id);
-                    if(n!=null && n.ip.equals(s.getInetAddress().getHostAddress()) && n.port==port)
+                    if(n!=null && n.ip.equals(s.getInetAddress().getHostAddress()) && n.port==port) {
+                        n.safeRamMiB=reportedRam; // authenticated heartbeat updates memory budget
                         n.lastSeen=SystemClock.elapsedRealtime();
+                    }
                     else throw new IOException("Unregistered guest heartbeat");
                 }
                 response.put("ok",true).put("session",sessionId)
@@ -397,10 +407,11 @@ public final class CoopSession {
         if(id.isEmpty() && "join".equals(type)) id=resolveSessionId(hostIp);
         if(id.isEmpty())throw new IOException("호스트 세션을 발견하지 못했습니다. 검색 후 선택하세요");
         JSONObject request=new JSONObject();
+        long safe=safeRamMiB();
         request.put("type",type).put("id",guestId).put("name",guestName)
             .put("nonce",nonce).put("port",port).put("build",workerDigest)
-            .put("safe_ram_mib",safeRamMiB())
-            .put("mac",SecureRpcTransport.hmacHex(secret,type+"|"+id+"|"+nonce+"|"+guestId+"|"+port+"|"+workerDigest));
+            .put("safe_ram_mib",safe)
+            .put("mac",SecureRpcTransport.hmacHex(secret,type+"|"+id+"|"+nonce+"|"+guestId+"|"+port+"|"+workerDigest+"|"+safe));
         try(Socket s=new Socket()){
             s.connect(new java.net.InetSocketAddress(hostIp,CONTROL_PORT),4000);
             s.setSoTimeout(4000);
