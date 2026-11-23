@@ -18,8 +18,8 @@ android {
         applicationId 'io.github.tomorrowisfire.aiinpocket'
         minSdk 26
         targetSdk 35
-        versionCode 12
-        versionName '0.9.3-ui-device-diagnostics'
+        versionCode 13
+        versionName '0.9.4-chat-sidebar'
         ndk { abiFilters 'arm64-v8a' }
     }
 

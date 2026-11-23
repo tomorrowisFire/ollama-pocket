@@ -6,6 +6,10 @@ import android.widget.ProgressBar;
 import android.content.ClipboardManager;
 import android.content.ClipData;
 import android.app.AlertDialog;
+import android.app.Dialog;
+import android.view.Window;
+import android.view.WindowManager;
+import android.graphics.drawable.ColorDrawable;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -37,7 +41,6 @@ import android.widget.Toast;
 import android.text.TextWatcher;
 import android.text.Editable;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.Locale;
 
 import org.json.JSONArray;
@@ -52,6 +55,9 @@ import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Map;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -95,7 +101,8 @@ public final class MainActivity extends Activity {
     private FrameLayout downloadAdSlot;
     private AdSupport ads;
     private long lastPauseElapsed;
-    private Button[] navButtons;
+    private TextView topPageTitle, topPageSubtitle;
+    private Dialog navigationDrawer;
     private LinearLayout messages, modelRows;
     private ScrollView messageScroll;
     private Spinner modelChooser;
@@ -223,6 +230,7 @@ public final class MainActivity extends Activity {
         super.onPause();
     }
     @Override protected void onDestroy() {
+        if(navigationDrawer!=null&&navigationDrawer.isShowing())navigationDrawer.dismiss();
         if (chatConnection != null) chatConnection.disconnect();
         if (pullConnection != null) pullConnection.disconnect();
         ui.removeCallbacks(hudPoll);
@@ -271,11 +279,16 @@ public final class MainActivity extends Activity {
         // Mobile-friendly WebUI-inspired navigation; independent Android widgets and branding.
         LinearLayout header = row();
         Button menu = button("☰", false);
-        rowItem(header, menu, 0, 9);
-        menu.setOnClickListener(v -> showChatList());
+        menu.setContentDescription("대화 목록과 앱 메뉴 열기");
+        menu.setTextSize(20);
+        menu.setMinWidth(dp(46));menu.setMinimumWidth(dp(46));
+        rowItem(header, menu, 0, 12);
+        menu.setOnClickListener(v -> showNavigationDrawer());
         LinearLayout branding = column();
-        branding.addView(text("AI in Pocket", 19, WHITE, true));
-        branding.addView(text("Client for Ollama", 10, MUTED, false));
+        topPageTitle = text("AI in Pocket", 19, WHITE, true);
+        branding.addView(topPageTitle);
+        topPageSubtitle=text("대화  ·  Client for Ollama", 10, MUTED, false);
+        branding.addView(topPageSubtitle);
         rowItem(header, branding, 1, 5);
         Button fresh = button("＋ 새 대화", false);
         rowItem(header, fresh, 0, 0);
@@ -302,23 +315,8 @@ public final class MainActivity extends Activity {
         createChatPage(); createModelPage(); createServerPage(); createDiagnosticsPage();
         pages.addView(chatPage); pages.addView(modelPage);
         pages.addView(serverPage); pages.addView(diagnosticPage);
-        LinearLayout tabs = row();
-        tabs.setPadding(dp(2),dp(4),dp(2),dp(3));
-        tabs.setBackground(bg(CARD,16));
-        navButtons = new Button[]{
-            button("대화", true), button("모델 선택", false),
-            button("설정", false), button("기기/연결\n진단", false)};
-        for(int i=0;i<navButtons.length;i++){
-            final int page=i;
-            Button tab=navButtons[i];tab.setTextSize((i==3?11:12)*uiTextScale);
-            tab.setMinHeight(dp(54));tab.setMinimumHeight(dp(54));
-            tab.setGravity(Gravity.CENTER);
-            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(56),1);
-            if(i<3)p.rightMargin=dp(4);
-            tabs.addView(tab,p);
-            tab.setOnClickListener(v->showTab(page));
-        }
-        margin(tabs,root,7,1);
+        // Navigation is exclusively in the top-left drawer, not below the composer.
+        // This avoids clipping against Android gesture navigation and enlarged fonts.
     }
 
     private void createChatPage() {
@@ -800,10 +798,10 @@ public final class MainActivity extends Activity {
         modelPage.setVisibility(activeTab==1?View.VISIBLE:View.GONE);
         serverPage.setVisibility(activeTab==2?View.VISIBLE:View.GONE);
         diagnosticPage.setVisibility(activeTab==3?View.VISIBLE:View.GONE);
-        for(int i=0;i<navButtons.length;i++){
-            boolean selected=i==activeTab;
-            navButtons[i].setBackground(bg(selected?ACCENT:FIELD,12));
-            navButtons[i].setTextColor(selected?BG:WHITE);
+        if(topPageTitle!=null)topPageTitle.setText("AI in Pocket");
+        if(topPageSubtitle!=null){
+            String[] subtitles={"대화","모델 선택","설정","기기 / 연결 진단"};
+            topPageSubtitle.setText(subtitles[activeTab]+"  ·  로컬 AI");
         }
         if(activeTab==3)refreshDiagnosticViews();
     }
@@ -1268,29 +1266,230 @@ public final class MainActivity extends Activity {
         renderHistory();
         showTab(0);
     }
-    private void showChatList() {
-        if (chatBusy) { toast("답변 생성 후 대화 기록을 열 수 있습니다"); return; }
-        JSONArray sessions;
-        try { sessions = new JSONArray(getPreferences(MODE_PRIVATE).getString(listKey(), "[]")); }
-        catch (Exception ignored) { sessions = new JSONArray(); }
-        final JSONArray list = sessions;
-        String[] titles = new String[list.length()];
-        for (int i = 0; i < list.length(); i++) {
-            JSONObject chat = list.optJSONObject(i);
-            titles[i] = chat == null ? "대화" : chat.optString("title", "대화");
+    private static final class DrawerChat {
+        final String model, id, title;
+        final long created;
+        DrawerChat(String model,String id,String title) {
+            this.model=model;this.id=id;this.title=title;
+            long timestamp=0;
+            try {timestamp=Long.parseLong(id);}catch(Exception ignored){}
+            created=timestamp;
         }
-        new AlertDialog.Builder(this)
-            .setTitle("대화 기록 · " + (currentModel.isEmpty() ? "모델 미선택" : currentModel))
-            .setItems(titles, (d, index) -> {
-                JSONObject chat = list.optJSONObject(index);
-                if (chat == null) return;
-                getPreferences(MODE_PRIVATE).edit().putString(sessionKey(), chat.optString("id")).apply();
-                loadHistory(); renderHistory(); showTab(0);
-            })
-            .setPositiveButton("＋ 새 대화", (d, w) -> newChat())
-            .setNeutralButton("모델 관리", (d, w) -> showTab(1))
-            .setNegativeButton("닫기", null).show();
     }
+
+    /** Preserve all preexisting model-specific histories; show them in one list. */
+    private List<DrawerChat> allSavedConversations(){
+        List<DrawerChat> result=new ArrayList<>();
+        Map<String,?> prefs=getPreferences(MODE_PRIVATE).getAll();
+        for(Map.Entry<String,?> entry:prefs.entrySet()){
+            String key=entry.getKey();
+            if(!key.startsWith("chat_list_")||!(entry.getValue() instanceof String))continue;
+            String model=key.substring("chat_list_".length());
+            try {
+                JSONArray records=new JSONArray((String)entry.getValue());
+                for(int i=0;i<records.length();i++){
+                    JSONObject obj=records.optJSONObject(i);
+                    if(obj==null)continue;
+                    String id=obj.optString("id","");
+                    if(id.isEmpty()||id.length()>70)continue;
+                    String label=obj.optString("title","대화");
+                    result.add(new DrawerChat(model,id,label));
+                }
+            }catch(Exception ignored){}
+        }
+        Collections.sort(result,(a,b)->Long.compare(b.created,a.created));
+        return result;
+    }
+
+    private TextView drawerRow(String title,String subtitle,boolean active){
+        TextView t=text(title+(subtitle.isEmpty()?"":"\n"+subtitle),
+                subtitle.isEmpty()?15:14,WHITE,active);
+        t.setSingleLine(false);
+        t.setMaxLines(subtitle.isEmpty()?2:3);
+        t.setPadding(dp(14),dp(10),dp(12),dp(10));
+        t.setMinHeight(dp(subtitle.isEmpty()?46:58));
+        t.setBackground(bg(active?FIELD:CARD,12));
+        return t;
+    }
+
+    private void openSavedConversation(DrawerChat entry,Dialog drawer){
+        if(chatBusy||benchmarkBusy||diagnosticBusy){
+            toast("진행 중인 응답이나 검사를 마친 뒤 대화를 바꾸세요");
+            return;
+        }
+        if(!knownModels.contains(entry.model)){
+            drawer.dismiss();
+            toast("이 대화의 모델이 현재 설치되어 있지 않습니다: "+entry.model);
+            showTab(1);
+            return;
+        }
+        if(!entry.model.equals(currentModel))selectModel(entry.model);
+        getPreferences(MODE_PRIVATE).edit()
+            .putString("active_chat_"+entry.model,entry.id).apply();
+        loadHistory();renderHistory();
+        drawer.dismiss();
+        showTab(0);
+    }
+
+    private void renderDrawerChats(LinearLayout list,Dialog drawer,
+                                   List<DrawerChat> conversations,String query){
+        list.removeAllViews();
+        String search=query==null?"":query.toLowerCase(Locale.ROOT).trim();
+        int count=0;
+        for(DrawerChat entry:conversations){
+            if(!search.isEmpty() &&
+               !entry.title.toLowerCase(Locale.ROOT).contains(search) &&
+               !entry.model.toLowerCase(Locale.ROOT).contains(search))continue;
+            if(count++>=120)break;
+            boolean active=entry.model.equals(currentModel)
+                &&entry.id.equals(getPreferences(MODE_PRIVATE)
+                    .getString("active_chat_"+entry.model,""));
+            TextView item=drawerRow(entry.title,entry.model,active);
+            LinearLayout.LayoutParams p=lp(-1,-2);
+            p.bottomMargin=dp(3);
+            list.addView(item,p);
+            item.setOnClickListener(v->openSavedConversation(entry,drawer));
+        }
+        if(count==0){
+            TextView empty=text(search.isEmpty()?
+                "저장된 대화가 없습니다.\n위의 '새 대화'로 시작하세요.":
+                "검색 결과가 없습니다.",13,MUTED,false);
+            empty.setPadding(dp(13),dp(19),dp(10),dp(12));
+            list.addView(empty,lp(-1,-2));
+        }
+    }
+
+    private TextView drawerNavigationItem(String mark,String title,String description){
+        TextView item=text(mark+"   "+title+"\n        "+description,14,WHITE,true);
+        item.setMinHeight(dp(56));
+        item.setPadding(dp(14),dp(8),dp(12),dp(8));
+        item.setBackground(bg(CARD,11));
+        return item;
+    }
+
+    /**
+     * Chat-style left sidebar with scrollable history and pinned app navigation.
+     * The previous bottom navigation strip is intentionally removed.
+     */
+    private void showNavigationDrawer(){
+        if(navigationDrawer!=null&&navigationDrawer.isShowing())return;
+        Dialog drawer=new Dialog(this);
+        navigationDrawer=drawer;
+        LinearLayout shell=column();
+        shell.setBackgroundColor(CARD);
+        shell.setPadding(dp(12),dp(12),dp(12),dp(8));
+        // Keep the pinned profile and app navigation clear of gesture/status bars.
+        if(Build.VERSION.SDK_INT>=29){
+            shell.setOnApplyWindowInsetsListener((view,insets)->{
+                int top=Math.min(dp(35),Math.max(0,insets.getSystemWindowInsetTop()));
+                int bottom=Math.min(dp(65),Math.max(0,insets.getSystemWindowInsetBottom()));
+                view.setPadding(dp(12),dp(12)+top,dp(12),dp(8)+bottom);
+                return insets;
+            });
+        }
+
+        LinearLayout heading=row();
+        TextView product=text("AI in Pocket",19,WHITE,true);
+        rowItem(heading,product,1,8);
+        Button close=button("×",false);
+        close.setTextSize(23);
+        close.setContentDescription("사이드바 닫기");
+        rowItem(heading,close,0,0);
+        close.setOnClickListener(v->drawer.dismiss());
+        margin(heading,shell,0,14);
+
+        TextView newChatItem=drawerRow("✎   새 대화","",false);
+        margin(newChatItem,shell,0,12);
+        newChatItem.setOnClickListener(v->{
+            if(chatBusy){toast("생성 중에는 새 대화를 시작할 수 없습니다");return;}
+            drawer.dismiss();
+            newChat();
+        });
+
+        EditText search=edit("대화 검색","",false);
+        search.setSingleLine(true);
+        search.setMinHeight(dp(48));
+        margin(search,shell,0,13);
+        margin(text("최근 대화",12,MUTED,true),shell,0,7);
+        ScrollView scroll=new ScrollView(this);
+        scroll.setFillViewport(false);
+        scroll.setVerticalScrollBarEnabled(true);
+        LinearLayout chatList=column();
+        chatList.setPadding(dp(0),dp(0),dp(2),dp(8));
+        scroll.addView(chatList);
+        shell.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        final List<DrawerChat> conversations=allSavedConversations();
+        renderDrawerChats(chatList,drawer,conversations,"");
+        search.addTextChangedListener(new TextWatcher(){
+            @Override public void beforeTextChanged(CharSequence s,int st,int count,int after){}
+            @Override public void onTextChanged(CharSequence s,int st,int before,int count){
+                renderDrawerChats(chatList,drawer,conversations,s.toString());
+            }
+            @Override public void afterTextChanged(Editable s){}
+        });
+
+        View separator=new View(this);
+        separator.setBackgroundColor(FIELD);
+        LinearLayout.LayoutParams separatorParams=lp(-1,1);
+        separatorParams.topMargin=dp(6);
+        separatorParams.bottomMargin=dp(8);
+        shell.addView(separator,separatorParams);
+        margin(text("메뉴",12,MUTED,true),shell,0,4);
+
+        TextView models=drawerNavigationItem("◫","모델 선택","설치 모델 · Hugging Face");
+        TextView settings=drawerNavigationItem("⚙","설정","화면 · 추론 엔진 · 개인정보");
+        TextView diagnostics=drawerNavigationItem("▦","기기/연결 진단","기기 사양 · 연결 노드 · 성능");
+        margin(models,shell,0,2);
+        margin(settings,shell,0,2);
+        margin(diagnostics,shell,0,5);
+        models.setOnClickListener(v->{drawer.dismiss();showTab(1);});
+        settings.setOnClickListener(v->{drawer.dismiss();showTab(2);});
+        diagnostics.setOnClickListener(v->{drawer.dismiss();showTab(3);});
+
+        LinearLayout profile=row();
+        profile.setGravity(Gravity.CENTER_VERTICAL);
+        profile.setPadding(dp(8),dp(8),dp(8),dp(8));
+        profile.setBackground(bg(FIELD,14));
+        android.widget.ImageView avatar=new android.widget.ImageView(this);
+        avatar.setImageResource(R.mipmap.ic_launcher);
+        avatar.setContentDescription("풀을 뜯는 라마 앱 아이콘");
+        LinearLayout.LayoutParams avatarSize=lp(42,42);
+        avatarSize.rightMargin=dp(10);
+        profile.addView(avatar,avatarSize);
+        LinearLayout identity=column();
+        identity.addView(text("AI in Pocket",14,WHITE,true));
+        identity.addView(text("로컬 AI · "+(currentModel.isEmpty()?"모델 미선택":currentModel),
+            11,MUTED,false));
+        rowItem(profile,identity,1,0);
+        margin(profile,shell,3,2);
+        profile.setOnClickListener(v->{
+            drawer.dismiss();
+            showTab(2); // Profile-style quick access to local app settings.
+        });
+
+        drawer.setContentView(shell);
+        drawer.setOnDismissListener(d->{
+            if(navigationDrawer==drawer)navigationDrawer=null;
+        });
+        Window window=drawer.getWindow();
+        if(window!=null){
+            window.setBackgroundDrawable(new ColorDrawable(CARD));
+            window.setStatusBarColor(BG);
+            window.setNavigationBarColor(BG);
+            window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+            window.setDimAmount(0.42f);
+            window.setGravity(Gravity.START|Gravity.TOP);
+        }
+        drawer.show();
+        if(window!=null){
+            int available=getResources().getDisplayMetrics().widthPixels;
+            int width=Math.min(dp(370),Math.max(dp(240),available-dp(48)));
+            window.setLayout(width,WindowManager.LayoutParams.MATCH_PARENT);
+            window.setGravity(Gravity.START|Gravity.TOP);
+            window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        }
+    }
+
     private void ensureSessionListed(String firstMessage) {
         try {
             String id = currentSessionId();

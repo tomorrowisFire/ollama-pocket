@@ -144,6 +144,21 @@ jobs:
           else
             echo "::warning::Repository signing secrets are not set: this run uses ephemeral Android Debug signing. Do not use this APK to update a previously signed version."
           fi
+      - name: Verify sidebar-only navigation source (no fixed bottom tabs)
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          src=Path('app/src/main/java/com/ollamapocket/app/MainActivity.java').read_text()
+          assert 'showNavigationDrawer()' in src
+          assert 'allSavedConversations()' in src
+          assert 'drawerNavigationItem("◫","모델 선택"' in src
+          assert 'drawerNavigationItem("⚙","설정"' in src
+          assert 'drawerNavigationItem("▦","기기/연결 진단"' in src
+          assert 'navButtons' not in src
+          assert 'private void showChatList()' not in src
+          print('PASS: single side drawer + pinned app menus; no bottom tab strip')
+          PY
       - name: Compile app with cooperative session and RPC tunnel
         run: gradle --no-daemon :app:assembleDebug
       - name: Verify that host, worker and prior inference binaries are packaged
@@ -172,7 +187,7 @@ jobs:
         run: |
           mkdir -p dist
           cp app/build/outputs/apk/debug/app-debug.apk \
-            dist/AI-in-Pocket-v0.9.3-UI-Diagnostics-ARM64.apk
+            dist/AI-in-Pocket-v0.9.4-Chat-Sidebar-ARM64.apk
           cp signature-report.txt dist/signature-report.txt
       - name: Make official Android apksigner available for offline stable re-signing
         shell: bash
