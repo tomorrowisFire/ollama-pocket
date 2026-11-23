@@ -30,7 +30,8 @@ cmake -S "$SRC" -B "$ROOT/vulkan-build/build" -G Ninja \
  -DVulkan_INCLUDE_DIR="$ROOT/vulkan-build/headers/Vulkan-Headers/include" \
  -DGGML_VULKAN=ON -DGGML_NATIVE=OFF -DGGML_OPENMP=OFF \
  -DGGML_BACKEND_DL=OFF -DBUILD_SHARED_LIBS=OFF \
- -DLLAMA_BUILD_SERVER=ON -DLLAMA_CURL=OFF -DLLAMA_OPENSSL=OFF \
+ -DLLAMA_BUILD_SERVER=ON -DLLAMA_BUILD_UI=OFF -DLLAMA_USE_PREBUILT_UI=OFF \
+ -DLLAMA_CURL=OFF -DLLAMA_OPENSSL=OFF \
  -DCMAKE_EXE_LINKER_FLAGS="-Wl,-z,max-page-size=16384"
 cmake --build "$ROOT/vulkan-build/build" --target llama-server -j "${GPU_BUILD_JOBS:-4}"
 BIN="$ROOT/vulkan-build/build/bin/llama-server"
