@@ -9,6 +9,12 @@ import android.app.AlertDialog;
 import android.app.Dialog;
 import android.view.Window;
 import android.view.WindowManager;
+import android.view.animation.DecelerateInterpolator;
+import android.view.animation.AccelerateDecelerateInterpolator;
+import android.animation.ValueAnimator;
+import android.text.TextUtils;
+import android.view.MotionEvent;
+import android.util.TypedValue;
 import android.graphics.drawable.ColorDrawable;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -78,6 +84,7 @@ public final class MainActivity extends Activity {
     private float uiTextScale = 1.0f;
     private int activeTab = 0;
     private boolean showHud = true;
+    private boolean smoothMotion = true;
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newCachedThreadPool();
@@ -91,6 +98,11 @@ public final class MainActivity extends Activity {
     private final Map<String,String> modelMetadata = new HashMap<>();
     private final Map<String,String> modelQuantization = new HashMap<>();
     private final Map<String,Long> modelBytes = new HashMap<>();
+    private final Map<String,TextView> tileStatusLabels = new HashMap<>();
+    private final Map<String,ProgressBar> tileDownloadBars = new HashMap<>();
+    private boolean animateNextTileUpdate = false;
+    private volatile String downloadingModel = "";
+    private volatile int downloadingPercent = -1;
     private TextView suitabilitySummary;
     private DeviceProfiler.Profile deviceProfile;
     private ComputeProfiler.Report computeReport;
@@ -160,6 +172,7 @@ public final class MainActivity extends Activity {
         String font=getPreferences(MODE_PRIVATE).getString("font_size","normal");
         uiTextScale="large".equals(font)?1.13f:"extra".equals(font)?1.26f:1.0f;
         showHud=getPreferences(MODE_PRIVATE).getBoolean("show_hud",true);
+        smoothMotion=getPreferences(MODE_PRIVATE).getBoolean("smooth_motion",true);
         if("mono_light".equals(uiTheme)) {
             BG=Color.rgb(250,250,250); CARD=Color.WHITE; FIELD=Color.rgb(234,234,234);
             ACCENT=Color.rgb(23,23,23); WHITE=Color.rgb(24,24,24);
@@ -374,14 +387,14 @@ public final class MainActivity extends Activity {
         scroll.addView(content);modelPage.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
 
         margin(text("모델 선택",23,WHITE,true),content,0,3);
-        margin(text("설치된 모델을 탭하면 바로 대화할 수 있습니다.",13,MUTED,false),content,0,10);
+        margin(text("큰 카드를 눌러 모델을 선택하거나 다운로드하세요.",13,MUTED,false),content,0,10);
         LinearLayout top=row();
-        modelListHeader=text("설치된 모델",17,WHITE,true);
+        modelListHeader=text("내 모델 · 추천",18,WHITE,true);
         rowItem(top,modelListHeader,1,5);
         Button refresh=button("새로고침",false);rowItem(top,refresh,0,0);
         refresh.setOnClickListener(v->refreshModels());
         margin(top,content,0,7);
-        modelFilter=edit("설치된 모델 검색","",false);
+        modelFilter=edit("모델 검색 · 이름 또는 용도","",false);
         margin(modelFilter,content,0,9);
         modelFilter.addTextChangedListener(new TextWatcher(){
             @Override public void beforeTextChanged(CharSequence s,int start,int count,int after){}
@@ -496,10 +509,17 @@ public final class MainActivity extends Activity {
                 }).setNegativeButton("취소",null).show());
 
         Button hud=button("실시간 성능 HUD  ·  "+(showHud?"표시":"숨김"),false);
-        margin(hud,content,0,14);
+        margin(hud,content,0,8);
         hud.setOnClickListener(v->{
             if(isUiBusy()){toast("진행 중인 작업이 끝난 뒤 변경하세요");return;}
             getPreferences(MODE_PRIVATE).edit().putBoolean("show_hud",!showHud).apply();
+            recreate();
+        });
+        Button motion=button("부드러운 화면 전환  ·  "+(smoothMotion?"켜짐":"꺼짐"),false);
+        margin(motion,content,0,14);
+        motion.setOnClickListener(v->{
+            if(isUiBusy()){toast("진행 중인 작업이 끝난 뒤 변경하세요");return;}
+            getPreferences(MODE_PRIVATE).edit().putBoolean("smooth_motion",!smoothMotion).apply();
             recreate();
         });
 
@@ -792,12 +812,37 @@ public final class MainActivity extends Activity {
                 }).setNegativeButton("취소", null).show();
     }
 
+    private boolean animationsEnabled() {
+        return smoothMotion && ValueAnimator.areAnimatorsEnabled();
+    }
+
     private void showTab(int index) {
-        activeTab=Math.max(0,Math.min(3,index));
-        chatPage.setVisibility(activeTab==0?View.VISIBLE:View.GONE);
-        modelPage.setVisibility(activeTab==1?View.VISIBLE:View.GONE);
-        serverPage.setVisibility(activeTab==2?View.VISIBLE:View.GONE);
-        diagnosticPage.setVisibility(activeTab==3?View.VISIBLE:View.GONE);
+        int target=Math.max(0,Math.min(3,index));
+        LinearLayout[] screens={chatPage,modelPage,serverPage,diagnosticPage};
+        boolean alreadyShowing=screens[target].getVisibility()==View.VISIBLE;
+        activeTab=target;
+        for(int i=0;i<screens.length;i++){
+            View page=screens[i];
+            page.animate().cancel();
+            if(i!=target){
+                page.setVisibility(View.GONE);
+                page.setAlpha(1f);
+                page.setTranslationX(0f);
+            }
+        }
+        View incoming=screens[target];
+        incoming.setVisibility(View.VISIBLE);
+        if(!alreadyShowing && animationsEnabled()){
+            incoming.setAlpha(0f);
+            incoming.setTranslationX(dp(14));
+            incoming.animate().alpha(1f).translationX(0f)
+                .setDuration(190)
+                .setInterpolator(new DecelerateInterpolator())
+                .withLayer().start();
+        }else{
+            incoming.setAlpha(1f);
+            incoming.setTranslationX(0f);
+        }
         if(topPageTitle!=null)topPageTitle.setText("AI in Pocket");
         if(topPageSubtitle!=null){
             String[] subtitles={"대화","모델 선택","설정","기기 / 연결 진단"};
@@ -955,6 +1000,7 @@ public final class MainActivity extends Activity {
         modelChooser.setEnabled(!names.isEmpty()&&!chatBusy);
         ignoreSelection=false;
         populateModelFilters();
+        animateNextTileUpdate=true;
         renderInstalledModels();
         if(activeTab==3)refreshDiagnosticViews();
     }
@@ -993,10 +1039,12 @@ public final class MainActivity extends Activity {
         families.add("전체 모델");
         List<String> foundFamilies=new ArrayList<>();
         List<String> quantized=new ArrayList<>();
-        for(String name:knownModels){
-            String family=modelFamily(name,modelMetadata.getOrDefault(name,""));
+        for(ModelTileCatalog.Tile entry:ModelTileCatalog.combine(
+                knownModels,modelBytes,modelQuantization)){
+            String name=entry.id;
+            String family=modelFamily(name,modelMetadata.getOrDefault(name,entry.description));
             if(!foundFamilies.contains(family))foundFamilies.add(family);
-            String q=modelQuantization.getOrDefault(name,"미확인");
+            String q=modelQuantization.getOrDefault(name,entry.quantization);
             if(!quantized.contains(q))quantized.add(q);
         }
         String[] priorities={"Qwen","Llama","Gemma","DeepSeek","Mistral","Phi","GLM","GPT-OSS","기타"};
@@ -1097,71 +1145,222 @@ public final class MainActivity extends Activity {
         return display.toString();
     }
 
+    private int tileBackgroundColor(boolean selected) {
+        if("mono_light".equals(uiTheme))
+            return selected?Color.rgb(227,227,227):Color.rgb(244,244,244);
+        if("mono_dark".equals(uiTheme))
+            return selected?Color.rgb(47,47,47):Color.rgb(25,25,25);
+        return selected?Color.rgb(45,92,160):Color.rgb(64,109,182);
+    }
+
+    private int tileTextColor(){
+        return "mono_light".equals(uiTheme)?Color.rgb(28,28,28):Color.WHITE;
+    }
+
+    private int tileMutedColor(){
+        return "mono_light".equals(uiTheme)?Color.rgb(83,83,83)
+            :"mono_dark".equals(uiTheme)?Color.rgb(200,200,200)
+            :Color.rgb(224,233,249);
+    }
+
+    private GradientDrawable tileBackground(boolean selected) {
+        GradientDrawable shape=bg(tileBackgroundColor(selected),15);
+        shape.setStroke(dp(selected?2:1),
+            "mono_light".equals(uiTheme)?Color.rgb(173,173,173)
+                :"mono_dark".equals(uiTheme)?Color.rgb(81,81,81)
+                :selected?Color.rgb(191,218,255):Color.rgb(101,147,205));
+        return shape;
+    }
+
+    private void tilePressEffect(View view){
+        if(!animationsEnabled())return;
+        view.setOnTouchListener((v,event)->{
+            int action=event.getActionMasked();
+            if(action==MotionEvent.ACTION_DOWN){
+                v.animate().cancel();
+                v.animate().scaleX(0.985f).scaleY(0.985f)
+                    .setDuration(95).setInterpolator(new DecelerateInterpolator()).start();
+            }else if(action==MotionEvent.ACTION_CANCEL||action==MotionEvent.ACTION_UP){
+                v.animate().cancel();
+                v.animate().scaleX(1f).scaleY(1f)
+                    .setDuration(155).setInterpolator(new DecelerateInterpolator()).start();
+            }
+            return false;
+        });
+    }
+
+    private void activateTile(ModelTileCatalog.Tile tile){
+        if(tile.id.equals(downloadingModel)&&pullBusy){
+            toast(tile.title+" 다운로드 중 · 진행 상태를 카드에서 확인하세요");
+            return;
+        }
+        if(isUiBusy()){
+            toast("진행 중인 추론·다운로드·벤치마크를 마친 뒤 변경하세요");
+            return;
+        }
+        if(tile.installed) {
+            if(!tile.id.equals(currentModel))selectModel(tile.id);
+            showTab(0);
+        }else{
+            // Keep the existing mandatory mobile-data / license warning dialog.
+            modelInput.setText(tile.id);
+            pullModel();
+        }
+    }
+
+    private LinearLayout buildModelTile(ModelTileCatalog.Tile item,int minCardHeight) {
+        boolean selected=item.installed&&item.id.equals(currentModel);
+        int ink=tileTextColor(),secondary=tileMutedColor();
+        LinearLayout card=column();
+        card.setMinimumHeight(dp(minCardHeight));
+        card.setPadding(dp(14),dp(13),dp(14),dp(13));
+        card.setBackground(tileBackground(selected));
+        card.setClickable(true);card.setFocusable(true);
+        card.setElevation(dp(1));
+        card.setContentDescription(item.title+", 모델 "+item.id+", "+
+            ModelTileCatalog.status(item,downloadingModel)+", "+
+            (item.installed?"탭하여 대화 시작":"탭하여 다운로드 확인"));
+        TypedValue ripple=new TypedValue();
+        if(getTheme().resolveAttribute(android.R.attr.selectableItemBackground,ripple,true)
+                &&ripple.resourceId!=0)
+            card.setForeground(getDrawable(ripple.resourceId));
+        tilePressEffect(card);
+
+        String status=ModelTileCatalog.status(item,downloadingModel);
+        LinearLayout top=row();
+        TextView statusText=text((item.installed?"● ":"○ ")+status,12,ink,true);
+        if(item.id.equals(downloadingModel)&&pullBusy)
+            statusText.setText("↓ 다운로드 중");
+        statusText.setMinHeight(dp(27));
+        rowItem(top,statusText,1,0);
+        if(selected){
+            TextView mark=text("✓ 사용 중",11,secondary,true);
+            rowItem(top,mark,0,0);
+        }
+        margin(top,card,0,5);
+        tileStatusLabels.put(item.id,statusText);
+
+        TextView name=text(item.title,20,ink,true);
+        name.setGravity(Gravity.CENTER);
+        name.setMaxLines(2);
+        name.setEllipsize(TextUtils.TruncateAt.END);
+        card.addView(name,new LinearLayout.LayoutParams(-1,0,1));
+
+        TextView variant=text(item.id,11,secondary,false);
+        variant.setGravity(Gravity.CENTER);
+        variant.setMaxLines(2);
+        variant.setEllipsize(TextUtils.TruncateAt.END);
+        margin(variant,card,0,8);
+
+        ProgressBar progress=new ProgressBar(this,null,
+            android.R.attr.progressBarStyleHorizontal);
+        progress.setMax(100);
+        progress.setVisibility(item.id.equals(downloadingModel)&&pullBusy
+            ?View.VISIBLE:View.GONE);
+        if(item.id.equals(downloadingModel)&&pullBusy){
+            progress.setIndeterminate(downloadingPercent<0);
+            if(downloadingPercent>=0)progress.setProgress(downloadingPercent);
+        }
+        margin(progress,card,0,4);
+        tileDownloadBars.put(item.id,progress);
+
+        String suffix=item.installed?"설치됨"
+            :item.bytes>0?"약 "+installedSize(item.bytes)+" 다운로드":"다운로드 필요";
+        TextView details=text(suffix,11,secondary,false);
+        details.setGravity(Gravity.CENTER);
+        details.setMaxLines(2);
+        margin(details,card,0,8);
+
+        TextView action=text(item.installed?"대화 시작  →":"모델 받기  ↓",
+            13,ink,true);
+        action.setGravity(Gravity.CENTER);
+        action.setMinHeight(dp(38));
+        GradientDrawable actionBg=bg("mono_light".equals(uiTheme)?
+            Color.rgb(219,219,219):"mono_dark".equals(uiTheme)?
+            Color.rgb(66,66,66):Color.rgb(43,80,140),11);
+        action.setBackground(actionBg);
+        margin(action,card,0,0);
+        card.setOnClickListener(v->activateTile(item));
+        return card;
+    }
+
+    private void updateTileDownloadProgress(){
+        if(!pullBusy||downloadingModel.isEmpty())return;
+        TextView status=tileStatusLabels.get(downloadingModel);
+        if(status!=null){
+            status.setText(downloadingPercent<0?"↓ 다운로드 준비 중":
+                "↓ 다운로드 중 · 레이어 "+downloadingPercent+"%");
+        }
+        ProgressBar bar=tileDownloadBars.get(downloadingModel);
+        if(bar!=null){
+            bar.setVisibility(View.VISIBLE);
+            bar.setIndeterminate(downloadingPercent<0);
+            if(downloadingPercent>=0)bar.setProgress(downloadingPercent);
+        }
+    }
+
     private void renderInstalledModels() {
         if(modelRows==null)return;
         modelRows.removeAllViews();
-        String filter=modelFilter==null?"":modelFilter.getText().toString().trim()
-             .toLowerCase(Locale.ROOT);
-        int matched=0;
-        for(String name:knownModels){
-            String meta=modelMetadata.getOrDefault(name,"로컬 모델");
-            String family=modelFamily(name,meta);
-            String quant=modelQuantization.getOrDefault(name,"미확인");
-            if(!ModelListFilter.matches(name,meta,quant,filter,
-                    selectedModelFamily,selectedQuantization))continue;
-            matched++;
-            boolean selected=name.equals(currentModel);
-            LinearLayout card=column();
-            card.setPadding(dp(14),dp(12),dp(14),dp(12));
-            card.setBackground(bg(CARD,14));
-            LinearLayout heading=row();
-            TextView title=text(name,16,WHITE,true);
-            title.setMaxLines(2);
-            rowItem(heading,title,1,4);
-            if(selected)rowItem(heading,text("● 선택됨",11,MUTED,true),0,0);
-            margin(heading,card,0,6);
-            ModelPerformanceAdvisor.Result perf=advise(name,
-                modelBytes.getOrDefault(name,0L)/(1024.0*1024.0*1024.0));
-            margin(text("계열: "+family+"   ·   양자화: "+quant+
-                "\n"+meta+"\n적합도: "+perf.suitability+"   ·   "+perf.throughput,
-                12,MUTED,false),card,0,8);
-            LinearLayout actions=row();
-            Button use=button(selected?"대화 계속":"선택하고 대화",selected);
-            Button delete=button("삭제",false);
-            rowItem(actions,use,1,7);rowItem(actions,delete,0,0);
-            margin(actions,card,0,0);
-            margin(card,modelRows,0,7);
-            use.setOnClickListener(v->{
-                if(chatBusy||benchmarkBusy||diagnosticBusy) {
-                    toast("진행 중인 작업을 끝낸 뒤 모델을 바꾸세요");return;
-                }
-                if(!selected)selectModel(name);
-                showTab(0);
-            });
-            delete.setOnClickListener(v->new AlertDialog.Builder(this)
-                .setTitle("모델 삭제")
-                .setMessage(name+" 모델 파일을 이 기기에서 삭제할까요?")
-                .setNegativeButton("취소",null)
-                .setPositiveButton("삭제",(d,w)->io.execute(()->{
-                    try {
-                        JSONObject body=new JSONObject();body.put("model",name);
-                        OllamaHttp.post("/api/delete",body,"DELETE");
-                        ui.post(()->{toast("모델 삭제 완료");refreshModels();});
-                    }catch(Exception ex){
-                        ui.post(()->toast("삭제 실패: "+ex.getMessage()));
-                    }
-                })).show());
+        tileStatusLabels.clear();
+        tileDownloadBars.clear();
+        String filter=modelFilter==null?"":modelFilter.getText().toString().trim();
+        List<ModelTileCatalog.Tile> all=ModelTileCatalog.combine(
+            knownModels,modelBytes,modelQuantization);
+        List<ModelTileCatalog.Tile> shown=new ArrayList<>();
+        for(ModelTileCatalog.Tile item:all){
+            String description=modelMetadata.getOrDefault(item.id,
+                item.description+" · "+installedSize(item.bytes));
+            if(ModelListFilter.matches(item.id,description+" "+item.title,
+                    modelQuantization.getOrDefault(item.id,item.quantization),
+                    filter,selectedModelFamily,selectedQuantization)){
+                shown.add(item);
+            }
         }
         if(modelListHeader!=null)
-            modelListHeader.setText("설치 모델  "+knownModels.size()+"개  ·  표시 "+matched+"개");
-        if(matched==0) {
-            String hint=knownModels.isEmpty()?"모델이 없습니다.\n아래에서 모델을 다운로드하세요."
-                :"조건에 일치하는 모델이 없습니다. 검색어 또는 필터를 변경하세요.";
-            TextView empty=text(hint,14,MUTED,false);
-            empty.setPadding(dp(14),dp(18),dp(14),dp(18));
+            modelListHeader.setText("내 모델 "+knownModels.size()+"개 · 표시 "+shown.size()+"개");
+        if(shown.isEmpty()){
+            TextView empty=text(all.isEmpty()?"표시할 모델이 없습니다."
+                :"검색 조건에 맞는 모델이 없습니다. 검색어 또는 필터를 변경하세요.",
+                14,MUTED,false);
+            empty.setPadding(dp(16),dp(22),dp(16),dp(22));
             empty.setBackground(bg(CARD,14));
             margin(empty,modelRows,0,8);
+            return;
         }
+
+        float screenWidthDp=getResources().getDisplayMetrics().widthPixels /
+            getResources().getDisplayMetrics().density;
+        int columns=screenWidthDp<350 || (uiTextScale>1.2f&&screenWidthDp<425)?1:2;
+        int height=columns==1?190:uiTextScale>1.15f?240:214;
+        boolean reveal=animateNextTileUpdate&&animationsEnabled();
+        animateNextTileUpdate=false;
+        for(int pos=0;pos<shown.size();pos+=columns){
+            LinearLayout group=row();
+            group.setGravity(Gravity.TOP);
+            for(int col=0;col<columns;col++){
+                if(pos+col>=shown.size()){
+                    if(columns>1)group.addView(new View(this),
+                        new LinearLayout.LayoutParams(0,dp(height),1));
+                    continue;
+                }
+                ModelTileCatalog.Tile item=shown.get(pos+col);
+                LinearLayout tile=buildModelTile(item,height);
+                LinearLayout.LayoutParams tileParams=
+                    new LinearLayout.LayoutParams(0,dp(height),1);
+                if(col!=columns-1)tileParams.rightMargin=dp(10);
+                group.addView(tile,tileParams);
+                if(reveal&&pos+col<8){
+                    tile.setAlpha(0f);
+                    tile.setTranslationY(dp(9));
+                    tile.animate().alpha(1f).translationY(0f)
+                        .setDuration(200).setStartDelay(Math.min(110,(pos+col)*20))
+                        .setInterpolator(new DecelerateInterpolator()).start();
+                }
+            }
+            margin(group,modelRows,0,10);
+        }
+        updateTileDownloadProgress();
     }
 
     private void selectModel(String name) {
@@ -1183,11 +1382,22 @@ public final class MainActivity extends Activity {
         if (pullBusy || benchmarkBusy || HuggingFaceCatalog.isDownloading()) {
             toast("다른 모델 다운로드 또는 벤치마크 종료 후 이용하세요");return;
         }
+        long featuredBytes=0;
+        for(ModelTileCatalog.Tile featured:ModelTileCatalog.combine(
+                knownModels,modelBytes,modelQuantization)){
+            if(featured.id.equals(model)){featuredBytes=featured.bytes;break;}
+        }
+        String storageHint=featuredBytes>0 ?
+            ("예상 용량: 약 "+installedSize(featuredBytes)+"\n"):"";
+        String memoryHint=featuredBytes>0 ?
+            ("RAM 적합도: "+advise(model,featuredBytes/(1024.0*1024.0*1024.0))
+                .suitability+" (사전 추정)\n\n"):"\n";
         new AlertDialog.Builder(this)
             .setTitle("다운로드 · 데이터 요금 안내")
-            .setMessage("선택 모델: " + model + "\n\n모델 다운로드는 수백 MB~수 GB의 " +
-                "인터넷 데이터를 사용할 수 있습니다. Wi-Fi나 모바일 데이터 요금제에 따라 " +
-                "통신료가 발생할 수 있습니다. 저장공간과 인터넷 연결을 확인하세요.\n\n" +
+            .setMessage("선택 모델: " + model + "\n"+storageHint+memoryHint+
+                "모델 다운로드는 수백 MB~수십 GB의 인터넷 데이터를 사용할 수 있습니다. " +
+                "Wi-Fi나 모바일 데이터 요금제에 따라 통신료가 발생할 수 있습니다. " +
+                "저장공간과 인터넷 연결을 확인하세요.\n\n" +
                 "다운로드 중 표시되는 광고에도 인터넷 데이터가 사용될 수 있습니다.")
             .setNegativeButton("취소", null)
             .setPositiveButton("확인 후 다운로드", (d,w) -> beginDownload(model))
@@ -1201,6 +1411,10 @@ public final class MainActivity extends Activity {
             startServer(); return;
         }
         pullBusy = true; pullCancelled = false;
+        downloadingModel=model;
+        downloadingPercent=-1;
+        animateNextTileUpdate=false;
+        renderInstalledModels();  // Immediately show the accurate downloading tile.
         downloadProgress.setVisibility(View.VISIBLE);
         downloadProgress.setIndeterminate(true);
         ads.showBanner(downloadAdSlot);
@@ -1217,6 +1431,9 @@ public final class MainActivity extends Activity {
                     String info = model + " · " + status + (total > 0 ? " (" + (completed * 100 / total) + "%)" : "");
                     ui.post(() -> {
                         progressStatus.setText(info);
+                        downloadingPercent=total>0 ?
+                            (int)Math.max(0,Math.min(100,completed*100/total)):-1;
+                        updateTileDownloadProgress();
                         if (total > 0) {
                             downloadProgress.setIndeterminate(false);
                             downloadProgress.setProgress((int)Math.max(0, Math.min(100, completed * 100 / total)));
@@ -1230,6 +1447,9 @@ public final class MainActivity extends Activity {
             final String failure = error;
             ui.post(() -> {
                 pullBusy = false;
+                downloadingModel="";
+                downloadingPercent=-1;
+                renderInstalledModels();
                 pullButton.setEnabled(true); pullButton.setAlpha(1f);
                 cancelPullButton.setEnabled(false); cancelPullButton.setAlpha(0.5f);
                 progressStatus.setText(pullCancelled ? "다운로드 중단" : failure != null ?
@@ -1479,6 +1699,7 @@ public final class MainActivity extends Activity {
             window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
             window.setDimAmount(0.42f);
             window.setGravity(Gravity.START|Gravity.TOP);
+            if(animationsEnabled())window.setWindowAnimations(R.style.AiPocketDrawerMotion);
         }
         drawer.show();
         if(window!=null){

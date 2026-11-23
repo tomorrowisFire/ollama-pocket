@@ -22,6 +22,10 @@ on:
       - 'tests/PerformanceHudMetricsTest.java'
       - 'tests/ModelListFilterTest.java'
       - 'tests/ModelPerformanceAdvisorTest.java'
+      - 'tests/ModelTileCatalogTest.java'
+      - 'app/src/main/java/com/ollamapocket/app/ModelTileCatalog.java'
+      - 'app/src/main/res/anim/**'
+      - 'app/src/main/res/values/**'
       - 'app/src/main/java/com/ollamapocket/app/ModelListFilter.java'
       - 'app/src/main/java/com/ollamapocket/app/ModelPerformanceAdvisor.java'
       - 'app/src/main/java/com/ollamapocket/app/ModelBenchmark.java'
@@ -72,6 +76,14 @@ jobs:
             tests/ModelPerformanceAdvisorTest.java
           java -cp /tmp/coop-tests ModelListFilterTest
           java -cp /tmp/coop-tests ModelPerformanceAdvisorTest
+      - name: Verify model grid status, recommendations and dynamic installation
+        shell: bash
+        run: |
+          set -euo pipefail
+          javac -d /tmp/coop-tests \
+            app/src/main/java/com/ollamapocket/app/ModelTileCatalog.java \
+            tests/ModelTileCatalogTest.java
+          java -cp /tmp/coop-tests ModelTileCatalogTest
 
   cooperative-apk:
     runs-on: ubuntu-24.04
@@ -157,7 +169,12 @@ jobs:
           assert 'drawerNavigationItem("▦","기기/연결 진단"' in src
           assert 'navButtons' not in src
           assert 'private void showChatList()' not in src
-          print('PASS: single side drawer + pinned app menus; no bottom tab strip')
+          assert 'buildModelTile(' in src
+          assert 'ModelTileCatalog.combine(' in src
+          assert 'updateTileDownloadProgress()' in src
+          assert 'AiPocketDrawerMotion' in src
+          assert 'ViewPropertyAnimator' not in src or 'animate()' in src
+          print('PASS: drawer-only navigation, two-column model cards, real download state, UI motion')
           PY
       - name: Compile app with cooperative session and RPC tunnel
         run: gradle --no-daemon :app:assembleDebug
@@ -187,7 +204,7 @@ jobs:
         run: |
           mkdir -p dist
           cp app/build/outputs/apk/debug/app-debug.apk \
-            dist/AI-in-Pocket-v0.9.4-Chat-Sidebar-ARM64.apk
+            dist/AI-in-Pocket-v0.9.5-Model-Grid-ARM64.apk
           cp signature-report.txt dist/signature-report.txt
       - name: Make official Android apksigner available for offline stable re-signing
         shell: bash
