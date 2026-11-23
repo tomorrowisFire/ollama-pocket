@@ -231,6 +231,79 @@ public final class HuggingFaceCatalog {
         });
         dialog.show();
     }
+    /** Integrated search uses exact public GGUF files rather than repository-size guesses. */
+    static List<ModelVariantCatalog.Variant> searchVariants(String query) throws Exception {
+        JSONArray models=new JSONArray(getText(BASE+"/api/models?search="+encode(query)+
+            "&filter=gguf&sort=downloads&direction=-1&limit=16",MAX_JSON));
+        List<Model> publicModels=new ArrayList<>();
+        for(int i=0;i<models.length();i++){
+            JSONObject o=models.optJSONObject(i);if(o==null)continue;
+            String id=o.optString("id","");Object gate=o.opt("gated");
+            if(!validRepo(id)||o.optBoolean("private",false)||Boolean.TRUE.equals(gate)||
+                gate instanceof String&&!"false".equalsIgnoreCase((String)gate))continue;
+            publicModels.add(new Model(id,license(o),o.optLong("downloads",0),false));
+        }
+        java.util.concurrent.ExecutorService pool=Executors.newFixedThreadPool(4);
+        List<java.util.concurrent.Callable<List<ModelVariantCatalog.Variant>>> jobs=new ArrayList<>();
+        for(Model model:publicModels)jobs.add(()->{
+            List<ModelVariantCatalog.Variant> list=new ArrayList<>();
+            for(Weight weight:fetchWeights(model.id))
+                list.add(new ModelVariantCatalog.Variant("Hugging Face",model.id,weight.path,weight.size));
+            return list;
+        });
+        List<ModelVariantCatalog.Variant> result=new ArrayList<>();Exception failure=null;
+        try {
+            for(java.util.concurrent.Future<List<ModelVariantCatalog.Variant>> f:
+                pool.invokeAll(jobs,30,java.util.concurrent.TimeUnit.SECONDS)){
+                try{result.addAll(f.get());}catch(Exception ex){failure=ex;}
+            }
+        }finally{pool.shutdownNow();}
+        if(result.isEmpty()&&failure!=null)throw new Exception("공개 GGUF 파일 조회 실패",failure);
+        return result;
+    }
+    private static List<Weight> fetchWeights(String id) throws Exception{
+        if(!validRepo(id))throw new Exception("잘못된 Hugging Face 저장소");
+        JSONArray files=new JSONArray(getText(BASE+"/api/models/"+id+"/tree/main?recursive=true",MAX_JSON));
+        List<Weight> gguf=new ArrayList<>();
+        for(int i=0;i<files.length();i++){
+            JSONObject file=files.optJSONObject(i);
+            if(file==null||!"file".equals(file.optString("type")))continue;
+            String path=file.optString("path",""),name=path.toLowerCase(Locale.ROOT);
+            if(!name.endsWith(".gguf")||name.contains("mmproj")||name.matches(".*-\\d{5}-of-\\d{5}\\.gguf"))continue;
+            long bytes=file.optLong("size",0);
+            JSONObject lfs=file.optJSONObject("lfs");
+            if(lfs!=null)bytes=Math.max(bytes,lfs.optLong("size",0));
+            if(bytes>0){try{encodePath(path);gguf.add(new Weight(path,bytes));}catch(Exception ignored){}}
+        }
+        gguf.sort(Comparator.comparingLong(w->w.size));
+        return gguf;
+    }
+    /** Revalidate the selected repo/file and preserve existing license/storage/download safeguards. */
+    static void openVariant(Activity activity,ModelVariantCatalog.Variant variant,Runnable installed){
+        HuggingFaceCatalog catalog=new HuggingFaceCatalog(activity,installed);
+        AlertDialog loading=new AlertDialog.Builder(activity).setTitle("Hugging Face")
+            .setMessage("선택한 파일과 라이선스를 확인 중…").setNegativeButton("취소",null).create();
+        AtomicBoolean cancelled=new AtomicBoolean(false);
+        loading.setOnCancelListener(d->cancelled.set(true));
+        loading.show();
+        loading.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener(v->{cancelled.set(true);loading.dismiss();});
+        catalog.io.execute(()->{
+            try{
+                if(!validRepo(variant.model))throw new Exception("잘못된 저장소");
+                JSONObject meta=new JSONObject(getText(BASE+"/api/models/"+variant.model+"?full=true&cardData=true",MAX_JSON));
+                Object gate=meta.opt("gated");
+                if(meta.optBoolean("private",false)||Boolean.TRUE.equals(gate)||
+                    gate instanceof String&&!"false".equalsIgnoreCase((String)gate))throw new Exception("공개 GGUF만 지원합니다.");
+                Weight chosen=null;
+                for(Weight w:fetchWeights(variant.model))if(w.path.equals(variant.file)){chosen=w;break;}
+                if(chosen==null)throw new Exception("선택한 GGUF 파일을 찾을 수 없습니다.");
+                final Weight weight=chosen;final String lic=license(meta);
+                catalog.onUi(()->{loading.dismiss();if(cancelled.get()||activity.isDestroyed()){catalog.io.shutdown();return;}
+                    catalog.confirmDownload(new Model(variant.model,lic,meta.optLong("downloads",0),false),lic,weight);
+                });
+            }catch(Exception ex){catalog.onUi(()->{loading.dismiss();if(!cancelled.get())catalog.fail("파일 확인 실패: "+ex.getMessage());});catalog.io.shutdown();}
+        });
+    }
     private void showFiles(Model model){
         AlertDialog loading=new AlertDialog.Builder(activity).setTitle(model.id)
             .setMessage("GGUF 파일 목록과 라이선스를 확인 중…")

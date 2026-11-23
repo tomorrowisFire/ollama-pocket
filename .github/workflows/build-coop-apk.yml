@@ -30,6 +30,8 @@ on:
       - 'app/src/main/java/com/ollamapocket/app/OllamaFamilyPicker.java'
       - 'app/src/main/java/com/ollamapocket/app/OllamaLibrarySearch.java'
       - 'tests/OllamaLibrarySearchTest.java'
+      - 'tests/ModelVariantCatalogTest.java'
+      - 'app/src/main/java/com/ollamapocket/app/ModelVariantCatalog.java'
       - 'app/src/main/java/com/ollamapocket/app/ModelTileCatalog.java'
       - 'app/src/main/res/anim/**'
       - 'app/src/main/res/values/**'
@@ -111,6 +113,13 @@ jobs:
             app/src/main/java/com/ollamapocket/app/OllamaLibrarySearch.java \
             tests/OllamaLibrarySearchTest.java
           java -cp /tmp/coop-tests OllamaLibrarySearchTest
+      - name: Verify exact quantization discovery, size ranking and responsive grid
+        run: |
+          javac -d /tmp/coop-tests \
+            app/src/main/java/com/ollamapocket/app/OllamaLibrarySearch.java \
+            app/src/main/java/com/ollamapocket/app/ModelVariantCatalog.java \
+            tests/ModelVariantCatalogTest.java
+          java -cp /tmp/coop-tests ModelVariantCatalogTest
 
   cooperative-apk:
     runs-on: ubuntu-24.04
@@ -199,11 +208,15 @@ jobs:
           assert 'buildModelTile(' in src
           assert 'deviceRecommendedTiles()' in src
           assert 'ModelTileCatalog.forDevice(' in src
-          assert 'lp(sideDp,sideDp)' in src
+          assert 'new LinearLayout.LayoutParams(sidePx,sidePx)' in src
+          assert 'ModelVariantCatalog.columns(' in src
+          assert 'HuggingFaceCatalog.searchVariants(' in src
+          assert 'ModelVariantCatalog.searchOllama(' in src
+          assert 'ModelVariantCatalog.compareSize(' in src
           assert 'OllamaQuantPicker.show(' in src
           assert '모델 받기 ↓' not in src
           assert 'text("(추천)",10,secondary,true)' in src
-          assert 'OllamaFamilyPicker.show(' in src
+          assert 'bestQuantizations(' in src
           assert 'allSearchTiles(filter)' in src
           assert 'onlineSearchSerial' in src
           assert 'onModelSearchChanged(s.toString())' in src
@@ -246,7 +259,7 @@ jobs:
         run: |
           mkdir -p dist
           cp app/build/outputs/apk/debug/app-debug.apk \
-            dist/AI-in-Pocket-v0.9.9-Global-Model-Search-ARM64.apk
+            dist/AI-in-Pocket-v0.10.0-Unified-Quant-Search-ARM64.apk
           cp signature-report.txt dist/signature-report.txt
       - name: Make official Android apksigner available for offline stable re-signing
         shell: bash
