@@ -72,6 +72,7 @@ public final class MainActivity extends Activity {
     private ProgressBar downloadProgress;
     private FrameLayout downloadAdSlot;
     private AdSupport ads;
+    private long lastPauseElapsed;
     private Button[] navButtons;
     private LinearLayout messages, modelRows;
     private ScrollView messageScroll;
@@ -132,8 +133,21 @@ public final class MainActivity extends Activity {
         }
     }
 
-    @Override protected void onResume() { super.onResume(); ui.post(poll); }
-    @Override protected void onPause() { ui.removeCallbacks(poll); super.onPause(); }
+    @Override protected void onResume() {
+        super.onResume();
+        ui.post(poll);
+        long now = android.os.SystemClock.elapsedRealtime();
+        if (lastPauseElapsed > 0 && now - lastPauseElapsed > 120_000
+                && getPreferences(MODE_PRIVATE).getBoolean("welcome_v2_seen", false)
+                && !pullBusy && !chatBusy) {
+            ads.showAppOpenIfReady();
+        }
+    }
+    @Override protected void onPause() {
+        lastPauseElapsed = android.os.SystemClock.elapsedRealtime();
+        ui.removeCallbacks(poll);
+        super.onPause();
+    }
     @Override protected void onDestroy() {
         if (chatConnection != null) chatConnection.disconnect();
         if (pullConnection != null) pullConnection.disconnect();
@@ -277,10 +291,10 @@ public final class MainActivity extends Activity {
         downloadProgress.setProgress(0);
         downloadProgress.setVisibility(View.GONE);
         margin(downloadProgress, content, 0, 8);
-        margin(text("광고 · Google 테스트 배너", 11, MUTED, false), content, 0, 3);
+        margin(text("광고" + (BuildConfig.DEBUG ? " · Google 테스트 배너" : ""), 11, MUTED, false), content, 0, 3);
         downloadAdSlot = new FrameLayout(this);
         margin(downloadAdSlot, content, 0, 4);
-        ads.register(downloadAdSlot);
+        ads.register(downloadAdSlot, AdSupport.PLACEMENT_DOWNLOAD);
         margin(text("광고는 네트워크 데이터를 사용하며 요금제에 따라 통신료가 발생할 수 있습니다.",
             11, MUTED, false), content, 0, 16);
         LinearLayout titleRow = row();
@@ -310,7 +324,8 @@ public final class MainActivity extends Activity {
         margin(privacy, serverPage, 0, 6);
         privacy.setOnClickListener(v -> ads.showPrivacyChoices());
         margin(text("광고에는 인터넷 연결이 필요하고 데이터 요금이 발생할 수 있습니다. " +
-            "현재 광고는 Google 제공 테스트 광고로 수익이 발생하지 않습니다.",
+            (BuildConfig.DEBUG ? "현재 개발용 앱은 Google 제공 테스트 광고로 수익이 발생하지 않습니다." :
+                "운영 광고는 동의 상태와 네트워크에 따라 표시되지 않을 수도 있습니다."),
             12, MUTED, false), serverPage, 0, 9);
         Button license = button("오픈소스·상표 안내", false);
         margin(license, serverPage, 0, 10);
@@ -384,10 +399,10 @@ public final class MainActivity extends Activity {
             "인터넷 데이터가 사용되며 요금제에 따라 통신료가 발생할 수 있습니다. " +
             "Wi-Fi 이용을 권장합니다. 이 화면은 언제든 닫을 수 있습니다.",
             13, WHITE, false), guide, 0, 11);
-        margin(text("광고 · Google 테스트 배너", 11, MUTED, false), guide, 0, 4);
+        margin(text("광고" + (BuildConfig.DEBUG ? " · Google 테스트 배너" : ""), 11, MUTED, false), guide, 0, 4);
         FrameLayout guideAd = new FrameLayout(this);
         margin(guideAd, guide, 0, 4);
-        ads.register(guideAd);
+        ads.register(guideAd, AdSupport.PLACEMENT_ONBOARDING);
         AlertDialog dialog = new AlertDialog.Builder(this).setView(guide)
             .setNegativeButton("닫고 채팅", (d,w) -> showTab(0))
             .setPositiveButton("모델 선택 시작", (d,w) -> showTab(1)).create();

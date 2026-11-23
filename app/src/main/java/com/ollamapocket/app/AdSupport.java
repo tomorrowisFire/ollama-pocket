@@ -10,6 +10,9 @@ import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
+import com.google.android.gms.ads.AdError;
+import com.google.android.gms.ads.FullScreenContentCallback;
+import com.google.android.gms.ads.appopen.AppOpenAd;
 import com.google.android.gms.ads.AdListener;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdSize;
@@ -24,14 +27,29 @@ import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
-/** Test banners only. Production monetization requires publisher IDs and privacy configuration. */
+/** Debug builds show demo ads. Release ad units require a verified publisher app ID. */
 public final class AdSupport {
     // Official Google demo IDs do not produce publisher revenue.
     private static final String DEMO_BANNER = "ca-app-pub-3940256099942544/6300978111";
+    private static final String DEMO_APP_OPEN = "ca-app-pub-3940256099942544/9257395921";
+    // Publisher-supplied AdMob ad-unit IDs; active only in configured release builds.
+    private static final String LIVE_APP_OPEN = "ca-app-pub-4763897710237099/8245753612";
+    private static final String LIVE_DOWNLOAD_BANNER = "ca-app-pub-4763897710237099/7124243639";
+    private static final String LIVE_ONBOARDING_BANNER = "ca-app-pub-4763897710237099/9558835282";
+    public static final String PLACEMENT_DOWNLOAD = "download";
+    public static final String PLACEMENT_ONBOARDING = "onboarding";
     private final Activity activity;
     private final ConsentInformation consent;
     private final SharedPreferences prefs;
     private final Map<FrameLayout, AdView> live = new IdentityHashMap<>();
+    private final Map<FrameLayout, String> placements = new IdentityHashMap<>();
+    private AppOpenAd appOpenAd;
+    private boolean appOpenLoading;
+    private boolean appOpenShowing;
+    private long appOpenLoadedTime;
+    private long lastAppOpenShownTime;
+    private static final long APP_OPEN_TTL = 4L * 60 * 60 * 1000;
+    private static final long APP_OPEN_COOLDOWN = 4L * 60 * 60 * 1000;
     private final ArrayList<FrameLayout> requested = new ArrayList<>();
     private boolean consentRequestStarted;
     private boolean adsInitialized;
@@ -59,9 +77,10 @@ public final class AdSupport {
 
     private int toDp(int px) { return (int)(activity.getResources().getDisplayMetrics().density * px + 0.5f); }
 
-    public void register(FrameLayout parent) {
+    public void register(FrameLayout parent, String placement) {
         if (disposed) return;
-        status(parent, "광고 영역 · 데이터 사용 가능 · 테스트 광고");
+        placements.put(parent, placement);
+        status(parent, "광고 영역 · 데이터 사용 가능" + (BuildConfig.DEBUG ? " · 테스트 광고" : ""));
     }
 
     public void showBanner(FrameLayout parent) {
@@ -99,6 +118,7 @@ public final class AdSupport {
             MobileAds.initialize(activity, state -> { });
         }
         for (FrameLayout parent : new ArrayList<>(requested)) load(parent);
+        preloadAppOpen();
     }
 
     private void load(FrameLayout parent) {
@@ -110,7 +130,10 @@ public final class AdSupport {
         }
         AdView banner = new AdView(activity);
         banner.setAdSize(AdSize.BANNER);
-        banner.setAdUnitId(DEMO_BANNER);
+        String placement = placements.get(parent);
+        String adUnitId = BuildConfig.DEBUG ? DEMO_BANNER :
+            (PLACEMENT_ONBOARDING.equals(placement) ? LIVE_ONBOARDING_BANNER : LIVE_DOWNLOAD_BANNER);
+        banner.setAdUnitId(adUnitId);
         banner.setAdListener(new AdListener() {
             @Override public void onAdFailedToLoad(LoadAdError error) {
                 if (live.get(parent) == banner) {
@@ -125,6 +148,53 @@ public final class AdSupport {
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-2, -2, Gravity.CENTER);
         parent.addView(banner, lp);
         banner.loadAd(new AdRequest.Builder().build());
+    }
+
+    /** Preload a closeable app-open ad for a later foreground entry; never interrupt onboarding. */
+    private void preloadAppOpen() {
+        if (disposed || !isEnabled() || !consent.canRequestAds() || appOpenLoading) return;
+        long now = android.os.SystemClock.elapsedRealtime();
+        if (appOpenAd != null && now - appOpenLoadedTime < APP_OPEN_TTL) return;
+        appOpenAd = null;
+        appOpenLoading = true;
+        AppOpenAd.load(activity, BuildConfig.DEBUG ? DEMO_APP_OPEN : LIVE_APP_OPEN,
+            new AdRequest.Builder().build(), new AppOpenAd.AppOpenAdLoadCallback() {
+                @Override public void onAdLoaded(AppOpenAd ad) {
+                    if (disposed) return;
+                    appOpenAd = ad;
+                    appOpenLoadedTime = android.os.SystemClock.elapsedRealtime();
+                    appOpenLoading = false;
+                }
+                @Override public void onAdFailedToLoad(LoadAdError error) {
+                    appOpenLoading = false;
+                }
+            });
+    }
+
+    /** Called only when returning to the app after a meaningful absence. */
+    public void showAppOpenIfReady() {
+        if (disposed || !isEnabled() || !consent.canRequestAds() || appOpenShowing) return;
+        long now = android.os.SystemClock.elapsedRealtime();
+        if (appOpenAd == null || now - appOpenLoadedTime >= APP_OPEN_TTL) {
+            preloadAppOpen();
+            return;
+        }
+        if (lastAppOpenShownTime > 0 && now - lastAppOpenShownTime < APP_OPEN_COOLDOWN) return;
+        AppOpenAd ad = appOpenAd;
+        appOpenAd = null;
+        appOpenShowing = true;
+        ad.setFullScreenContentCallback(new FullScreenContentCallback() {
+            @Override public void onAdDismissedFullScreenContent() {
+                appOpenShowing = false;
+                preloadAppOpen();
+            }
+            @Override public void onAdFailedToShowFullScreenContent(AdError error) {
+                appOpenShowing = false;
+                preloadAppOpen();
+            }
+        });
+        lastAppOpenShownTime = now;
+        ad.show(activity);
     }
 
     public void showPrivacyChoices() {
@@ -147,6 +217,7 @@ public final class AdSupport {
 
     private void disable() {
         prefs.edit().putBoolean("enabled", false).apply();
+        appOpenAd = null;
         for (FrameLayout parent : new ArrayList<>(requested)) {
             AdView view = live.remove(parent);
             if (view != null) view.destroy();
@@ -161,6 +232,7 @@ public final class AdSupport {
     }
 
     public void detach(FrameLayout parent) {
+        placements.remove(parent);
         requested.remove(parent);
         AdView banner = live.remove(parent);
         if (banner != null) banner.destroy();
@@ -172,5 +244,7 @@ public final class AdSupport {
         for (AdView banner : live.values()) banner.destroy();
         live.clear();
         requested.clear();
+        placements.clear();
+        appOpenAd = null;
     }
 }
