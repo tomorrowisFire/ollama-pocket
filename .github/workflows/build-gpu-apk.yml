@@ -85,7 +85,7 @@ jobs:
       - name: Name Vulkan experimental APK
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk dist/AI-in-Pocket-v0.4.0-android-arm64-Vulkan.apk
+          cp app/build/outputs/apk/debug/app-debug.apk dist/AI-in-Pocket-v0.4.0-hardware-selftest-arm64-Vulkan.apk
       - uses: actions/upload-artifact@v4
         with:
           name: AI-in-Pocket-Vulkan-GPU-APK
