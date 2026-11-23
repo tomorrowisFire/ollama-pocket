@@ -103,6 +103,7 @@ public final class MainActivity extends Activity {
     private final Map<String,ProgressBar> tileDownloadBars = new HashMap<>();
     private boolean animateNextTileUpdate = false;
     private volatile String downloadingModel = "";
+    private volatile String downloadingCardId = "";
     private volatile int downloadingPercent = -1;
     private TextView suitabilitySummary;
     private Button installedPickerButton;
@@ -1228,7 +1229,7 @@ public final class MainActivity extends Activity {
     }
 
     private void activateTile(ModelTileCatalog.Tile tile){
-        if(tile.id.equals(downloadingModel)&&pullBusy){
+        if(tile.id.equals(downloadingCardId)&&pullBusy){
             toast(tile.title+" 다운로드 중 · 진행 상태를 카드에서 확인하세요");
             return;
         }
@@ -1236,19 +1237,25 @@ public final class MainActivity extends Activity {
             toast("진행 중인 추론·다운로드·벤치마크를 마친 뒤 변경하세요");
             return;
         }
-        if(tile.installed) {
-            if(!tile.id.equals(currentModel))selectModel(tile.id);
-            showTab(0);
-        }else{
-            // Keep the existing mandatory mobile-data / license warning dialog.
-            modelInput.setText(tile.id);
-            pullModel();
-        }
+        // Always show the quantization picker for a model title/card tap.
+        // The available versions are read from Ollama's real library tag list.
+        OllamaQuantPicker.show(this,tile.id,new ArrayList<>(knownModels),(tag,installed)->{
+            if(isUiBusy()){
+                toast("먼저 진행 중인 작업을 마치세요");return;
+            }
+            if(installed&&knownModels.contains(tag)){
+                selectModel(tag);
+                showTab(0);
+            }else{
+                modelInput.setText(tag);
+                pullModel(); // Mandatory data charges warning remains in effect.
+            }
+        });
     }
 
     /** Compact contents fit inside an actual square at narrow phone widths. */
     private LinearLayout buildModelTile(ModelTileCatalog.Tile item,int sideDp) {
-        boolean selected=item.installed&&item.id.equals(currentModel);
+        boolean selected=item.installed&&OllamaQuantCatalog.belongsToModel(item.id,currentModel);
         int ink=tileTextColor(), secondary=tileMutedColor();
         LinearLayout card=column();
         card.setPadding(dp(10),dp(9),dp(10),dp(9));
@@ -1257,8 +1264,8 @@ public final class MainActivity extends Activity {
         card.setFocusable(true);
         card.setElevation(dp(1));
         card.setContentDescription(item.title+", "+item.id+", "+
-            ModelTileCatalog.status(item,downloadingModel)+", "+item.description+
-            ". "+(item.installed?"대화 시작":"다운로드 확인"));
+            ModelTileCatalog.status(item,downloadingCardId)+", "+item.description+
+            ". 터치하여 양자화 버전 선택");
         TypedValue ripple=new TypedValue();
         if(getTheme().resolveAttribute(android.R.attr.selectableItemBackground,ripple,true)
                 &&ripple.resourceId!=0)
@@ -1266,7 +1273,7 @@ public final class MainActivity extends Activity {
         tilePressEffect(card);
 
         TextView statusText=text(
-            (item.id.equals(downloadingModel)&&pullBusy)?"↓ 다운로드 중":
+            (item.id.equals(downloadingCardId)&&pullBusy)?"↓ 다운로드 중":
             item.installed?(selected?"● 사용 중":"● 설치됨"):"○ 미설치",
             10,ink,true);
         statusText.setSingleLine(true);
@@ -1298,36 +1305,31 @@ public final class MainActivity extends Activity {
         ProgressBar progress=new ProgressBar(this,null,
             android.R.attr.progressBarStyleHorizontal);
         progress.setMax(100);
-        progress.setVisibility(item.id.equals(downloadingModel)&&pullBusy?
+        progress.setVisibility(item.id.equals(downloadingCardId)&&pullBusy?
             View.VISIBLE:View.GONE);
-        if(item.id.equals(downloadingModel)&&pullBusy){
+        if(item.id.equals(downloadingCardId)&&pullBusy){
             progress.setIndeterminate(downloadingPercent<0);
             if(downloadingPercent>=0)progress.setProgress(downloadingPercent);
         }
         margin(progress,card,0,2);
         tileDownloadBars.put(item.id,progress);
 
-        TextView action=text(item.installed?"대화 시작 →":"모델 받기 ↓",
-            12,ink,true);
-        action.setGravity(Gravity.CENTER);
-        action.setMinHeight(dp(30));
-        action.setSingleLine(true);
-        action.setBackground(bg("mono_light".equals(uiTheme)?
-            Color.rgb(219,219,219):"mono_dark".equals(uiTheme)?
-            Color.rgb(66,66,66):Color.rgb(43,80,140),9));
-        margin(action,card,0,0);
+        TextView hint=text("양자화 버전 선택 ›",11,secondary,false);
+        hint.setGravity(Gravity.CENTER);
+        hint.setSingleLine(true);
+        margin(hint,card,1,0);
         card.setOnClickListener(v->activateTile(item));
         return card;
     }
 
     private void updateTileDownloadProgress(){
         if(!pullBusy||downloadingModel.isEmpty())return;
-        TextView status=tileStatusLabels.get(downloadingModel);
+        TextView status=tileStatusLabels.get(downloadingCardId);
         if(status!=null){
             status.setText(downloadingPercent<0?"↓ 다운로드 준비 중":
                 "↓ 다운로드 중 · 레이어 "+downloadingPercent+"%");
         }
-        ProgressBar bar=tileDownloadBars.get(downloadingModel);
+        ProgressBar bar=tileDownloadBars.get(downloadingCardId);
         if(bar!=null){
             bar.setVisibility(View.VISIBLE);
             bar.setIndeterminate(downloadingPercent<0);
@@ -1463,6 +1465,13 @@ public final class MainActivity extends Activity {
         }
         pullBusy = true; pullCancelled = false;
         downloadingModel=model;
+        downloadingCardId="";
+        for(ModelTileCatalog.Tile card:deviceRecommendedTiles()){
+            if(OllamaQuantCatalog.belongsToModel(card.id,model)){
+                downloadingCardId=card.id;
+                break;
+            }
+        }
         downloadingPercent=-1;
         animateNextTileUpdate=false;
         renderInstalledModels();  // Immediately show the accurate downloading tile.
@@ -1499,6 +1508,7 @@ public final class MainActivity extends Activity {
             ui.post(() -> {
                 pullBusy = false;
                 downloadingModel="";
+                downloadingCardId="";
                 downloadingPercent=-1;
                 renderInstalledModels();
                 pullButton.setEnabled(true); pullButton.setAlpha(1f);

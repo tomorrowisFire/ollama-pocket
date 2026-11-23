@@ -106,13 +106,20 @@ public final class ModelTileCatalog {
             for(String id:recommendedIds){
                 if(id==null||id.trim().isEmpty()||result.size()>=limit)continue;
                 if(already.contains(id))continue;
-                boolean isInstalled=installedIds.contains(id);
+                String installedTag=installedIds.contains(id)?id:null;
+                if(installedTag==null)for(String actual:installedIds){
+                    if(actual!=null&&actual.toLowerCase(Locale.ROOT).startsWith(
+                            id.toLowerCase(Locale.ROOT)+"-")){
+                        installedTag=actual;break;
+                    }
+                }
+                boolean isInstalled=installedTag!=null;
                 if((pass==0)!=isInstalled)continue;
                 long bytes=isInstalled&&sizes!=null
-                        ?Math.max(0,sizes.getOrDefault(id,0L)):
+                        ?Math.max(0,sizes.getOrDefault(installedTag,0L)):
                         estimatedBytes==null?0:Math.max(0,estimatedBytes.getOrDefault(id,0L));
                 String quant=quantizations==null?"미확인":
-                    quantizations.getOrDefault(id,"미확인");
+                    quantizations.getOrDefault(isInstalled?installedTag:id,"미확인");
                 String explanation=summaries==null?"기기에 맞춘 추천":
                     summaries.getOrDefault(id,"기기에 맞춘 추천");
                 result.add(new Tile(id,familyName(id),explanation,

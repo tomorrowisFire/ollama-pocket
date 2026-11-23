@@ -20,6 +20,16 @@ public final class DeviceRecommendationGridTest {
             "low RAM device shows only safe recommendations");
         ok(ModelTileCatalog.forDevice(null,null,null,null,null,null,6).isEmpty(),"null recommendations");
         ok("다운로드 중".equals(ModelTileCatalog.status(tiles.get(1),tiles.get(1).id)),"real progress tag");
-        System.out.println("PASS: DeviceRecommendationGrid (10 assertions)");
+        List<ModelTileCatalog.Tile> installedVariant=
+            ModelTileCatalog.forDevice(Arrays.asList("qwen3:1.7b"),
+                Collections.emptyMap(),Collections.emptyMap(),
+                Arrays.asList("qwen3:1.7b-q8_0"),
+                Collections.singletonMap("qwen3:1.7b-q8_0",2200000000L),
+                Collections.singletonMap("qwen3:1.7b-q8_0","Q8_0"),6);
+        ok(installedVariant.size()==1 && installedVariant.get(0).installed,
+            "matching quantized variant counts as installed");
+        ok("Q8_0".equals(installedVariant.get(0).quantization),
+            "installed quantization metadata used for base model tile");
+        System.out.println("PASS: DeviceRecommendationGrid (12 assertions)");
     }
 }

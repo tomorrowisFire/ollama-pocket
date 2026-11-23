@@ -24,6 +24,9 @@ on:
       - 'tests/ModelPerformanceAdvisorTest.java'
       - 'tests/ModelTileCatalogTest.java'
       - 'tests/DeviceRecommendationGridTest.java'
+      - 'tests/OllamaQuantCatalogTest.java'
+      - 'app/src/main/java/com/ollamapocket/app/OllamaQuantCatalog.java'
+      - 'app/src/main/java/com/ollamapocket/app/OllamaQuantPicker.java'
       - 'app/src/main/java/com/ollamapocket/app/ModelTileCatalog.java'
       - 'app/src/main/res/anim/**'
       - 'app/src/main/res/values/**'
@@ -93,6 +96,12 @@ jobs:
             app/src/main/java/com/ollamapocket/app/ModelTileCatalog.java \
             tests/DeviceRecommendationGridTest.java
           java -cp /tmp/coop-tests DeviceRecommendationGridTest
+      - name: Test real registry model-tag quantization parsing
+        run: |
+          javac -d /tmp/coop-tests \
+            app/src/main/java/com/ollamapocket/app/OllamaQuantCatalog.java \
+            tests/OllamaQuantCatalogTest.java
+          java -cp /tmp/coop-tests OllamaQuantCatalogTest
 
   cooperative-apk:
     runs-on: ubuntu-24.04
@@ -182,6 +191,9 @@ jobs:
           assert 'deviceRecommendedTiles()' in src
           assert 'ModelTileCatalog.forDevice(' in src
           assert 'lp(sideDp,sideDp)' in src
+          assert 'OllamaQuantPicker.show(' in src
+          assert '모델 받기 ↓' not in src
+          assert 'downloadingCardId' in src
           assert '이 기기에 추천하는 모델' not in src
           assert 'recommendationRows' not in src
           assert 'renderRecommendations' not in src
@@ -220,7 +232,7 @@ jobs:
         run: |
           mkdir -p dist
           cp app/build/outputs/apk/debug/app-debug.apk \
-            dist/AI-in-Pocket-v0.9.6-Six-Recommendations-HUD-ARM64.apk
+            dist/AI-in-Pocket-v0.9.7-Quantization-Picker-ARM64.apk
           cp signature-report.txt dist/signature-report.txt
       - name: Make official Android apksigner available for offline stable re-signing
         shell: bash
