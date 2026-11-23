@@ -414,16 +414,17 @@ public final class MainActivity extends Activity {
                 diagnosticStatus.setText("실측 검사 시작...");
                 final String model = currentModel;
                 io.execute(() -> {
-                    final String result;
+                    String computed;
                     try {
-                        result = HardwareSelfTest.run(getApplicationContext(), model,
+                        computed = HardwareSelfTest.run(getApplicationContext(), model,
                             message -> ui.post(() -> {
                                 if (!isFinishing() && diagnosticStatus != null)
                                     diagnosticStatus.setText(message);
                             }));
                     } catch (Throwable e) {
-                        result = "검사 실행 오류: " + e.getClass().getSimpleName() + " · " + e.getMessage();
+                        computed = "검사 실행 오류: " + e.getClass().getSimpleName() + " · " + e.getMessage();
                     }
+                    final String result = computed;
                     ui.post(() -> {
                         diagnosticBusy = false;
                         if (isFinishing()) return;
