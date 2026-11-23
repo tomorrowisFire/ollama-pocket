@@ -7,8 +7,9 @@ import android.os.Build;
 
 /**
  * Distinguishes reported hardware capability from usable inference backends.
- * The distributed Ollama Android runner is CPU-only. A GPU/NPU feature flag is
- * not proof of acceleration, and never activates GPU/NPU execution.
+ * The embedded Ollama Android backend is CPU-only. A separately compiled Vulkan
+ * llama.cpp runner may accelerate GPU inference, but it is reported as active
+ * only after successful offload verification. NPU execution is not available.
  */
 public final class ComputeProfiler {
     private ComputeProfiler() { }
@@ -57,8 +58,8 @@ public final class ComputeProfiler {
             return "CPU  ·  " + cpuCores + "코어 · " + deviceName + "\n" +
                 "GPU  ·  " + gpu + "\n" +
                 "NPU  ·  " + npu + "\n" +
-                "실제 Ollama 추론: " + actualEngine + "\n" +
-                "현재 APK에는 GPU/NPU 추론 백엔드가 없습니다. 감지와 실행은 다릅니다.";
+                "백엔드  ·  " + actualEngine + "\n" +
+                "GPU는 실제 오프로드 확인 후에만 활성화합니다. NPU는 별도 백엔드가 필요합니다.";
         }
     }
 
@@ -90,6 +91,8 @@ public final class ComputeProfiler {
                 !Build.SOC_MODEL.isEmpty() && !"unknown".equalsIgnoreCase(Build.SOC_MODEL) ?
                 Build.SOC_MODEL : Build.HARDWARE;
         return new Report(Runtime.getRuntime().availableProcessors(), chip, compute, vk,
-                nnapiQueried, accelerator, gpuDrivers, cpuDrivers, "CPU (고정)");
+                nnapiQueried, accelerator, gpuDrivers, cpuDrivers,
+                GpuRunner.packaged(context) ? "CPU Ollama + Vulkan GPU runner 포함" :
+                    "CPU Ollama (GPU runner 미포함)");
     }
 }

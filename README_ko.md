@@ -65,3 +65,24 @@ GitHub Actions가 Android SDK 35, NDK, Go, Rllama 소스를 이용해 `libollama
 - GPU·NPU 백엔드가 탑재되지 않은 상태에서 두 모드를 선택하면 미지원 사유만 안내합니다. CPU/자동(현재 CPU) 모드는 실제로 선택할 수 있습니다.
 - GPU에서 실제 추론하려면 Vulkan/OpenCL 네이티브 backend와 Ollama runner 통합 검증이 필요합니다. NPU는 Snapdragon Hexagon 등의 별도 backend·드라이버·양자화 호환성 검증이 선행돼야 합니다. **GPU/NPU 추론 가속은 아직 구현되지 않았습니다.**
 - GitHub Actions가 NNAPI 장치 드라이버 탐지용 `libdeviceprobe.so`를 Android NDK로 컴파일해 APK에 포함합니다.
+
+## v0.4.0 — Open WebUI의 사용성에서 참고한 독립 모바일 UI
+
+- 실제 앱은 Open WebUI 코드·로고·에셋을 가져오지 않습니다. 모델 선택기를 채팅 상단에, 신규 채팅과 대화 기록을 상단 메뉴에 배치하고, 간결한 채팅·모델·설정 하단 탭을 지원합니다.
+- 모델별 대화가 여러 세션으로 저장됩니다. 기존 대화는 기기에 저장되며 인터넷 없이 열 수 있습니다.
+- 기존 채팅·모델 다운로드·실시간 응답·GGUF 가져오기·광고·데이터 요금 고지 기능을 유지합니다.
+
+## 실제 CPU / GPU / NPU 연산과 우선순위
+
+1. **CPU:** 검증된 Android ARM64 Ollama 서버(127.0.0.1:11434)로 GGUF 모델을 실행합니다. 별도 계정·PC가 필요하지 않습니다.
+2. **GPU:** GitHub Actions가 `llama.cpp` Vulkan runner(별도 서버, 127.0.0.1:11436)를 옵션으로 빌드합니다. 스마트폰 Vulkan Compute 기능, APK 안의 `libllama-vulkan-server.so` 파일, 다운로드된 Ollama 모델의 GGUF 가중치, 실제 GPU 레이어 오프로드 로그, `/health` 응답을 확인한 경우에만 GPU 사용으로 표시합니다. 하나라도 실패하면 CPU Ollama로 자동 전환합니다. Vulkan runner는 Ollama 자체의 Android GPU 기능이 아니라 별도의 호환 inference engine입니다.
+3. **NPU:** NNAPI 후보 드라이버를 진단하지만 **GGUF 추론에 사용할 수 있는 제조사 별 가속 백엔드는 탑재하지 않았습니다.** 따라서 NPU를 선택·실행했다고 표시하지 않습니다. NPU에 대한 실연산은 추후 기종별 SDK/모델 변환·성능 검증 작업이 선행되어야 합니다.
+4. **자동:** GPU runner가 포함되고 검증 가능한 상황이면 GPU를 시도하며, 그렇지 않으면 CPU를 사용합니다. **CPU 고정** 또는 **GPU 우선** 모드도 설정에서 선택할 수 있습니다. GPU 우선에서 실행 실패해도 CPU로 돌아갑니다.
+
+GPU runner 소스는 MIT 라이선스 `ggml-org/llama.cpp` 태그 `b11913`을 사용하며, Android NDK r27c와 Vulkan 헤더·`glslc`를 이용해 빌드합니다. 일부 GPU 드라이버에서 Vulkan llama.cpp 실행 중 충돌이 발생할 수 있으며, APK에 GPU runner가 존재한다고 GPU 작동을 보증할 수 없습니다. GitHub Actions에서 GPU 빌드가 실패하더라도 CPU Ollama APK는 정상적으로 제작합니다. 빌드 실행 페이지의 `android-vulkan-build-log`를 참고하세요.
+
+### 검증 상태
+
+- GitHub Actions가 **APK 빌드 성공**을 표시할 때에만 빌드 완료입니다.
+- 실제 기기에서 모델 다운로드, CPU/GPU 토큰 생성과 NNAPI 후보 탐지는 별도로 실기 테스트가 필요합니다.
+- GPU 실패 원인은 앱 실행 로그 및 GPU logs를 통해 점검할 수 있습니다.

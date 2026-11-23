@@ -23,3 +23,9 @@ may apply under the user's carrier plan.
 
 Before public distribution, complete license review, UMP/privacy configuration,
 replace sample AdMob IDs, provide privacy policy and complete device QA.
+
+OPTIONAL VULKAN RUNNER (v0.4):
+  https://github.com/ggml-org/llama.cpp (MIT license)
+  The Android Vulkan sidecar is a separate llama.cpp HTTP inference server.
+  It is not a GPU-enabled Android Ollama binary. CPU fallback is provided.
+  NPU hardware detection is not an NPU inference implementation.

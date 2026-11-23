@@ -54,12 +54,12 @@ import java.util.concurrent.Executors;
 /** Native Android UI. Local inference only; optional Google demo banners use the network. */
 public final class MainActivity extends Activity {
     private static final int PICK_GGUF = 701;
-    private static final int BG = Color.rgb(12, 18, 30);
-    private static final int CARD = Color.rgb(24, 34, 51);
-    private static final int FIELD = Color.rgb(36, 46, 64);
-    private static final int ACCENT = Color.rgb(65, 211, 176);
-    private static final int WHITE = Color.rgb(237, 243, 249);
-    private static final int MUTED = Color.rgb(152, 169, 188);
+    private static final int BG = Color.rgb(14, 16, 19);
+    private static final int CARD = Color.rgb(21, 23, 27);
+    private static final int FIELD = Color.rgb(38, 40, 45);
+    private static final int ACCENT = Color.rgb(242, 243, 245);
+    private static final int WHITE = Color.rgb(242, 244, 247);
+    private static final int MUTED = Color.rgb(158, 163, 171);
     private static final int DANGER = Color.rgb(238, 119, 130);
 
     private final Handler ui = new Handler(Looper.getMainLooper());
@@ -79,7 +79,7 @@ public final class MainActivity extends Activity {
     private LinearLayout messages, modelRows;
     private ScrollView messageScroll;
     private Spinner modelChooser;
-    private TextView serverStatus, miniStatus, progressStatus, logText;
+    private TextView serverStatus, miniStatus, progressStatus, logText, activeEngineLabel;
     private EditText chatInput, modelInput;
     private Button sendButton, stopChatButton, pullButton, cancelPullButton;
     private volatile HttpURLConnection chatConnection, pullConnection;
@@ -93,7 +93,7 @@ public final class MainActivity extends Activity {
         @Override public void run() {
             serverStatus.setText(OllamaForegroundService.isRunning() ?
                 "서버 실행 중 · 127.0.0.1:11434" : "서버 중지 / 시작 중");
-            logText.setText(OllamaForegroundService.logs());
+            logText.setText(OllamaForegroundService.logs() + "\n--- GPU Vulkan ---\n" + GpuRunner.logs());
             if (!serverPollBusy) {
                 serverPollBusy = true;
                 io.execute(() -> {
@@ -192,33 +192,50 @@ public final class MainActivity extends Activity {
         p.rightMargin = dp(marginRight); r.addView(view, p);
     }
     private void createUi() {
-        LinearLayout root = column(); root.setBackgroundColor(BG); root.setPadding(dp(15), dp(12), dp(15), dp(8));
+        LinearLayout root = column(); root.setBackgroundColor(BG);
+        root.setPadding(dp(12), dp(8), dp(12), dp(7));
         setContentView(root);
-        TextView heading = text("AI in Pocket", 25, WHITE, true); margin(heading, root, 1, 2);
-        margin(text("Client for Ollama · 비공식 독립 앱", 11, MUTED, false), root, 0, 5);
-        miniStatus = text("○ 기기 내 AI 엔진 확인 중", 12, ACCENT, false); margin(miniStatus, root, 0, 12);
-        LinearLayout tabs = row();
-        navButtons = new Button[]{button("① 채팅", true), button("② 모델", false), button("⚙ 설정", false)};
-        for (int i = 0; i < navButtons.length; i++) {
-            final int page = i;
-            rowItem(tabs, navButtons[i], 1, i < 2 ? 6 : 0);
-            navButtons[i].setOnClickListener(v -> showTab(page));
-        }
-        root.addView(tabs, lp(-1, 46));
-        pages = new FrameLayout(this); LinearLayout.LayoutParams contentParams = new LinearLayout.LayoutParams(-1, 0, 1);
-        contentParams.topMargin = dp(13); root.addView(pages, contentParams);
+        // Mobile-friendly WebUI-inspired navigation; independent Android widgets and branding.
+        LinearLayout header = row();
+        Button menu = button("☰", false);
+        rowItem(header, menu, 0, 9);
+        menu.setOnClickListener(v -> showChatList());
+        LinearLayout branding = column();
+        branding.addView(text("AI in Pocket", 19, WHITE, true));
+        branding.addView(text("Client for Ollama", 10, MUTED, false));
+        rowItem(header, branding, 1, 5);
+        Button fresh = button("＋ 새 대화", false);
+        rowItem(header, fresh, 0, 0);
+        fresh.setOnClickListener(v -> newChat());
+        root.addView(header, lp(-1, 50));
+        miniStatus = text("● 로컬 AI 엔진 확인 중", 11, MUTED, false);
+        margin(miniStatus, root, 2, 6);
+        pages = new FrameLayout(this);
+        LinearLayout.LayoutParams contentParams = new LinearLayout.LayoutParams(-1, 0, 1);
+        root.addView(pages, contentParams);
         createChatPage(); createModelPage(); createServerPage();
         pages.addView(chatPage); pages.addView(modelPage); pages.addView(serverPage);
-        TextView foot = text("채팅은 기기 내 처리 · 모델 다운로드와 광고에는 인터넷 필요", 11, MUTED, false);
-        foot.setGravity(Gravity.CENTER); margin(foot, root, 8, 0);
+        LinearLayout tabs = row();
+        navButtons = new Button[]{button("채팅", true), button("모델 받기", false), button("설정", false)};
+        for (int i = 0; i < navButtons.length; i++) {
+            final int page = i;
+            rowItem(tabs, navButtons[i], 1, i < 2 ? 5 : 0);
+            navButtons[i].setOnClickListener(v -> showTab(page));
+        }
+        margin(tabs, root, 8, 2);
     }
 
     private void createChatPage() {
         chatPage = column();
-        TextView modelLabel = text("사용 모델", 12, MUTED, false); margin(modelLabel, chatPage, 0, 4);
+        LinearLayout modelRow = row();
+        TextView modelLabel = text("사용 모델", 12, MUTED, false);
+        rowItem(modelRow, modelLabel, 0, 12);
         modelChooser = new Spinner(this); modelChooser.setBackground(bg(FIELD, 12));
-        modelChooser.setPadding(dp(7), dp(3), dp(7), dp(3));
-        margin(modelChooser, chatPage, 0, 8);
+        modelChooser.setPadding(dp(12), dp(4), dp(8), dp(4));
+        rowItem(modelRow, modelChooser, 1, 0);
+        margin(modelRow, chatPage, 2, 7);
+        activeEngineLabel = text("실제 연산: CPU (Ollama) · 장치 선택은 설정에서 변경", 11, MUTED, false);
+        margin(activeEngineLabel, chatPage, 0, 7);
         modelChooser.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onNothingSelected(AdapterView<?> parent) { }
             @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -231,27 +248,29 @@ public final class MainActivity extends Activity {
                 loadHistory(); renderHistory();
             }
         });
-        messageScroll = new ScrollView(this); messageScroll.setFillViewport(true); messageScroll.setBackground(bg(CARD, 14));
-        messages = column(); messages.setPadding(dp(12), dp(12), dp(12), dp(12));
+        messageScroll = new ScrollView(this); messageScroll.setFillViewport(true);
+        messageScroll.setBackgroundColor(BG);
+        messages = column(); messages.setPadding(dp(4), dp(18), dp(4), dp(12));
         messageScroll.addView(messages);
         LinearLayout.LayoutParams scrollParam = new LinearLayout.LayoutParams(-1, 0, 1);
         chatPage.addView(messageScroll, scrollParam);
-        chatInput = edit("질문을 입력하세요", "", true);
-        LinearLayout.LayoutParams inputP = lp(-1, -2); inputP.topMargin = dp(9); chatPage.addView(chatInput, inputP);
-        LinearLayout chatButtons = row();
-        sendButton = button("전송", true); stopChatButton = button("생성 중지", false);
-        rowItem(chatButtons, sendButton, 1, 6); rowItem(chatButtons, stopChatButton, 1, 6);
-        Button clear = button("새 대화", false); rowItem(chatButtons, clear, 1, 0);
-        margin(chatButtons, chatPage, 8, 0);
+        LinearLayout composer = row();
+        composer.setPadding(dp(8), dp(7), dp(8), dp(7));
+        composer.setBackground(bg(CARD, 22));
+        chatInput = edit("메시지 입력…", "", true);
+        chatInput.setMinLines(1); chatInput.setMaxLines(4);
+        rowItem(composer, chatInput, 1, 7);
+        sendButton = button("↑", true);
+        sendButton.setTextSize(19);
+        rowItem(composer, sendButton, 0, 4);
+        stopChatButton = button("■", false);
+        rowItem(composer, stopChatButton, 0, 0);
+        margin(composer, chatPage, 8, 2);
         stopChatButton.setEnabled(false); stopChatButton.setAlpha(0.5f);
         sendButton.setOnClickListener(v -> sendChat());
         stopChatButton.setOnClickListener(v -> stopChat());
-        clear.setOnClickListener(v -> new AlertDialog.Builder(this)
-            .setTitle("대화 초기화").setMessage("선택한 모델의 대화 기록을 삭제할까요?")
-            .setNegativeButton("취소", null).setPositiveButton("삭제", (d, w) -> {
-                if (chatBusy) stopChat();
-                history = new JSONArray(); storeHistory(); renderHistory();
-            }).show());
+        margin(text("AI 답변에 오류가 있을 수 있습니다. 중요한 정보는 확인하세요.",
+            10, MUTED, false), chatPage, 0, 0);
     }
 
     private void createModelPage() {
@@ -356,37 +375,51 @@ public final class MainActivity extends Activity {
         margin(controls, serverPage, 0, 12);
         start.setOnClickListener(v -> startServer());
         stop.setOnClickListener(v -> stopServer());
-        margin(text("모델 저장: 이 앱의 비공개 저장소\nAPI: http://127.0.0.1:11434\n추론: ARM64 CPU · 컨텍스트 2048\n외부 네트워크 공개 안 함",
-            13, MUTED, false), serverPage, 1, 17);
+        margin(text("모델 저장: 앱 전용 저장소 · 외부 네트워크 공개 없음\n" +
+            "CPU: Ollama / GPU: 별도 Vulkan llama.cpp 엔진 (탑재 시)\n" +
+            "NPU: 지원 드라이버 검색만 수행, 전용 추론 엔진 미포함\n" +
+            "GPU 추론 불가 시 실제 연산 장치를 CPU로 전환합니다.",
+            12, MUTED, false), serverPage, 1, 17);
         margin(text("실행 로그", 16, WHITE, true), serverPage, 0, 6);
         ScrollView logScroll = new ScrollView(this); logScroll.setBackground(bg(CARD, 12));
         logText = text("로딩 중", 11, MUTED, false); logText.setPadding(dp(12), dp(12), dp(12), dp(12));
         logScroll.addView(logText); serverPage.addView(logScroll, new LinearLayout.LayoutParams(-1, 0, 1));
     }
 
+    private String computePreference() {
+        return getPreferences(MODE_PRIVATE).getString("compute_preference", "auto");
+    }
+
     private void showComputeChoiceDialog() {
-        String gpu = computeReport.gpuCompute ? "GPU (Vulkan 감지 · 추론 엔진 미탑재)" :
-            "GPU (Vulkan 연산 미확인 · 추론 엔진 미탑재)";
-        String npu = computeReport.nnapiAccelerators > 0 ? "NPU 후보 감지 (추론 엔진 미탑재)" :
-            "NPU (드라이버 확인 불가 · 추론 엔진 미탑재)";
-        String[] items = {"자동 선택 (현재 CPU)", "CPU 고정", gpu, npu};
-        new AlertDialog.Builder(this).setTitle("로컬 연산 장치")
-            .setMessage("현재 포함된 Ollama ARM64 엔진은 CPU 추론만 지원합니다. " +
-                "GPU/NPU가 감지되어도 그 장치로 추론했다고 표시하지 않습니다.")
-            .setItems(items, (dialog, selected) -> {
-                if (selected < 2) {
-                    getPreferences(MODE_PRIVATE).edit()
-                        .putString("compute_preference", selected == 0 ? "auto" : "cpu").apply();
-                    toast(selected == 0 ? "자동 선택 · 현재 CPU 실행" : "CPU 모드 선택됨");
-                } else {
-                    new AlertDialog.Builder(this)
-                        .setTitle(selected == 2 ? "GPU 연산 미지원" : "NPU 연산 미지원")
-                        .setMessage("하드웨어 감지는 추론 가속과 다릅니다. " +
-                            "별도 Vulkan GPU / 제조사 NPU 백엔드가 검증·탑재되기 전까지 " +
-                            "이 앱의 추론은 CPU에서만 실행됩니다.")
-                        .setPositiveButton("확인", null).show();
-                }
-            }).setNegativeButton("닫기", null).show();
+        computeReport = ComputeProfiler.scan(this);
+        String gpuInfo = !GpuRunner.packaged(this) ? "GPU · 실행 엔진이 APK에 없음" :
+            (computeReport.gpuCompute ? "GPU · Vulkan 실행 가능 여부 시도" : "GPU · Vulkan compute 감지되지 않음");
+        String npuInfo = computeReport.nnapiAccelerators > 0 ?
+            "NPU · 가속기 후보 감지 (모델 백엔드 미지원)" :
+            "NPU · 지원되는 추론 백엔드 없음";
+        String[] options = {"자동 · GPU 확인 후 CPU 대체", "CPU · Ollama 실행", gpuInfo, npuInfo};
+        new AlertDialog.Builder(this).setTitle("추론 장치 선택")
+            .setMessage("연산 장치를 감지한 뒤 실제 추론 가능 여부를 확인합니다. " +
+                "GPU는 Vulkan runner 탑재·오프로드 확인 조건을 충족해야 사용하며, " +
+                "NPU는 전용 제조사 백엔드가 없어 선택할 수 없습니다.")
+            .setSingleChoiceItems(options,
+                "cpu".equals(computePreference()) ? 1 : "gpu".equals(computePreference()) ? 2 : 0,
+                (dialog, which) -> {
+                    if (chatBusy) { toast("답변 생성 중에는 변경할 수 없습니다"); return; }
+                    if (which == 3) {
+                        toast("NPU용 GGUF 추론 백엔드가 없습니다"); return;
+                    }
+                    if (which == 2 && (!computeReport.gpuCompute || !GpuRunner.packaged(this))) {
+                        toast("이 기기/APK에서는 Vulkan GPU 실행을 확인할 수 없습니다"); return;
+                    }
+                    String pref = which == 1 ? "cpu" : which == 2 ? "gpu" : "auto";
+                    getPreferences(MODE_PRIVATE).edit().putString("compute_preference", pref).apply();
+                    if (which == 1) GpuRunner.stop();
+                    if (activeEngineLabel != null)
+                        activeEngineLabel.setText("선택한 모드: " + pref + " · 다음 답변부터 적용");
+                    toast("연산 모드 저장 · 다음 답변에서 확인");
+                    dialog.dismiss();
+                }).setNegativeButton("취소", null).show();
     }
 
     private void showTab(int index) {
@@ -463,6 +496,7 @@ public final class MainActivity extends Activity {
     }
     private void stopServer() {
         if (chatBusy) stopChat();
+        GpuRunner.stop();
         if (pullBusy) { pullCancelled = true; if (pullConnection != null) pullConnection.disconnect(); }
         Intent intent = new Intent(this, OllamaForegroundService.class).setAction(OllamaForegroundService.ACTION_STOP);
         startService(intent);
@@ -608,8 +642,73 @@ public final class MainActivity extends Activity {
         });
     }
 
-    private String historyKey() { return "chat_" + currentModel; }
+    private String sessionKey() { return "active_chat_" + currentModel; }
+    private String currentSessionId() {
+        String id = getPreferences(MODE_PRIVATE).getString(sessionKey(), "");
+        if (id.isEmpty()) {
+            id = Long.toString(System.currentTimeMillis());
+            getPreferences(MODE_PRIVATE).edit().putString(sessionKey(), id).apply();
+        }
+        return id;
+    }
+    private String listKey() { return "chat_list_" + currentModel; }
+    private String historyKey() { return "chat_v4_" + currentModel + "_" + currentSessionId(); }
+    private void newChat() {
+        if (chatBusy) { toast("답변 생성 중에는 새 대화를 만들 수 없습니다"); return; }
+        getPreferences(MODE_PRIVATE).edit().putString(sessionKey(), Long.toString(System.currentTimeMillis())).apply();
+        history = new JSONArray();
+        renderHistory();
+        showTab(0);
+    }
+    private void showChatList() {
+        if (chatBusy) { toast("답변 생성 후 대화 기록을 열 수 있습니다"); return; }
+        JSONArray sessions;
+        try { sessions = new JSONArray(getPreferences(MODE_PRIVATE).getString(listKey(), "[]")); }
+        catch (Exception ignored) { sessions = new JSONArray(); }
+        final JSONArray list = sessions;
+        String[] titles = new String[list.length()];
+        for (int i = 0; i < list.length(); i++) {
+            JSONObject chat = list.optJSONObject(i);
+            titles[i] = chat == null ? "대화" : chat.optString("title", "대화");
+        }
+        new AlertDialog.Builder(this)
+            .setTitle("대화 기록 · " + (currentModel.isEmpty() ? "모델 미선택" : currentModel))
+            .setItems(titles, (d, index) -> {
+                JSONObject chat = list.optJSONObject(index);
+                if (chat == null) return;
+                getPreferences(MODE_PRIVATE).edit().putString(sessionKey(), chat.optString("id")).apply();
+                loadHistory(); renderHistory(); showTab(0);
+            })
+            .setPositiveButton("＋ 새 대화", (d, w) -> newChat())
+            .setNeutralButton("모델 관리", (d, w) -> showTab(1))
+            .setNegativeButton("닫기", null).show();
+    }
+    private void ensureSessionListed(String firstMessage) {
+        try {
+            String id = currentSessionId();
+            JSONArray sessions = new JSONArray(getPreferences(MODE_PRIVATE).getString(listKey(), "[]"));
+            for (int i = 0; i < sessions.length(); i++)
+                if (id.equals(sessions.getJSONObject(i).optString("id"))) return;
+            String title = firstMessage.replace('\n', ' ').trim();
+            if (title.length() > 38) title = title.substring(0, 38) + "…";
+            JSONArray newer = new JSONArray();
+            newer.put(new JSONObject().put("id", id).put("title", title));
+            for (int i = 0; i < Math.min(39, sessions.length()); i++) newer.put(sessions.getJSONObject(i));
+            getPreferences(MODE_PRIVATE).edit().putString(listKey(), newer.toString()).apply();
+        } catch (Exception ignored) { }
+    }
     private void loadHistory() {
+        if (!getPreferences(MODE_PRIVATE).contains(historyKey())) {
+            String legacy = getPreferences(MODE_PRIVATE).getString("chat_" + currentModel, "[]");
+            if (!"[]".equals(legacy)) {
+                getPreferences(MODE_PRIVATE).edit().putString(historyKey(), legacy).apply();
+                try {
+                    JSONArray previous = new JSONArray(legacy);
+                    if (previous.length() > 0 && previous.optJSONObject(0) != null)
+                        ensureSessionListed(previous.optJSONObject(0).optString("content", "이전 대화"));
+                } catch (Exception ignored) { }
+            }
+        }
         try { history = new JSONArray(getPreferences(MODE_PRIVATE).getString(historyKey(), "[]")); }
         catch (Exception ignored) { history = new JSONArray(); }
     }
@@ -622,6 +721,7 @@ public final class MainActivity extends Activity {
         getPreferences(MODE_PRIVATE).edit().putString(historyKey(), history.toString()).apply();
     }
     private void addHistory(String role, String content) {
+        if ("user".equals(role) && history.length() == 0) ensureSessionListed(content);
         try { history.put(new JSONObject().put("role", role).put("content", content)); storeHistory(); }
         catch (Exception ignored) { }
     }
@@ -629,8 +729,19 @@ public final class MainActivity extends Activity {
         if (messages == null) return;
         messages.removeAllViews();
         if (history.length() == 0) {
-            margin(text("휴대폰에서 AI와 대화하세요.\n② 모델 탭에서 기기에 맞는 모델을 설치하세요.",
-                14, MUTED, false), messages, 13, 12);
+            margin(text("무엇을 도와드릴까요?", 26, WHITE, true), messages, 45, 9);
+            margin(text("원하는 질문을 입력하거나 아래 예시를 선택하세요.",
+                13, MUTED, false), messages, 0, 20);
+            for (String hint : new String[]{"글을 자연스럽게 다듬어줘", "오늘 할 일을 정리해줘", "파이썬 코드 예시 작성"}) {
+                Button suggestion = button("✦  " + hint, false);
+                margin(suggestion, messages, 4, 4);
+                suggestion.setOnClickListener(v -> chatInput.setText(hint));
+            }
+            if (knownModels.isEmpty()) {
+                Button install = button("모델 설치하러 가기", true);
+                margin(install, messages, 18, 0);
+                install.setOnClickListener(v -> showTab(1));
+            }
         }
         for (int i = 0; i < history.length(); i++) {
             JSONObject item = history.optJSONObject(i);
@@ -640,10 +751,19 @@ public final class MainActivity extends Activity {
     }
     private TextView bubble(String role, String content) {
         boolean user = "user".equals(role);
-        TextView t = text((user ? "나" : "AI in Pocket") + "\n" + content, 14, WHITE, false);
-        t.setPadding(dp(13), dp(11), dp(13), dp(11));
-        t.setBackground(bg(user ? Color.rgb(32, 79, 76) : FIELD, 13));
-        margin(t, messages, 3, 7);
+        TextView t = text((user ? "" : "AI in Pocket\n") + content, 14, WHITE, false);
+        t.setPadding(dp(12), dp(12), dp(12), dp(12));
+        if (user) {
+            t.setBackground(bg(Color.rgb(44, 46, 51), 17));
+        } else {
+            t.setBackgroundColor(BG);
+        }
+        LinearLayout wrapper = row();
+        wrapper.setGravity(user ? Gravity.RIGHT : Gravity.LEFT);
+        LinearLayout.LayoutParams params = lp(-2, -2);
+        params.width = user ? -2 : -1;
+        wrapper.addView(t, params);
+        margin(wrapper, messages, 5, 9);
         scrollBottom();
         return t;
     }
@@ -675,18 +795,50 @@ public final class MainActivity extends Activity {
             final StringBuilder answer = new StringBuilder();
             String error = null;
             try {
-                HttpURLConnection connection = OllamaHttp.newChatConnection(); chatConnection = connection;
-                OllamaHttp.stream(connection, OllamaHttp.chatBody(modelAtStart, requestHistory), item -> {
-                    JSONObject message = item.optJSONObject("message");
-                    if (message != null) {
-                        String part = message.optString("content", "");
-                        if (!part.isEmpty()) {
-                            answer.append(part);
-                            String display = answer.toString();
-                            ui.post(() -> { assistant.setText("AI in Pocket\n" + display); scrollBottom(); });
-                        }
+                String choice = computePreference();
+                boolean tryGpu = !"cpu".equals(choice) && computeReport.gpuCompute &&
+                    GpuRunner.packaged(getApplicationContext());
+                boolean gpu = false;
+                StringBuilder fallback = new StringBuilder();
+                if (tryGpu && !chatCancelled) {
+                    ui.post(() -> activeEngineLabel.setText("GPU Vulkan 실행 검증 중…"));
+                    // Release the CPU model before allocating the second GPU runtime.
+                    try {
+                        OllamaHttp.post("/api/generate", new JSONObject()
+                            .put("model", modelAtStart).put("keep_alive", 0)
+                            .put("stream", false), "POST");
+                    } catch (Exception ignored) { }
+                    gpu = GpuRunner.ensure(getApplicationContext(), modelAtStart, fallback);
+                }
+                if (chatCancelled) {
+                    ui.post(() -> { assistant.setText("AI in Pocket\n생성 중단됨"); setChatBusy(false); });
+                    return;
+                }
+                final boolean verifiedGpu = gpu;
+                final String failedReason = fallback.toString();
+                ui.post(() -> activeEngineLabel.setText(verifiedGpu ?
+                    "실제 연산: GPU · Vulkan 레이어 오프로드 검증" :
+                    "실제 연산: CPU · Ollama" + (failedReason.isEmpty() ? "" : " (GPU 전환 실패)")));
+                if (gpu) {
+                    try {
+                        HttpURLConnection connection = OllamaHttp.newGpuChatConnection();
+                        chatConnection = connection;
+                        OllamaHttp.streamGpu(connection, OllamaHttp.gpuChatBody(modelAtStart, requestHistory),
+                            item -> appendAnswer(item, answer, assistant));
+                    } catch (Exception gpuError) {
+                        if (answer.length() > 0) throw gpuError; // never duplicate partial responses
+                        ui.post(() -> activeEngineLabel.setText("GPU 추론 실패 · CPU Ollama로 전환"));
+                        HttpURLConnection connection = OllamaHttp.newChatConnection();
+                        chatConnection = connection;
+                        OllamaHttp.stream(connection, OllamaHttp.chatBody(modelAtStart, requestHistory),
+                            item -> appendAnswer(item, answer, assistant));
                     }
-                });
+                } else {
+                    HttpURLConnection connection = OllamaHttp.newChatConnection();
+                    chatConnection = connection;
+                    OllamaHttp.stream(connection, OllamaHttp.chatBody(modelAtStart, requestHistory),
+                        item -> appendAnswer(item, answer, assistant));
+                }
             } catch (Exception ex) { error = ex.getMessage(); }
             finally { chatConnection = null; }
             String finalError = error, finalAnswer = answer.toString();
@@ -703,6 +855,15 @@ public final class MainActivity extends Activity {
                 scrollBottom();
             });
         });
+    }
+    private void appendAnswer(JSONObject item, StringBuilder answer, TextView assistant) {
+        JSONObject message = item.optJSONObject("message");
+        if (message == null) return;
+        String part = message.optString("content", "");
+        if (part.isEmpty()) return;
+        answer.append(part);
+        String display = answer.toString();
+        ui.post(() -> { assistant.setText("AI in Pocket\n" + display); scrollBottom(); });
     }
     private void stopChat() {
         chatCancelled = true;

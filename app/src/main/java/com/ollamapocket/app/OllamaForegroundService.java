@@ -147,6 +147,7 @@ public final class OllamaForegroundService extends Service {
     }
 
     private synchronized void stopNative() {
+        GpuRunner.stop();
         Process p = process;
         process = null;
         if (p != null) {

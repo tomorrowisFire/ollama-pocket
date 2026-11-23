@@ -76,6 +76,36 @@ jobs:
           "$CC" -fPIC -O2 -shared -Wl,-z,max-page-size=16384 -o app/src/main/jniLibs/arm64-v8a/libdeviceprobe.so app/src/main/cpp/deviceprobe.c -ldl
           file app/src/main/jniLibs/arm64-v8a/libdeviceprobe.so
 
+      - name: Install optional Vulkan build tools
+        shell: bash
+        continue-on-error: true
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends glslc libvulkan-dev spirv-headers ninja-build
+
+      - name: Attempt real Vulkan GPU runner build (optional, CPU fallback)
+        shell: bash
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
+          if timeout 1800 bash scripts/build_vulkan_gpu.sh > "$RUNNER_TEMP/gpu-build.log" 2>&1; then
+            echo "::notice::Vulkan GPU runner is included in this APK"
+            file app/src/main/jniLibs/arm64-v8a/libllama-vulkan-server.so
+          else
+            echo "::warning::Vulkan GPU runner build failed; shipping verified CPU Ollama only."
+            grep -E 'error:|Error|CMake Error|FAILED|not found' "$RUNNER_TEMP/gpu-build.log" | tail -n 24 || true
+            tail -n 50 "$RUNNER_TEMP/gpu-build.log" || true
+            rm -f app/src/main/jniLibs/arm64-v8a/libllama-vulkan-server.so
+          fi
+
+      - name: Include Vulkan build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-vulkan-build-log
+          path: ${{ runner.temp }}/gpu-build.log
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -90,6 +120,9 @@ jobs:
           if [ -d runtime/android/app/src/main/assets/licenses ]; then
             cp -R runtime/android/app/src/main/assets/licenses/. app/src/main/assets/licenses/
           fi
+          if [ -f vulkan-build/llama.cpp/LICENSE ]; then
+            cp vulkan-build/llama.cpp/LICENSE app/src/main/assets/licenses/llama-cpp-MIT-LICENSE.txt
+          fi
           cp LICENSE app/src/main/assets/licenses/App-MIT-0-LICENSE.txt
           cp NOTICE.txt app/src/main/assets/licenses/App-NOTICE.txt
 
@@ -101,12 +134,17 @@ jobs:
           unzip -l app/build/outputs/apk/debug/app-debug.apk | grep 'lib/arm64-v8a/libollama.so'
           unzip -l app/build/outputs/apk/debug/app-debug.apk | grep 'lib/arm64-v8a/libllama-server.so'
           unzip -l app/build/outputs/apk/debug/app-debug.apk | grep 'lib/arm64-v8a/libdeviceprobe.so'
+          if unzip -l app/build/outputs/apk/debug/app-debug.apk | grep 'lib/arm64-v8a/libllama-vulkan-server.so'; then
+            echo "Vulkan backend included; actual GPU offload checked on device"
+          else
+            echo "CPU-only build (GPU backend unavailable)"
+          fi
           sha256sum app/build/outputs/apk/debug/app-debug.apk
 
       - name: Prepare named APK
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk dist/AI-in-Pocket-v0.3.0-android-arm64.apk
+          cp app/build/outputs/apk/debug/app-debug.apk dist/AI-in-Pocket-v0.4.0-android-arm64.apk
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v4

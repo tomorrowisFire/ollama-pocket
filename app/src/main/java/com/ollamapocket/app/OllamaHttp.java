@@ -98,6 +98,54 @@ public final class OllamaHttp {
         } finally { conn.disconnect(); }
     }
 
+    public static HttpURLConnection newGpuChatConnection() throws Exception {
+        HttpURLConnection conn = (HttpURLConnection)new URL(GpuRunner.url() + "/v1/chat/completions").openConnection();
+        conn.setRequestMethod("POST");
+        conn.setConnectTimeout(4000);
+        conn.setReadTimeout(0);
+        conn.setUseCaches(false);
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+        conn.setRequestProperty("Accept", "text/event-stream");
+        return conn;
+    }
+
+    public static JSONObject gpuChatBody(String model, JSONArray history) throws Exception {
+        JSONObject body = new JSONObject();
+        body.put("model", model);
+        body.put("messages", new JSONArray(history.toString()));
+        body.put("stream", true);
+        body.put("max_tokens", 1024);
+        return body;
+    }
+
+    /** OpenAI compatible SSE returned by the local Vulkan llama.cpp server. */
+    public static void streamGpu(HttpURLConnection connection, JSONObject request,
+            ChunkListener onChunk) throws Exception {
+        try {
+            write(connection, request);
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                    checkedStream(connection), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (!line.startsWith("data: ")) continue;
+                    String data = line.substring(6).trim();
+                    if (data.equals("[DONE]")) break;
+                    JSONObject message = new JSONObject(data);
+                    if (message.has("error")) throw new IOException(message.optString("error"));
+                    JSONArray choices = message.optJSONArray("choices");
+                    if (choices == null || choices.length() == 0) continue;
+                    JSONObject delta = choices.getJSONObject(0).optJSONObject("delta");
+                    if (delta != null) {
+                        JSONObject adapted = new JSONObject();
+                        adapted.put("message", new JSONObject().put("content", delta.optString("content", "")));
+                        onChunk.onChunk(adapted);
+                    }
+                }
+            }
+        } finally { connection.disconnect(); }
+    }
+
     public static HttpURLConnection newChatConnection() throws Exception { return open("/api/chat", "POST", 0); }
     public static HttpURLConnection newPullConnection() throws Exception { return open("/api/pull", "POST", 0); }
 
