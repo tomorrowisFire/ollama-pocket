@@ -125,3 +125,22 @@ GPU runner 소스는 MIT 라이선스 `ggml-org/llama.cpp` 태그 `b11913`을 �
 ## v0.9.1 보완
 
 Hugging Face GGUF 다운로드의 진행률 바 아래에도 기존 AdMob 동의 관리와 연결된 테스트 배너를 배치하고, 닫으면 광고 리소스를 해제합니다. 모델 다운로드·벤치마크 동시 실행은 차단합니다.
+
+
+## v0.9.2 — 라마 런처 아이콘·설치 서명 오류 수정
+
+### 기존 APK와 충돌하지 않는 신규 패키지
+- Android applicationId를 `io.github.tomorrowisfire.aiinpocket`으로 변경합니다. 기존 `com.ollamapocket.app`과 분리되어 서명이 달라도 **신규 앱으로 설치**할 수 있습니다.
+- 기존 버전에서 저장된 모델·대화·설정은 새 앱에 자동으로 이전되지 않습니다. 이전 앱의 자료가 중요하다면 삭제하지 마세요.
+- 두 대 이상 협력 연결에는 같은 버전의 신규 APK를 설치하세요.
+
+### 서명 안정성
+- 기존 Github Actions의 자동 생성 Debug 서명키는 빌드마다 달라져 업데이트 서명 충돌이 발생했습니다. APK마다 인증서가 실제로 서로 다른 것을 확인했습니다.
+- 향후 **동일한 앱 ID로 업데이트하려면 반드시 동일한 비공개 서명키를 재사용**해야 합니다. 빌드 파이프라인에 선택적 키 저장소 입력(`AI_POCKET_KEYSTORE_FILE`, `AI_POCKET_KEYSTORE_PASSWORD`)을 추가했습니다.
+- 운영용 개인 서명키는 공개 GitHub 저장소에 넣지 않습니다. GitHub Actions에서 고정 키를 사용하려면 repository secrets `AI_POCKET_KEYSTORE_BASE64` 및 `AI_POCKET_KEYSTORE_PASSWORD`를 설정해야 합니다. 설정하지 않으면 CI APK는 임시 Debug 키로 서명되므로 다음 버전 업데이트 때 다시 충돌할 수 있습니다.
+- CI는 `apksigner verify --verbose --print-certs`로 v2 서명을 검증하고 `aapt dump badging`으로 앱 ID를 확인합니다.
+- 실제 Android 기기에서의 신규 설치/업데이트 성공 여부는 실기 확인이 필요합니다.
+
+### 라마 아이콘
+- 사용자가 지정한 **풀을 뜯는 라마** 그림을 앱 자체의 독립 런처 아이콘으로 적용했습니다.
+- Android adaptive icon 및 mdpi~xxxhdpi 해상도를 포함합니다.

@@ -24,6 +24,8 @@ on:
       - 'app/src/main/java/com/ollamapocket/app/HuggingFaceCatalog.java'
       - 'app/src/main/java/com/ollamapocket/app/PerformanceHud*.java'
       - 'app/src/main/java/com/ollamapocket/app/BenchmarkStats.java'
+      - 'app/src/main/res/**'
+      - 'app/build.gradle'
 
 jobs:
   secure-relay-unit-test:
@@ -112,6 +114,23 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Provision stable signing key (when repository secrets are configured)
+        shell: bash
+        env:
+          AI_POCKET_KEYSTORE_BASE64: ${{ secrets.AI_POCKET_KEYSTORE_BASE64 }}
+          AI_POCKET_KEYSTORE_PASSWORD: ${{ secrets.AI_POCKET_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -n "${AI_POCKET_KEYSTORE_BASE64:-}" ] && [ -n "${AI_POCKET_KEYSTORE_PASSWORD:-}" ]; then
+            signing_file="$RUNNER_TEMP/aiinpocket-stable.p12"
+            printf '%s' "$AI_POCKET_KEYSTORE_BASE64" | base64 --decode > "$signing_file"
+            chmod 600 "$signing_file"
+            echo "AI_POCKET_KEYSTORE_FILE=$signing_file" >> "$GITHUB_ENV"
+            echo "AI_POCKET_KEYSTORE_PASSWORD=$AI_POCKET_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "::notice::Stable signing key is configured"
+          else
+            echo "::warning::Repository signing secrets are not set: this run uses ephemeral Android Debug signing. Do not use this APK to update a previously signed version."
+          fi
       - name: Compile app with cooperative session and RPC tunnel
         run: gradle --no-daemon :app:assembleDebug
       - name: Verify that host, worker and prior inference binaries are packaged
@@ -124,6 +143,14 @@ jobs:
             unzip -l "$apk" | grep -F "lib/arm64-v8a/$lib"
           done
           unzip -t "$apk" | tail -2
+          sdk="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          signer="$sdk/build-tools/35.0.0/apksigner"
+          aapt="$sdk/build-tools/35.0.0/aapt"
+          "$signer" verify --verbose --print-certs "$apk" | tee signature-report.txt
+          grep -Eq '^Verified using v2 scheme.*: true' signature-report.txt
+          "$aapt" dump badging "$apk" | grep -F "package: name='io.github.tomorrowisfire.aiinpocket'"
+          "$aapt" dump badging "$apk" | grep -F "application: label="
+          unzip -l "$apk" | grep -E 'res/(mipmap|drawable)' >/dev/null
           sha256sum "$apk"
           echo "## Build-only verification" >> "$GITHUB_STEP_SUMMARY"
           echo "Java, secure relay, safe RAM, benchmark and HUD unit tests passed. Android hardware inference and HF downloads are not validated on devices." >> "$GITHUB_STEP_SUMMARY"
@@ -132,7 +159,21 @@ jobs:
         run: |
           mkdir -p dist
           cp app/build/outputs/apk/debug/app-debug.apk \
-            dist/AI-in-Pocket-v0.9.1-coop-hud-hf-arm64-debug.apk
+            dist/AI-in-Pocket-v0.9.2-Llama-Icon-ARM64.apk
+          cp signature-report.txt dist/signature-report.txt
+      - name: Make official Android apksigner available for offline stable re-signing
+        shell: bash
+        run: |
+          sdk="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          mkdir -p signing-tools
+          cp "$sdk/build-tools/35.0.0/lib/apksigner.jar" signing-tools/
+          cp "$sdk/build-tools/35.0.0/apksigner" signing-tools/
+          cp "$sdk/build-tools/35.0.0/zipalign" signing-tools/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AI-in-Pocket-Official-Signing-Tools
+          path: signing-tools/*
+          retention-days: 3
       - uses: actions/upload-artifact@v4
         with:
           name: AI-in-Pocket-Cooperative-RPC-APK
