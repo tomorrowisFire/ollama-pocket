@@ -213,7 +213,7 @@ public final class CoopSession {
         secret=SecureRpcTransport.secret();sessionId=randomId(10);
         startedAt=SystemClock.elapsedRealtime();role="host";lastError="";
         holdResources();
-        controlListener=new ServerSocket(CONTROL_PORT,8,InetAddress.getByName("0.0.0.0"));
+        controlListener=new ServerSocket(CONTROL_PORT,8,InetAddress.getByName(hostIp));
         final ServerSocket s=controlListener;
         threads.execute(()-> {
             while(!s.isClosed() && "host".equals(role)) {
@@ -365,7 +365,9 @@ public final class CoopSession {
         this.lastError="";this.role="guest";
         try {
             startWorker();
-            guestListener=new ServerSocket(0,4,InetAddress.getByName("0.0.0.0"));
+            String localAddress=localIPv4();
+            if(localAddress.isEmpty())throw new IOException("동일 Wi-Fi의 기기 IPv4 주소가 필요합니다");
+            guestListener=new ServerSocket(0,4,InetAddress.getByName(localAddress));
             int guestPort=guestListener.getLocalPort();
             final ServerSocket l=guestListener;
             threads.execute(()->runGateway(l,hostAddress));
