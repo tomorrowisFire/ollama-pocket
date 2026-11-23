@@ -61,6 +61,13 @@ public final class DistributedRunner {
         File weights;
         try{weights=findModel(context,model);}catch(Exception e){reason.append("GGUF 모델 준비 실패: ").append(e.getMessage());return false;}
         try{
+            long estimatedMiB=weights.length()/(1024*1024)+768;
+            if(estimatedMiB>coop.aggregatedSafeMiB()*1.65){
+                reason.append("현재 기기들의 안전 가용 RAM 약 ").append(coop.aggregatedSafeMiB())
+                      .append(" MiB로 모델 약 ").append(estimatedMiB)
+                      .append(" MiB 구동이 어려울 수 있습니다. 노드를 추가하거나 더 작은 모델을 선택하세요.");
+                return false;
+            }
             // Drop Ollama's active model before holding a second set of weights.
             try{OllamaHttp.post("/api/generate",new JSONObject().put("model",model)
                 .put("keep_alive",0).put("stream",false),"POST");}catch(Exception ignored){}
@@ -84,7 +91,9 @@ public final class DistributedRunner {
                     String line;while((line=r.readLine())!=null)log(line);
                 }catch(Exception e){log("RPC host log ended: "+e.getMessage());}
             },"llama-rpc-host-logs").start();
-            long until=SystemClock.elapsedRealtime()+70000;
+            // A multi-GB model may take many minutes to move over Wi-Fi and warm caches.
+            long seconds=Math.max(180,Math.min(900,weights.length()/(12L*1024*1024)));
+            long until=SystemClock.elapsedRealtime()+seconds*1000;
             while(SystemClock.elapsedRealtime()<until && current.isAlive()){
                 if(coop.readyNodes().isEmpty()){reason.append("보조 노드가 연결 해제됐습니다");stop();return false;}
                 if(healthy()){
