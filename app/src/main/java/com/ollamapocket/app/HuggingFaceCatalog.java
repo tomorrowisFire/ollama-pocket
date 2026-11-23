@@ -10,6 +10,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
@@ -53,6 +54,7 @@ public final class HuggingFaceCatalog {
     private final Runnable onInstalled;
     private final ExecutorService io=Executors.newSingleThreadExecutor();
     private static final AtomicBoolean DOWNLOAD_LOCK=new AtomicBoolean(false);
+    public static boolean isDownloading(){return DOWNLOAD_LOCK.get();}
     private final AtomicBoolean stopped=new AtomicBoolean(false);
     private volatile HttpURLConnection downloading;
     private volatile Process registration;
@@ -303,7 +305,9 @@ public final class HuggingFaceCatalog {
         TextView status=label(activity,"다운로드 준비 중…");add(panel,status);
         ProgressBar progress=new ProgressBar(activity,null,android.R.attr.progressBarStyleHorizontal);
         progress.setMax(100);add(panel,progress);
-        add(panel,label(activity,"광고 표시·모델 다운로드에는 네트워크 데이터가 사용될 수 있습니다."));
+        add(panel,label(activity,"광고 · 네트워크 데이터 사용 가능"));
+        FrameLayout adSlot=new FrameLayout(activity);
+        add(panel,adSlot);
         AlertDialog dialog=new AlertDialog.Builder(activity)
                 .setTitle("Hugging Face → Ollama")
                 .setView(panel)
@@ -311,7 +315,13 @@ public final class HuggingFaceCatalog {
                 .create();
         dialog.setCanceledOnTouchOutside(false);
         dialog.setOnCancelListener(d->cancel());
+        dialog.setOnDismissListener(d->{
+            if(activity instanceof MainActivity)
+                ((MainActivity)activity).unregisterHfDownloadAd(adSlot);
+        });
         dialog.show();
+        if(activity instanceof MainActivity)
+            ((MainActivity)activity).registerHfDownloadAd(adSlot);
         io.execute(()->{
             File gguf=null,modelfile=null;
             try {

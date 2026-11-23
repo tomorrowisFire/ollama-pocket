@@ -1,4 +1,4 @@
-# AI in Pocket - Client for Ollama (v0.9.0 / Cooperative HUD + Hugging Face)
+# AI in Pocket - Client for Ollama (v0.9.1 / Cooperative HUD + Hugging Face)
 
 안드로이드 기기 자체에서 **Ollama Android ARM64 엔진**을 실행하는 비공식 독립 클라이언트입니다. PC·Termux·원격 서버 없이 기기에서 모델 다운로드와 로컬 텍스트 대화를 수행하도록 개발했습니다. 실행용 바이너리는 공개 커뮤니티 포크(Rllama) 소스에서 빌드합니다. 이미지/영상 탭은 요청에 따라 제거했습니다.
 
@@ -121,3 +121,7 @@ GPU runner 소스는 MIT 라이선스 `ggml-org/llama.cpp` 태그 `b11913`을 �
 - 모델 탭의 **Hugging Face 공개 GGUF 찾아보기**에서 공개 모델을 검색하고, 모델 파일과 용량·라이선스 표기를 확인한 후 HTTPS로 다운로드합니다. 파일을 앱 전용 임시 저장소에 받고, 로컬 Ollama \`create\`로 등록한 뒤 임시파일을 삭제합니다. 멀티파일 GGUF와 projector는 이 버전에서 직접 등록을 지원하지 않으며, gated/private 모델 접근을 우회하지 않습니다.
 - GGUF 다운로드와 등록 도중 모델 크기의 약 2배 이상 저장공간을 확보하도록 안내합니다. 다운로드에 인터넷 데이터가 쓰이며 모바일 요금이 발생할 수 있습니다. 선택된 모델의 라이선스와 상업적 사용 가능 여부는 별도로 확인해야 합니다.
 - GitHub Actions는 pure Java 수학/HUD 테스트 및 Java/ARM64 APK 구조 검증을 수행합니다. **실제 스마트폰·태블릿에서의 CPU/GPU/RPC 추론, HF 다운로드, tok/s, 발열 및 제조사 GPU 사용률은 아직 실측 검증 전입니다.**
+
+## v0.9.1 보완
+
+Hugging Face GGUF 다운로드의 진행률 바 아래에도 기존 AdMob 동의 관리와 연결된 테스트 배너를 배치하고, 닫으면 광고 리소스를 해제합니다. 모델 다운로드·벤치마크 동시 실행은 차단합니다.

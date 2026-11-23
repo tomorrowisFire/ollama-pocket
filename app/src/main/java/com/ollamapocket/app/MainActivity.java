@@ -335,7 +335,7 @@ public final class MainActivity extends Activity {
         Button hfBrowse=button("Hugging Face 공개 GGUF 찾아보기",true);
         margin(hfBrowse,content,0,8);
         hfBrowse.setOnClickListener(v->{
-            if(chatBusy||pullBusy||benchmarkBusy){toast("진행 중인 작업을 마친 뒤 이용하세요");return;}
+            if(chatBusy||pullBusy||benchmarkBusy||HuggingFaceCatalog.isDownloading()){toast("진행 중인 작업을 마친 뒤 이용하세요");return;}
             HuggingFaceCatalog.open(this,this::refreshModels);
         });
         margin(text("최초 다운로드에만 인터넷이 필요합니다. 이후 오프라인 실행됩니다.", 12, MUTED, false), content, 0, 9);
@@ -384,6 +384,13 @@ public final class MainActivity extends Activity {
         renderRecommendations();
     }
 
+    void registerHfDownloadAd(FrameLayout slot) {
+        ads.register(slot,AdSupport.PLACEMENT_DOWNLOAD);
+        ads.showBanner(slot);
+        ads.prepareConsent();
+    }
+    void unregisterHfDownloadAd(FrameLayout slot) { ads.detach(slot); }
+
     private void createServerPage() {
         serverPage = column();
         margin(text("설정 · 로컬 엔진", 20, WHITE, true), serverPage, 4, 8);
@@ -396,7 +403,7 @@ public final class MainActivity extends Activity {
         Button benchmark=button("모델 최적화 벤치마크 · tok/s 비교",true);
         margin(benchmark,serverPage,0,8);
         benchmark.setOnClickListener(v->{
-            if(chatBusy||pullBusy||diagnosticBusy||benchmarkBusy){
+            if(chatBusy||pullBusy||diagnosticBusy||benchmarkBusy||HuggingFaceCatalog.isDownloading()){
                 toast("진행 중인 작업을 마친 뒤 측정하세요");return;
             }
             ModelBenchmark.show(this,currentModel,
@@ -681,7 +688,9 @@ public final class MainActivity extends Activity {
         if (model.isEmpty() || !model.matches("[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,119}")) {
             toast("모델명을 확인하세요"); return;
         }
-        if (pullBusy) return;
+        if (pullBusy || benchmarkBusy || HuggingFaceCatalog.isDownloading()) {
+            toast("다른 모델 다운로드 또는 벤치마크 종료 후 이용하세요");return;
+        }
         new AlertDialog.Builder(this)
             .setTitle("다운로드 · 데이터 요금 안내")
             .setMessage("선택 모델: " + model + "\n\n모델 다운로드는 수백 MB~수 GB의 " +
