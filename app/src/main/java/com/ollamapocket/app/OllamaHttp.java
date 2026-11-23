@@ -110,6 +110,18 @@ public final class OllamaHttp {
         return conn;
     }
 
+    public static HttpURLConnection newCooperativeChatConnection() throws Exception {
+        HttpURLConnection conn = (HttpURLConnection)new URL(DistributedRunner.url() + "/v1/chat/completions").openConnection();
+        conn.setRequestMethod("POST");
+        conn.setConnectTimeout(4000);
+        conn.setReadTimeout(0);
+        conn.setUseCaches(false);
+        conn.setDoOutput(true);
+        conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+        conn.setRequestProperty("Accept", "text/event-stream");
+        return conn;
+    }
+
     public static JSONObject gpuChatBody(String model, JSONArray history) throws Exception {
         JSONObject body = new JSONObject();
         body.put("model", model);

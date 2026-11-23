@@ -354,6 +354,9 @@ public final class MainActivity extends Activity {
         Button compute = button("CPU / GPU / NPU 실행 장치", false);
         margin(compute, serverPage, 0, 10);
         compute.setOnClickListener(v -> showComputeChoiceDialog());
+        Button coop = button("협력 추론 · 같은 Wi-Fi 기기 연결", true);
+        margin(coop, serverPage, 0, 8);
+        coop.setOnClickListener(v -> CoopUi.show(this));
         Button test = button("CPU · GPU 실제 연산 검사", true);
         margin(test, serverPage, 0, 7);
         diagnosticStatus = text("설치된 모델을 실제 실행해 CPU/GPU 결과를 확인합니다. NPU는 미지원입니다.", 12, MUTED, false);
@@ -852,6 +855,22 @@ public final class MainActivity extends Activity {
             final StringBuilder answer = new StringBuilder();
             String error = null;
             try {
+                if ("cooperative".equals(computePreference())) {
+                    StringBuilder reason = new StringBuilder();
+                    ui.post(() -> activeEngineLabel.setText("협력 RPC 모델 로딩 · 보조 기기로 데이터 전송 중"));
+                    if (!DistributedRunner.ensure(getApplicationContext(), modelAtStart, reason))
+                        throw new java.io.IOException("협력 모델 실행 실패: " + reason +
+                            " · 보조 노드가 끊어졌다면 작은 단독 모델로 변경하세요.");
+                    if (chatCancelled) {
+                        ui.post(() -> { assistant.setText("AI in Pocket\n생성 중단됨"); setChatBusy(false); });
+                        return;
+                    }
+                    HttpURLConnection connection = OllamaHttp.newCooperativeChatConnection();
+                    chatConnection = connection;
+                    ui.post(() -> activeEngineLabel.setText("협력 RPC 경로 연결 · 실제 토큰 생성 확인 중"));
+                    OllamaHttp.streamGpu(connection, OllamaHttp.gpuChatBody(modelAtStart, requestHistory),
+                        item -> appendAnswer(item, answer, assistant));
+                } else {
                 String choice = computePreference();
                 boolean tryGpu = !"cpu".equals(choice) && computeReport.gpuCompute &&
                     GpuRunner.packaged(getApplicationContext());
@@ -895,6 +914,7 @@ public final class MainActivity extends Activity {
                     chatConnection = connection;
                     OllamaHttp.stream(connection, OllamaHttp.chatBody(modelAtStart, requestHistory),
                         item -> appendAnswer(item, answer, assistant));
+                }
                 }
             } catch (Exception ex) { error = ex.getMessage(); }
             finally { chatConnection = null; }
