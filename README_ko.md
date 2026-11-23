@@ -18,7 +18,7 @@
 
 1. GitHub 저장소 **Actions → Build AI in Pocket Android APK**에 접속합니다.
 2. 최신 성공 기록을 연 뒤 아래의 **Artifacts → AI-in-Pocket-Android-APK**를 내려받습니다.
-3. ZIP 내부의 **AI-in-Pocket-v0.4.0-android-arm64.apk**를 설치합니다.
+3. ZIP 내부의 **AI-in-Pocket-v0.9.9-android-arm64.apk**를 설치합니다. 이후 빌드 파일명은 `app/build.gradle`의 `versionName`에 자동 연동됩니다.
 4. 처음 실행하면 안내를 확인하고 **모델 선택 시작**을 선택합니다.
 5. 기기 추천 모델을 선택합니다. 데이터 요금 안내 확인 뒤 모델을 다운로드합니다.
 6. 채팅 탭에서 설치 모델을 사용합니다. 다운로드 뒤 로컬 대화에는 인터넷 연결이 필요하지 않습니다.
