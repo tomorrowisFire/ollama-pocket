@@ -54,7 +54,7 @@ public final class CoopSession {
     private static final long NODE_TIMEOUT_MS = 30_000;
     private static final String NSD_TYPE = "_aipocket-coop._tcp.";
     private static final String TAG = "AiPocketCoop";
-    private static final String PROTOCOL = "coop-2";
+    private static final String PROTOCOL = "coop-3";
     private static volatile CoopSession INSTANCE;
 
     public static CoopSession get(Context context) {
@@ -96,7 +96,13 @@ public final class CoopSession {
         public volatile long safeRamMiB;
         public volatile long lastSeen;
         public volatile String state = "connected";
+        public volatile int cpuPermille=-1, gpuPermille=-1, batteryTenths=-1, thermalStatus=-1;
+        public volatile boolean workerOk=true;
         volatile RpcRelay relay;
+        void updateTelemetry(int cpu,int gpu,int battery,int thermal,boolean worker) {
+            cpuPermille=cpu;gpuPermille=gpu;batteryTenths=battery;
+            thermalStatus=thermal;workerOk=worker;
+        }
         Node(String id, String name, String ip, int port, long ramMiB) {
             this.id=id; this.name=name; this.ip=ip; this.port=port;
             this.safeRamMiB=ramMiB; this.lastSeen=SystemClock.elapsedRealtime();
@@ -139,7 +145,9 @@ public final class CoopSession {
     public List<Node> readyNodes() {
         long now=SystemClock.elapsedRealtime();
         List<Node> out=new ArrayList<>();
-        for (Node n:nodes.values()) if(now-n.lastSeen<NODE_TIMEOUT_MS && n.relay!=null) out.add(n);
+        for (Node n:nodes.values())
+            if(now-n.lastSeen<NODE_TIMEOUT_MS && n.relay!=null && n.workerOk && n.safeRamMiB>0)
+                out.add(n);
         // Stable node order is essential for remote --tensor-split ratios.
         Collections.sort(out,(a,b)->a.id.compareTo(b.id));
         return out;
@@ -316,12 +324,18 @@ public final class CoopSession {
             String build=req.optString("build","");
             int port=req.optInt("port",0);
             long reportedRam=req.optLong("safe_ram_mib",-1);
-            String command=type+"|"+sessionId+"|"+nonce+"|"+id+"|"+port+"|"+build+"|"+reportedRam;
+            int cpu=req.optInt("cpu_permille",-2),gpu=req.optInt("gpu_permille",-2);
+            int battery=req.optInt("battery_tenths",-2),thermal=req.optInt("thermal_status",-2);
+            boolean worker=req.optBoolean("worker_ok",false);
+            String telemetry="|"+cpu+"|"+gpu+"|"+battery+"|"+thermal+"|"+worker;
+            String command=type+"|"+sessionId+"|"+nonce+"|"+id+"|"+port+"|"+build+"|"+reportedRam+telemetry;
             JSONObject response=new JSONObject();
             if(!"host".equals(role) || !id.matches("[A-Za-z0-9_-]{8,40}") ||
                 !nonce.matches("[A-Za-z0-9_-]{16,32}") || !name.matches("[\\p{L}\\p{N} _.-]{1,45}") ||
                 !("join".equals(type)||"ping".equals(type)) || port<1024 || port>65535 ||
-                !workerDigest.equals(build) || reportedRam<0 || reportedRam>65536 || secret==null ||
+                !workerDigest.equals(build) || reportedRam<0 || reportedRam>65536 ||
+                cpu< -1 || cpu>1000 || gpu< -1 || gpu>1000 || battery< -1 || battery>1200 ||
+                thermal< -1 || thermal>6 || secret==null ||
                 !SecureRpcTransport.constantEquals(auth,SecureRpcTransport.hmacHex(secret,command))) {
                 response.put("ok",false).put("error","연결 요청 거부: 코드 또는 RPC 엔진 버전 불일치");
             } else if(seenNonces.putIfAbsent(nonce,SystemClock.elapsedRealtime())!=null){
@@ -333,12 +347,14 @@ public final class CoopSession {
                     String peerIp=s.getInetAddress().getHostAddress();
                     Node old=nodes.get(id);if(old!=null && old.relay!=null)old.relay.close();
                     Node node=new Node(id,name,peerIp,port,reportedRam);
+                    node.updateTelemetry(cpu,gpu,battery,thermal,worker);
                     RpcRelay relay=new RpcRelay(peerIp,port,secret);
                     relay.start();node.relay=relay;nodes.put(id,node);
                 }else{
                     Node n=nodes.get(id);
                     if(n!=null && n.ip.equals(s.getInetAddress().getHostAddress()) && n.port==port) {
-                        n.safeRamMiB=reportedRam; // authenticated heartbeat updates memory budget
+                        n.safeRamMiB=reportedRam;
+                        n.updateTelemetry(cpu,gpu,battery,thermal,worker);
                         n.lastSeen=SystemClock.elapsedRealtime();
                     }
                     else throw new IOException("Unregistered guest heartbeat");
@@ -408,10 +424,17 @@ public final class CoopSession {
         if(id.isEmpty())throw new IOException("호스트 세션을 발견하지 못했습니다. 검색 후 선택하세요");
         JSONObject request=new JSONObject();
         long safe=safeRamMiB();
+        PerformanceHud.Sample snapshot=PerformanceHud.sample(app);
+        int cpu=snapshot.cpuPermille(),gpu=snapshot.gpuPermille();
+        int battery=snapshot.batteryTenths,thermal=snapshot.thermalStatus;
+        boolean workerOk=worker!=null && worker.isAlive();
+        String payload=type+"|"+id+"|"+nonce+"|"+guestId+"|"+port+"|"+workerDigest+"|"+safe+
+            "|"+cpu+"|"+gpu+"|"+battery+"|"+thermal+"|"+workerOk;
         request.put("type",type).put("id",guestId).put("name",guestName)
             .put("nonce",nonce).put("port",port).put("build",workerDigest)
-            .put("safe_ram_mib",safe)
-            .put("mac",SecureRpcTransport.hmacHex(secret,type+"|"+id+"|"+nonce+"|"+guestId+"|"+port+"|"+workerDigest+"|"+safe));
+            .put("safe_ram_mib",safe).put("cpu_permille",cpu).put("gpu_permille",gpu)
+            .put("battery_tenths",battery).put("thermal_status",thermal).put("worker_ok",workerOk)
+            .put("mac",SecureRpcTransport.hmacHex(secret,payload));
         try(Socket s=new Socket()){
             s.connect(new java.net.InetSocketAddress(hostIp,CONTROL_PORT),4000);
             s.setSoTimeout(4000);

@@ -83,7 +83,22 @@ public final class MainActivity extends Activity {
     private EditText chatInput, modelInput;
     private Button sendButton, stopChatButton, pullButton, cancelPullButton;
     private boolean diagnosticBusy;
-    private TextView diagnosticStatus;
+    private volatile boolean benchmarkBusy;
+    private TextView diagnosticStatus, performanceHudView;
+    private volatile PerformanceHud.Sample lastHud;
+    private final Runnable hudPoll=new Runnable() {
+        @Override public void run() {
+            io.execute(()->{
+                PerformanceHud.Sample reading=PerformanceHud.sample(getApplicationContext());
+                ui.post(()->{
+                    lastHud=reading;
+                    if(performanceHudView!=null&&!isFinishing())
+                        performanceHudView.setText(reading.compact());
+                });
+            });
+            ui.postDelayed(this,2500);
+        }
+    };
     private volatile HttpURLConnection chatConnection, pullConnection;
     private volatile boolean chatBusy, pullBusy, chatCancelled, pullCancelled;
     private volatile boolean serverPollBusy;
@@ -141,6 +156,7 @@ public final class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         ui.post(poll);
+        ui.post(hudPoll);
         long now = android.os.SystemClock.elapsedRealtime();
         if (lastPauseElapsed > 0 && now - lastPauseElapsed > 120_000
                 && getPreferences(MODE_PRIVATE).getBoolean("welcome_v2_seen", false)
@@ -151,11 +167,13 @@ public final class MainActivity extends Activity {
     @Override protected void onPause() {
         lastPauseElapsed = android.os.SystemClock.elapsedRealtime();
         ui.removeCallbacks(poll);
+        ui.removeCallbacks(hudPoll);
         super.onPause();
     }
     @Override protected void onDestroy() {
         if (chatConnection != null) chatConnection.disconnect();
         if (pullConnection != null) pullConnection.disconnect();
+        ui.removeCallbacks(hudPoll);
         io.shutdownNow();
         ads.destroy();
         super.onDestroy();
@@ -212,6 +230,18 @@ public final class MainActivity extends Activity {
         root.addView(header, lp(-1, 50));
         miniStatus = text("● 로컬 AI 엔진 확인 중", 11, MUTED, false);
         margin(miniStatus, root, 2, 6);
+        performanceHudView=text("CPU 측정 중 · GPU 조회 중 · RAM 확인 중",11,MUTED,false);
+        performanceHudView.setPadding(dp(10),dp(8),dp(10),dp(8));
+        performanceHudView.setBackground(bg(FIELD,9));
+        margin(performanceHudView,root,0,5);
+        performanceHudView.setOnClickListener(v->{
+            PerformanceHud.Sample sample=lastHud;
+            String status=sample==null?"기기 성능 지표 확인 중":sample.detail();
+            if("host".equals(CoopSession.get(this).role()))
+                status+="\n협력 노드: "+CoopSession.get(this).readyNodes().size()+"대";
+            new AlertDialog.Builder(this).setTitle("실시간 성능 HUD")
+                .setMessage(status).setPositiveButton("닫기",null).show();
+        });
         pages = new FrameLayout(this);
         LinearLayout.LayoutParams contentParams = new LinearLayout.LayoutParams(-1, 0, 1);
         root.addView(pages, contentParams);
@@ -302,6 +332,12 @@ public final class MainActivity extends Activity {
         recommendationRows = column(); margin(recommendationRows, content, 0, 14);
         margin(text("① 모델을 고르고  ② 다운로드  ③ 채팅", 13, ACCENT, true), content, 0, 10);
         margin(text("모델 다운로드", 20, WHITE, true), content, 3, 5);
+        Button hfBrowse=button("Hugging Face 공개 GGUF 찾아보기",true);
+        margin(hfBrowse,content,0,8);
+        hfBrowse.setOnClickListener(v->{
+            if(chatBusy||pullBusy||benchmarkBusy){toast("진행 중인 작업을 마친 뒤 이용하세요");return;}
+            HuggingFaceCatalog.open(this,this::refreshModels);
+        });
         margin(text("최초 다운로드에만 인터넷이 필요합니다. 이후 오프라인 실행됩니다.", 12, MUTED, false), content, 0, 9);
         String recommendedDefault = "qwen2.5:0.5b";
         for (DeviceProfiler.Recommendation rec : DeviceProfiler.recommend(deviceProfile)) {
@@ -357,6 +393,15 @@ public final class MainActivity extends Activity {
         Button coop = button("협력 추론 · 같은 Wi-Fi 기기 연결", true);
         margin(coop, serverPage, 0, 8);
         coop.setOnClickListener(v -> CoopUi.show(this));
+        Button benchmark=button("모델 최적화 벤치마크 · tok/s 비교",true);
+        margin(benchmark,serverPage,0,8);
+        benchmark.setOnClickListener(v->{
+            if(chatBusy||pullBusy||diagnosticBusy||benchmarkBusy){
+                toast("진행 중인 작업을 마친 뒤 측정하세요");return;
+            }
+            ModelBenchmark.show(this,currentModel,
+                ()->benchmarkBusy=true,()->benchmarkBusy=false);
+        });
         Button test = button("CPU · GPU 실제 연산 검사", true);
         margin(test, serverPage, 0, 7);
         diagnosticStatus = text("설치된 모델을 실제 실행해 CPU/GPU 결과를 확인합니다. NPU는 미지원입니다.", 12, MUTED, false);
@@ -397,7 +442,7 @@ public final class MainActivity extends Activity {
     }
 
     private void beginHardwareSelfTest() {
-        if (diagnosticBusy || chatBusy || pullBusy) {
+        if (diagnosticBusy || chatBusy || pullBusy || benchmarkBusy) {
             toast("다른 작업이 끝난 뒤 검사하세요"); return;
         }
         if (currentModel == null || currentModel.isEmpty() || knownModels.isEmpty()) {
@@ -838,7 +883,10 @@ public final class MainActivity extends Activity {
         String prompt = chatInput.getText().toString().trim();
         if (prompt.isEmpty()) return;
         if (currentModel.isEmpty() || knownModels.isEmpty()) { toast("모델 탭에서 모델을 설치하세요"); showTab(1); return; }
-        if (chatBusy) return;
+        if (chatBusy || benchmarkBusy) {
+            if(benchmarkBusy)toast("벤치마크 측정이 끝난 뒤 채팅하세요");
+            return;
+        }
         // Clear the input first, then append to the selected model's history.
         chatInput.setText("");
         ((InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE))

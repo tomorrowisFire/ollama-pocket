@@ -10,6 +10,7 @@ import android.graphics.Color;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -47,6 +48,8 @@ public final class CoopUi {
         Button host=button(a,"① 이 기기로 호스트 세션 만들기");add(col,host);
         Button share=button(a,"세션 정보 공유");add(col,share);
         Button stop=button(a,"연결 종료 (모든 노드 종료)");add(col,stop);
+        add(col,label(a,"호스트에서 연결된 보조 기기들의 RAM·CPU·GPU·배터리 온도·연결 상태를 확인할 수 있습니다.\n" +
+            "GPU 지표는 제조사 커널에서 제공하고 앱에 읽기 권한이 있을 때만 표시합니다."));
         add(col,label(a,"② 보조 기기에서 호스트 검색 → 아래 정보로 참가"));
         Button scan=button(a,"동일 Wi-Fi 세션 검색");add(col,scan);
         TextView found=label(a,"검색 전");add(col,found);
@@ -155,9 +158,19 @@ public final class CoopUi {
     }
     private static String formatNodes(CoopSession s){
         StringBuilder b=new StringBuilder();
-        for(CoopSession.Node node:s.nodes())b.append(" • ").append(node.name).append(" (")
-            .append(node.ip).append(") · 안전 RAM 약 ").append(node.safeRamMiB)
-            .append(" MiB\n");
+        for(CoopSession.Node node:s.nodes()) {
+            long age=(SystemClock.elapsedRealtime()-node.lastSeen)/1000;
+            boolean online=age<30&&node.workerOk;
+            b.append(" • ").append(node.name).append(" (").append(node.ip).append(")")
+                .append(online?" · 정상":" · 연결/워커 확인 필요")
+                .append(" · 마지막 보고 ").append(age).append("초 전\n")
+                .append("   안전 RAM ").append(node.safeRamMiB).append(" MiB")
+                .append(" / CPU ").append(node.cpuPermille<0?"조회 불가":(node.cpuPermille/10)+"%")
+                .append(" / GPU ").append(node.gpuPermille<0?"조회 불가":(node.gpuPermille/10)+"%")
+                .append("\n   배터리 ").append(node.batteryTenths<0?"조회 불가":(node.batteryTenths/10.0)+"℃")
+                .append(" · 열 단계 ").append(node.thermalStatus<0?"조회 불가":node.thermalStatus)
+                .append(" · RPC ").append(node.workerOk?"실행":"중지").append("\n");
+        }
         if(b.length()==0)b.append("대기 중 · 최대 3대\n");
         return b.toString();
     }
