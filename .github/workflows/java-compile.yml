@@ -1,0 +1,36 @@
+name: Android Java fast compile (without native engines)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'app/src/main/java/**'
+      - 'app/src/main/AndroidManifest.xml'
+      - 'app/build.gradle'
+      - '.github/workflows/java-compile.yml'
+
+jobs:
+  compile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android SDK
+        shell: bash
+        run: |
+          sdk="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          test -d "$sdk"
+          echo "ANDROID_HOME=$sdk" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$sdk" >> "$GITHUB_ENV"
+          "$sdk/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-35' 'build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Compile Java without native Ollama/Vulkan compilation
+        run: gradle --no-daemon :app:compileDebugJavaWithJavac -x :app:checkNativePayload -x :app:checkComputeProbe
