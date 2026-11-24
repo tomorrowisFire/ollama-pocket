@@ -206,6 +206,10 @@ jobs:
           assert 'navButtons' not in src
           assert 'private void showChatList()' not in src
           assert 'buildModelTile(' in src
+          assert 'buildModelListRow(' in src
+          assert 'setModelViewMode(' in src
+          assert 'model_list_view' in src
+          assert 'if(modelListView){' in src
           assert 'deviceRecommendedTiles()' in src
           assert 'ModelTileCatalog.forDevice(' in src
           assert 'new LinearLayout.LayoutParams(sidePx,sidePx)' in src
@@ -259,7 +263,7 @@ jobs:
         run: |
           mkdir -p dist
           cp app/build/outputs/apk/debug/app-debug.apk \
-            dist/AI-in-Pocket-v0.10.0-Unified-Quant-Search-ARM64.apk
+            dist/AI-in-Pocket-v0.10.1-List-Grid-Model-Selection-ARM64.apk
           cp signature-report.txt dist/signature-report.txt
       - name: Make official Android apksigner available for offline stable re-signing
         shell: bash

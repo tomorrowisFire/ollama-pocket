@@ -99,6 +99,8 @@ public final class MainActivity extends Activity {
     private final List<ModelVariantCatalog.Variant> recommendedVariants=new ArrayList<>();
     private final Map<String,ModelVariantCatalog.Variant> visibleVariants=new HashMap<>();
     private Spinner sourceFilter,sortFilter;
+    private boolean modelListView=true;
+    private Button modelListViewButton,modelGridViewButton;
     private String selectedSource="Ollama에서 찾기", selectedSort="추천 순";
     private java.util.concurrent.Future<?> onlineSearchTask;
     private boolean recommendationLoading=false, recommendationLoaded=false;
@@ -204,6 +206,7 @@ public final class MainActivity extends Activity {
         uiTextScale="large".equals(font)?1.13f:"extra".equals(font)?1.26f:1.0f;
         showHud=getPreferences(MODE_PRIVATE).getBoolean("show_hud",true);
         smoothMotion=getPreferences(MODE_PRIVATE).getBoolean("smooth_motion",true);
+        modelListView=getPreferences(MODE_PRIVATE).getBoolean("model_list_view",true);
         if("mono_light".equals(uiTheme)) {
             BG=Color.rgb(250,250,250); CARD=Color.WHITE; FIELD=Color.rgb(234,234,234);
             ACCENT=Color.rgb(23,23,23); WHITE=Color.rgb(24,24,24);
@@ -452,6 +455,15 @@ public final class MainActivity extends Activity {
         Button refresh=button("새로고침",false);rowItem(top,refresh,0,0);
         refresh.setOnClickListener(v->{refreshModels();if(modelFilter!=null&&!modelFilter.getText().toString().trim().isEmpty())onModelSearchChanged(modelFilter.getText().toString());else loadRecommendedVariants(true);});
         margin(top,content,0,7);
+        LinearLayout viewModeRow=row();
+        modelListViewButton=button("☷ 리스트형",modelListView);
+        modelGridViewButton=button("▦ 카드형",!modelListView);
+        rowItem(viewModeRow,modelListViewButton,1,6);
+        rowItem(viewModeRow,modelGridViewButton,1,0);
+        margin(viewModeRow,content,0,9);
+        modelListViewButton.setOnClickListener(v->setModelViewMode(true));
+        modelGridViewButton.setOnClickListener(v->setModelViewMode(false));
+        updateModelViewButtons();
         LinearLayout searchRow=row();
         modelFilter=edit("모델·크기·양자화 검색","",false);
         rowItem(searchRow,modelFilter,1,6);
@@ -1307,6 +1319,27 @@ public final class MainActivity extends Activity {
         return display.toString();
     }
 
+    private void setModelViewMode(boolean listMode){
+        if(modelListView==listMode)return;
+        modelListView=listMode;
+        getPreferences(MODE_PRIVATE).edit().putBoolean("model_list_view",listMode).apply();
+        updateModelViewButtons();
+        renderInstalledModels();
+    }
+
+    private void updateModelViewButtons(){
+        if(modelListViewButton==null||modelGridViewButton==null)return;
+        Button[] buttons={modelListViewButton,modelGridViewButton};
+        boolean[] active={modelListView,!modelListView};
+        for(int i=0;i<buttons.length;i++){
+            buttons[i].setBackground(bg(active[i]?ACCENT:FIELD,10));
+            buttons[i].setTextColor(active[i]?BG:WHITE);
+            buttons[i].setSelected(active[i]);
+        }
+        modelListViewButton.setContentDescription("리스트형 보기"+(modelListView?" · 선택됨":""));
+        modelGridViewButton.setContentDescription("카드형 보기"+(!modelListView?" · 선택됨":""));
+    }
+
     private int tileBackgroundColor(boolean selected) {
         if("mono_light".equals(uiTheme))
             return selected?Color.rgb(227,227,227):Color.rgb(244,244,244);
@@ -1466,6 +1499,83 @@ public final class MainActivity extends Activity {
         return card;
     }
 
+    /** Full-width accessible model row. Uses the same selection and progress state as square cards. */
+    private LinearLayout buildModelListRow(ModelTileCatalog.Tile item){
+        boolean selected=item.installed&&OllamaQuantCatalog.belongsToModel(item.id,currentModel);
+        int ink=tileTextColor(),secondary=tileMutedColor();
+        LinearLayout card=column();
+        card.setPadding(dp(13),dp(11),dp(13),dp(11));
+        card.setMinimumHeight(dp(90));
+        card.setBackground(tileBackground(selected));
+        card.setClickable(true);
+        card.setFocusable(true);
+        card.setElevation(dp(1));
+        card.setContentDescription(item.title+", "+item.id+", "+item.quantization+", "+
+            ModelTileCatalog.status(item,downloadingCardId)+", "+
+            (item.featured?"기기 추천, ":"")+"터치하여 양자화 버전 선택");
+        TypedValue ripple=new TypedValue();
+        if(getTheme().resolveAttribute(android.R.attr.selectableItemBackground,ripple,true)
+                &&ripple.resourceId!=0)card.setForeground(getDrawable(ripple.resourceId));
+        tilePressEffect(card);
+
+        LinearLayout line=row();
+        LinearLayout body=column();
+        TextView title=text(item.title,16,ink,true);
+        title.setSingleLine(true);
+        title.setEllipsize(TextUtils.TruncateAt.END);
+        margin(title,body,0,3);
+        ModelVariantCatalog.Variant remote=visibleVariants.get(item.id);
+        String exact=remote==null?item.id:remote.label();
+        TextView identifier=text(exact,12,secondary,false);
+        identifier.setSingleLine(true);
+        identifier.setEllipsize(TextUtils.TruncateAt.MIDDLE);
+        margin(identifier,body,0,4);
+        String provider=remote!=null?remote.source:item.installed?"내 기기":"Ollama";
+        TextView details=text(item.quantization+"  ·  "+
+            (item.bytes>0?installedSize(item.bytes):"용량 미확인")+"  ·  "+provider,
+            11,secondary,false);
+        details.setSingleLine(true);
+        details.setEllipsize(TextUtils.TruncateAt.END);
+        margin(details,body,0,0);
+        rowItem(line,body,1,8);
+
+        LinearLayout trailing=column();
+        trailing.setGravity(Gravity.END|Gravity.CENTER_VERTICAL);
+        TextView status=text(item.id.equals(downloadingCardId)&&pullBusy?"↓ 다운로드 중":
+            item.installed?(selected?"● 사용 중":"● 설치됨"):"○ 미설치",
+            10,ink,true);
+        status.setGravity(Gravity.END|Gravity.CENTER_VERTICAL);
+        status.setSingleLine(true);
+        margin(status,trailing,0,5);
+        if(item.featured){
+            TextView recommended=text("(추천)",11,secondary,true);
+            recommended.setGravity(Gravity.END|Gravity.CENTER_VERTICAL);
+            recommended.setSingleLine(true);
+            margin(recommended,trailing,0,5);
+        }
+        TextView more=text("선택 ›",12,secondary,false);
+        more.setGravity(Gravity.END|Gravity.CENTER_VERTICAL);
+        more.setSingleLine(true);
+        margin(more,trailing,0,0);
+        rowItem(line,trailing,0,0);
+        margin(line,card,0,0);
+        tileStatusLabels.put(item.id,status);
+
+        ProgressBar progress=new ProgressBar(this,null,
+            android.R.attr.progressBarStyleHorizontal);
+        progress.setMax(100);
+        boolean ongoing=item.id.equals(downloadingCardId)&&pullBusy;
+        progress.setVisibility(ongoing?View.VISIBLE:View.GONE);
+        if(ongoing){
+            progress.setIndeterminate(downloadingPercent<0);
+            if(downloadingPercent>=0)progress.setProgress(downloadingPercent);
+        }
+        margin(progress,card,7,0);
+        tileDownloadBars.put(item.id,progress);
+        card.setOnClickListener(v->activateTile(item));
+        return card;
+    }
+
     private void updateTileDownloadProgress(){
         if(!pullBusy||downloadingModel.isEmpty())return;
         TextView status=tileStatusLabels.get(downloadingCardId);
@@ -1613,14 +1723,29 @@ public final class MainActivity extends Activity {
             return;
         }
 
+        boolean reveal=animateNextTileUpdate&&animationsEnabled();
+        animateNextTileUpdate=false;
+        if(modelListView){
+            for(int pos=0;pos<shown.size();pos++){
+                LinearLayout item=buildModelListRow(shown.get(pos));
+                margin(item,modelRows,0,8);
+                if(reveal&&pos<6){
+                    item.setAlpha(0f);
+                    item.setTranslationY(dp(6));
+                    item.animate().alpha(1f).translationY(0f)
+                        .setDuration(170).setStartDelay(Math.min(120,pos*20))
+                        .setInterpolator(new DecelerateInterpolator()).start();
+                }
+            }
+            updateTileDownloadProgress();
+            return;
+        }
         int available=modelRows.getWidth();
         if(available<=0)available=Math.max(dp(120),getResources().getDisplayMetrics().widthPixels-dp(32));
         int gap=dp(10),minCard=dp(uiTextScale>1.15f?178:148);
         int columns=ModelVariantCatalog.columns(available,minCard,gap);
         int sidePx=Math.max(1,(available-gap*(columns-1))/columns);
         int sideDp=Math.max(1,(int)(sidePx/getResources().getDisplayMetrics().density));
-        boolean reveal=animateNextTileUpdate&&animationsEnabled();
-        animateNextTileUpdate=false;
         for(int pos=0;pos<shown.size();pos+=columns){
             LinearLayout group=row();
             group.setGravity(Gravity.TOP|Gravity.START);
