@@ -14,7 +14,7 @@ public final class SolarThemeTest {
         verify(winter[1]>990&&winter[1]<1070,"Seoul winter sunset local afternoon");
         verify(summer[0]>270&&summer[0]<360,"Seoul summer sunrise early");
         verify(summer[1]>1130&&summer[1]<1240,"Seoul summer sunset late");
-        verify(night("2026-12-21T08:00:00Z","Asia/Seoul"),"winter sunset: 17:00KST");
+        verify(night("2026-12-21T08:30:00Z","Asia/Seoul"),"winter sunset passed: 17:30 KST");
         verify(!night("2026-12-21T03:00:00Z","Asia/Seoul"),"winter noon light");
         verify(night("2026-06-21T11:00:00Z","Asia/Seoul"),"summer night at 20:00");
         verify(!night("2026-06-21T07:00:00Z","Asia/Seoul"),"summer afternoon light");
