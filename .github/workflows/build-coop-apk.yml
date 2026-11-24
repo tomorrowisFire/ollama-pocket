@@ -209,6 +209,12 @@ jobs:
           assert 'buildModelListRow(' in src
           assert 'setModelViewMode(' in src
           assert 'model_list_view' in src
+          assert 'selectedSource="전체에서 찾기"' in src
+          assert 'Arrays.asList("전체에서 찾기","Ollama에서 찾기","Hugging Face에서 찾기")' in src
+          assert '직접 모델 다운로드' not in src
+          assert 'manualDownloadPanel.setVisibility(View.GONE)' in src
+          assert 'cancelPullButton.setVisibility(View.VISIBLE)' in src
+          assert 'Button importButton=button("GGUF 파일 직접 가져오기",false)' in src
           assert 'if(modelListView){' in src
           assert 'deviceRecommendedTiles()' in src
           assert 'ModelTileCatalog.forDevice(' in src
@@ -263,7 +269,7 @@ jobs:
         run: |
           mkdir -p dist
           cp app/build/outputs/apk/debug/app-debug.apk \
-            dist/AI-in-Pocket-v0.10.1-List-Grid-Model-Selection-ARM64.apk
+            dist/AI-in-Pocket-v0.10.2-All-Source-Default-ARM64.apk
           cp signature-report.txt dist/signature-report.txt
       - name: Make official Android apksigner available for offline stable re-signing
         shell: bash

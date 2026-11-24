@@ -101,7 +101,7 @@ public final class MainActivity extends Activity {
     private Spinner sourceFilter,sortFilter;
     private boolean modelListView=true;
     private Button modelListViewButton,modelGridViewButton;
-    private String selectedSource="Ollama에서 찾기", selectedSort="추천 순";
+    private String selectedSource="전체에서 찾기", selectedSort="추천 순";
     private java.util.concurrent.Future<?> onlineSearchTask;
     private boolean recommendationLoading=false, recommendationLoaded=false;
     private String recommendationError="";
@@ -478,7 +478,7 @@ public final class MainActivity extends Activity {
         LinearLayout searchOptions=row();
         sourceFilter=new Spinner(this);sourceFilter.setBackground(bg(FIELD,12));
         sourceFilter.setMinimumHeight(dp(46));
-        sourceFilter.setAdapter(makeFilterAdapter(java.util.Arrays.asList("Ollama에서 찾기","Hugging Face에서 찾기","전체에서 찾기")));
+        sourceFilter.setAdapter(makeFilterAdapter(java.util.Arrays.asList("전체에서 찾기","Ollama에서 찾기","Hugging Face에서 찾기")));
         sortFilter=new Spinner(this);sortFilter.setBackground(bg(FIELD,12));sortFilter.setMinimumHeight(dp(46));
         sortFilter.setAdapter(makeFilterAdapter(java.util.Arrays.asList("추천 순","용량 작은 순","용량 큰 순","이름 순")));
         rowItem(searchOptions,sourceFilter,1,6);rowItem(searchOptions,sortFilter,1,0);
@@ -526,8 +526,7 @@ public final class MainActivity extends Activity {
         installedPickerButton=button("설치 모델 전체 보기",false);
         margin(installedPickerButton,content,0,16);
         installedPickerButton.setOnClickListener(v->showAllInstalledModels());
-        margin(text("직접 모델 다운로드",18,WHITE,true),content,0,6);
-        margin(text("① 모델 선택  →  ② 다운로드  →  ③ 대화 시작",13,MUTED,false),content,0,8);
+        margin(text("기타 가져오기",18,WHITE,true),content,0,6);
         Button importButton=button("GGUF 파일 직접 가져오기",false);
         margin(importButton,content,0,8);
         importButton.setOnClickListener(v->{
@@ -536,23 +535,41 @@ public final class MainActivity extends Activity {
             intent.addCategory(Intent.CATEGORY_OPENABLE);
             intent.setType("*/*");startActivityForResult(intent,PICK_GGUF);
         });
+        // Keep the legacy direct-tag fallback, but do not duplicate the main search UI.
+        Button manualToggle=button("고급 옵션 · 모델명 직접 입력 ▾",false);
+        margin(manualToggle,content,0,7);
+        LinearLayout manualDownloadPanel=column();
+        manualDownloadPanel.setVisibility(View.GONE);
+        margin(text("통합 검색에서 찾지 못한 Ollama 태그만 직접 입력하세요.",
+            12,MUTED,false),manualDownloadPanel,0,7);
         String recommendedDefault="qwen2.5:0.5b";
         for(DeviceProfiler.Recommendation rec:DeviceProfiler.recommend(deviceProfile)){
             if(rec.selectable){recommendedDefault=rec.model;break;}
         }
-        modelInput=edit("모델명 예: qwen2.5:1.5b",recommendedDefault,false);
-        margin(modelInput,content,0,7);
-        LinearLayout pullRow=row();
-        pullButton=button("모델 다운로드",true);cancelPullButton=button("취소",false);
-        rowItem(pullRow,pullButton,1,6);rowItem(pullRow,cancelPullButton,0,0);
-        margin(pullRow,content,0,8);
-        cancelPullButton.setEnabled(false);cancelPullButton.setAlpha(0.55f);
+        modelInput=edit("모델 태그 예: qwen2.5:1.5b",recommendedDefault,false);
+        margin(modelInput,manualDownloadPanel,0,7);
+        pullButton=button("태그로 다운로드",true);
+        margin(pullButton,manualDownloadPanel,0,8);
         pullButton.setOnClickListener(v->pullModel());
+        margin(manualDownloadPanel,content,0,6);
+        manualToggle.setOnClickListener(v->{
+            boolean expanded=manualDownloadPanel.getVisibility()==View.VISIBLE;
+            manualDownloadPanel.setVisibility(expanded?View.GONE:View.VISIBLE);
+            manualToggle.setText(expanded?"고급 옵션 · 모델명 직접 입력 ▾":
+                "고급 옵션 · 모델명 직접 입력 ▴");
+        });
+
+        LinearLayout downloadStatusRow=row();
+        progressStatus=text("모델 선택 후 다운로드 진행 상황이 여기에 표시됩니다.",12,MUTED,false);
+        rowItem(downloadStatusRow,progressStatus,1,6);
+        cancelPullButton=button("다운로드 취소",false);
+        rowItem(downloadStatusRow,cancelPullButton,0,0);
+        cancelPullButton.setVisibility(View.GONE);
+        cancelPullButton.setEnabled(false);
         cancelPullButton.setOnClickListener(v->{
             pullCancelled=true;if(pullConnection!=null)pullConnection.disconnect();
         });
-        progressStatus=text("다운로드 전 데이터 요금 안내가 표시됩니다.",12,MUTED,false);
-        margin(progressStatus,content,0,5);
+        margin(downloadStatusRow,content,0,5);
         downloadProgress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
         downloadProgress.setMax(100);downloadProgress.setProgress(0);
         downloadProgress.setVisibility(View.GONE);
@@ -563,7 +580,7 @@ public final class MainActivity extends Activity {
         margin(text("모델 다운로드와 광고에는 데이터가 사용되며 통신료가 발생할 수 있습니다.",
             11,MUTED,false),content,0,15);
         // Lower duplicate "recommended models" section deliberately removed.
-        // Existing manual GGUF and Hugging Face download controls stay available.
+        // GGUF import stays visible; manual Ollama tags are a collapsed advanced option.
     }
 
     void registerHfDownloadAd(FrameLayout slot) {
@@ -1850,7 +1867,7 @@ public final class MainActivity extends Activity {
         downloadProgress.setIndeterminate(true);
         ads.showBanner(downloadAdSlot);
         pullButton.setEnabled(false); pullButton.setAlpha(0.5f);
-        cancelPullButton.setEnabled(true); cancelPullButton.setAlpha(1f);
+        cancelPullButton.setEnabled(true); cancelPullButton.setVisibility(View.VISIBLE);
         progressStatus.setText(model + " 다운로드 준비 중…");
         io.execute(() -> {
             String error = null;
@@ -1883,7 +1900,7 @@ public final class MainActivity extends Activity {
                 downloadingPercent=-1;
                 renderInstalledModels();
                 pullButton.setEnabled(true); pullButton.setAlpha(1f);
-                cancelPullButton.setEnabled(false); cancelPullButton.setAlpha(0.5f);
+                cancelPullButton.setEnabled(false); cancelPullButton.setVisibility(View.GONE);
                 progressStatus.setText(pullCancelled ? "다운로드 중단" : failure != null ?
                     "다운로드 실패: " + failure : "모델 설치 완료: " + model);
                 downloadProgress.setIndeterminate(false);
