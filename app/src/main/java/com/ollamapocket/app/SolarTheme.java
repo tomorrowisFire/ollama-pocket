@@ -62,11 +62,46 @@ public final class SolarTheme {
         return new double[]{solarNoon-4*hourAngle,solarNoon+4*hourAngle};
     }
 
-    public static boolean isNight(Instant now,ZoneId zone){
+    public static final String[] CITY_LABELS={
+        "기기 시간대 기준","서울","인천","부산","대구","대전","광주","제주","도쿄","런던","뉴욕"
+    };
+    public static final String[] CITY_CODES={
+        "device","seoul","incheon","busan","daegu","daejeon","gwangju","jeju","tokyo","london","newyork"
+    };
+    public static int cityIndex(String code){
+        for(int i=0;i<CITY_CODES.length;i++)if(CITY_CODES[i].equals(code))return i;
+        return 0;
+    }
+    public static ZoneId cityZone(ZoneId device,String code){
+        if("tokyo".equals(code))return ZoneId.of("Asia/Tokyo");
+        if("london".equals(code))return ZoneId.of("Europe/London");
+        if("newyork".equals(code))return ZoneId.of("America/New_York");
+        return "device".equals(code)||cityIndex(code)==0?device:ZoneId.of("Asia/Seoul");
+    }
+    public static double[] cityCoordinates(ZoneId device,String code){
+        switch(code){
+            case "seoul":return new double[]{37.5665,126.9780};
+            case "incheon":return new double[]{37.4563,126.7052};
+            case "busan":return new double[]{35.1796,129.0756};
+            case "daegu":return new double[]{35.8714,128.6014};
+            case "daejeon":return new double[]{36.3504,127.3845};
+            case "gwangju":return new double[]{35.1595,126.8526};
+            case "jeju":return new double[]{33.4996,126.5312};
+            case "tokyo":return approximateCoordinates(ZoneId.of("Asia/Tokyo"));
+            case "london":return approximateCoordinates(ZoneId.of("Europe/London"));
+            case "newyork":return approximateCoordinates(ZoneId.of("America/New_York"));
+            default:return approximateCoordinates(device);
+        }
+    }
+    public static boolean isNight(Instant now,ZoneId device,String city){
+        ZoneId zone=cityZone(device,city);
         ZonedDateTime local=now.atZone(zone);
-        double[] coords=approximateCoordinates(zone);
+        double[] coords=cityCoordinates(device,city);
         double[] light=daylightMinutes(local.toLocalDate(),zone,coords[0],coords[1]);
         double minute=local.getHour()*60+local.getMinute()+local.getSecond()/60.0;
         return minute<light[0]||minute>=light[1];
+    }
+    public static boolean isNight(Instant now,ZoneId zone){
+        return isNight(now,zone,"device");
     }
 }

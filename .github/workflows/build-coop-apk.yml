@@ -19,6 +19,11 @@ on:
       - 'app/src/main/java/com/ollamapocket/app/MainActivity.java'
       - 'app/src/main/java/com/ollamapocket/app/SolarTheme.java'
       - 'tests/SolarThemeTest.java'
+      - 'app/src/main/java/com/ollamapocket/app/ModelSearchCache.java'
+      - 'app/src/main/java/com/ollamapocket/app/ModelDownloadBudget.java'
+      - 'app/src/main/java/com/ollamapocket/app/ModelGroupings.java'
+      - 'app/src/main/java/com/ollamapocket/app/BenchmarkRecommendation.java'
+      - 'tests/ModelExperienceTest.java'
       - 'tests/CoopMemoryPlannerTest.java'
       - 'tests/BenchmarkStatsTest.java'
       - 'tests/PerformanceHudMetricsTest.java'
@@ -129,6 +134,16 @@ jobs:
             app/src/main/java/com/ollamapocket/app/SolarTheme.java \
             tests/SolarThemeTest.java
           java -cp /tmp/coop-tests SolarThemeTest
+      - name: Verify search caching, model grouping, download budget and measured ranking
+        run: |
+          javac -d /tmp/coop-tests \
+            app/src/main/java/com/ollamapocket/app/ModelVariantCatalog.java \
+            app/src/main/java/com/ollamapocket/app/ModelSearchCache.java \
+            app/src/main/java/com/ollamapocket/app/ModelDownloadBudget.java \
+            app/src/main/java/com/ollamapocket/app/ModelGroupings.java \
+            app/src/main/java/com/ollamapocket/app/BenchmarkRecommendation.java \
+            tests/ModelExperienceTest.java
+          java -cp /tmp/coop-tests ModelExperienceTest
 
   cooperative-apk:
     runs-on: ubuntu-24.04

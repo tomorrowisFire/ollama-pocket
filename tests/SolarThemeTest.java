@@ -21,6 +21,11 @@ public final class SolarThemeTest {
         verify(!SolarTheme.isNight(Instant.parse("2026-06-21T09:00:00Z"),
             ZoneId.of("Europe/London")),"London summer daytime");
         verify(SolarTheme.approximateCoordinates(seoul)[0]>37,"Korean timezone");
-        System.out.println("PASS: SolarTheme day/night + seasons and zones (10 checks)");
+        verify(SolarTheme.cityIndex("busan")==3,"city lookup");
+        verify(SolarTheme.cityCoordinates(seoul,"busan")[0]<36,"Busan location");
+        verify(SolarTheme.cityIndex("unknown")==0,"city fallback");
+        verify(SolarTheme.cityZone(seoul,"tokyo").equals(ZoneId.of("Asia/Tokyo")),"timezone correct");
+        verify(SolarTheme.isNight(Instant.parse("2026-12-21T12:00:00Z"),seoul,"seoul"),"Seoul night");
+        System.out.println("PASS: SolarTheme day/night + city selection (15 checks)");
     }
 }
