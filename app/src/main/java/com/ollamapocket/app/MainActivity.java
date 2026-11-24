@@ -210,9 +210,10 @@ public final class MainActivity extends Activity {
     };
 
     /** Existing explicitly chosen mono_* and dark modes retain their meaning. */
-    private static boolean resolvedDarkTheme(String choice){
+    private boolean resolvedDarkTheme(String choice){
         return "auto".equals(choice)?
-            SolarTheme.isNight(java.time.Instant.now(),java.time.ZoneId.systemDefault()):
+            SolarTheme.isNight(java.time.Instant.now(),java.time.ZoneId.systemDefault(),
+                getPreferences(MODE_PRIVATE).getString("sunset_city","device")):
             "dark".equals(choice)||"mono_dark".equals(choice);
     }
     private boolean lightTheme(){return !activeThemeDark;}
@@ -237,14 +238,72 @@ public final class MainActivity extends Activity {
             BUBBLE=Color.rgb(43,51,63);
         }
     }
-    /** Keep offline day/night colors up to date while the activity is visible. */
+    private int[] palette(){
+        return new int[]{BG,CARD,FIELD,ACCENT,WHITE,MUTED,DANGER,BUBBLE};
+    }
+    private int mappedColor(int current,int[] from,int[] to){
+        for(int i=0;i<from.length;i++)if(current==from[i])return to[i];
+        return current;
+    }
+    /** Update the existing view tree in place: no Activity restart, lost scroll or dark flash. */
+    private void recolorViewTree(View v,int[] before,int[] after){
+        if(v instanceof TextView){
+            TextView text=(TextView)v;
+            int old=text.getCurrentTextColor();
+            if(mappedColor(old,before,after)!=old)
+                text.setTextColor(mappedColor(old,before,after));
+            if(v instanceof EditText){
+                EditText input=(EditText)v;
+                int hint=input.getCurrentHintTextColor();
+                if(mappedColor(hint,before,after)!=hint)
+                    input.setHintTextColor(mappedColor(hint,before,after));
+            }
+        }
+        android.graphics.drawable.Drawable drawable=v.getBackground();
+        if(drawable instanceof GradientDrawable){
+            GradientDrawable shape=(GradientDrawable)drawable.mutate();
+            android.content.res.ColorStateList c=shape.getColor();
+            if(c!=null){
+                int old=c.getDefaultColor(),next=mappedColor(old,before,after);
+                if(next!=old){
+                    shape.setColor(next);
+                    if(old==before[1]||old==before[2])
+                        shape.setStroke(dp(1),borderTone());
+                }
+            }
+        }else if(drawable instanceof ColorDrawable){
+            ColorDrawable solid=(ColorDrawable)drawable.mutate();
+            int old=solid.getColor(),next=mappedColor(old,before,after);
+            if(next!=old)solid.setColor(next);
+        }
+        if(v instanceof ViewGroup){
+            ViewGroup group=(ViewGroup)v;
+            for(int i=0;i<group.getChildCount();i++)
+                recolorViewTree(group.getChildAt(i),before,after);
+        }
+    }
+    private void switchAutoThemeWithoutRestart(){
+        int[] before=palette();
+        applyUiPreferences();
+        int[] after=palette();
+        Window window=getWindow();
+        if(window!=null){
+            recolorViewTree(window.getDecorView(),before,after);
+            window.setStatusBarColor(BG);window.setNavigationBarColor(BG);
+            window.getDecorView().setSystemUiVisibility(lightTheme()?
+                (View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR):0);
+        }
+        updateModelViewButtons();
+        renderInstalledModels();
+        if(activeTab==3)refreshDiagnosticViews();
+    }
+    /** Check at most once per minute; defer transition while foreground work or drawers run. */
     private final Runnable sunsetThemePoll=new Runnable(){
         @Override public void run(){
             if(isFinishing()||isDestroyed())return;
-            if("auto".equals(themeMode)&&
-                resolvedDarkTheme("auto")!=activeThemeDark&&!isUiBusy()){
-                recreate();
-                return;
+            if("auto".equals(themeMode)&&resolvedDarkTheme("auto")!=activeThemeDark
+                &&!isUiBusy()&&(navigationDrawer==null||!navigationDrawer.isShowing())){
+                switchAutoThemeWithoutRestart();
             }
             ui.postDelayed(this,60_000);
         }
@@ -389,7 +448,7 @@ public final class MainActivity extends Activity {
         menu.setContentDescription("대화 목록과 앱 메뉴 열기");
         menu.setTextSize(20);
         menu.setMinWidth(dp(46));menu.setMinimumWidth(dp(46));
-        rowItem(header, menu, 0, 12);
+        rowItem(header, menu, 0, 9);
         menu.setOnClickListener(v -> showNavigationDrawer());
         LinearLayout branding = column();
         topPageTitle = text("AI in Pocket", 19, WHITE, true);
@@ -400,7 +459,7 @@ public final class MainActivity extends Activity {
         Button fresh = button("＋ 새 대화", false);
         rowItem(header, fresh, 0, 0);
         fresh.setOnClickListener(v -> newChat());
-        header.setMinimumHeight(dp(62));
+        header.setMinimumHeight(dp(58));
         root.addView(header, lp(-1, -2));
         miniStatus = text("● 로컬 AI 엔진 확인 중", 11, MUTED, false);
         margin(miniStatus, root, 2, 6);
@@ -661,8 +720,20 @@ public final class MainActivity extends Activity {
                     dialog.dismiss();
                     applySetting("ui_theme",which==2?"auto":which==1?"dark":"light");
                 }).setNegativeButton("취소",null).show());
-        margin(text("자동은 위치 권한 없이 기기 시간대의 대표 도시 일몰·일출을 계산합니다. " +
-            "지역에 따라 실제 시각과 차이가 있을 수 있습니다.",11,MUTED,false),content,0,10);
+        margin(text("위치 권한 없이 선택 도시의 일몰·일출을 계산합니다. 실제 시각에는 차이가 있을 수 있습니다.",
+            11,MUTED,false),content,0,8);
+        String chosenCity=getPreferences(MODE_PRIVATE).getString("sunset_city","device");
+        Button cityChoice=button("자동 테마 기준 도시  ·  "+
+            SolarTheme.CITY_LABELS[SolarTheme.cityIndex(chosenCity)],false);
+        margin(cityChoice,content,0,12);
+        cityChoice.setVisibility("auto".equals(themeMode)?View.VISIBLE:View.GONE);
+        cityChoice.setOnClickListener(v->new AlertDialog.Builder(this)
+            .setTitle("일출·일몰 기준 도시")
+            .setSingleChoiceItems(SolarTheme.CITY_LABELS,SolarTheme.cityIndex(chosenCity),
+                (dialog,index)->{
+                    dialog.dismiss();
+                    applySetting("sunset_city",SolarTheme.CITY_CODES[index]);
+                }).setNegativeButton("취소",null).show());
 
         String f=getPreferences(MODE_PRIVATE).getString("font_size","normal");
         String sizeLabel="large".equals(f)?"크게":"extra".equals(f)?"매우 크게":"기본";
