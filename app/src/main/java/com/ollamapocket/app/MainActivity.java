@@ -226,16 +226,18 @@ public final class MainActivity extends Activity {
         showHud=getPreferences(MODE_PRIVATE).getBoolean("show_hud",true);
         smoothMotion=getPreferences(MODE_PRIVATE).getBoolean("smooth_motion",true);
         modelListView=getPreferences(MODE_PRIVATE).getBoolean("model_list_view",true);
+        // Neutral and flatter system palette. Avoid the blue-tinted boxes
+        // and outlines previously repeated around every setting and button.
         if(lightTheme()){
-            BG=Color.rgb(248,250,253); CARD=Color.WHITE; FIELD=Color.rgb(239,243,248);
-            ACCENT=Color.rgb(37,49,69); WHITE=Color.rgb(35,44,61);
-            MUTED=Color.rgb(98,109,127); DANGER=Color.rgb(174,53,68);
-            BUBBLE=Color.rgb(233,239,247);
+            BG=Color.rgb(250,250,251); CARD=Color.WHITE; FIELD=Color.rgb(243,244,246);
+            ACCENT=Color.rgb(34,36,41); WHITE=Color.rgb(37,39,44);
+            MUTED=Color.rgb(111,114,121); DANGER=Color.rgb(174,53,68);
+            BUBBLE=Color.rgb(243,244,246);
         } else {
-            BG=Color.rgb(17,20,26); CARD=Color.rgb(27,32,40); FIELD=Color.rgb(37,44,55);
-            ACCENT=Color.rgb(240,244,249); WHITE=Color.rgb(231,236,244);
-            MUTED=Color.rgb(160,170,186); DANGER=Color.rgb(243,147,158);
-            BUBBLE=Color.rgb(43,51,63);
+            BG=Color.rgb(18,19,22); CARD=Color.rgb(27,28,32); FIELD=Color.rgb(40,42,47);
+            ACCENT=Color.rgb(237,238,240); WHITE=Color.rgb(238,239,242);
+            MUTED=Color.rgb(157,160,168); DANGER=Color.rgb(239,143,153);
+            BUBBLE=Color.rgb(40,42,47);
         }
     }
     private int[] palette(){
@@ -267,8 +269,9 @@ public final class MainActivity extends Activity {
                 int old=c.getDefaultColor(),next=mappedColor(old,before,after);
                 if(next!=old){
                     shape.setColor(next);
+                    // Do not bring back universal borders during auto theme changes.
                     if(old==before[1]||old==before[2])
-                        shape.setStroke(dp(1),borderTone());
+                        shape.setStroke(0,Color.TRANSPARENT);
                 }
             }
         }else if(drawable instanceof ColorDrawable){
@@ -383,13 +386,12 @@ public final class MainActivity extends Activity {
     private LinearLayout row() { LinearLayout l = new LinearLayout(this); l.setOrientation(LinearLayout.HORIZONTAL); l.setGravity(Gravity.CENTER_VERTICAL); return l; }
     private LinearLayout.LayoutParams lp(int width, int height) { return new LinearLayout.LayoutParams(width < 0 ? width : dp(width), height < 0 ? height : dp(height)); }
     private int borderTone(){
-        return lightTheme()?Color.rgb(223,230,239):Color.rgb(55,64,77);
+        return lightTheme()?Color.rgb(237,238,241):Color.rgb(53,55,61);
     }
     private GradientDrawable bg(int color, int radius) {
-        GradientDrawable g = new GradientDrawable();
+        // Flat surfaces by default; only interactive model rows get a light outline.
+        GradientDrawable g=new GradientDrawable();
         g.setColor(color);g.setCornerRadius(dp(radius));
-        if(radius>0&&(color==CARD||color==FIELD))
-            g.setStroke(dp(1),borderTone());
         return g;
     }
     private TextView text(String value, int size, int color, boolean bold) {
@@ -409,8 +411,8 @@ public final class MainActivity extends Activity {
         Button b = new Button(this); b.setText(label); b.setAllCaps(false);
         b.setTextSize(13*uiTextScale); b.setTextColor(primary ? BG : WHITE);
         b.setPadding(dp(11), dp(6), dp(11), dp(6)); b.setMinHeight(dp(44)); b.setMinimumHeight(dp(44));
-        b.setBackground(bg(primary ? ACCENT : FIELD, 12));
-        b.setElevation(primary?dp(1):0);return b;
+        b.setBackground(bg(primary ? ACCENT : FIELD, 11));
+        b.setElevation(0);return b;
     }
     private void margin(View v, LinearLayout host, int top, int bottom) {
         LinearLayout.LayoutParams p = lp(-1, -2); p.topMargin = dp(top); p.bottomMargin = dp(bottom); host.addView(v, p);
@@ -467,7 +469,7 @@ public final class MainActivity extends Activity {
         performanceHudView.setPadding(dp(12),dp(9),dp(12),dp(9));
         performanceHudView.setMaxLines(4);
         performanceHudView.setTextSize(11*uiTextScale);
-        performanceHudView.setBackground(bg(FIELD,9));
+        performanceHudView.setBackground(bg(FIELD,11));
         margin(performanceHudView,root,0,5);
         performanceHudView.setVisibility(showHud?View.VISIBLE:View.GONE);
         performanceHudView.setOnClickListener(v->{
@@ -1484,14 +1486,15 @@ public final class MainActivity extends Activity {
     }
 
     private int tileBackgroundColor(boolean selected){
-        return selected?(lightTheme()?Color.rgb(237,244,253):Color.rgb(38,48,64)):CARD;
+        return selected?FIELD:CARD;
     }
     private int tileTextColor(){return WHITE;}
     private int tileMutedColor(){return MUTED;}
     private GradientDrawable tileBackground(boolean selected){
-        GradientDrawable shape=bg(tileBackgroundColor(selected),14);
+        GradientDrawable shape=bg(tileBackgroundColor(selected),13);
+        // Selected rows are distinguished by surface tone, not thick borders.
         shape.setStroke(dp(1),selected?
-            (lightTheme()?Color.rgb(169,191,223):Color.rgb(91,111,143)):borderTone());
+            (lightTheme()?Color.rgb(208,210,215):Color.rgb(79,82,89)):borderTone());
         return shape;
     }
 
@@ -1567,7 +1570,7 @@ public final class MainActivity extends Activity {
         card.setBackground(tileBackground(selected));
         card.setClickable(true);
         card.setFocusable(true);
-        card.setElevation(dp(1));
+        card.setElevation(0);
         card.setContentDescription(item.title+", "+item.id+", "+
             ModelTileCatalog.status(item,downloadingCardId)+", "+item.description+
             ". 터치하여 양자화 버전 선택");
@@ -1648,7 +1651,7 @@ public final class MainActivity extends Activity {
         card.setBackground(tileBackground(selected));
         card.setClickable(true);
         card.setFocusable(true);
-        card.setElevation(dp(1));
+        card.setElevation(0);
         card.setContentDescription(item.title+", "+item.id+", "+item.quantization+", "+
             ModelTileCatalog.status(item,downloadingCardId)+", "+
             (item.featured?"기기 추천, ":"")+"터치하여 양자화 버전 선택");
@@ -1884,7 +1887,7 @@ public final class MainActivity extends Activity {
             LinearLayout heading=row();
             heading.setPadding(dp(12),dp(11),dp(12),dp(11));
             heading.setBackground(bg(CARD,14));
-            heading.setElevation(dp(1));
+            heading.setElevation(0);
             heading.setClickable(true);heading.setFocusable(true);
             LinearLayout details=column();
             TextView label=text(best.title,15,WHITE,true);
@@ -2238,13 +2241,13 @@ public final class MainActivity extends Activity {
     }
 
     private TextView drawerRow(String title,String subtitle,boolean active){
-        TextView t=text(title+(subtitle.isEmpty()?"":"\n"+subtitle),
-                subtitle.isEmpty()?15:14,WHITE,active);
-        t.setSingleLine(false);
-        t.setMaxLines(subtitle.isEmpty()?2:3);
-        t.setPadding(dp(14),dp(10),dp(12),dp(10));
-        t.setMinHeight(dp(subtitle.isEmpty()?46:58));
-        t.setBackground(bg(active?FIELD:CARD,12));
+        // Conversation labels are single-line; metadata stays in accessibility descriptions.
+        TextView t=text(title,14,WHITE,active);
+        t.setSingleLine(true);
+        t.setEllipsize(TextUtils.TruncateAt.END);
+        t.setPadding(dp(12),dp(8),dp(10),dp(8));
+        t.setMinHeight(dp(44));
+        t.setBackground(bg(active?FIELD:BG,10));
         return t;
     }
 
@@ -2297,11 +2300,17 @@ public final class MainActivity extends Activity {
     }
 
     private TextView drawerNavigationItem(String title){
-        TextView item=text(title,13,WHITE,true);
+        // The lower sidebar displays only these three titles—no subtitles or icons.
+        boolean active=("모델 선택".equals(title)&&activeTab==1)
+            ||("설정".equals(title)&&activeTab==2)
+            ||("기기 연결 진단".equals(title)&&activeTab==3);
+        TextView item=text(title,14,WHITE,active);
         item.setSingleLine(true);
+        item.setEllipsize(TextUtils.TruncateAt.END);
         item.setMinHeight(dp(42));
         item.setPadding(dp(12),dp(7),dp(10),dp(7));
-        item.setBackground(bg(CARD,10));
+        item.setBackground(bg(active?FIELD:BG,10));
+        item.setContentDescription(title+(active?" · 선택됨":""));
         item.setFocusable(true);
         item.setClickable(true);
         return item;
@@ -2317,7 +2326,7 @@ public final class MainActivity extends Activity {
         navigationDrawer=drawer;
         LinearLayout shell=column();
         shell.setBackgroundColor(BG);
-        shell.setElevation(dp(5));
+        shell.setElevation(dp(2));
         // Sidebar title and new conversation must clear the top status/cutout.
         shell.setPadding(dp(10),dp(14),dp(10),dp(10));
         shell.setOnApplyWindowInsetsListener((view,insets)->{
@@ -2407,7 +2416,7 @@ public final class MainActivity extends Activity {
             window.getDecorView().setSystemUiVisibility(lightTheme()?
                 (View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR):0);
             window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
-            window.setDimAmount(0.28f);
+            window.setDimAmount(0.22f);
             window.setGravity(Gravity.START|Gravity.TOP);
             if(animationsEnabled())window.setWindowAnimations(R.style.AiPocketDrawerMotion);
         }

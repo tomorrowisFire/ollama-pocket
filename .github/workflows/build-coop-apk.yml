@@ -230,6 +230,11 @@ jobs:
           assert 'drawerNavigationItem("설정")' in src
           assert 'drawerNavigationItem("기기 연결 진단")' in src
           assert 'drawerNavigationItem(String title)' in src
+          drawer_fn=src.split('private TextView drawerNavigationItem(String title)',1)[1].split('private void showNavigationDrawer()',1)[0]
+          assert 'description' not in drawer_fn.lower().split('return item;',1)[0]
+          assert 'item.setBackground(bg(active?FIELD:BG,10))' in drawer_fn
+          assert 'if(radius>0&&(color==CARD||color==FIELD))' not in src
+          assert 'BUBBLE=Color.rgb(243,244,246)' in src
           assert 'profile.setOnClickListener' not in src
           assert 'dp(300),Math.max(dp(228)' in src
           assert 'SolarTheme.isNight(' in src
@@ -300,7 +305,7 @@ jobs:
           "$signer" verify --verbose --print-certs "$apk" | tee signature-report.txt
           grep -Eq '^Verified using v2 scheme.*: true' signature-report.txt
           "$aapt" dump badging "$apk" | grep -F "package: name='io.github.tomorrowisfire.aiinpocket'"
-          "$aapt" dump badging "$apk" | grep -F "versionCode='23'"
+          "$aapt" dump badging "$apk" | grep -F "versionCode='24'"
           # The installed app retains its existing package ID; never silently reinstall.
           grep -F "applicationId 'io.github.tomorrowisfire.aiinpocket'" app/build.gradle
           grep -F 'android:allowBackup="false"' app/src/main/AndroidManifest.xml
