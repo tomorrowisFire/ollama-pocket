@@ -137,6 +137,7 @@ jobs:
       - name: Verify search caching, model grouping, download budget and measured ranking
         run: |
           javac -d /tmp/coop-tests \
+            app/src/main/java/com/ollamapocket/app/OllamaLibrarySearch.java \
             app/src/main/java/com/ollamapocket/app/ModelVariantCatalog.java \
             app/src/main/java/com/ollamapocket/app/ModelSearchCache.java \
             app/src/main/java/com/ollamapocket/app/ModelDownloadBudget.java \
@@ -212,6 +213,7 @@ jobs:
             chmod 600 "$signing_file"
             echo "AI_POCKET_KEYSTORE_FILE=$signing_file" >> "$GITHUB_ENV"
             echo "AI_POCKET_KEYSTORE_PASSWORD=$AI_POCKET_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "AI_POCKET_STABLE_SIGNING=1" >> "$GITHUB_ENV"
             echo "::notice::Stable signing key is configured"
           else
             echo "::warning::Repository signing secrets are not set: this run uses ephemeral Android Debug signing. Do not use this APK to update a previously signed version."
@@ -231,6 +233,15 @@ jobs:
           assert 'profile.setOnClickListener' not in src
           assert 'dp(300),Math.max(dp(228)' in src
           assert 'SolarTheme.isNight(' in src
+          assert 'switchAutoThemeWithoutRestart()' in src
+          assert 'SolarTheme.CITY_LABELS' in src
+          assert 'searchCache.get(' in src
+          assert 'fetchSearchSource(' in src
+          assert 'renderGroupedSearch(' in src
+          assert 'ModelDownloadBudget.requiredBytes(' in src
+          assert 'ModelDownloadBudget.layerLabel(' in src
+          assert 'downloadRetryButton.setVisibility(' in src
+          assert 'BenchmarkRecommendation.adjustment(' in src
           assert 'getString("ui_theme","light")' in src
           assert 'new String[]{"화이트 (기본)","블랙","자동 (일몰 → 블랙 / 일출 → 화이트)"}' in src
           assert 'navButtons' not in src
@@ -289,6 +300,21 @@ jobs:
           "$signer" verify --verbose --print-certs "$apk" | tee signature-report.txt
           grep -Eq '^Verified using v2 scheme.*: true' signature-report.txt
           "$aapt" dump badging "$apk" | grep -F "package: name='io.github.tomorrowisfire.aiinpocket'"
+          "$aapt" dump badging "$apk" | grep -F "versionCode='23'"
+          # The installed app retains its existing package ID; never silently reinstall.
+          grep -F "applicationId 'io.github.tomorrowisfire.aiinpocket'" app/build.gradle
+          grep -F 'android:allowBackup="false"' app/src/main/AndroidManifest.xml
+          if [ "${AI_POCKET_STABLE_SIGNING:-0}" = "1" ]; then
+            # Fingerprint of the user's known update-compatible v0.10.1 signature.
+            expected='527d7a07ebe11d0519e2105bd6c400bc52c59a44d7e29f743bf782a8627991a6'
+            if ! grep -iq "$expected" signature-report.txt; then
+              echo "::error::Signing certificate differs from the installed update key."
+              exit 1
+            fi
+            echo 'Update-compatible signature fingerprint verified.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::APK uses an ephemeral debug certificate. Do not install over the user's fixed-signed app."
+          fi
           "$aapt" dump badging "$apk" | grep -F "application: label="
           unzip -l "$apk" | grep -E 'res/(mipmap|drawable)' >/dev/null
           sha256sum "$apk"
@@ -298,8 +324,10 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
+          version=$(sed -nE "s/^[[:space:]]*versionName[[:space:]]+'([0-9]+\.[0-9]+\.[0-9]+).*'/\1/p" app/build.gradle | head -1)
+          test -n "$version"
           cp app/build/outputs/apk/debug/app-debug.apk \
-            dist/AI-in-Pocket-v0.10.3-Sunset-Theme-Compact-Sidebar-ARM64.apk
+            "dist/AI-in-Pocket-v${version}-Cooperative-ARM64.apk"
           cp signature-report.txt dist/signature-report.txt
       - name: Make official Android apksigner available for offline stable re-signing
         shell: bash
@@ -320,3 +348,11 @@ jobs:
           path: dist/*.apk
           if-no-files-found: error
           retention-days: 14
+      - name: Publish verified fixed-signed update APK
+        if: env.AI_POCKET_STABLE_SIGNING == '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: AI-in-Pocket-Stable-Update-APK
+          path: dist/*.apk
+          if-no-files-found: error
+          retention-days: 30
