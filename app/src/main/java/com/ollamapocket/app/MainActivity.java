@@ -105,6 +105,12 @@ public final class MainActivity extends Activity {
     private Button modelListViewButton,modelGridViewButton;
     private String selectedSource="전체에서 찾기", selectedSort="추천 순";
     private java.util.concurrent.Future<?> onlineSearchTask;
+    private java.util.concurrent.Future<?> onlineHfTask;
+    private final ModelSearchCache searchCache=new ModelSearchCache(20,600_000L);
+    private final Map<String,List<ModelVariantCatalog.Variant>> searchParts=new java.util.LinkedHashMap<>();
+    private final java.util.Set<String> expandedGroups=new java.util.LinkedHashSet<>();
+    private final List<String> searchFailures=new ArrayList<>();
+    private int searchRequestsRemaining=0;
     private boolean recommendationLoading=false, recommendationLoaded=false;
     private String recommendationError="";
     private int lastModelGridWidth=0;
@@ -141,7 +147,8 @@ public final class MainActivity extends Activity {
     private Spinner modelChooser;
     private TextView serverStatus, miniStatus, progressStatus, logText, activeEngineLabel;
     private EditText chatInput, modelInput;
-    private Button sendButton, stopChatButton, pullButton, cancelPullButton;
+    private Button sendButton, stopChatButton, pullButton, cancelPullButton, downloadRetryButton;
+    private String lastFailedPullModel="";
     private boolean diagnosticBusy;
     private volatile boolean benchmarkBusy;
     private TextView diagnosticStatus, performanceHudView;
@@ -306,6 +313,7 @@ public final class MainActivity extends Activity {
         ui.removeCallbacks(sunsetThemePoll);
         if(onlineSearchRunnable!=null)ui.removeCallbacks(onlineSearchRunnable);
         if(onlineSearchTask!=null)onlineSearchTask.cancel(true);
+        if(onlineHfTask!=null)onlineHfTask.cancel(true);
         io.shutdownNow();
         ads.destroy();
         super.onDestroy();
@@ -484,7 +492,7 @@ public final class MainActivity extends Activity {
         modelListHeader=text("추천 양자화 버전 · 최대 6개",18,WHITE,true);
         rowItem(top,modelListHeader,1,5);
         Button refresh=button("새로고침",false);rowItem(top,refresh,0,0);
-        refresh.setOnClickListener(v->{refreshModels();if(modelFilter!=null&&!modelFilter.getText().toString().trim().isEmpty())onModelSearchChanged(modelFilter.getText().toString());else loadRecommendedVariants(true);});
+        refresh.setOnClickListener(v->{refreshModels();if(modelFilter!=null&&!modelFilter.getText().toString().trim().isEmpty())onModelSearchChanged(modelFilter.getText().toString(),true);else loadRecommendedVariants(true);});
         margin(top,content,0,7);
         LinearLayout viewModeRow=row();
         modelListViewButton=button("☷ 리스트형",modelListView);
@@ -500,11 +508,11 @@ public final class MainActivity extends Activity {
         rowItem(searchRow,modelFilter,1,6);
         Button submitSearch=button("검색",true);
         rowItem(searchRow,submitSearch,0,0);margin(searchRow,content,0,5);
-        submitSearch.setOnClickListener(v->onModelSearchChanged(modelFilter.getText().toString()));
+        submitSearch.setOnClickListener(v->onModelSearchChanged(modelFilter.getText().toString(),true));
         modelFilter.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH);
         modelFilter.setOnEditorActionListener((v,action,event)->{
             if(action!=android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH)return false;
-            onModelSearchChanged(modelFilter.getText().toString());return true;
+            onModelSearchChanged(modelFilter.getText().toString(),true);return true;
         });
         LinearLayout searchOptions=row();
         sourceFilter=new Spinner(this);sourceFilter.setBackground(bg(FIELD,12));
@@ -593,6 +601,14 @@ public final class MainActivity extends Activity {
         LinearLayout downloadStatusRow=row();
         progressStatus=text("모델 선택 후 다운로드 진행 상황이 여기에 표시됩니다.",12,MUTED,false);
         rowItem(downloadStatusRow,progressStatus,1,6);
+        downloadRetryButton=button("재시도",false);
+        rowItem(downloadStatusRow,downloadRetryButton,0,6);
+        downloadRetryButton.setVisibility(View.GONE);
+        downloadRetryButton.setOnClickListener(v->{
+            if(lastFailedPullModel.isEmpty()||pullBusy)return;
+            modelInput.setText(lastFailedPullModel);
+            pullModel();
+        });
         cancelPullButton=button("다운로드 취소",false);
         rowItem(downloadStatusRow,cancelPullButton,0,0);
         cancelPullButton.setVisibility(View.GONE);
@@ -1188,15 +1204,20 @@ public final class MainActivity extends Activity {
         double score=ModelVariantCatalog.score(bytes,quant,hf,installed,deviceProfile.arm64,
             deviceProfile.lowMemory,deviceProfile.ramGb,deviceProfile.availableRamGb,
             deviceProfile.freeStorageGb,deviceProfile.cores);
-        if(score<1000&&!hf){
-            Double tps=ModelPerformanceAdvisor.measuredCpuTps(getSharedPreferences("ai_pocket_bench",MODE_PRIVATE)
-                .getString("model_"+id,""));
-            if(tps!=null)score+=tps>=15?-12:tps>=7?-5:15;
+        if(!hf){
+            String report=getSharedPreferences("ai_pocket_bench",MODE_PRIVATE)
+                .getString("model_"+id,"");
+            score+=BenchmarkRecommendation.adjustment(
+                ModelPerformanceAdvisor.measuredCpuTps(report),
+                ModelPerformanceAdvisor.measuredGpuTps(report));
         }
         return score;
     }
     private boolean recommendedFit(ModelVariantCatalog.Variant v){
-        return v.bytes>0&&!"미확인".equals(v.quant)&&variantScore(v)<1000;
+        return v.bytes>0&&!"미확인".equals(v.quant)&&
+            ModelVariantCatalog.tier(v.bytes,v.hf(),knownModels.contains(v.model),
+                deviceProfile.arm64,deviceProfile.lowMemory,
+                deviceProfile.ramGb,deviceProfile.availableRamGb,deviceProfile.freeStorageGb)==0;
     }
     private Map<String,ModelVariantCatalog.Variant> bestQuantizations(List<ModelVariantCatalog.Variant> list){
         Map<String,ModelVariantCatalog.Variant> best=new HashMap<>();
@@ -1456,6 +1477,16 @@ public final class MainActivity extends Activity {
         });
     }
 
+    private String benchmarkLabel(String tag){
+        String report=getSharedPreferences("ai_pocket_bench",MODE_PRIVATE).getString("model_"+tag,"");
+        Double cpu=ModelPerformanceAdvisor.measuredCpuTps(report);
+        Double gpu=ModelPerformanceAdvisor.measuredGpuTps(report);
+        double speed=BenchmarkRecommendation.bestMeasured(cpu,gpu);
+        if(speed<=0)return "";
+        return String.format(Locale.KOREA," · 실측 %.1f tok/s%s",
+            speed,gpu!=null&&(cpu==null||gpu>cpu)?" GPU":" CPU");
+    }
+
     /** Compact contents fit inside an actual square at narrow phone widths. */
     private LinearLayout buildModelTile(ModelTileCatalog.Tile item,int sideDp) {
         boolean selected=item.installed&&OllamaQuantCatalog.belongsToModel(item.id,currentModel);
@@ -1509,7 +1540,8 @@ public final class MainActivity extends Activity {
 
         String suffix=item.bytes>0?installedSize(item.bytes):"용량 미확인";
         String provider=remote!=null?remote.source:item.installed?"내 기기":"Ollama";
-        TextView details=text(item.quantization+" · "+suffix+"\n"+provider,10,secondary,false);
+        TextView details=text(item.quantization+" · "+suffix+"\n"+
+            provider+benchmarkLabel(item.id),10,secondary,false);
         details.setGravity(Gravity.CENTER);
         details.setMaxLines(2);
         details.setEllipsize(TextUtils.TruncateAt.END);
@@ -1568,8 +1600,8 @@ public final class MainActivity extends Activity {
         margin(identifier,body,0,4);
         String provider=remote!=null?remote.source:item.installed?"내 기기":"Ollama";
         TextView details=text(item.quantization+"  ·  "+
-            (item.bytes>0?installedSize(item.bytes):"용량 미확인")+"  ·  "+provider,
-            11,secondary,false);
+            (item.bytes>0?installedSize(item.bytes):"용량 미확인")+"  ·  "+provider+
+            benchmarkLabel(item.id),11,secondary,false);
         details.setSingleLine(true);
         details.setEllipsize(TextUtils.TruncateAt.END);
         margin(details,body,0,0);
@@ -1627,42 +1659,84 @@ public final class MainActivity extends Activity {
         }
     }
 
-    /** Unified source selection, debounced auto-search and explicit retry. */
+    /** Search both providers concurrently; render each provider as soon as it resolves. */
     private void onModelSearchChanged(String nextValue){
+        onModelSearchChanged(nextValue,false);
+    }
+    private void onModelSearchChanged(String nextValue,boolean forceRefresh){
         long sequence=++onlineSearchSerial;
         if(onlineSearchRunnable!=null)ui.removeCallbacks(onlineSearchRunnable);
         if(onlineSearchTask!=null)onlineSearchTask.cancel(true);
-        onlineSearchRunnable=null;onlineVariants.clear();onlineSearchError="";
+        if(onlineHfTask!=null)onlineHfTask.cancel(true);
+        onlineSearchRunnable=null;
+        onlineSearchError="";onlineSearchPending=false;
         String query=nextValue==null?"":nextValue.trim();
         String provider=selectedSource;
-        onlineSearchPending=query.length()>=2&&query.length()<=120;
+        searchParts.clear();searchFailures.clear();expandedGroups.clear();
+        searchRequestsRemaining=0;
         selectedModelFamily="전체 모델";selectedQuantization="전체 양자화";
         if(query.isEmpty())loadRecommendedVariants(false);
+        if(query.length()>=2&&query.length()<=120){
+            long now=android.os.SystemClock.elapsedRealtime();
+            if(!"Hugging Face에서 찾기".equals(provider)){
+                List<ModelVariantCatalog.Variant> cached=searchCache.get(ModelSearchCache.key("Ollama",query),now);
+                if(cached!=null)searchParts.put("Ollama",cached);
+                if(forceRefresh||cached==null)searchRequestsRemaining++;
+            }
+            if(!"Ollama에서 찾기".equals(provider)){
+                List<ModelVariantCatalog.Variant> cached=searchCache.get(ModelSearchCache.key("Hugging Face",query),now);
+                if(cached!=null)searchParts.put("Hugging Face",cached);
+                if(forceRefresh||cached==null)searchRequestsRemaining++;
+            }
+        }
+        onlineSearchPending=searchRequestsRemaining>0;
+        rebuildSearchParts();
         populateModelFilters();updateModelSearchStatus();renderInstalledModels();
         if(!onlineSearchPending)return;
+        boolean needOllama=!"Hugging Face에서 찾기".equals(provider)&&
+            (forceRefresh||!searchParts.containsKey("Ollama"));
+        boolean needHf=!"Ollama에서 찾기".equals(provider)&&
+            (forceRefresh||!searchParts.containsKey("Hugging Face"));
         onlineSearchRunnable=()->{
             if(isDestroyed()||sequence!=onlineSearchSerial)return;
-            onlineSearchTask=io.submit(()->{
-                List<ModelVariantCatalog.Variant> discovered=new ArrayList<>();
-                List<String> failures=new ArrayList<>();
-                if(!"Hugging Face에서 찾기".equals(provider)){
-                    try{discovered.addAll(ModelVariantCatalog.searchOllama(query));}
-                    catch(Exception ex){failures.add("Ollama: "+(ex.getMessage()==null?"연결 오류":ex.getMessage()));}
-                }
-                if(!Thread.currentThread().isInterrupted()&&!"Ollama에서 찾기".equals(provider)){
-                    try{discovered.addAll(HuggingFaceCatalog.searchVariants(query));}
-                    catch(Exception ex){failures.add("Hugging Face: "+(ex.getMessage()==null?"연결 오류":ex.getMessage()));}
-                }
-                final String error=android.text.TextUtils.join(" / ",failures);
-                ui.post(()->{
-                    if(isDestroyed()||isFinishing()||sequence!=onlineSearchSerial)return;
-                    onlineSearchPending=false;onlineSearchError=error;
-                    onlineVariants.clear();onlineVariants.addAll(discovered);
-                    populateModelFilters();updateModelSearchStatus();animateNextTileUpdate=true;renderInstalledModels();
-                });
-            });
+            if(needOllama)onlineSearchTask=io.submit(()->fetchSearchSource(
+                sequence,query,"Ollama"));
+            if(needHf)onlineHfTask=io.submit(()->fetchSearchSource(
+                sequence,query,"Hugging Face"));
         };
         ui.postDelayed(onlineSearchRunnable,450);
+    }
+    private void fetchSearchSource(long sequence,String query,String provider){
+        List<ModelVariantCatalog.Variant> ready=Collections.emptyList();
+        String error="";
+        try{
+            ready="Ollama".equals(provider)?
+                ModelVariantCatalog.searchOllama(query):HuggingFaceCatalog.searchVariants(query);
+            if(!Thread.currentThread().isInterrupted())
+                searchCache.put(ModelSearchCache.key(provider,query),
+                    ready,android.os.SystemClock.elapsedRealtime());
+        }catch(Exception ex){
+            error=provider+": "+(ex.getMessage()==null?"연결 오류":ex.getMessage());
+        }
+        final List<ModelVariantCatalog.Variant> result=ready;final String failure=error;
+        ui.post(()->{
+            if(isFinishing()||isDestroyed()||sequence!=onlineSearchSerial)return;
+            if(failure.isEmpty())searchParts.put(provider,result);
+            else searchFailures.add(failure);
+            searchRequestsRemaining=Math.max(0,searchRequestsRemaining-1);
+            onlineSearchPending=searchRequestsRemaining>0;
+            onlineSearchError=android.text.TextUtils.join(" / ",searchFailures);
+            rebuildSearchParts();
+            populateModelFilters();updateModelSearchStatus();
+            animateNextTileUpdate=true;renderInstalledModels();
+        });
+    }
+    private void rebuildSearchParts(){
+        onlineVariants.clear();
+        java.util.Set<String> ids=new java.util.HashSet<>();
+        for(List<ModelVariantCatalog.Variant> source:searchParts.values())
+            for(ModelVariantCatalog.Variant v:source)
+                if(ids.add(v.id().toLowerCase(Locale.ROOT)))onlineVariants.add(v);
     }
     private void updateModelSearchStatus(){
         if(modelSearchStatus==null)return;
@@ -1673,7 +1747,8 @@ public final class MainActivity extends Activity {
                 "추천은 RAM·저장공간·CPU 기준 추정이며 실제 실행은 벤치마크에서 확인하세요.");
         }else if(query.length()<2)modelSearchStatus.setText("두 글자 이상 입력하면 자동 검색합니다.");
         else if(query.length()>120)modelSearchStatus.setText("검색어는 120자 이내로 입력하세요.");
-        else if(onlineSearchPending)modelSearchStatus.setText(selectedSource+" · 공개 태그와 실제 파일 용량 확인 중…");
+        else if(onlineSearchPending)modelSearchStatus.setText(selectedSource+" · "+onlineVariants.size()+
+            "개 우선 표시 · 나머지 검색 중… (최근 검색 10분 캐시)");
         else modelSearchStatus.setText("온라인 양자화 버전 "+onlineVariants.size()+"개 · "+
             (onlineSearchError.isEmpty()?"용량 미확인 항목은 정렬 마지막에 표시":onlineSearchError+" · 검색 버튼으로 재시도"));
     }
@@ -1715,6 +1790,87 @@ public final class MainActivity extends Activity {
         });
     }
 
+    private String groupKey(ModelTileCatalog.Tile item){
+        ModelVariantCatalog.Variant v=visibleVariants.get(item.id);
+        return v!=null?ModelGroupings.key(v):ModelGroupings.localKey(item.id);
+    }
+    private void renderGroupedSearch(List<ModelTileCatalog.Tile> sorted){
+        Map<String,List<ModelTileCatalog.Tile>> groups=new java.util.LinkedHashMap<>();
+        for(ModelTileCatalog.Tile item:sorted)
+            groups.computeIfAbsent(groupKey(item),key->new ArrayList<>()).add(item);
+        for(Map.Entry<String,List<ModelTileCatalog.Tile>> section:groups.entrySet()){
+            List<ModelTileCatalog.Tile> items=section.getValue();
+            if(items.size()==1){
+                LinearLayout single=buildModelListRow(items.get(0));
+                margin(single,modelRows,0,8);
+                continue;
+            }
+            String id=section.getKey();
+            boolean opened=expandedGroups.contains(id);
+            ModelTileCatalog.Tile best=items.get(0);
+            for(ModelTileCatalog.Tile item:items)
+                if(tileScore(item)<tileScore(best))best=item;
+            LinearLayout heading=row();
+            heading.setPadding(dp(12),dp(11),dp(12),dp(11));
+            heading.setBackground(bg(CARD,14));
+            heading.setElevation(dp(1));
+            heading.setClickable(true);heading.setFocusable(true);
+            LinearLayout details=column();
+            TextView label=text(best.title,15,WHITE,true);
+            label.setSingleLine(true);label.setEllipsize(TextUtils.TruncateAt.END);
+            margin(label,details,0,4);
+            String source=section.getKey().startsWith("hf:")?"Hugging Face":"Ollama";
+            String metadata=items.size()+"개 양자화 · "+best.quantization+" · "+
+                (best.bytes>0?installedSize(best.bytes):"용량 미확인")+" · "+source;
+            if(items.stream().anyMatch(t->t.id.equals(downloadingCardId)&&pullBusy))
+                metadata+=" · 다운로드 중";
+            TextView info=text(metadata,11,MUTED,false);
+            info.setSingleLine(true);info.setEllipsize(TextUtils.TruncateAt.END);
+            margin(info,details,0,0);
+            rowItem(heading,details,1,6);
+            TextView arrow=text(opened?"⌄":"›",22,MUTED,false);
+            arrow.setGravity(Gravity.CENTER);
+            rowItem(heading,arrow,0,0);
+            heading.setContentDescription(best.title+", 양자화 "+items.size()+
+                "개, "+(opened?"접기":"펼치기"));
+            heading.setOnClickListener(v->{
+                if(!expandedGroups.add(id))expandedGroups.remove(id);
+                renderInstalledModels();
+            });
+            tilePressEffect(heading);
+            margin(heading,modelRows,0,opened?5:9);
+            if(!opened)continue;
+            if(modelListView){
+                for(ModelTileCatalog.Tile item:items){
+                    LinearLayout row=buildModelListRow(item);
+                    LinearLayout.LayoutParams p=lp(-1,-2);
+                    p.leftMargin=dp(10);p.bottomMargin=dp(6);
+                    modelRows.addView(row,p);
+                }
+            }else{
+                int space=modelRows.getWidth()-dp(10);
+                if(space<=0)space=getResources().getDisplayMetrics().widthPixels-dp(46);
+                int gap=dp(8),columns=ModelVariantCatalog.columns(space,dp(150),gap);
+                int sidePx=Math.max(dp(110),(space-gap*(columns-1))/columns);
+                int sideDp=Math.round(sidePx/getResources().getDisplayMetrics().density);
+                for(int pos=0;pos<items.size();pos+=columns){
+                    LinearLayout groupRow=row();
+                    groupRow.setGravity(Gravity.START|Gravity.TOP);
+                    for(int c=0;c<columns&&pos+c<items.size();c++){
+                        LinearLayout card=buildModelTile(items.get(pos+c),sideDp);
+                        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(sidePx,sidePx);
+                        if(c>0)p.leftMargin=gap;
+                        groupRow.addView(card,p);
+                    }
+                    LinearLayout.LayoutParams p=lp(-1,-2);
+                    p.leftMargin=dp(10);p.bottomMargin=dp(6);
+                    modelRows.addView(groupRow,p);
+                }
+            }
+        }
+        updateTileDownloadProgress();
+    }
+
     private void renderInstalledModels() {
         if(modelRows==null)return;
         modelRows.removeAllViews();
@@ -1741,7 +1897,7 @@ public final class MainActivity extends Activity {
         sortTiles(shown);
         if(modelListHeader!=null)
             modelListHeader.setText(searching?
-                "검색 결과 "+shown.size()+"개 · "+selectedSort:
+                "검색 결과 "+shown.size()+"개 버전 · "+selectedSort:
                 "추천 양자화 버전 · "+shown.size()+"개");
         if(shown.isEmpty()){
             String emptyMessage=searching?
@@ -1761,6 +1917,10 @@ public final class MainActivity extends Activity {
 
         boolean reveal=animateNextTileUpdate&&animationsEnabled();
         animateNextTileUpdate=false;
+        if(searching){
+            renderGroupedSearch(shown);
+            return;
+        }
         if(modelListView){
             for(int pos=0;pos<shown.size();pos++){
                 LinearLayout item=buildModelListRow(shown.get(pos));
@@ -1846,8 +2006,21 @@ public final class MainActivity extends Activity {
         for(ModelVariantCatalog.Variant v:onlineVariants)if(v.model.equals(model)){featuredBytes=v.bytes;break;}
         if(featuredBytes==0)for(ModelVariantCatalog.Variant v:recommendedVariants)
             if(v.model.equals(model)){featuredBytes=v.bytes;break;}
+        long availableBytes;
+        try{availableBytes=new StatFs(getFilesDir().getAbsolutePath()).getAvailableBytes();}
+        catch(Exception e){availableBytes=-1;}
+        long reserved=ModelDownloadBudget.requiredBytes(featuredBytes);
+        if(availableBytes>=0&&featuredBytes>0&&!ModelDownloadBudget.enough(availableBytes,featuredBytes)){
+            new AlertDialog.Builder(this).setTitle("저장공간 부족")
+                .setMessage("필요 공간(여유분 포함): "+installedSize(reserved)+
+                    "\n현재 여유 공간: "+installedSize(availableBytes)+
+                    "\n다른 모델·파일을 정리한 뒤 다시 시도하세요.")
+                .setPositiveButton("확인",null).show();
+            return;
+        }
         String storageHint=featuredBytes>0 ?
-            ("예상 용량: 약 "+installedSize(featuredBytes)+"\n"):"";
+            ("모델 크기: "+installedSize(featuredBytes)+" · 권장 여유 "+installedSize(reserved)+"\n"):
+            "모델 크기 미확인 · 저장공간을 직접 확인하세요.\n";
         String memoryHint=featuredBytes>0 ?
             ("RAM 적합도: "+advise(model,featuredBytes/(1024.0*1024.0*1024.0))
                 .suitability+" (사전 추정)\n\n"):"\n";
@@ -1870,6 +2043,8 @@ public final class MainActivity extends Activity {
             startServer(); return;
         }
         pullBusy = true; pullCancelled = false;
+        lastFailedPullModel="";
+        if(downloadRetryButton!=null)downloadRetryButton.setVisibility(View.GONE);
         downloadingModel=model;
         downloadingCardId=model;
         if(modelFilter.getText().toString().trim().isEmpty()){
@@ -1895,15 +2070,14 @@ public final class MainActivity extends Activity {
                 OllamaHttp.stream(connection, OllamaHttp.pullBody(model), item -> {
                     String status = item.optString("status", "진행 중");
                     long total = item.optLong("total", 0), completed = item.optLong("completed", 0);
-                    String info = model + " · " + status + (total > 0 ? " (" + (completed * 100 / total) + "%)" : "");
+                    String info=model+" · "+ModelDownloadBudget.layerLabel(status,completed,total);
                     ui.post(() -> {
                         progressStatus.setText(info);
-                        downloadingPercent=total>0 ?
-                            (int)Math.max(0,Math.min(100,completed*100/total)):-1;
+                        downloadingPercent=ModelDownloadBudget.layerPercent(completed,total);
                         updateTileDownloadProgress();
                         if (total > 0) {
                             downloadProgress.setIndeterminate(false);
-                            downloadProgress.setProgress((int)Math.max(0, Math.min(100, completed * 100 / total)));
+                            downloadProgress.setProgress(downloadingPercent);
                         } else {
                             downloadProgress.setIndeterminate(true);
                         }
@@ -1922,6 +2096,9 @@ public final class MainActivity extends Activity {
                 cancelPullButton.setEnabled(false); cancelPullButton.setVisibility(View.GONE);
                 progressStatus.setText(pullCancelled ? "다운로드 중단" : failure != null ?
                     "다운로드 실패: " + failure : "모델 설치 완료: " + model);
+                lastFailedPullModel=!pullCancelled&&failure!=null?model:"";
+                if(downloadRetryButton!=null)
+                    downloadRetryButton.setVisibility(lastFailedPullModel.isEmpty()?View.GONE:View.VISIBLE);
                 downloadProgress.setIndeterminate(false);
                 if (failure == null && !pullCancelled) downloadProgress.setProgress(100);
                 else downloadProgress.setVisibility(View.GONE);
