@@ -17,6 +17,8 @@ on:
       - 'app/src/main/java/com/ollamapocket/app/SecureRpcTransport.java'
       - 'app/src/main/AndroidManifest.xml'
       - 'app/src/main/java/com/ollamapocket/app/MainActivity.java'
+      - 'app/src/main/java/com/ollamapocket/app/SolarTheme.java'
+      - 'tests/SolarThemeTest.java'
       - 'tests/CoopMemoryPlannerTest.java'
       - 'tests/BenchmarkStatsTest.java'
       - 'tests/PerformanceHudMetricsTest.java'
@@ -121,6 +123,13 @@ jobs:
             tests/ModelVariantCatalogTest.java
           java -cp /tmp/coop-tests ModelVariantCatalogTest
 
+      - name: Verify offline astronomical sunset theme
+        run: |
+          javac -d /tmp/coop-tests \
+            app/src/main/java/com/ollamapocket/app/SolarTheme.java \
+            tests/SolarThemeTest.java
+          java -cp /tmp/coop-tests SolarThemeTest
+
   cooperative-apk:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
@@ -200,9 +209,15 @@ jobs:
           src=Path('app/src/main/java/com/ollamapocket/app/MainActivity.java').read_text()
           assert 'showNavigationDrawer()' in src
           assert 'allSavedConversations()' in src
-          assert 'drawerNavigationItem("◫","모델 선택"' in src
-          assert 'drawerNavigationItem("⚙","설정"' in src
-          assert 'drawerNavigationItem("▦","기기/연결 진단"' in src
+          assert 'drawerNavigationItem("모델 선택")' in src
+          assert 'drawerNavigationItem("설정")' in src
+          assert 'drawerNavigationItem("기기 연결 진단")' in src
+          assert 'drawerNavigationItem(String title)' in src
+          assert 'profile.setOnClickListener' not in src
+          assert 'dp(300),Math.max(dp(228)' in src
+          assert 'SolarTheme.isNight(' in src
+          assert 'getString("ui_theme","light")' in src
+          assert 'new String[]{"화이트 (기본)","블랙","자동 (일몰 → 블랙 / 일출 → 화이트)"}' in src
           assert 'navButtons' not in src
           assert 'private void showChatList()' not in src
           assert 'buildModelTile(' in src
@@ -269,7 +284,7 @@ jobs:
         run: |
           mkdir -p dist
           cp app/build/outputs/apk/debug/app-debug.apk \
-            dist/AI-in-Pocket-v0.10.2-All-Source-Default-ARM64.apk
+            dist/AI-in-Pocket-v0.10.3-Sunset-Theme-Compact-Sidebar-ARM64.apk
           cp signature-report.txt dist/signature-report.txt
       - name: Make official Android apksigner available for offline stable re-signing
         shell: bash

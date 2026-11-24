@@ -81,7 +81,9 @@ public final class MainActivity extends Activity {
     private static int MUTED = Color.rgb(158, 163, 171);
     private static int DANGER = Color.rgb(238, 119, 130);
     private static int BUBBLE = Color.rgb(44,46,51);
-    private String uiTheme = "dark";
+    private String uiTheme = "mono_light";
+    private String themeMode = "light";
+    private boolean activeThemeDark = false;
     private float uiTextScale = 1.0f;
     private int activeTab = 0;
     private boolean showHud = true;
@@ -200,34 +202,51 @@ public final class MainActivity extends Activity {
         }
     };
 
+    /** Existing explicitly chosen mono_* and dark modes retain their meaning. */
+    private static boolean resolvedDarkTheme(String choice){
+        return "auto".equals(choice)?
+            SolarTheme.isNight(java.time.Instant.now(),java.time.ZoneId.systemDefault()):
+            "dark".equals(choice)||"mono_dark".equals(choice);
+    }
+    private boolean lightTheme(){return !activeThemeDark;}
     private void applyUiPreferences() {
-        uiTheme=getPreferences(MODE_PRIVATE).getString("ui_theme","dark");
+        themeMode=getPreferences(MODE_PRIVATE).getString("ui_theme","light");
+        activeThemeDark=resolvedDarkTheme(themeMode);
+        uiTheme=activeThemeDark?"mono_dark":"mono_light";
         String font=getPreferences(MODE_PRIVATE).getString("font_size","normal");
         uiTextScale="large".equals(font)?1.13f:"extra".equals(font)?1.26f:1.0f;
         showHud=getPreferences(MODE_PRIVATE).getBoolean("show_hud",true);
         smoothMotion=getPreferences(MODE_PRIVATE).getBoolean("smooth_motion",true);
         modelListView=getPreferences(MODE_PRIVATE).getBoolean("model_list_view",true);
-        if("mono_light".equals(uiTheme)) {
-            BG=Color.rgb(250,250,250); CARD=Color.WHITE; FIELD=Color.rgb(234,234,234);
-            ACCENT=Color.rgb(23,23,23); WHITE=Color.rgb(24,24,24);
-            MUTED=Color.rgb(86,86,86); DANGER=Color.rgb(155,35,35);
-            BUBBLE=Color.rgb(231,231,231);
-        } else if("mono_dark".equals(uiTheme)) {
-            BG=Color.BLACK;CARD=Color.rgb(12,12,12);FIELD=Color.rgb(32,32,32);
-            ACCENT=Color.WHITE;WHITE=Color.WHITE;MUTED=Color.rgb(182,182,182);
-            DANGER=Color.rgb(242,140,140);BUBBLE=Color.rgb(38,38,38);
+        if(lightTheme()){
+            BG=Color.rgb(248,250,253); CARD=Color.WHITE; FIELD=Color.rgb(239,243,248);
+            ACCENT=Color.rgb(37,49,69); WHITE=Color.rgb(35,44,61);
+            MUTED=Color.rgb(98,109,127); DANGER=Color.rgb(174,53,68);
+            BUBBLE=Color.rgb(233,239,247);
         } else {
-            BG=Color.rgb(14,16,19);CARD=Color.rgb(21,23,27);FIELD=Color.rgb(38,40,45);
-            ACCENT=Color.rgb(242,243,245);WHITE=Color.rgb(242,244,247);
-            MUTED=Color.rgb(158,163,171);DANGER=Color.rgb(238,119,130);
-            BUBBLE=Color.rgb(44,46,51);
+            BG=Color.rgb(17,20,26); CARD=Color.rgb(27,32,40); FIELD=Color.rgb(37,44,55);
+            ACCENT=Color.rgb(240,244,249); WHITE=Color.rgb(231,236,244);
+            MUTED=Color.rgb(160,170,186); DANGER=Color.rgb(243,147,158);
+            BUBBLE=Color.rgb(43,51,63);
         }
     }
+    /** Keep offline day/night colors up to date while the activity is visible. */
+    private final Runnable sunsetThemePoll=new Runnable(){
+        @Override public void run(){
+            if(isFinishing()||isDestroyed())return;
+            if("auto".equals(themeMode)&&
+                resolvedDarkTheme("auto")!=activeThemeDark&&!isUiBusy()){
+                recreate();
+                return;
+            }
+            ui.postDelayed(this,60_000);
+        }
+    };
     @Override public void onCreate(Bundle state) {
-        String wanted=getPreferences(MODE_PRIVATE).getString("ui_theme","dark");
-        setTheme("mono_light".equals(wanted)?
-            android.R.style.Theme_Material_Light_NoActionBar:
-            android.R.style.Theme_Material_NoActionBar);
+        String wanted=getPreferences(MODE_PRIVATE).getString("ui_theme","light");
+        setTheme(resolvedDarkTheme(wanted)?
+            android.R.style.Theme_Material_NoActionBar:
+            android.R.style.Theme_Material_Light_NoActionBar);
         super.onCreate(state);
         applyUiPreferences();
         getWindow().setStatusBarColor(BG);
@@ -263,6 +282,8 @@ public final class MainActivity extends Activity {
         super.onResume();
         ui.post(poll);
         ui.post(hudPoll);
+        ui.removeCallbacks(sunsetThemePoll);
+        ui.post(sunsetThemePoll);
         long now = android.os.SystemClock.elapsedRealtime();
         if (lastPauseElapsed > 0 && now - lastPauseElapsed > 120_000
                 && getPreferences(MODE_PRIVATE).getBoolean("welcome_v2_seen", false)
@@ -274,6 +295,7 @@ public final class MainActivity extends Activity {
         lastPauseElapsed = android.os.SystemClock.elapsedRealtime();
         ui.removeCallbacks(poll);
         ui.removeCallbacks(hudPoll);
+        ui.removeCallbacks(sunsetThemePoll);
         super.onPause();
     }
     @Override protected void onDestroy() {
@@ -281,6 +303,7 @@ public final class MainActivity extends Activity {
         if (chatConnection != null) chatConnection.disconnect();
         if (pullConnection != null) pullConnection.disconnect();
         ui.removeCallbacks(hudPoll);
+        ui.removeCallbacks(sunsetThemePoll);
         if(onlineSearchRunnable!=null)ui.removeCallbacks(onlineSearchRunnable);
         if(onlineSearchTask!=null)onlineSearchTask.cancel(true);
         io.shutdownNow();
@@ -292,8 +315,15 @@ public final class MainActivity extends Activity {
     private LinearLayout column() { LinearLayout l = new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); return l; }
     private LinearLayout row() { LinearLayout l = new LinearLayout(this); l.setOrientation(LinearLayout.HORIZONTAL); l.setGravity(Gravity.CENTER_VERTICAL); return l; }
     private LinearLayout.LayoutParams lp(int width, int height) { return new LinearLayout.LayoutParams(width < 0 ? width : dp(width), height < 0 ? height : dp(height)); }
+    private int borderTone(){
+        return lightTheme()?Color.rgb(223,230,239):Color.rgb(55,64,77);
+    }
     private GradientDrawable bg(int color, int radius) {
-        GradientDrawable g = new GradientDrawable(); g.setColor(color); g.setCornerRadius(dp(radius)); return g;
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(color);g.setCornerRadius(dp(radius));
+        if(radius>0&&(color==CARD||color==FIELD))
+            g.setStroke(dp(1),borderTone());
+        return g;
     }
     private TextView text(String value, int size, int color, boolean bold) {
         TextView t = new TextView(this); t.setText(value);
@@ -312,7 +342,8 @@ public final class MainActivity extends Activity {
         Button b = new Button(this); b.setText(label); b.setAllCaps(false);
         b.setTextSize(13*uiTextScale); b.setTextColor(primary ? BG : WHITE);
         b.setPadding(dp(11), dp(6), dp(11), dp(6)); b.setMinHeight(dp(44)); b.setMinimumHeight(dp(44));
-        b.setBackground(bg(primary ? ACCENT : FIELD, 10)); return b;
+        b.setBackground(bg(primary ? ACCENT : FIELD, 12));
+        b.setElevation(primary?dp(1):0);return b;
     }
     private void margin(View v, LinearLayout host, int top, int bottom) {
         LinearLayout.LayoutParams p = lp(-1, -2); p.topMargin = dp(top); p.bottomMargin = dp(bottom); host.addView(v, p);
@@ -601,18 +632,21 @@ public final class MainActivity extends Activity {
             content,0,15);
 
         margin(text("화면 및 가독성",17,WHITE,true),content,0,8);
-        String currentTheme="mono_light".equals(uiTheme)?"흑백 라이트"
-                :"mono_dark".equals(uiTheme)?"흑백 다크":"기본 다크";
-        Button theme=button("화면 스타일  ·  "+currentTheme,false);
-        margin(theme,content,0,8);
+        String currentTheme="auto".equals(themeMode)?
+            "자동 · 일몰 이후 블랙":"화이트".equals(themeMode)?"화이트":
+            ("light".equals(themeMode)||"mono_light".equals(themeMode))?"화이트":"블랙";
+        Button theme=button("화면 테마  ·  "+currentTheme,false);
+        margin(theme,content,0,6);
         theme.setOnClickListener(v->new AlertDialog.Builder(this)
-            .setTitle("화면 스타일")
-            .setSingleChoiceItems(new String[]{"기본 다크","흑백 라이트 (흰 배경)","흑백 다크 (검정 배경)"},
-                "mono_light".equals(uiTheme)?1:"mono_dark".equals(uiTheme)?2:0,
+            .setTitle("화면 테마")
+            .setSingleChoiceItems(new String[]{"화이트 (기본)","블랙","자동 (일몰 → 블랙 / 일출 → 화이트)"},
+                "auto".equals(themeMode)?2:activeThemeDark?1:0,
                 (dialog,which)->{
                     dialog.dismiss();
-                    applySetting("ui_theme",which==1?"mono_light":which==2?"mono_dark":"dark");
+                    applySetting("ui_theme",which==2?"auto":which==1?"dark":"light");
                 }).setNegativeButton("취소",null).show());
+        margin(text("자동은 위치 권한 없이 기기 시간대의 대표 도시 일몰·일출을 계산합니다. " +
+            "지역에 따라 실제 시각과 차이가 있을 수 있습니다.",11,MUTED,false),content,0,10);
 
         String f=getPreferences(MODE_PRIVATE).getString("font_size","normal");
         String sizeLabel="large".equals(f)?"크게":"extra".equals(f)?"매우 크게":"기본";
@@ -1357,30 +1391,15 @@ public final class MainActivity extends Activity {
         modelGridViewButton.setContentDescription("카드형 보기"+(!modelListView?" · 선택됨":""));
     }
 
-    private int tileBackgroundColor(boolean selected) {
-        if("mono_light".equals(uiTheme))
-            return selected?Color.rgb(227,227,227):Color.rgb(244,244,244);
-        if("mono_dark".equals(uiTheme))
-            return selected?Color.rgb(47,47,47):Color.rgb(25,25,25);
-        return selected?Color.rgb(45,92,160):Color.rgb(64,109,182);
+    private int tileBackgroundColor(boolean selected){
+        return selected?(lightTheme()?Color.rgb(237,244,253):Color.rgb(38,48,64)):CARD;
     }
-
-    private int tileTextColor(){
-        return "mono_light".equals(uiTheme)?Color.rgb(28,28,28):Color.WHITE;
-    }
-
-    private int tileMutedColor(){
-        return "mono_light".equals(uiTheme)?Color.rgb(83,83,83)
-            :"mono_dark".equals(uiTheme)?Color.rgb(200,200,200)
-            :Color.rgb(224,233,249);
-    }
-
-    private GradientDrawable tileBackground(boolean selected) {
-        GradientDrawable shape=bg(tileBackgroundColor(selected),15);
-        shape.setStroke(dp(selected?2:1),
-            "mono_light".equals(uiTheme)?Color.rgb(173,173,173)
-                :"mono_dark".equals(uiTheme)?Color.rgb(81,81,81)
-                :selected?Color.rgb(191,218,255):Color.rgb(101,147,205));
+    private int tileTextColor(){return WHITE;}
+    private int tileMutedColor(){return MUTED;}
+    private GradientDrawable tileBackground(boolean selected){
+        GradientDrawable shape=bg(tileBackgroundColor(selected),14);
+        shape.setStroke(dp(1),selected?
+            (lightTheme()?Color.rgb(169,191,223):Color.rgb(91,111,143)):borderTone());
         return shape;
     }
 
@@ -2013,7 +2032,8 @@ public final class MainActivity extends Activity {
             boolean active=entry.model.equals(currentModel)
                 &&entry.id.equals(getPreferences(MODE_PRIVATE)
                     .getString("active_chat_"+entry.model,""));
-            TextView item=drawerRow(entry.title,entry.model,active);
+            TextView item=drawerRow(entry.title,"",active);
+            item.setContentDescription(entry.title+" · 모델 "+entry.model);
             LinearLayout.LayoutParams p=lp(-1,-2);
             p.bottomMargin=dp(3);
             list.addView(item,p);
@@ -2028,11 +2048,14 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private TextView drawerNavigationItem(String mark,String title,String description){
-        TextView item=text(mark+"   "+title+"\n        "+description,14,WHITE,true);
-        item.setMinHeight(dp(56));
-        item.setPadding(dp(14),dp(8),dp(12),dp(8));
-        item.setBackground(bg(CARD,11));
+    private TextView drawerNavigationItem(String title){
+        TextView item=text(title,13,WHITE,true);
+        item.setSingleLine(true);
+        item.setMinHeight(dp(42));
+        item.setPadding(dp(12),dp(7),dp(10),dp(7));
+        item.setBackground(bg(CARD,10));
+        item.setFocusable(true);
+        item.setClickable(true);
         return item;
     }
 
@@ -2045,10 +2068,10 @@ public final class MainActivity extends Activity {
         Dialog drawer=new Dialog(this);
         navigationDrawer=drawer;
         LinearLayout shell=column();
-        shell.setBackgroundColor(CARD);
-        shell.setPadding(dp(12),dp(12),dp(12),dp(8));
+        shell.setBackgroundColor(BG);
+        shell.setElevation(dp(5));
         // Sidebar title and new conversation must clear the top status/cutout.
-        shell.setPadding(dp(12),dp(24),dp(12),dp(12));
+        shell.setPadding(dp(10),dp(14),dp(10),dp(10));
         shell.setOnApplyWindowInsetsListener((view,insets)->{
             int top,bottom;
             if(Build.VERSION.SDK_INT>=30){
@@ -2062,23 +2085,23 @@ public final class MainActivity extends Activity {
             // Do not double count if Android already inset the dialog.
             int extraTop=Build.VERSION.SDK_INT>=35?top:0;
             int extraBottom=Build.VERSION.SDK_INT>=35?bottom:0;
-            view.setPadding(dp(12),dp(24)+extraTop,dp(12),dp(12)+extraBottom);
+            view.setPadding(dp(10),dp(14)+extraTop,dp(10),dp(10)+extraBottom);
             return insets;
         });
 
         LinearLayout heading=row();
-        TextView product=text("AI in Pocket",19,WHITE,true);
+        TextView product=text("AI in Pocket",17,WHITE,true);
         rowItem(heading,product,1,8);
         Button close=button("×",false);
-        close.setTextSize(23);
+        close.setTextSize(20);
         close.setContentDescription("사이드바 닫기");
         rowItem(heading,close,0,0);
         close.setOnClickListener(v->drawer.dismiss());
-        heading.setMinimumHeight(dp(62));
-        margin(heading,shell,0,12);
+        heading.setMinimumHeight(dp(48));
+        margin(heading,shell,0,8);
 
         TextView newChatItem=drawerRow("✎   새 대화","",false);
-        margin(newChatItem,shell,0,12);
+        margin(newChatItem,shell,0,8);
         newChatItem.setOnClickListener(v->{
             if(chatBusy){toast("생성 중에는 새 대화를 시작할 수 없습니다");return;}
             drawer.dismiss();
@@ -2087,9 +2110,9 @@ public final class MainActivity extends Activity {
 
         EditText search=edit("대화 검색","",false);
         search.setSingleLine(true);
-        search.setMinHeight(dp(50));
-        margin(search,shell,0,13);
-        margin(text("최근 대화",12,MUTED,true),shell,0,7);
+        search.setMinHeight(dp(44));
+        margin(search,shell,0,9);
+        margin(text("최근 대화",12,MUTED,true),shell,0,5);
         ScrollView scroll=new ScrollView(this);
         scroll.setFillViewport(false);
         scroll.setVerticalScrollBarEnabled(true);
@@ -2110,41 +2133,19 @@ public final class MainActivity extends Activity {
         View separator=new View(this);
         separator.setBackgroundColor(FIELD);
         LinearLayout.LayoutParams separatorParams=lp(-1,1);
-        separatorParams.topMargin=dp(6);
-        separatorParams.bottomMargin=dp(8);
+        separatorParams.topMargin=dp(4);
+        separatorParams.bottomMargin=dp(6);
         shell.addView(separator,separatorParams);
-        margin(text("메뉴",12,MUTED,true),shell,0,4);
 
-        TextView models=drawerNavigationItem("◫","모델 선택","설치 모델 · Hugging Face");
-        TextView settings=drawerNavigationItem("⚙","설정","화면 · 추론 엔진 · 개인정보");
-        TextView diagnostics=drawerNavigationItem("▦","기기/연결 진단","기기 사양 · 연결 노드 · 성능");
-        margin(models,shell,0,2);
-        margin(settings,shell,0,2);
-        margin(diagnostics,shell,0,5);
+        TextView models=drawerNavigationItem("모델 선택");
+        TextView settings=drawerNavigationItem("설정");
+        TextView diagnostics=drawerNavigationItem("기기 연결 진단");
+        margin(models,shell,0,3);
+        margin(settings,shell,0,3);
+        margin(diagnostics,shell,0,7);
         models.setOnClickListener(v->{drawer.dismiss();showTab(1);});
         settings.setOnClickListener(v->{drawer.dismiss();showTab(2);});
         diagnostics.setOnClickListener(v->{drawer.dismiss();showTab(3);});
-
-        LinearLayout profile=row();
-        profile.setGravity(Gravity.CENTER_VERTICAL);
-        profile.setPadding(dp(8),dp(8),dp(8),dp(8));
-        profile.setBackground(bg(FIELD,14));
-        android.widget.ImageView avatar=new android.widget.ImageView(this);
-        avatar.setImageResource(R.mipmap.ic_launcher);
-        avatar.setContentDescription("풀을 뜯는 라마 앱 아이콘");
-        LinearLayout.LayoutParams avatarSize=lp(42,42);
-        avatarSize.rightMargin=dp(10);
-        profile.addView(avatar,avatarSize);
-        LinearLayout identity=column();
-        identity.addView(text("AI in Pocket",14,WHITE,true));
-        identity.addView(text("로컬 AI · "+(currentModel.isEmpty()?"모델 미선택":currentModel),
-            11,MUTED,false));
-        rowItem(profile,identity,1,0);
-        margin(profile,shell,3,2);
-        profile.setOnClickListener(v->{
-            drawer.dismiss();
-            showTab(2); // Profile-style quick access to local app settings.
-        });
 
         drawer.setContentView(shell);
         drawer.setOnDismissListener(d->{
@@ -2152,11 +2153,13 @@ public final class MainActivity extends Activity {
         });
         Window window=drawer.getWindow();
         if(window!=null){
-            window.setBackgroundDrawable(new ColorDrawable(CARD));
+            window.setBackgroundDrawable(new ColorDrawable(BG));
             window.setStatusBarColor(BG);
             window.setNavigationBarColor(BG);
+            window.getDecorView().setSystemUiVisibility(lightTheme()?
+                (View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR):0);
             window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
-            window.setDimAmount(0.42f);
+            window.setDimAmount(0.28f);
             window.setGravity(Gravity.START|Gravity.TOP);
             if(animationsEnabled())window.setWindowAnimations(R.style.AiPocketDrawerMotion);
         }
@@ -2164,7 +2167,7 @@ public final class MainActivity extends Activity {
         shell.post(shell::requestApplyInsets);
         if(window!=null){
             int available=getResources().getDisplayMetrics().widthPixels;
-            int width=Math.min(dp(370),Math.max(dp(240),available-dp(48)));
+            int width=Math.min(dp(300),Math.max(dp(228),available-dp(56)));
             window.setLayout(width,WindowManager.LayoutParams.MATCH_PARENT);
             window.setGravity(Gravity.START|Gravity.TOP);
             window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
