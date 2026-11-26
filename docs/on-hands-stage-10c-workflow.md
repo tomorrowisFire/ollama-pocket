@@ -1,0 +1,10 @@
+# Stage 10-C — local workflow recovery and event evidence candidate
+
+Baseline aa133d31ccfa650490f4bee566fea8ed4feceeee. This stage strengthens the existing foreground local-only CPU runner; it does not add arbitrary tool execution, model-directed MCP calls, cloud execution, or background jobs.
+
+- A version-3 checkpoint stores metadata-only recent events (maximum 96), explicit states and reason codes; older events can be evicted. Schema-1/2 checkpoints and archived records remain readable, with unknown reasons and no invented historical events. The existing SHA-256 corruption-detection checksum and verified result checks are retained. Archived snapshots remain read-only.
+- Loading an active checkpoint last saved as RUNNING or VERIFYING converts it to PAUSED and records recovery. A previous unfinished attempt remains counted. Explicit user resume retains the same model and unchanged plan, original time/attempt limits and previously verified results; no silent replay of completed steps. Process-death device validation is still NOT_RUN.
+- Distinguish pause/cancel, time and attempt limits, thermal and low memory, stopped server, cooperative session conflict, failed structural verification, output truncation/limit, invalid token count and local request failure. No raw exception bodies in the event journal.
+- Add pause without closing the screen, current step/verifier label, explicit resume scope, recent event-log viewing for active and archived runs, localized reasons across five locales.
+- 28 pure Java checks authored for reason precedence, recovery-state policy, event ordering, bounded retention, schema round-trip and terminal state protection. Existing test suite and build workflow are retained.
+- Real device inference, 10-step hands-on completion, exact cancellation latency and process-death recovery, independent reviewer scores and final release acceptance remain NOT_RUN/BLOCKED. Existing limits, package identity, first-run ad placement and production ads lock are preserved.

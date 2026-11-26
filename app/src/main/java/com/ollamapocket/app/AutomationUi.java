@@ -142,11 +142,11 @@ final class AutomationUi {
         LocalWorkflow.Checkpoint saved=null;
         try{saved=runner.load();}catch(Exception e){toast(R.string.auto_checkpoint_error);}
         EditText plan=field(l,R.string.auto_plan,saved==null?"":saved.plan,24000,true);
-        TextView status=output(l);
+        TextView status=output(l);status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         ProgressBar progress=new ProgressBar(owner,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(10);l.addView(progress,new LinearLayout.LayoutParams(-1,dp(12)));
         final LocalWorkflow.Checkpoint[] checkpoint={saved};
         if(saved!=null){display(status,saved);progress.setMax(saved.steps().size());progress.setProgress(saved.results.size());}
-        Button[] buttons=new Button[7];
+        Button[] buttons=new Button[8];
         Runnable enabled=()->{boolean idle=!busy();plan.setEnabled(idle);for(Button b:buttons)if(b!=null)b.setEnabled(idle);};
         Consumer<LocalWorkflow.Checkpoint> start=c->{
             if(!c.model.equals(model)){toast(R.string.need_model);return;}
@@ -171,7 +171,7 @@ final class AutomationUi {
             if(busy()||checkpoint[0]==null){toast(R.string.auto_blocked);return;}
             LocalWorkflow.Checkpoint c=checkpoint[0];
             if(!c.plan.equals(plan.getText().toString())||!c.model.equals(model)){toast(R.string.auto_invalid_plan);return;}
-            confirm(s(R.string.auto_resume),s(R.string.auto_workflow_notice),()->start.accept(c));
+            confirm(s(R.string.auto_resume),s(R.string.auto_workflow_notice)+"\n\n"+summary(c)+"\n"+s(R.string.auto_resume_remaining),()->start.accept(c));
         });
         buttons[3]=button(l,R.string.auto_example,()->{if(busy())return;confirm(s(R.string.auto_example),s(R.string.auto_example_text),()->plan.setText(s(R.string.auto_example_text)));});
         buttons[4]=button(l,R.string.auto_reorder,()->{if(!busy())reorder(plan);});
@@ -187,6 +187,13 @@ final class AutomationUi {
                 if(busy()){runner.cancel();status.setText(R.string.auto_cancel_notice);}
                 else try{runner.cancelSaved(checkpoint[0]);display(status,checkpoint[0]);}catch(Exception e){toast(R.string.auto_checkpoint_error);}
             });
+        });
+        buttons[7]=button(l,R.string.auto_journal,()->{
+            if(busy()||checkpoint[0]==null)return;
+            showJournal(checkpoint[0]);
+        });
+        button(l,R.string.auto_pause_now,()->{
+            if(busy()){runner.pause();status.setText(R.string.auto_pause_requested);}
         });
         button(l,R.string.auto_pause,()->{pause();});
         show(s(R.string.auto_workflow),l);
@@ -267,6 +274,7 @@ final class AutomationUi {
         LocalWorkflow.Checkpoint c=run.checkpoint;
         LinearLayout l=column();label(l,s(R.string.auto_archive_readonly));label(l,date(run.archived)+"\n"+c.model);
         TextView record=output(l);display(record,c);
+        button(l,R.string.auto_journal,()->{if(!busy())showJournal(c);});
         TextView source=output(l);source.setText(s(R.string.auto_plan)+"\n"+c.plan);
         ScrollView sc=new ScrollView(owner);sc.addView(l);final int token=epoch;
         AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.auto_history).setView(sc)
@@ -313,9 +321,51 @@ final class AutomationUi {
             }).setNegativeButton(R.string.cancel,null).create();
         confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;});d.show();secure(d);
     }
+    private String reasonLabel(WorkflowRunJournal.Reason reason){
+        switch(reason){
+            case NONE:return "";
+            case VERIFIED:return s(R.string.auto_reason_verified);
+            case VERIFY_FAILED:return s(R.string.auto_reason_verify_failed);
+            case TRUNCATED:return s(R.string.auto_reason_truncated);
+            case ATTEMPT_LIMIT:return s(R.string.auto_reason_attempt_limit);
+            case USER_PAUSE:return s(R.string.auto_state_paused);
+            case USER_CANCEL:return s(R.string.auto_state_cancelled);
+            case RECOVERED:return s(R.string.auto_reason_recovered);
+            case TIME_LIMIT:return s(R.string.auto_reason_time_limit);
+            case THERMAL:return s(R.string.bench_hot);
+            case MEMORY:return s(R.string.bench_memory);
+            case SERVER_OFF:return s(R.string.test_need_server);
+            case COOP_ACTIVE:return s(R.string.guest_stop_first);
+            case OUTPUT_LIMIT:return s(R.string.auto_reason_output_limit);
+            case INVALID_TOKENS:return s(R.string.auto_reason_invalid_tokens);
+            case TRANSPORT:return s(R.string.auto_reason_transport);
+            case INTERRUPTED:return s(R.string.auto_reason_recovered);
+            default:return s(R.string.metric_unavailable);
+        }
+    }
+    private String journalText(LocalWorkflow.Checkpoint c){
+        List<WorkflowRunJournal.Event> events=c.journal.events();
+        if(events.isEmpty())return s(R.string.auto_journal_empty);
+        StringBuilder out=new StringBuilder(s(R.string.auto_journal_notice));
+        for(WorkflowRunJournal.Event event:events){
+            out.append("\n\n").append(date(event.at)).append(" · ").append(stateLabel(event.state.name()));
+            out.append("\n").append(owner.getString(R.string.auto_journal_counts,Integer.toString(event.completed),Integer.toString(c.steps().size()),Integer.toString(event.attempt),Integer.toString(event.total)));
+            String reason=reasonLabel(event.reason);if(!reason.isEmpty())out.append("\n").append(reason);
+        }
+        return out.toString();
+    }
+    private void showJournal(LocalWorkflow.Checkpoint c){
+        LinearLayout l=column();TextView details=output(l);details.setText(journalText(c));
+        ScrollView sc=new ScrollView(owner);sc.addView(l);
+        trackDialog(new AlertDialog.Builder(owner).setTitle(R.string.auto_journal).setView(sc)
+            .setPositiveButton(R.string.close,null).create());
+    }
     private String summary(LocalWorkflow.Checkpoint c){
         String seconds=c.updated<=0?s(R.string.metric_unavailable):Long.toString(Math.max(0,Math.min(WorkflowPolicy.MAX_MILLIS,c.updated-c.started))/1000);
+        String reason=reasonLabel(c.reason);
+        String next=c.complete()?"":"\n"+owner.getString(R.string.auto_current_step,Integer.toString(c.results.size()+1),Integer.toString(c.steps().size()),c.steps().get(c.results.size()).gate.name());
         return stateLabel(c.status)+" · "+c.results.size()+"/"+c.steps().size()+" · "+c.attempts+"/"+WorkflowPolicy.MAX_ATTEMPTS+
+            (reason.isEmpty()?"":"\n"+reason)+next+
             "\n"+owner.getString(R.string.auto_run_stats,seconds,Integer.toString(c.totalAttempts),Long.toString(c.reportedTokens),Integer.toString(c.unknownAttempts))+
             (c.legacyStats?"\n"+s(R.string.auto_legacy_stats):"");
     }

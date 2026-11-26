@@ -808,4 +808,21 @@
     <string name="attachment_encoding">文字檔編碼（Office 和 PDF 不適用）</string>
     <string name="attachment_encoding_auto">Unicode（UTF-8 / UTF-16 BOM）</string>
     <string name="attachment_edited_scope">編輯預覽後，原始擷取範圍與編輯狀態將包含在問題中。部分摘錄或 OCR 不代表已核對整份文件。</string>
+    <string name="auto_journal">執行事件記錄</string>
+    <string name="auto_journal_empty">舊版檢查點沒有事件記錄。</string>
+    <string name="auto_journal_notice">最多保留最近96條狀態事件，較早記錄可能刪除。此日誌不儲存提示詞或回覆正文。</string>
+    <string name="auto_journal_counts">完成 %1$s/%2$s · 步驟嘗試 %3$s 次 · 總嘗試 %4$s 次</string>
+    <string name="auto_pause_now">暫停執行（保留介面）</string>
+    <string name="auto_pause_requested">已要求暫停，等待目前要求停止。</string>
+    <string name="auto_resume_remaining">僅在原嘗試次數及時間限制內重跑未完成步驟。</string>
+    <string name="auto_current_step">目前步驟 %1$s/%2$s · 驗證器 %3$s</string>
+    <string name="auto_reason_verified">步驟通過已設定的結構驗證。</string>
+    <string name="auto_reason_verify_failed">輸出未通過已設定的驗證條件。</string>
+    <string name="auto_reason_truncated">模型達到輸出長度限制。</string>
+    <string name="auto_reason_attempt_limit">已達到允許的嘗試次數上限。</string>
+    <string name="auto_reason_recovered">中斷的執行已還原為暫停狀態，先前未完成的嘗試仍計入次數。</string>
+    <string name="auto_reason_time_limit">已達到原30分鐘時間限制。</string>
+    <string name="auto_reason_output_limit">回覆超過工作流程輸出限制。</string>
+    <string name="auto_reason_invalid_tokens">引擎回報無效的輸出權杖數。</string>
+    <string name="auto_reason_transport">本機推論失敗或逾時，請檢查後繼續。</string>
 </resources>

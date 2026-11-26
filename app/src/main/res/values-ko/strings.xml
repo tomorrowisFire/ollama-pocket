@@ -808,4 +808,21 @@
     <string name="attachment_encoding">텍스트 파일 인코딩 (Office·PDF에는 적용되지 않음)</string>
     <string name="attachment_encoding_auto">유니코드 (UTF-8 / UTF-16 BOM)</string>
     <string name="attachment_edited_scope">미리보기를 편집하면 원본 추출 범위와 편집 여부가 질문에 포함됩니다. 부분 발췌나 OCR 결과만으로 문서 전체를 확인할 수는 없습니다.</string>
+    <string name="auto_journal">실행 이벤트 기록</string>
+    <string name="auto_journal_empty">이전 버전 체크포인트에는 기록된 이벤트가 없습니다.</string>
+    <string name="auto_journal_notice">최근 상태 이벤트를 최대 96개 보관하며 오래된 기록은 제거될 수 있습니다. 프롬프트나 응답 본문은 이 기록에 저장하지 않습니다.</string>
+    <string name="auto_journal_counts">완료 %1$s/%2$s · 단계 시도 %3$s회 · 전체 시도 %4$s회</string>
+    <string name="auto_pause_now">일시정지 (화면 유지)</string>
+    <string name="auto_pause_requested">일시정지를 요청했습니다. 현재 요청이 중단될 때까지 기다립니다.</string>
+    <string name="auto_resume_remaining">기존 시도 및 시간 한도 내에서 미완료 단계만 다시 실행합니다.</string>
+    <string name="auto_current_step">현재 단계 %1$s/%2$s · 검증기 %3$s</string>
+    <string name="auto_reason_verified">설정한 구조적 검증 조건을 통과했습니다.</string>
+    <string name="auto_reason_verify_failed">출력이 설정한 검증 조건을 충족하지 못했습니다.</string>
+    <string name="auto_reason_truncated">모델 출력 길이 제한에 도달했습니다.</string>
+    <string name="auto_reason_attempt_limit">허용된 시도 한도에 도달했습니다.</string>
+    <string name="auto_reason_recovered">중단된 실행을 일시정지 상태로 복구했습니다. 이전 미완료 시도도 시도 횟수에 포함됩니다.</string>
+    <string name="auto_reason_time_limit">기존 30분 실행 시간 한도에 도달했습니다.</string>
+    <string name="auto_reason_output_limit">응답이 자동진행 출력 제한을 초과했습니다.</string>
+    <string name="auto_reason_invalid_tokens">엔진에서 유효하지 않은 출력 토큰 수를 보고했습니다.</string>
+    <string name="auto_reason_transport">로컬 추론 요청이 실패했거나 시간이 초과되었습니다. 확인 후 재개하세요.</string>
 </resources>

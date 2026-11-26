@@ -808,4 +808,21 @@
     <string name="attachment_encoding">テキストの文字コード（Office・PDFには適用されません）</string>
     <string name="attachment_encoding_auto">Unicode（UTF-8 / UTF-16 BOM）</string>
     <string name="attachment_edited_scope">プレビューを編集すると、元の抽出範囲と編集状態が質問に含まれます。部分抜粋やOCRは文書全体の確認を保証しません。</string>
+    <string name="auto_journal">実行イベント記録</string>
+    <string name="auto_journal_empty">旧チェックポイントにイベント記録はありません。</string>
+    <string name="auto_journal_notice">最近の状態イベントを最大96件保存します。古い記録は削除される場合があります。入力や回答本文は記録しません。</string>
+    <string name="auto_journal_counts">完了 %1$s/%2$s · 手順試行 %3$s 回 · 全試行 %4$s 回</string>
+    <string name="auto_pause_now">一時停止（画面を維持）</string>
+    <string name="auto_pause_requested">一時停止を要求しました。現在の要求の停止を待っています。</string>
+    <string name="auto_resume_remaining">元の試行回数と時間制限内で未完了の手順のみ再実行します。</string>
+    <string name="auto_current_step">現在の手順 %1$s/%2$s · 検証器 %3$s</string>
+    <string name="auto_reason_verified">設定された構造検証に合格しました。</string>
+    <string name="auto_reason_verify_failed">出力が設定された検証条件を満たしませんでした。</string>
+    <string name="auto_reason_truncated">モデルの出力長制限に達しました。</string>
+    <string name="auto_reason_attempt_limit">許可された試行回数の上限に達しました。</string>
+    <string name="auto_reason_recovered">中断された実行を一時停止として復元しました。未完了の試行も回数に含みます。</string>
+    <string name="auto_reason_time_limit">元の30分の時間制限に達しました。</string>
+    <string name="auto_reason_output_limit">応答がワークフローの出力制限を超えました。</string>
+    <string name="auto_reason_invalid_tokens">エンジンが無効な出力トークン数を報告しました。</string>
+    <string name="auto_reason_transport">ローカル推論が失敗またはタイムアウトしました。確認して再開してください。</string>
 </resources>

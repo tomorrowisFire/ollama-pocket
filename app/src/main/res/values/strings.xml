@@ -808,4 +808,21 @@
     <string name="attachment_encoding">Text file encoding (Office and PDF ignore this choice)</string>
     <string name="attachment_encoding_auto">Unicode (UTF-8 / UTF-16 BOM)</string>
     <string name="attachment_edited_scope">If you edit this preview, its original extraction range and edited status will be included in the question. Partial or OCR text is not proof of a complete document.</string>
+    <string name="auto_journal">Run event log</string>
+    <string name="auto_journal_empty">No recorded events for this older checkpoint.</string>
+    <string name="auto_journal_notice">Up to 96 recent status events; older entries may be removed. No prompt or response text is stored in this log.</string>
+    <string name="auto_journal_counts">Completed %1$s/%2$s · Step attempts %3$s · Total attempts %4$s</string>
+    <string name="auto_pause_now">Pause run (keep screen open)</string>
+    <string name="auto_pause_requested">Pause requested. Waiting for the current request to stop.</string>
+    <string name="auto_resume_remaining">Only unfinished steps run again, within the original attempt and time limits.</string>
+    <string name="auto_current_step">Current step %1$s/%2$s · Verifier %3$s</string>
+    <string name="auto_reason_verified">Step passed its configured structural check.</string>
+    <string name="auto_reason_verify_failed">The output did not pass the configured verifier.</string>
+    <string name="auto_reason_truncated">The model stopped at its output length limit.</string>
+    <string name="auto_reason_attempt_limit">The permitted attempt limit was reached.</string>
+    <string name="auto_reason_recovered">Interrupted run recovered as paused; a prior unfinished attempt remains counted.</string>
+    <string name="auto_reason_time_limit">The original 30-minute time limit was reached.</string>
+    <string name="auto_reason_output_limit">The response exceeded the workflow output limit.</string>
+    <string name="auto_reason_invalid_tokens">The engine reported an invalid output token count.</string>
+    <string name="auto_reason_transport">The local inference request failed or timed out. Review before resuming.</string>
 </resources>

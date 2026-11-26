@@ -43,6 +43,7 @@ on:
       - 'tests/WorkflowPolicyTest.java'
       - 'tests/McpInputPolicyTest.java'
       - 'tests/WorkflowLibraryTest.java'
+      - 'tests/WorkflowRunJournalTest.java'
       - 'tests/CoopMemoryPlannerTest.java'
       - 'tests/CoopPlanLocaleDataTest.java'
 
@@ -171,10 +172,11 @@ jobs:
       - name: Test bounded local workflow policy
         run: |
           mkdir -p /tmp/workflow-tests
-          javac -cp /tmp/cloud-stream-tests/json.jar -d /tmp/workflow-tests app/src/main/java/com/ollamapocket/app/WorkflowPolicy.java app/src/main/java/com/ollamapocket/app/McpInputPolicy.java app/src/main/java/com/ollamapocket/app/WorkflowLibrary.java tests/WorkflowPolicyTest.java tests/McpInputPolicyTest.java tests/WorkflowLibraryTest.java
+          javac -cp /tmp/cloud-stream-tests/json.jar -d /tmp/workflow-tests app/src/main/java/com/ollamapocket/app/WorkflowPolicy.java app/src/main/java/com/ollamapocket/app/McpInputPolicy.java app/src/main/java/com/ollamapocket/app/WorkflowLibrary.java app/src/main/java/com/ollamapocket/app/WorkflowRunJournal.java app/src/main/java/com/ollamapocket/app/InferenceSafetyPolicy.java tests/WorkflowRunJournalTest.java tests/WorkflowPolicyTest.java tests/McpInputPolicyTest.java tests/WorkflowLibraryTest.java
           java -cp /tmp/workflow-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.WorkflowPolicyTest
           java -cp /tmp/workflow-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.McpInputPolicyTest
           java -cp /tmp/workflow-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.WorkflowLibraryTest
+          java -cp /tmp/workflow-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.WorkflowRunJournalTest
       - name: Audit direct Hangul UI literals
         run: python3 tests/locale_ui_audit.py
       - name: Verify OnHand AI brand and locale resource parity

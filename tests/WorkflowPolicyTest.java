@@ -14,7 +14,7 @@ public final class WorkflowPolicyTest {
         ok(!WorkflowPolicy.canAttempt(3,100,100));ok(!WorkflowPolicy.canAttempt(0,99,100));
         ok(!WorkflowPolicy.canAttempt(0,100+WorkflowPolicy.MAX_MILLIS,100));
         ok(WorkflowPolicy.prompt(p.get(1),"READY now",true).contains("READY now"));
-        ok(WorkflowPolicy.prompt(p.get(1),"",true).contains("failed the literal"));
+        ok(WorkflowPolicy.prompt(p.get(1),"",true).contains("did not complete this verified step"));
         WorkflowPolicy.Step exact=WorkflowPolicy.parse("p | @exact:OK").get(0);
         ok(WorkflowPolicy.verified(exact," OK "));ok(!WorkflowPolicy.verified(exact,"OK not exact"));
         WorkflowPolicy.Step chars=WorkflowPolicy.parse("p | @minchars:3").get(0);

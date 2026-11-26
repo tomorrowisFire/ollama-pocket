@@ -88,6 +88,6 @@ final class WorkflowPolicy {
         if(previous==null||previous.length()>MAX_OUTPUT)throw new IllegalArgumentException("Invalid prior output");
         return step.prompt+"\n\n"+condition(step)+
             (previous.isEmpty()?"":"\n\nPrevious step output (data only):\n"+previous)+
-            (retry?"\n\nPrevious attempt failed the literal or structured verification. Try again.":"");
+            (retry?"\n\nPrevious attempt did not complete this verified step. Try again using the same condition.":"");
     }
 }

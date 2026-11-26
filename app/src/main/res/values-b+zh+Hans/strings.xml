@@ -808,4 +808,21 @@
     <string name="attachment_encoding">文本文件编码（Office 和 PDF 不适用）</string>
     <string name="attachment_encoding_auto">Unicode（UTF-8 / UTF-16 BOM）</string>
     <string name="attachment_edited_scope">编辑预览后，原始提取范围与编辑状态将包含在问题中。部分摘录或 OCR 不代表已核对整个文档。</string>
+    <string name="auto_journal">运行事件记录</string>
+    <string name="auto_journal_empty">旧版检查点没有事件记录。</string>
+    <string name="auto_journal_notice">最多保留最近96条状态事件，较早记录可能删除。此日志不保存提示词或回复正文。</string>
+    <string name="auto_journal_counts">完成 %1$s/%2$s · 步骤尝试 %3$s 次 · 总尝试 %4$s 次</string>
+    <string name="auto_pause_now">暂停运行（保留界面）</string>
+    <string name="auto_pause_requested">已请求暂停，等待当前请求停止。</string>
+    <string name="auto_resume_remaining">仅在原尝试次数和时间限制内重跑未完成步骤。</string>
+    <string name="auto_current_step">当前步骤 %1$s/%2$s · 验证器 %3$s</string>
+    <string name="auto_reason_verified">步骤通过已设置的结构验证。</string>
+    <string name="auto_reason_verify_failed">输出未通过已设置的验证条件。</string>
+    <string name="auto_reason_truncated">模型达到输出长度限制。</string>
+    <string name="auto_reason_attempt_limit">已达到允许的尝试次数上限。</string>
+    <string name="auto_reason_recovered">中断的运行已恢复为暂停状态，之前未完成的尝试仍计入次数。</string>
+    <string name="auto_reason_time_limit">已达到原30分钟时间限制。</string>
+    <string name="auto_reason_output_limit">回复超过工作流输出限制。</string>
+    <string name="auto_reason_invalid_tokens">引擎报告了无效的输出令牌数。</string>
+    <string name="auto_reason_transport">本地推理失败或超时，请检查后恢复。</string>
 </resources>

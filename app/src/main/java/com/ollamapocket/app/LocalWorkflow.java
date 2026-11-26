@@ -28,21 +28,27 @@ final class LocalWorkflow {
         long started,updated,reportedTokens;
         int attempts,totalAttempts,unknownAttempts,format=2;
         boolean legacyStats;
+        WorkflowRunJournal.Reason reason=WorkflowRunJournal.Reason.UNKNOWN;
+        WorkflowRunJournal journal=new WorkflowRunJournal();
         final List<String> results=new ArrayList<>();
         List<WorkflowPolicy.Step> steps(){return WorkflowPolicy.parse(plan,format);}
         boolean complete(){return results.size()==steps().size();}
-        boolean resumable(){return !complete()&&!"CANCELLED".equals(status)&&WorkflowPolicy.canAttempt(attempts,System.currentTimeMillis(),started);}
+        boolean resumable(){return !complete()&&!"CANCELLED".equals(status)&&totalAttempts<30&&WorkflowPolicy.canAttempt(attempts,System.currentTimeMillis(),started);}
     }
     Checkpoint load()throws Exception{
         String raw=store.getString("checkpoint",null);
         if(raw==null)return null;
-        return decode(raw,store.getString("checkpoint_digest",""));
+        Checkpoint c=decode(raw,store.getString("checkpoint_digest",""));
+        if(WorkflowRunJournal.interruptedState(c.status)){
+            c.status="PAUSED";c.reason=WorkflowRunJournal.Reason.RECOVERED;save(c);
+        }
+        return c;
     }
     private static Checkpoint decode(String raw,String digest)throws Exception{
         if(raw.length()>WorkflowLibrary.MAX_SNAPSHOT)throw new IOException("Checkpoint limit");
         JSONObject j=new JSONObject(raw);int schema=j.getInt("schema");
-        if(schema!=1&&schema!=2)throw new IOException("Checkpoint schema");
-        if(schema==2&&!LocalChatLibrary.digest(raw).equals(digest))throw new IOException("Checkpoint checksum mismatch");
+        if(schema!=1&&schema!=2&&schema!=3)throw new IOException("Checkpoint schema");
+        if(schema>=2&&!LocalChatLibrary.digest(raw).equals(digest))throw new IOException("Checkpoint checksum mismatch");
         Checkpoint c=new Checkpoint();c.plan=j.getString("plan");c.model=j.getString("model");c.id=j.getString("id");
         c.started=j.getLong("started");c.updated=j.optLong("updated",0);c.attempts=j.getInt("attempts");c.status=j.getString("status");
         c.format=schema==1?1:j.getInt("format");c.legacyStats=schema==1||j.optBoolean("legacyStats",false);
@@ -55,11 +61,17 @@ final class LocalWorkflow {
         if(a.length()>steps.size())throw new IOException("Invalid result count");
         for(int i=0;i<a.length();i++){String v=a.getString(i);if(!WorkflowPolicy.verified(steps.get(i),v))throw new IOException("Invalid checkpoint evidence");c.results.add(v);}
         if("COMPLETED".equals(c.status)!=c.complete())throw new IOException("Invalid completion");
-        if(schema==2&&!c.legacyStats&&(c.totalAttempts<c.results.size()+c.attempts||c.totalAttempts>c.results.size()*WorkflowPolicy.MAX_ATTEMPTS+c.attempts))throw new IOException("Invalid attempt count");
+        if(schema>=2&&!c.legacyStats&&(c.totalAttempts<c.results.size()+c.attempts||c.totalAttempts>c.results.size()*WorkflowPolicy.MAX_ATTEMPTS+c.attempts))throw new IOException("Invalid attempt count");
+        if(schema==3){
+            c.reason=WorkflowRunJournal.Reason.valueOf(j.getString("reason"));
+            c.journal=WorkflowRunJournal.read(j.getJSONArray("journal"),steps.size(),c.started);
+            if(!c.journal.matchesLast(c.status,c.reason,c.results.size(),c.attempts,c.totalAttempts,c.updated))
+                throw new IOException("Invalid journal state");
+        }
         return c;
     }
     private static String encode(Checkpoint c)throws Exception{
-        String raw=new JSONObject().put("schema",2).put("format",c.format).put("plan",c.plan).put("model",c.model).put("id",c.id)
+        String raw=new JSONObject().put("schema",3).put("reason",c.reason.name()).put("journal",c.journal.json()).put("format",c.format).put("plan",c.plan).put("model",c.model).put("id",c.id)
             .put("started",c.started).put("updated",c.updated).put("attempts",c.attempts).put("status",c.status).put("results",new JSONArray(c.results))
             .put("totalAttempts",c.totalAttempts).put("unknownAttempts",c.unknownAttempts).put("reportedTokens",c.reportedTokens).put("legacyStats",c.legacyStats).toString();
         if(raw.length()>WorkflowLibrary.MAX_SNAPSHOT)throw new IOException("Checkpoint limit");
@@ -67,6 +79,7 @@ final class LocalWorkflow {
     }
     private void save(Checkpoint c)throws Exception{
         c.updated=Math.max(c.started,Math.max(c.updated,System.currentTimeMillis()));
+        c.journal.record(c.updated,c.status,c.reason,c.results.size(),c.attempts,c.totalAttempts,c.steps().size(),c.started);
         String raw=encode(c);
         if(!store.edit().putString("checkpoint",raw).putString("checkpoint_digest",LocalChatLibrary.digest(raw)).commit())throw new IOException("Checkpoint write failed");
     }
@@ -96,7 +109,8 @@ final class LocalWorkflow {
         WorkflowPolicy.parse(plan);
         if(model==null||model.isEmpty()||model.length()>200)throw new IOException("Model required");
         Checkpoint c=new Checkpoint();c.plan=plan;c.model=model;c.id=java.util.UUID.randomUUID().toString();
-        c.started=System.currentTimeMillis();c.updated=c.started;c.status="QUEUED";
+        c.started=System.currentTimeMillis();c.updated=c.started;c.status="QUEUED";c.reason=WorkflowRunJournal.Reason.NONE;
+        c.journal.record(c.updated,c.status,c.reason,0,0,0,c.steps().size(),c.started);
         Checkpoint prior=load();String raw=encode(c);
         SharedPreferences.Editor transaction=store.edit().putString("checkpoint",raw).putString("checkpoint_digest",LocalChatLibrary.digest(raw));
         if(prior!=null)transaction.putString("history",WorkflowLibrary.archive(store.getString("history",null),encode(prior),c.started));
@@ -106,35 +120,41 @@ final class LocalWorkflow {
     void prepare(){paused=false;cancelled=false;}
     void pause(){paused=true;disconnect();}
     void cancel(){cancelled=true;disconnect();}
-    void cancelSaved(Checkpoint c)throws Exception{if(c!=null&&!c.complete()){c.status="CANCELLED";save(c);}}
+    void cancelSaved(Checkpoint c)throws Exception{if(c!=null&&!c.complete()&&!"CANCELLED".equals(c.status)){c.status="CANCELLED";c.reason=WorkflowRunJournal.Reason.USER_CANCEL;save(c);}}
     private void disconnect(){HttpURLConnection c=connection;if(c!=null)c.disconnect();}
+    private void stopped(Checkpoint c,WorkflowRunJournal.Reason reason)throws Exception{c.status=WorkflowRunJournal.stopState(reason).name();c.reason=reason;save(c);}
     Checkpoint run(Checkpoint c,Consumer<Checkpoint> progress,BooleanSupplier stop)throws Exception{
         long initialWall=System.currentTimeMillis(),initialMono=SystemClock.elapsedRealtime();
         BooleanSupplier expired=()->System.currentTimeMillis()<c.started||
             System.currentTimeMillis()-c.started>=WorkflowPolicy.MAX_MILLIS||
             SystemClock.elapsedRealtime()-initialMono>=Math.max(0,WorkflowPolicy.MAX_MILLIS-(initialWall-c.started));
-        AtomicReference<String> abort=new AtomicReference<>();
+        AtomicReference<WorkflowRunJournal.Reason> abort=new AtomicReference<>();
         Runnable watch=()->{
-            String state=cancelled?"CANCELLED":paused||stop.getAsBoolean()?"PAUSED":
-                expired.getAsBoolean()||InferenceSafety.blocked(context)||!OllamaForegroundService.isRunning()||
-                !"off".equals(CoopSession.get(context).role())?"BLOCKED":null;
-            if(state!=null&&abort.compareAndSet(null,state))disconnect();
+            WorkflowRunJournal.Reason reason=WorkflowRunJournal.stopReason(cancelled,paused||stop.getAsBoolean(),expired.getAsBoolean(),
+                InferenceSafety.check(context),OllamaForegroundService.isRunning(),"off".equals(CoopSession.get(context).role()));
+            if(reason!=null&&abort.compareAndSet(null,reason))disconnect();
         };
+        java.util.function.Supplier<WorkflowRunJournal.Reason> stopReason=()->cancelled?WorkflowRunJournal.Reason.USER_CANCEL:
+            abort.get()!=null?abort.get():Thread.currentThread().isInterrupted()?WorkflowRunJournal.Reason.INTERRUPTED:null;
         List<WorkflowPolicy.Step> steps=c.steps();
         ScheduledExecutorService watchdog=Executors.newSingleThreadScheduledExecutor(r->{Thread t=new Thread(r,"onhand-workflow-safety");t.setDaemon(true);return t;});
         try{
             if(!c.resumable())return c;
+            watch.run();
+            if(stopReason.get()!=null){stopped(c,stopReason.get());return c;}
             watchdog.scheduleAtFixedRate(watch,0,1,TimeUnit.SECONDS);
             GpuRunner.stop();DistributedRunner.stop();
             while(!c.complete()){
                 watch.run();
-                String stopped=cancelled?"CANCELLED":abort.get();
-                if(stopped!=null||Thread.currentThread().isInterrupted()){c.status=stopped==null?"PAUSED":stopped;save(c);break;}
-                if(!WorkflowPolicy.canAttempt(c.attempts,System.currentTimeMillis(),c.started)||c.totalAttempts>=30){c.status="BLOCKED";save(c);break;}
+                WorkflowRunJournal.Reason halted=stopReason.get();
+                if(halted!=null){stopped(c,halted);break;}
+                if(!WorkflowPolicy.canAttempt(c.attempts,System.currentTimeMillis(),c.started)||c.totalAttempts>=30){
+                    stopped(c,expired.getAsBoolean()?WorkflowRunJournal.Reason.TIME_LIMIT:WorkflowRunJournal.Reason.ATTEMPT_LIMIT);break;
+                }
                 int index=c.results.size();WorkflowPolicy.Step step=steps.get(index);
                 String previous=index==0?"":c.results.get(index-1);
                 boolean retry=c.attempts>0;
-                c.attempts++;c.totalAttempts++;c.unknownAttempts++;c.status="RUNNING";save(c);progress.accept(c);
+                c.attempts++;c.totalAttempts++;c.unknownAttempts++;c.status="RUNNING";c.reason=WorkflowRunJournal.Reason.NONE;save(c);progress.accept(c);
                 StringBuilder output=new StringBuilder();long[] tokens={-1};boolean[] truncated={false};
                 HttpURLConnection request=null;
                 try{
@@ -148,30 +168,29 @@ final class LocalWorkflow {
                         if(abort.get()!=null||cancelled||Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException();
                         JSONObject message=item.optJSONObject("message");
                         if(message!=null){String part=message.optString("content","");
-                            if((long)output.length()+part.length()>WorkflowPolicy.MAX_OUTPUT)throw new IOException("Output limit");output.append(part);}
+                            if((long)output.length()+part.length()>WorkflowPolicy.MAX_OUTPUT)throw new IOException("WORKFLOW_OUTPUT_LIMIT");output.append(part);}
                         if(item.optBoolean("done",false)){
                             Object raw=item.opt("eval_count");
                             if(raw instanceof Number){
                                 double d=((Number)raw).doubleValue();
-                                if(!Double.isFinite(d)||d<0||d!=Math.floor(d)||d>WorkflowPolicy.MAX_TOKENS)throw new IOException("Invalid output token count");
+                                if(!Double.isFinite(d)||d<0||d!=Math.floor(d)||d>WorkflowPolicy.MAX_TOKENS)throw new IOException("WORKFLOW_INVALID_TOKENS");
                                 tokens[0]=(long)d;
                             }
                             truncated[0]="length".equals(item.optString("done_reason"));
                         }
                     });
                 }catch(Exception e){
-                    watch.run();String reason=cancelled?"CANCELLED":abort.get();
-                    c.status=reason!=null?reason:Thread.currentThread().isInterrupted()?"PAUSED":"BLOCKED";
-                    save(c);break; // never blindly retry a transport failure
+                    watch.run();WorkflowRunJournal.Reason reason=stopReason.get();
+                    stopped(c,reason!=null?reason:WorkflowRunJournal.failure(e));break; // no blind transport retry
                 }finally{connection=null;if(request!=null)request.disconnect();}
                 if(tokens[0]>=0){c.unknownAttempts--;c.reportedTokens+=tokens[0];}
-                watch.run();String reason=cancelled?"CANCELLED":abort.get();
-                if(reason!=null||Thread.currentThread().isInterrupted()){c.status=reason==null?"PAUSED":reason;save(c);break;}
-                c.status="VERIFYING";save(c);
+                watch.run();WorkflowRunJournal.Reason reason=stopReason.get();
+                if(reason!=null){stopped(c,reason);break;}
+                c.status="VERIFYING";c.reason=WorkflowRunJournal.Reason.NONE;save(c);progress.accept(c);
                 if(!truncated[0]&&WorkflowPolicy.verified(step,output.toString())){
-                    c.results.add(output.toString());c.attempts=0;c.status=c.complete()?"COMPLETED":"QUEUED";save(c);progress.accept(c);
+                    c.results.add(output.toString());c.attempts=0;c.status=c.complete()?"COMPLETED":"QUEUED";c.reason=WorkflowRunJournal.Reason.VERIFIED;save(c);progress.accept(c);
                 }else{
-                    c.status=c.attempts>=WorkflowPolicy.MAX_ATTEMPTS?"BLOCKED":"RETRY_WAIT";save(c);progress.accept(c);
+                    c.status=c.attempts>=WorkflowPolicy.MAX_ATTEMPTS?"BLOCKED":"RETRY_WAIT";c.reason=truncated[0]?WorkflowRunJournal.Reason.TRUNCATED:WorkflowRunJournal.Reason.VERIFY_FAILED;save(c);progress.accept(c);
                     if("BLOCKED".equals(c.status))break;
                 }
             }
