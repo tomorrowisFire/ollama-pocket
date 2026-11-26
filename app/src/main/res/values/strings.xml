@@ -658,4 +658,14 @@
     <string name="chat_export_user">User</string>
     <string name="chat_export_assistant">Assistant</string>
     <string name="chat_export_other">Other saved message</string>
+    <string name="cloud_conversations">Cloud conversations</string>
+    <string name="cloud_session_label">Conversation %1$d · %2$s</string>
+    <string name="cloud_branch_label">Branch %1$d · %2$s</string>
+    <string name="cloud_new_session">Create a new cloud conversation? Existing conversations remain in memory until this app closes.</string>
+    <string name="cloud_branch_notice">Create a separate conversation from the messages before this question. The original is kept. Nothing is sent until you confirm Send.</string>
+    <string name="cloud_branch_ready">Branch created. Review the question and confirm Send to generate the answer.</string>
+    <string name="cloud_remove_current">Remove current conversation</string>
+    <string name="cloud_remove_confirm">Remove this in-memory cloud conversation and its draft? Other conversations and local history are not affected.</string>
+    <string name="cloud_session_capacity">Up to 16 in-memory conversations across all providers and models. Remove a conversation to create more.</string>
+    <string name="cloud_context_changed">The conversation or provider changed. Review and send again.</string>
 </resources>

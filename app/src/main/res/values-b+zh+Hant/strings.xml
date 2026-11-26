@@ -658,4 +658,14 @@
     <string name="chat_export_user">使用者</string>
     <string name="chat_export_assistant">助理</string>
     <string name="chat_export_other">其他已儲存訊息</string>
+    <string name="cloud_conversations">雲端對話清單</string>
+    <string name="cloud_session_label">對話 %1$d · %2$s</string>
+    <string name="cloud_branch_label">分支 %1$d · %2$s</string>
+    <string name="cloud_new_session">建立新雲端對話？既有對話會保留於記憶體直到應用程式關閉。</string>
+    <string name="cloud_branch_notice">使用此問題之前的訊息建立獨立對話，保留原對話。確認傳送前不會傳輸資料。</string>
+    <string name="cloud_branch_ready">已建立分支，請檢查問題並確認傳送以產生回答。</string>
+    <string name="cloud_remove_current">刪除目前對話</string>
+    <string name="cloud_remove_confirm">刪除此記憶體中的雲端對話及草稿？不影響其他對話及本機記錄。</string>
+    <string name="cloud_session_capacity">所有提供者及模型合計最多 16 個記憶體對話，刪除對話後可建立。</string>
+    <string name="cloud_context_changed">對話或提供者已變更，請檢查後重新傳送。</string>
 </resources>

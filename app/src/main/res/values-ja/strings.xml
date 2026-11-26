@@ -658,4 +658,14 @@
     <string name="chat_export_user">ユーザー</string>
     <string name="chat_export_assistant">アシスタント</string>
     <string name="chat_export_other">その他の保存済みメッセージ</string>
+    <string name="cloud_conversations">クラウド会話一覧</string>
+    <string name="cloud_session_label">会話 %1$d · %2$s</string>
+    <string name="cloud_branch_label">分岐 %1$d · %2$s</string>
+    <string name="cloud_new_session">新しいクラウド会話を作成しますか？既存の会話はアプリ終了までメモリに保持されます。</string>
+    <string name="cloud_branch_notice">この質問以前のメッセージで別の会話を作成します。元の会話を保持し、送信確認までは外部に送信しません。</string>
+    <string name="cloud_branch_ready">分岐を作成しました。質問を確認し、送信を承認すると回答を生成します。</string>
+    <string name="cloud_remove_current">現在の会話を削除</string>
+    <string name="cloud_remove_confirm">メモリ内のこのクラウド会話と下書きを削除しますか？他の会話やローカル履歴には影響しません。</string>
+    <string name="cloud_session_capacity">全提供元・モデルでメモリ内会話は最大16件です。会話を削除すると新規作成できます。</string>
+    <string name="cloud_context_changed">会話または提供元が変わりました。確認してから再送信してください。</string>
 </resources>

@@ -658,4 +658,14 @@
     <string name="chat_export_user">用户</string>
     <string name="chat_export_assistant">助手</string>
     <string name="chat_export_other">其他已保存消息</string>
+    <string name="cloud_conversations">云端对话列表</string>
+    <string name="cloud_session_label">对话 %1$d · %2$s</string>
+    <string name="cloud_branch_label">分支 %1$d · %2$s</string>
+    <string name="cloud_new_session">新建云端对话？现有对话将保存在内存中，直到应用关闭。</string>
+    <string name="cloud_branch_notice">使用此问题之前的消息建立独立对话，保留原对话。确认发送前不会传输数据。</string>
+    <string name="cloud_branch_ready">已创建分支，请检查问题并确认发送以生成回答。</string>
+    <string name="cloud_remove_current">删除当前对话</string>
+    <string name="cloud_remove_confirm">删除此内存中的云端对话及草稿？不影响其他对话和本地记录。</string>
+    <string name="cloud_session_capacity">所有服务商和模型合计最多 16 个内存对话，删除对话后可新建。</string>
+    <string name="cloud_context_changed">对话或服务商已变化，请检查后重新发送。</string>
 </resources>

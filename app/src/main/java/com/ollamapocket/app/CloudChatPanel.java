@@ -25,12 +25,12 @@ final class CloudChatPanel extends LinearLayout {
     private final LinearLayout transcript;
     private final ScrollView scroll;
     private final EditText prompt;
-    private final Button send,stop,settings;
+    private final Button send,stop,settings,conversations;
     private volatile HttpsURLConnection connection;
     private volatile int serial;
     private volatile boolean closed;
     private boolean active, busy;
-    private AlertDialog keyDialog;
+    private AlertDialog keyDialog,actionDialog;
     private CloudApi.Provider provider=CloudApi.Provider.OPENAI;
     private String model="",token="";
     CloudChatPanel(Activity activity,Runnable local){
@@ -47,6 +47,9 @@ final class CloudChatPanel extends LinearLayout {
         back.setOnClickListener(v->local.run());configure.setOnClickListener(v->configure());
         endpoint=new TextView(owner);endpoint.setTextSize(16);endpoint.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
         addView(endpoint,new LayoutParams(-1,-2));
+        conversations=button(R.string.cloud_conversations);
+        conversations.setOnClickListener(v->chooseConversation());
+        addView(conversations,new LayoutParams(-1,-2));
         TextView notice=new TextView(owner);notice.setText(R.string.cloud_context_notice);notice.setTextSize(11);notice.setPadding(0,dp(5),0,dp(5));
         addView(notice,new LayoutParams(-1,-2));
         scroll=new ScrollView(owner);scroll.setFillViewport(true);
@@ -76,27 +79,57 @@ final class CloudChatPanel extends LinearLayout {
     }
     private void toast(int label){Toast.makeText(owner,label,Toast.LENGTH_SHORT).show();}
     boolean isBusy(){return busy;}
-    void activate(){if(closed)return;active=true;owner.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);render();}
+    void activate(){if(closed)return;active=true;owner.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);restoreDraft();render();}
     void pause(){
-        active=false;
+        rememberDraft();active=false;
+        if(actionDialog!=null){actionDialog.dismiss();actionDialog=null;}
         if(keyDialog!=null){keyDialog.dismiss();keyDialog=null;}
         if(busy)cancel();token="";
     }
     void resume(){if(!closed)active=true;}
     void destroy(){pause();closed=true;history.clear();io.shutdownNow();}
     private CloudHistory.Session session(){return history.session(provider.name(),model);}
+    private boolean current(CloudApi.Provider p,String id,CloudHistory.Session s,long revision){
+        return active&&!closed&&!busy&&p==provider&&id.equals(model)&&history.isCurrent(p.name(),id,s,revision);
+    }
+    private void rememberDraft(){
+        if(!model.isEmpty())try{session().draft(prompt.getText().toString());}catch(Exception ignored){}
+    }
+    private void restoreDraft(){
+        prompt.setText(model.isEmpty()?"":session().draft());
+    }
+    private void showAction(AlertDialog dialog){
+        if(actionDialog!=null)actionDialog.dismiss();
+        actionDialog=dialog;
+        dialog.setOnDismissListener(d->{if(actionDialog==dialog)actionDialog=null;});
+        dialog.show();
+        if(dialog.getWindow()!=null)dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+    }
+    private String title(CloudHistory.Session s){
+        List<CloudHistory.Turn> turns=s.turns();
+        String first=turns.isEmpty()?s.draft():turns.get(0).question;
+        if(first.trim().isEmpty())first=getResources().getString(R.string.new_chat);
+        first=first.replace('\n',' ').replace('\r',' ').trim();
+        if(first.length()>38)first=first.substring(0,38)+"…";
+        return getResources().getString(s.branched?R.string.cloud_branch_label:R.string.cloud_session_label,s.id,first);
+    }
     private void render(){
         endpoint.setText(model.isEmpty()?getResources().getString(R.string.cloud_provider_model):provider.title+" · "+model);
         transcript.removeAllViews();
+        conversations.setEnabled(!busy&&!model.isEmpty());
         if(!model.isEmpty()){
-            try{for(CloudHistory.Turn t:session().turns()){bubble(t.question,true);bubble(t.answer,false);}}
-            catch(IllegalStateException e){toast(R.string.cloud_session_limit);}
-        }
+            try{
+                CloudHistory.Session s=session();List<CloudHistory.Turn> turns=s.turns();
+                conversations.setText(title(s));
+                conversations.setContentDescription(getResources().getString(R.string.cloud_conversations)+" · "+title(s));
+                for(int i=0;i<turns.size();i++){CloudHistory.Turn t=turns.get(i);bubble(t.question,true,i);bubble(t.answer,false,i);}
+            }catch(IllegalStateException e){toast(R.string.cloud_session_capacity);}
+        }else conversations.setText(R.string.cloud_conversations);
         scroll.post(()->scroll.fullScroll(View.FOCUS_DOWN));
     }
-    private void bubble(String value,boolean user){
+    private void bubble(String value,boolean user,int turn){
         TextView text=new TextView(owner);text.setTextSize(15);text.setTextIsSelectable(true);
-        text.setPadding(dp(10),dp(10),dp(10),dp(10));text.setLineSpacing(dp(3),1f);
+        text.setPadding(dp(10),dp(10),dp(10),dp(10));text.setLineSpacing(dp(3),1f);text.setAutoLinkMask(0);
         View rich=user?null:ChatRichView.create(owner,provider.title,value,"",text.getCurrentTextColor(),0x22808080,1f);
         if(rich!=null)transcript.addView(rich,new LayoutParams(-1,-2));
         else{
@@ -104,19 +137,81 @@ final class CloudChatPanel extends LinearLayout {
             if(user)text.setBackgroundColor(0x14808080);
             transcript.addView(text,new LayoutParams(-1,-2));
         }
+        LinearLayout actions=new LinearLayout(owner);actions.setOrientation(HORIZONTAL);
+        Button edit=button(user?R.string.chat_edit_question:R.string.chat_regenerate);
+        edit.setOnClickListener(v->branch(turn,user));actions.addView(edit,new LayoutParams(0,dp(48),1f));
         if(!user){
             Button copy=button(R.string.copy);
             copy.setOnClickListener(v->{ClipboardManager cb=(ClipboardManager)owner.getSystemService(Context.CLIPBOARD_SERVICE);
                 if(cb!=null){cb.setPrimaryClip(ClipData.newPlainText(provider.title,value));toast(R.string.copied);}});
-            transcript.addView(copy,new LayoutParams(-2,dp(48)));
+            actions.addView(copy,new LayoutParams(0,dp(48),1f));
         }
+        transcript.addView(actions,new LayoutParams(-1,-2));
+    }
+    private void chooseConversation(){
+        if(busy||closed||!active||model.isEmpty())return;
+        rememberDraft();
+        final CloudApi.Provider p=provider;final String id=model;final CloudHistory.Session old=session();
+        final long rev=old.revision();
+        List<CloudHistory.Session> items=history.conversations(p.name(),id);
+        String[] labels=new String[items.size()];
+        for(int i=0;i<items.size();i++)labels[i]=title(items.get(i));
+        showAction(new AlertDialog.Builder(owner).setTitle(R.string.cloud_conversations)
+            .setSingleChoiceItems(labels,items.indexOf(old),(d,w)->{
+                d.dismiss();if(!current(p,id,old,rev))return;
+                try{history.select(p.name(),id,items.get(w));restoreDraft();status.setText("");render();}
+                catch(Exception e){toast(R.string.cloud_context_changed);}
+            }).setNegativeButton(R.string.cancel,null)
+            .setNeutralButton(R.string.cloud_remove_current,(d,w)->removeConversation(p,id,old,rev))
+            .setPositiveButton(R.string.new_chat,(d,w)->newChat()).create());
+    }
+    private void removeConversation(CloudApi.Provider p,String id,CloudHistory.Session old,long rev){
+        showAction(new AlertDialog.Builder(owner).setMessage(R.string.cloud_remove_confirm)
+            .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,(d,w)->{
+                if(!current(p,id,old,rev))return;
+                try{history.removeCurrent(p.name(),id,old,rev);restoreDraft();status.setText("");render();}
+                catch(Exception e){toast(R.string.cloud_context_changed);}
+            }).create());
     }
     void newChat(){
-        if(busy||model.isEmpty())return;
-        new AlertDialog.Builder(owner).setMessage(R.string.cloud_reset)
+        if(busy||!active||closed||model.isEmpty())return;
+        final CloudApi.Provider p=provider;final String id=model;final CloudHistory.Session old=session();
+        long rev=old.revision();
+        showAction(new AlertDialog.Builder(owner).setMessage(R.string.cloud_new_session)
             .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,(d,w)->{
-                if(!active||busy)return;session().clear();prompt.setText("");status.setText("");render();
-            }).show();
+                if(!current(p,id,old,rev))return;
+                try{rememberDraft();history.newSession(p.name(),id);restoreDraft();status.setText("");render();}
+                catch(IllegalStateException e){toast(R.string.cloud_session_capacity);}
+            }).create());
+    }
+    private void branch(int turn,boolean editing){
+        if(busy||!active||closed||model.isEmpty())return;
+        final CloudApi.Provider p=provider;final String id=model;final CloudHistory.Session source=session();
+        long rev=source.revision();List<CloudHistory.Turn> turns=source.turns();
+        if(turn<0||turn>=turns.size()){toast(R.string.cloud_context_changed);return;}
+        final String original=turns.get(turn).question;
+        final EditText changed;
+        AlertDialog.Builder builder=new AlertDialog.Builder(owner).setTitle(editing?R.string.chat_edit_question:R.string.chat_regenerate);
+        if(editing){
+            LinearLayout form=new LinearLayout(owner);form.setOrientation(VERTICAL);int pad=dp(16);form.setPadding(pad,pad,pad,pad);
+            TextView notice=new TextView(owner);notice.setText(R.string.cloud_branch_notice);form.addView(notice);
+            changed=input(R.string.message_hint,InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE,CloudHistory.MAX_PROMPT);
+            changed.setText(original);changed.setMinLines(3);changed.setMaxLines(7);form.addView(changed);
+            builder.setView(form);
+        }else{changed=null;builder.setMessage(R.string.cloud_branch_notice);}
+        AlertDialog dialog=builder.setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.chat_branch_create,null).create();
+        showAction(dialog);
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
+            if(!current(p,id,source,rev)){dialog.dismiss();toast(R.string.cloud_context_changed);return;}
+            String q=changed==null?original:changed.getText().toString().trim();
+            if(q.isEmpty()){toast(R.string.chat_prompt_limit);return;}
+            try{
+                rememberDraft();history.fork(p.name(),id,source,rev,turn,q);
+                dialog.dismiss();restoreDraft();status.setText(R.string.cloud_branch_ready);render();
+                // Branch creation is local only. The user must press Send and consent to a provider request.
+            }catch(IllegalStateException e){toast(R.string.cloud_session_capacity);}
+            catch(IllegalArgumentException e){toast(R.string.cloud_context_changed);}
+        });
     }
     private void configure(){
         if(busy||closed||!active)return;
@@ -167,32 +262,35 @@ final class CloudChatPanel extends LinearLayout {
             CloudApi.Provider selected=values[pick.getSelectedItemPosition()];
             String id=chosenModel.getText().toString().trim(),apiKey=key.getText().toString().trim();
             if(id.isEmpty()||apiKey.isEmpty()||apiKey.indexOf('\r')>=0||apiKey.indexOf('\n')>=0){toast(R.string.cloud_fields);return;}
-            try{history.session(selected.name(),id);}catch(IllegalStateException e){toast(R.string.cloud_session_limit);return;}
+            try{history.session(selected.name(),id);}catch(IllegalStateException e){toast(R.string.cloud_session_capacity);return;}
             catch(IllegalArgumentException e){toast(R.string.cloud_fields);return;}
             if(remember.isChecked())try{vault.save(selected,apiKey);}catch(Exception e){toast(R.string.cloud_key_error);return;}
-            provider=selected;model=id;token=apiKey;status.setText("");dialog.dismiss();render();
+            rememberDraft();provider=selected;model=id;token=apiKey;restoreDraft();status.setText("");dialog.dismiss();render();
         });
     }
     private void setBusy(boolean b){
         busy=b;send.setEnabled(!b);send.setVisibility(b?GONE:VISIBLE);
         stop.setEnabled(b);stop.setVisibility(b?VISIBLE:GONE);
-        settings.setEnabled(!b);prompt.setEnabled(!b);
+        settings.setEnabled(!b);prompt.setEnabled(!b);conversations.setEnabled(!b&&!model.isEmpty());
     }
     private void prepareSend(){
         if(busy||!active||closed)return;
         final String q=prompt.getText().toString().trim();if(q.isEmpty())return;
         if(model.isEmpty()||token.isEmpty()){toast(R.string.cloud_key_needed);configure();return;}
         final CloudApi.Provider p=provider;final String id=model;final CloudHistory.Session s=session();
+        final long revision=s.revision();
         final List<CloudHistory.Message> messages=s.request(q);
-        new AlertDialog.Builder(owner).setTitle(p.title)
+        showAction(new AlertDialog.Builder(owner).setTitle(p.title)
             .setMessage(getResources().getString(R.string.cloud_send_context,p.title,messages.size()))
             .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.send,(d,w)->{
-                if(!active||busy||closed||token.isEmpty()||p!=provider||!id.equals(model))return;
-                request(p,id,token,q,s,messages);
-            }).show();
+                if(token.isEmpty()||!current(p,id,s,revision)||!q.equals(prompt.getText().toString().trim())){
+                    toast(R.string.cloud_context_changed);return;
+                }
+                request(p,id,token,q,s,revision,messages);
+            }).create());
     }
-    private void request(CloudApi.Provider p,String id,String apiKey,String q,CloudHistory.Session s,List<CloudHistory.Message> messages){
-        int request=++serial;setBusy(true);status.setText(R.string.thinking);
+    private void request(CloudApi.Provider p,String id,String apiKey,String q,CloudHistory.Session s,long revision,List<CloudHistory.Message> messages){
+        s.draft(q);int request=++serial;setBusy(true);status.setText(R.string.thinking);
         io.execute(()->{
             HttpsURLConnection c=null;String result=null;
             try{
@@ -205,8 +303,10 @@ final class CloudChatPanel extends LinearLayout {
             owner.runOnUiThread(()->{
                 if(closed||request!=serial||!active)return;
                 setBusy(false);
+                if(!current(p,id,s,revision)){status.setText(R.string.cloud_context_changed);return;}
                 if(output==null){status.setText(R.string.cloud_fail);return;}
-                s.complete(q,output);prompt.setText("");status.setText(R.string.cloud_history_limit);render();
+                try{s.complete(q,output);prompt.setText("");status.setText(R.string.cloud_history_limit);render();}
+                catch(IllegalArgumentException e){status.setText(R.string.cloud_fail);}
             });
         });
     }

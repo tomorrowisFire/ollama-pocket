@@ -12,6 +12,7 @@ on:
       - 'tests/ChatMarkupTest.java'
       - 'tests/ChatBlocksTest.java'
       - 'tests/CloudPolicyTest.java'
+      - 'tests/CloudBranchTest.java'
       - 'tests/WorkspaceLayoutPolicyTest.java'
       - 'tests/DiagnosticValuesTest.java'
       - 'tests/AdvisorDisplayDataTest.java'
@@ -65,8 +66,9 @@ jobs:
       - name: Test cloud scope and authenticated encryption (pure Java)
         run: |
           mkdir -p /tmp/cloud-tests
-          javac -d /tmp/cloud-tests app/src/main/java/com/ollamapocket/app/CloudHistory.java app/src/main/java/com/ollamapocket/app/CloudKeyCipher.java tests/CloudPolicyTest.java
+          javac -d /tmp/cloud-tests app/src/main/java/com/ollamapocket/app/CloudHistory.java app/src/main/java/com/ollamapocket/app/CloudKeyCipher.java tests/CloudPolicyTest.java tests/CloudBranchTest.java
           java -cp /tmp/cloud-tests com.ollamapocket.app.CloudPolicyTest
+          java -cp /tmp/cloud-tests com.ollamapocket.app.CloudBranchTest
       - name: Test responsive workspace policy (pure Java)
         run: |
           mkdir -p /tmp/workspace-tests
