@@ -746,4 +746,21 @@
     <string name="cloud_session_cost">已知预估费用：$%1$s · 未知费用请求：%2$s</string>
     <string name="cloud_budget">会话预估支出上限（USD，可选）</string>
     <string name="cloud_budget_stop">已达到预估支出上限或用量未知。修改上限前请核查服务商账单。</string>
+    <string name="auto_title">任务自动化</string>
+    <string name="auto_mcp">MCP 工具</string>
+    <string name="auto_workflow">本地工作流</string>
+    <string name="auto_mcp_notice">仅限可信私有局域网。HTTP 未加密。连接您管理的服务器端口和 /mcp 路径。MCP 2025-11-25 兼容模式。不发送 API 密钥或聊天记录。</string>
+    <string name="auto_mcp_tools">发现的工具：</string>
+    <string name="auto_mcp_call_notice">仅提供声明为只读的工具。服务器声明并非安全保证；请在可信服务器上确认准确参数。中断后请求仍可能执行，不会自动重试。</string>
+    <string name="auto_arguments">JSON 参数</string>
+    <string name="auto_mcp_failed">工具请求失败或中断。重试前检查服务器状态。</string>
+    <string name="auto_workflow_notice">仅本地 CPU。最多10步，每步重试2次，每次512输出令牌，从开始起30分钟（含暂停）。每行：提示词 | 必需文字。仅传递上一步成功结果。计划和验证结果保存在设备上，新运行覆盖旧检查点。不要输入秘密。文字匹配不代表质量审核。</string>
+    <string name="auto_plan">提示词 | 必需文字（每行一步）</string>
+    <string name="auto_start">开始新运行</string>
+    <string name="auto_resume">恢复已保存运行</string>
+    <string name="auto_clear">清除已保存运行</string>
+    <string name="auto_pause">暂停并关闭</string>
+    <string name="auto_checkpoint_error">无法读取或保存检查点。</string>
+    <string name="auto_blocked">运行已完成、过期或阻止。开始新运行前检查记录。</string>
+    <string name="auto_invalid_plan">计划无效或已修改。请输入1至10行 提示词 | 必需文字。</string>
 </resources>

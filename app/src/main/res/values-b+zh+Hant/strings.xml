@@ -746,4 +746,21 @@
     <string name="cloud_session_cost">已知預估費用：$%1$s · 費用未知請求：%2$s</string>
     <string name="cloud_budget">工作階段預估支出上限（USD，選填）</string>
     <string name="cloud_budget_stop">已達預估支出上限或用量未知。修改上限前請確認服務商帳單。</string>
+    <string name="auto_title">工作自動化</string>
+    <string name="auto_mcp">MCP 工具</string>
+    <string name="auto_workflow">本機工作流程</string>
+    <string name="auto_mcp_notice">僅限可信私人區域網路。HTTP 未加密。連接您管理的伺服器連接埠與 /mcp 路徑。MCP 2025-11-25 相容模式。不傳送 API 金鑰或聊天記錄。</string>
+    <string name="auto_mcp_tools">探索到的工具：</string>
+    <string name="auto_mcp_call_notice">僅提供宣告為唯讀的工具。伺服器宣告不保證安全；請在可信伺服器確認確切參數。中斷後要求仍可能執行，不會自動重試。</string>
+    <string name="auto_arguments">JSON 參數</string>
+    <string name="auto_mcp_failed">工具要求失敗或中斷。重試前確認伺服器狀態。</string>
+    <string name="auto_workflow_notice">僅本機 CPU。最多10步，每步重試2次，每次512輸出權杖，自開始起30分鐘（含暫停）。每列：提示詞 | 必要文字。只傳遞上一步成功結果。計畫與驗證結果儲存於裝置，新執行取代舊檢查點。勿輸入秘密。文字符合不等於品質審核。</string>
+    <string name="auto_plan">提示詞 | 必要文字（每列一步）</string>
+    <string name="auto_start">開始新執行</string>
+    <string name="auto_resume">繼續已儲存的執行</string>
+    <string name="auto_clear">清除已儲存的執行</string>
+    <string name="auto_pause">暫停並關閉</string>
+    <string name="auto_checkpoint_error">無法讀取或儲存檢查點。</string>
+    <string name="auto_blocked">執行已完成、逾期或被阻止。開始新執行前請確認記錄。</string>
+    <string name="auto_invalid_plan">計畫無效或已變更。請輸入1至10列 提示詞 | 必要文字。</string>
 </resources>

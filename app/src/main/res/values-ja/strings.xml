@@ -746,4 +746,21 @@
     <string name="cloud_session_cost">確認済み推定費用：$%1$s · 費用不明のリクエスト：%2$s</string>
     <string name="cloud_budget">セッション推定支出上限（USD、任意）</string>
     <string name="cloud_budget_stop">推定支出上限に達したか使用量が不明です。上限を変更する前に請求情報を確認してください。</string>
+    <string name="auto_title">自動化</string>
+    <string name="auto_mcp">MCP ツール</string>
+    <string name="auto_workflow">ローカルワークフロー</string>
+    <string name="auto_mcp_notice">信頼できるプライベートLANのみ。HTTPは暗号化されません。管理するサーバーのポートと /mcp に接続します。MCP 2025-11-25互換モード。APIキーやチャット履歴は送信しません。</string>
+    <string name="auto_mcp_tools">検出されたツール：</string>
+    <string name="auto_mcp_call_notice">読み取り専用と申告されたツールのみ提供します。サーバーの申告は保証ではありません。信頼できるサーバーで引数を確認してください。中断後も処理される場合があり、自動再試行はしません。</string>
+    <string name="auto_arguments">JSON 引数</string>
+    <string name="auto_mcp_failed">ツール要求が失敗または中断しました。再試行前にサーバーの状態を確認してください。</string>
+    <string name="auto_workflow_notice">ローカルCPU専用。最大10段階、各2回再試行、1回512出力トークン、停止時間を含む開始後30分。各行は プロンプト | 必須文字列。前段階の成功結果のみ渡します。計画と検証済み結果を端末に保存し、新規実行は前の記録を置換します。秘密情報を入力しないでください。文字列一致は品質評価ではありません。</string>
+    <string name="auto_plan">プロンプト | 必須文字列（1行1段階）</string>
+    <string name="auto_start">新規実行</string>
+    <string name="auto_resume">保存した実行を再開</string>
+    <string name="auto_clear">保存した実行を削除</string>
+    <string name="auto_pause">一時停止して閉じる</string>
+    <string name="auto_checkpoint_error">チェックポイントを読み書きできません。</string>
+    <string name="auto_blocked">完了、期限切れ、または停止状態です。新規実行前に確認してください。</string>
+    <string name="auto_invalid_plan">計画が無効または変更されました。プロンプト | 必須文字列 を1～10行入力してください。</string>
 </resources>

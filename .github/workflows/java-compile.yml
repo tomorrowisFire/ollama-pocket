@@ -32,6 +32,7 @@ on:
       - 'tests/CloudStreamTest.java'
       - 'tests/InferenceSafetyPolicyTest.java'
       - 'tests/Stage07BatchPolicyTest.java'
+      - 'tests/WorkflowPolicyTest.java'
       - 'tests/CoopMemoryPlannerTest.java'
       - 'tests/CoopPlanLocaleDataTest.java'
 
@@ -152,6 +153,11 @@ jobs:
           mkdir -p /tmp/stage07-tests
           javac -d /tmp/stage07-tests app/src/main/java/com/ollamapocket/app/CoopMemoryPlanner.java app/src/main/java/com/ollamapocket/app/InferenceSafetyPolicy.java tests/Stage07BatchPolicyTest.java
           java -cp /tmp/stage07-tests com.ollamapocket.app.Stage07BatchPolicyTest
+      - name: Test bounded local workflow policy
+        run: |
+          mkdir -p /tmp/workflow-tests
+          javac -d /tmp/workflow-tests app/src/main/java/com/ollamapocket/app/WorkflowPolicy.java tests/WorkflowPolicyTest.java
+          java -cp /tmp/workflow-tests com.ollamapocket.app.WorkflowPolicyTest
       - name: Audit direct Hangul UI literals
         run: python3 tests/locale_ui_audit.py
       - name: Verify OnHand AI brand and locale resource parity

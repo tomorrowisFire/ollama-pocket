@@ -200,6 +200,7 @@ public final class MainActivity extends Activity {
     private String lastFailedPullModel="";
     private boolean diagnosticBusy;
     private volatile boolean benchmarkBusy;
+    private AutomationUi automationUi;
     private TextView diagnosticStatus, performanceHudView;
     private volatile PerformanceHud.Sample lastHud;
     private final Runnable hudPoll=new Runnable() {
@@ -434,12 +435,13 @@ public final class MainActivity extends Activity {
         long now = android.os.SystemClock.elapsedRealtime();
         if (lastPauseElapsed > 0 && now - lastPauseElapsed > 120_000
                 && getPreferences(MODE_PRIVATE).getBoolean("welcome_v2_seen", false)
-                && !cloudMode && !pullBusy && !chatBusy && !benchmarkBusy && (voice==null||(!voice.listening()&&!voice.speaking()))) {
+                && !AutomationUi.busy() && !cloudMode && !pullBusy && !chatBusy && !benchmarkBusy && (voice==null||(!voice.listening()&&!voice.speaking()))) {
             ads.showAppOpenIfReady();
         }
     }
     @Override protected void onPause() {
         foreground=false;
+        if(automationUi!=null)automationUi.pause();
         if(localTransferDialog!=null){localTransferDialog.dismiss();localTransferDialog=null;}
         saveLocalDraft();
         if(cloudPanel!=null)cloudPanel.pause();
@@ -453,6 +455,7 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onDestroy() {
         saveLocalDraft();
+        if(automationUi!=null)automationUi.pause();
         chatCancelled=true;
         if(navigationDrawer!=null&&navigationDrawer.isShowing())navigationDrawer.dismiss();
         if (chatConnection != null) chatConnection.disconnect();
@@ -838,6 +841,9 @@ public final class MainActivity extends Activity {
         exportConversation.setOnClickListener(v->chooseChatExport());
         rowItem(chatTools,exportConversation,0,0);
         margin(chatTools,localChatContent,0,7);
+        Button automation=button(getString(R.string.auto_title),false);
+        automation.setOnClickListener(v->{if(guestOnly||cloudMode||isUiBusy()){toast(getString(R.string.busy));return;}if(voice!=null)voice.cancel();if(automationUi==null)automationUi=new AutomationUi(this);automationUi.open(currentModel);});
+        margin(automation,localChatContent,0,4);
         modelChooser.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onNothingSelected(AdapterView<?> parent) { }
             @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -1161,7 +1167,7 @@ public final class MainActivity extends Activity {
     }
 
     private boolean isUiBusy(){
-        return attachmentReading||chatBusy||pullBusy||diagnosticBusy||benchmarkBusy
+        return AutomationUi.busy()||attachmentReading||chatBusy||pullBusy||diagnosticBusy||benchmarkBusy
                ||(cloudPanel!=null&&cloudPanel.isBusy())||HuggingFaceCatalog.isDownloading();
     }
 
@@ -1312,7 +1318,7 @@ public final class MainActivity extends Activity {
     }
 
     private void beginHardwareSelfTest() {
-        if (diagnosticBusy || chatBusy || pullBusy || benchmarkBusy) {
+        if (AutomationUi.busy() || diagnosticBusy || chatBusy || pullBusy || benchmarkBusy) {
             toast(getString(R.string.busy)); return;
         }
         if (currentModel == null || currentModel.isEmpty() || knownModels.isEmpty()) {
@@ -2449,7 +2455,7 @@ public final class MainActivity extends Activity {
     }
 
     private void selectModel(String name) {
-        if(chatBusy||attachmentReading||!knownModels.contains(name))return;
+        if(AutomationUi.busy()||chatBusy||attachmentReading||!knownModels.contains(name))return;
         saveLocalDraft();
         currentModel=name;
         getPreferences(MODE_PRIVATE).edit().putString("model",name).apply();
@@ -2465,7 +2471,7 @@ public final class MainActivity extends Activity {
         if (model.isEmpty() || !model.matches("[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,119}")) {
             toast(getString(R.string.model_tag_invalid)); return;
         }
-        if (pullBusy || benchmarkBusy || HuggingFaceCatalog.isDownloading()) {
+        if (AutomationUi.busy() || pullBusy || benchmarkBusy || HuggingFaceCatalog.isDownloading()) {
             toast(getString(R.string.busy));return;
         }
         long featuredBytes=modelBytes.getOrDefault(model,0L);
