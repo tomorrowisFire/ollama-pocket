@@ -2,6 +2,8 @@ package com.ollamapocket.app;
 
 import android.annotation.TargetApi;
 import android.content.*;
+import android.graphics.Bitmap;
+import java.nio.ByteBuffer;
 import android.os.*;
 import java.io.*;
 import java.util.UUID;
@@ -13,6 +15,38 @@ final class PdfTextClient {
     private PdfTextClient(){}
     private static AttachmentText.Failure failure(AttachmentText.Problem p){return new AttachmentText.Failure(p);}
     static AttachmentText.Result read(Context context,String name,InputStream source)throws IOException {
+        Bundle b=readBundle(context,source,0);
+        String text=b.getString("text","");
+        int pages=b.getInt("pages"),examined=b.getInt("examined"),withText=b.getInt("textPages");
+        if(text.trim().isEmpty()||text.length()>AttachmentText.MAX_EXCERPT||pages<=0||examined<=0||
+            examined>Math.min(pages,PdfExcerpt.MAX_PAGES)||withText<=0||withText>examined)
+            throw failure(AttachmentText.Problem.INVALID);
+        return new AttachmentText.Result(AttachmentText.safeName(name),text,b.getBoolean("partial"),false,true,pages,examined,withText);
+    }
+    @TargetApi(35)
+    static AttachmentText.Result ocr(Context context,String name,InputStream source,OcrPolicy.Script script,int number)throws IOException{
+        if(!OcrPolicy.validPage(number))throw failure(AttachmentText.Problem.OCR_PAGE);
+        Bundle b=readBundle(context,source,number);b.setClassLoader(SharedMemory.class.getClassLoader());
+        SharedMemory pixels=b.getParcelable("pixels",SharedMemory.class);
+        if(pixels==null)throw failure(AttachmentText.Problem.INVALID);
+        Bitmap bitmap=null;
+        try(SharedMemory memory=pixels){
+            int w=b.getInt("width"),h=b.getInt("height"),page=b.getInt("page"),pages=b.getInt("pages");
+            if(!OcrPolicy.validBitmap(w,h)||page!=number||pages<page||memory.getSize()!=w*h*4)
+                throw failure(AttachmentText.Problem.INVALID);
+            bitmap=Bitmap.createBitmap(w,h,Bitmap.Config.ARGB_8888);
+            if(bitmap.getRowBytes()!=w*4||bitmap.getByteCount()!=memory.getSize())
+                throw failure(AttachmentText.Problem.INVALID);
+            ByteBuffer buffer=memory.mapReadOnly();
+            try{bitmap.copyPixelsFromBuffer(buffer);}finally{SharedMemory.unmap(buffer);}
+            Bitmap owned=bitmap;bitmap=null;
+            return ImageOcr.readPage(name,owned,script,page,pages);
+        }catch(AttachmentText.Failure e){throw e;}
+        catch(OutOfMemoryError e){throw failure(AttachmentText.Problem.TOO_LARGE);}
+        catch(Exception e){throw failure(AttachmentText.Problem.OCR_FAILED);}
+        finally{if(bitmap!=null)bitmap.recycle();}
+    }
+    private static Bundle readBundle(Context context,InputStream source,int page)throws IOException{
         if(Build.VERSION.SDK_INT<35)throw failure(AttachmentText.Problem.PDF_VERSION);
         if(source==null)throw failure(AttachmentText.Problem.INVALID);
         File temporary=null;
@@ -33,20 +67,30 @@ final class PdfTextClient {
             try(ParcelFileDescriptor input=ParcelFileDescriptor.open(temporary,ParcelFileDescriptor.MODE_READ_ONLY)){
                 if(!temporary.delete())throw failure(AttachmentText.Problem.INVALID);
                 temporary=null;
-                return parse(context.getApplicationContext(),name,input);
+                return parse(context.getApplicationContext(),input,page);
             }
         }finally{if(temporary!=null)temporary.delete();}
     }
     @TargetApi(35)
-    private static AttachmentText.Result parse(Context app,String name,ParcelFileDescriptor input)throws IOException{
+    private static void closePixels(Bundle b){
+        try{
+            b.setClassLoader(SharedMemory.class.getClassLoader());
+            SharedMemory m=b.getParcelable("pixels",SharedMemory.class);
+            if(m!=null)m.close();
+        }catch(Exception ignored){}
+    }
+    @TargetApi(35)
+    private static Bundle parse(Context app,ParcelFileDescriptor input,int page)throws IOException{
         if(Looper.myLooper()==Looper.getMainLooper())throw new IOException("PDF read must be off the UI thread");
         CountDownLatch done=new CountDownLatch(1);
         AtomicReference<Bundle> result=new AtomicReference<>();
         AtomicBoolean active=new AtomicBoolean(true);
         AtomicBoolean sent=new AtomicBoolean();
         Messenger reply=new Messenger(new Handler(Looper.getMainLooper(),msg->{
-            if(msg.what==PdfExtractService.RESULT&&active.get()){
-                result.compareAndSet(null,msg.getData());done.countDown();
+            if(msg.what==PdfExtractService.RESULT){
+                Bundle data=msg.getData();
+                if(active.get()&&result.compareAndSet(null,data))done.countDown();
+                else if(page>0)closePixels(data);
             }
             return true;
         }));
@@ -54,8 +98,8 @@ final class PdfTextClient {
             @Override public void onServiceConnected(ComponentName component,IBinder service){
                 if(!active.get()||!sent.compareAndSet(false,true))return;
                 try{
-                    Message request=Message.obtain(null,PdfExtractService.READ);request.replyTo=reply;
-                    Bundle data=new Bundle();data.putParcelable("fd",input);request.setData(data);
+                    Message request=Message.obtain(null,page>0?PdfExtractService.RASTER:PdfExtractService.READ);request.replyTo=reply;
+                    Bundle data=new Bundle();data.putParcelable("fd",input);data.putInt("page",page);request.setData(data);
                     new Messenger(service).send(request);
                 }catch(Exception e){done.countDown();}
             }
@@ -82,12 +126,7 @@ final class PdfTextClient {
                 try{p=AttachmentText.Problem.valueOf(error);}catch(IllegalArgumentException e){p=AttachmentText.Problem.INVALID;}
                 throw failure(p);
             }
-            String text=b.getString("text","");
-            int pages=b.getInt("pages"),examined=b.getInt("examined"),withText=b.getInt("textPages");
-            if(text.trim().isEmpty()||text.length()>AttachmentText.MAX_EXCERPT||pages<=0||examined<=0||
-                examined>Math.min(pages,PdfExcerpt.MAX_PAGES)||withText<=0||withText>examined)
-                throw failure(AttachmentText.Problem.INVALID);
-            return new AttachmentText.Result(AttachmentText.safeName(name),text,b.getBoolean("partial"),false,true,pages,examined,withText);
+            return b;
         }catch(SecurityException e){throw failure(AttachmentText.Problem.INVALID);}
         finally{active.set(false);if(bound)try{app.unbindService(conn);}catch(Exception ignored){}}
     }
