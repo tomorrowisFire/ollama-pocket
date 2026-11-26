@@ -15,6 +15,7 @@ on:
       - 'app/src/main/java/**'
       - 'tests/CloudRequestAdviceTest.java'
       - 'tests/CloudProviderOverviewTest.java'
+      - 'tests/WorkspaceDictationPolicyTest.java'
       - 'tests/CoopCapacityAdviceTest.java'
       - 'tests/ModelResourceAdviceTest.java'
       - 'tests/KnowledgeAnswerPolicyTest.java'

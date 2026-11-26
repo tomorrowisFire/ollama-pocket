@@ -1157,4 +1157,14 @@
     <string name="api_overview_lan_usage">Usage totals include this provider’s tracked LAN addresses in this session. LAN costs are not estimated and may still incur fees.</string>
     <string name="api_overview_ledger_full">New request blocked: session accounting capacity reached for new scopes. Existing tracked scopes remain available.</string>
     <string name="api_overview_configure">Configure provider</string>
+    <string name="workspace_voice_field">Dictate: %1$s</string>
+    <string name="workspace_voice_permission">Grant microphone access in chat Voice or Android app settings, then return to this field. Your draft is unchanged.</string>
+    <string name="workspace_voice_notice">Target: %1$s\nOne-shot on-device speech recognition. Choose a speech language, start recording, review the text and confirm append. No automatic save, send or execution. The original draft is retained until confirmation.</string>
+    <string name="workspace_voice_start">Start recording</string>
+    <string name="workspace_voice_title">Workspace voice input</string>
+    <string name="workspace_voice_append">Append reviewed text</string>
+    <string name="workspace_voice_listening">Listening on device… Finish speaking or cancel.</string>
+    <string name="workspace_voice_limit">Text does not fit this field or contains invalid characters. Nothing was appended.</string>
+    <string name="workspace_voice_review">Review the recognized text below. After append: %1$d / %2$d UTF-16 units. Nothing has been saved or sent.</string>
+    <string name="workspace_voice_changed">The target draft or workspace changed. Nothing was appended.</string>
 </resources>

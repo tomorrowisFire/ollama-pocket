@@ -19,6 +19,7 @@ import java.util.function.Function;
 final class ProjectWorkspaceUi {
     private static final AtomicBoolean MODAL=new AtomicBoolean(),WORK=new AtomicBoolean();
     private final Activity owner;
+    private final WorkspaceDictation dictation;
     private final BooleanSupplier eligible;
     private final ProjectWorkspacePolicy.Session session=new ProjectWorkspacePolicy.Session();
     private ProjectTransactions.Snapshot<ProjectLibrary.State> snapshot;
@@ -37,7 +38,7 @@ final class ProjectWorkspaceUi {
     private ProjectLibrary.Link currentLink;
     private Function<ProjectLibrary.Link,ProjectChatLinkPolicy.Status> linkResolver;
     private Consumer<ProjectLibrary.Link> linkOpener;
-    ProjectWorkspaceUi(Activity owner,BooleanSupplier eligible){this.owner=owner;this.eligible=eligible;}
+    ProjectWorkspaceUi(Activity owner,BooleanSupplier eligible){this.owner=owner;this.eligible=eligible;this.dictation=new WorkspaceDictation(owner);}
     static boolean busy(){return MODAL.get()||WORK.get();}
     private boolean valid(long token){return session.valid(token)&&eligible.getAsBoolean()&&!owner.isFinishing()&&!owner.isDestroyed();}
     private String s(int id,Object... args){return owner.getString(id,args);}
@@ -63,6 +64,7 @@ final class ProjectWorkspaceUi {
         secure(dialog);dialog.show();secure(dialog);reload();
     }
     void pause(){
+        dictation.cancel();
         session.close();
         if(confirmation!=null){AlertDialog d=confirmation;confirmation=null;d.dismiss();}
         if(dialog!=null){AlertDialog d=dialog;dialog=null;d.dismiss();}
@@ -89,9 +91,13 @@ final class ProjectWorkspaceUi {
         e.setImeOptions(EditorInfo.IME_FLAG_NO_EXTRACT_UI|EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING);
         e.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(max)});
         e.setText(value);if(multi){e.setMinLines(4);e.setMaxLines(10);}
-        body.addView(e,new LinearLayout.LayoutParams(-1,-2));return e;
+        body.addView(e,new LinearLayout.LayoutParams(-1,-2));
+        final long token=session.token();
+        dictation.add(body,e,hint,max,multi,()->valid(token)&&!WORK.get()&&confirmation==null&&dialog!=null&&dialog.isShowing());
+        return e;
     }
     private void reset(){
+        dictation.cancel();
         body.removeAllViews();titleField=null;textField=null;oldTitle="";oldText="";reloadRequired=false;
         notice=new TextView(owner);notice.setSaveEnabled(false);notice.setTextSize(14);body.addView(notice);
         final ScrollView current=scroll;current.post(()->{if(scroll==current)current.scrollTo(0,0);});
@@ -129,7 +135,7 @@ final class ProjectWorkspaceUi {
     private <T> void work(Task<T> task,Consumer<T> success,Consumer<Exception> failure){
         final long token=session.token();
         if(!valid(token)||!WORK.compareAndSet(false,true))return;
-        lockControls(true);status(R.string.project_working);
+        dictation.cancel();lockControls(true);status(R.string.project_working);
         Thread worker=new Thread(()->{
             T value=null;Exception error=null;
             try{value=task.run();}catch(Exception e){error=e;}

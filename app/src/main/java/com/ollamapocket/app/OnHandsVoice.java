@@ -114,8 +114,11 @@ final class OnHandsVoice {
             }
         }catch(RuntimeException e){cancel();toast(R.string.tts_unavailable);}
     }
-    OnHandsVoice(Activity a) {
+    OnHandsVoice(Activity a){this(a,true);}
+    /** Capture-only workspace use does not initialize a TTS engine. */
+    OnHandsVoice(Activity a,boolean playbackEnabled) {
         this.a=a;
+        if(!playbackEnabled){initialized=true;return;}
         tts=new TextToSpeech(a.getApplicationContext(), status->handler.post(()->{
             if(closed)return;
             initialized=true;ready=status==TextToSpeech.SUCCESS;

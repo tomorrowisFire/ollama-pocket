@@ -17,6 +17,7 @@ import java.util.function.Consumer;
 final class AutomationUi {
     private static final AtomicBoolean BUSY=new AtomicBoolean();
     private final Activity owner;
+    private final WorkspaceDictation dictation;
     private AlertDialog dialog,confirmation;
     private McpLanClient mcp;
     private LocalWorkflow workflow;
@@ -26,7 +27,7 @@ final class AutomationUi {
     private volatile Thread worker;
     private volatile boolean stopped;
     private int epoch;
-    AutomationUi(Activity a){owner=a;}
+    AutomationUi(Activity a){owner=a;dictation=new WorkspaceDictation(a);}
     static boolean busy(){return BUSY.get();}
     private String s(int id){return owner.getString(id);}
     private int dp(int n){return Math.round(n*owner.getResources().getDisplayMetrics().density);}
@@ -58,6 +59,7 @@ final class AutomationUi {
         dialog=d;d.setOnDismissListener(x->{if(dialog==d){dialog=null;pause();}});d.show();secure(d);
     }
     void pause(){
+        dictation.cancel();
         stopped=true;epoch++;
         if(reportWorkspace!=null){reportWorkspace.pause();reportWorkspace=null;}
         if(mcp!=null){mcp.cancel();mcp=null;}
@@ -70,6 +72,7 @@ final class AutomationUi {
     }
     private <T> void work(Callable<T> task,Consumer<T> success,Runnable failure){
         if(!BUSY.compareAndSet(false,true)){toast(R.string.busy);return;}
+        dictation.cancel();
         final int token=epoch;
         Thread t=new Thread(()->{
             T result=null;boolean ok=false;
@@ -170,6 +173,8 @@ final class AutomationUi {
         label(panel,s(R.string.conference_notice));label(panel,s(R.string.model_label)+": "+model);
         EditText goal=field(panel,R.string.conference_goal,"",ConferencePolicy.MAX_GOAL+2,false);
         goal.setSingleLine(true);
+        Button voiceGoal=dictation.add(panel,goal,R.string.conference_goal,ConferencePolicy.MAX_GOAL,false,
+            ()->valid(token)&&!busy()&&confirmation==null&&dialog!=null&&dialog.isShowing());
         label(panel,s(R.string.auto_verification_type));
         Spinner picker=new Spinner(owner);
         WorkflowPolicy.Gate[] gates=WorkflowPolicy.Gate.values();
@@ -201,7 +206,7 @@ final class AutomationUi {
         final boolean[] stopRequested={false};
         Runnable enabled=()->{
             boolean idle=!busy();
-            goal.setEnabled(idle);picker.setEnabled(idle);required.setEnabled(idle);
+            goal.setEnabled(idle);voiceGoal.setEnabled(idle);picker.setEnabled(idle);required.setEnabled(idle);
             controls[0].setEnabled(idle);controls[3].setEnabled(idle);
             controls[1].setEnabled(!idle&&conference!=null&&!stopRequested[0]);
             controls[2].setEnabled(idle&&terminal[0]!=null);
@@ -591,6 +596,8 @@ final class AutomationUi {
         ScrollView sc=new ScrollView(owner);sc.addView(l);
         AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.auto_goal_planner).setView(sc)
             .setNegativeButton(R.string.close,null).setNeutralButton(R.string.stop,null).setPositiveButton(R.string.auto_apply_draft,null).create();
+        Button voiceGoal=dictation.add(l,goal,R.string.auto_goal_planner_goal,WorkflowGoalPlanner.MAX_GOAL,false,
+            ()->valid(token)&&!busy()&&confirmation==d&&d.isShowing()&&original.equals(draft.getText().toString()));
         generate[0]=button(l,R.string.auto_goal_generate,()->{
             if(!valid(token)||!d.isShowing()||busy()||active[0]!=null)return;
             final String requested;
@@ -607,7 +614,7 @@ final class AutomationUi {
                 if(active[0]!=request){updateParent.run();return;}
                 active[0]=null;updateParent.run();
                 if(!d.isShowing())return;
-                goal.setEnabled(true);
+                goal.setEnabled(true);voiceGoal.setEnabled(true);
                 if(!cancelling[0]&&requested.equals(goal.getText().toString().trim())&&original.equals(draft.getText().toString())){
                     candidate[0]=value;reviewedGoal[0]=requested;preview.setText(value);
                 }else preview.setText(R.string.auto_goal_cancelled);
@@ -621,12 +628,12 @@ final class AutomationUi {
                 active[0]=null;updateParent.run();
                 if(!d.isShowing())return;
                 preview.setText(cancelling[0]?R.string.auto_goal_cancelled:R.string.auto_goal_failed);
-                goal.setEnabled(true);d.getButton(DialogInterface.BUTTON_POSITIVE).setEnabled(false);
+                goal.setEnabled(true);voiceGoal.setEnabled(true);d.getButton(DialogInterface.BUTTON_POSITIVE).setEnabled(false);
                 d.getButton(DialogInterface.BUTTON_NEUTRAL).setEnabled(false);
                 d.getButton(DialogInterface.BUTTON_NEGATIVE).setEnabled(true);
                 generate[0].setEnabled(true);
             });
-            updateParent.run();goal.setEnabled(false);
+            updateParent.run();goal.setEnabled(false);voiceGoal.setEnabled(false);
             d.getButton(DialogInterface.BUTTON_POSITIVE).setEnabled(false);
             d.getButton(DialogInterface.BUTTON_NEUTRAL).setEnabled(true);
             generate[0].setEnabled(false);

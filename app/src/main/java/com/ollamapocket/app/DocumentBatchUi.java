@@ -24,6 +24,7 @@ import java.util.function.Consumer;
 final class DocumentBatchUi {
     private static final AtomicBoolean BUSY=new AtomicBoolean();
     private final Activity owner;
+    private final WorkspaceDictation dictation;
     private final String model;
     private final BooleanSupplier eligible;
     private final AttachmentText.Encoding encoding;
@@ -42,11 +43,11 @@ final class DocumentBatchUi {
     private TextView status,output;
     private EditText goal;
     private ProgressBar progress;
-    private Button preview,copy,inspect,copyJson,saveProject;
+    private Button preview,copy,inspect,copyJson,saveProject,dictateGoal;
     private ProjectWorkspaceUi reportWorkspace;
     static boolean busy(){return BUSY.get();}
     DocumentBatchUi(Activity owner,String model,AttachmentText.Encoding encoding,BooleanSupplier eligible){
-        this.owner=owner;this.model=model;this.encoding=encoding;this.eligible=eligible;
+        this.owner=owner;this.model=model;this.encoding=encoding;this.eligible=eligible;this.dictation=new WorkspaceDictation(owner);
     }
     private String s(int resource){return owner.getString(resource);}
     private int dp(int value){return Math.round(value*owner.getResources().getDisplayMetrics().density);}
@@ -70,7 +71,7 @@ final class DocumentBatchUi {
     private void enabled(){
         if(!visible())return;
         boolean idle=!busy();
-        goal.setEnabled(idle);preview.setEnabled(idle&&sources!=null);copy.setEnabled(idle&&result!=null);
+        goal.setEnabled(idle);dictateGoal.setEnabled(idle);preview.setEnabled(idle&&sources!=null);copy.setEnabled(idle&&result!=null);
         inspect.setEnabled(idle&&result!=null&&!result.notes.isEmpty());copyJson.setEnabled(idle&&result!=null);
         saveProject.setEnabled(idle&&result!=null);
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(idle&&sources!=null);
@@ -78,6 +79,7 @@ final class DocumentBatchUi {
     }
     private <T> void work(Callable<T> task,Consumer<T> done,Consumer<Exception> failure){
         if(!BUSY.compareAndSet(false,true)){toast(R.string.busy);return;}
+        dictation.cancel();
         cancelRequested=false;
         Thread t=new Thread(()->{
             T value=null;Exception problem=null;
@@ -94,6 +96,7 @@ final class DocumentBatchUi {
         worker=t;t.start();enabled();
     }
     void pause(){
+        dictation.cancel();
         if(closed)return;closed=true;stop();
         if(reportWorkspace!=null){reportWorkspace.pause();reportWorkspace=null;}
         AlertDialog c=confirmation;confirmation=null;if(c!=null)c.dismiss();
@@ -125,6 +128,8 @@ final class DocumentBatchUi {
         goal.setMinLines(2);goal.setMaxLines(4);goal.setSaveEnabled(false);goal.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
         goal.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(DocumentBatchPolicy.MAX_GOAL)});
         panel.addView(goal,new LinearLayout.LayoutParams(-1,-2));
+        dictateGoal=dictation.add(panel,goal,R.string.batch_goal,DocumentBatchPolicy.MAX_GOAL,true,
+            ()->visible()&&!busy()&&confirmation==null&&eligible.getAsBoolean());
         preview=button(panel,R.string.batch_preview,this::showSourcePreview);
         inspect=button(panel,R.string.batch_inspect_excerpt,this::inspectCompleted);
         copy=button(panel,R.string.batch_copy,()->{

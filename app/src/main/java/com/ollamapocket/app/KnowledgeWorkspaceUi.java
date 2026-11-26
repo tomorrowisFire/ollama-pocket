@@ -18,6 +18,7 @@ import java.util.function.Consumer;
 final class KnowledgeWorkspaceUi {
     private static final AtomicBoolean MODAL=new AtomicBoolean(),WORK=new AtomicBoolean();
     private final Activity owner;
+    private final WorkspaceDictation dictation;
     private final BooleanSupplier eligible,answerEligible;
     private final String answerModel;
     private volatile DocumentBatchRunner answerRunner;
@@ -30,7 +31,7 @@ final class KnowledgeWorkspaceUi {
     private ProjectTransactions.Snapshot<KnowledgeLibrary.State> snapshot;
     KnowledgeWorkspaceUi(Activity owner,BooleanSupplier eligible){this(owner,eligible,"",()->false);}
     KnowledgeWorkspaceUi(Activity owner,BooleanSupplier eligible,String model,BooleanSupplier answerEligible){
-        this.owner=owner;this.eligible=eligible;this.answerModel=model;this.answerEligible=answerEligible;
+        this.owner=owner;this.eligible=eligible;this.answerModel=model;this.answerEligible=answerEligible;this.dictation=new WorkspaceDictation(owner);
     }
     static boolean busy(){return MODAL.get()||WORK.get();}
     private boolean valid(long token){return session.valid(token)&&eligible.getAsBoolean()&&!owner.isFinishing()&&!owner.isDestroyed();}
@@ -49,6 +50,7 @@ final class KnowledgeWorkspaceUi {
         dialog.setOnDismissListener(d->{if(dialog==d)pause();});secure(dialog);dialog.show();secure(dialog);reload(imported);
     }
     void pause(){
+        dictation.cancel();
         session.close();
         DocumentBatchRunner active=answerRunner;answerRunner=null;if(active!=null)active.cancel();
         if(confirmation!=null){AlertDialog d=confirmation;confirmation=null;d.dismiss();}
@@ -58,6 +60,7 @@ final class KnowledgeWorkspaceUi {
         // An already confirmed worker write can finish; its stale UI callback cannot run.
     }
     private void reset(){
+        dictation.cancel();
         body.removeAllViews();notice=new TextView(owner);notice.setSaveEnabled(false);notice.setTextSize(14);body.addView(notice);
         ScrollView current=scroll;current.post(()->{if(scroll==current)current.scrollTo(0,0);});
     }
@@ -86,7 +89,10 @@ final class KnowledgeWorkspaceUi {
             return dest.subSequence(dstart,dend);
         }});
         e.setText(value);if(multiline){e.setMinLines(4);e.setMaxLines(10);}
-        body.addView(e,new LinearLayout.LayoutParams(-1,-2));return e;
+        body.addView(e,new LinearLayout.LayoutParams(-1,-2));
+        final long token=session.token();
+        dictation.add(body,e,hint,max,multiline,()->valid(token)&&!WORK.get()&&confirmation==null&&dialog!=null&&dialog.isShowing());
+        return e;
     }
     private void confirm(int message,Runnable action){
         long token=session.token();
@@ -109,7 +115,7 @@ final class KnowledgeWorkspaceUi {
     private <T> void work(Task<T> task,Consumer<T> success,Consumer<Exception> failure){
         long token=session.token();
         if(!valid(token)||!WORK.compareAndSet(false,true))return;
-        lockControls(true);status(R.string.project_working);
+        dictation.cancel();lockControls(true);status(R.string.project_working);
         Thread worker=new Thread(()->{
             T value=null;Exception error=null;
             try{value=task.run();}catch(Exception e){error=e;}

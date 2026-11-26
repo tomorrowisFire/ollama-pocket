@@ -1157,4 +1157,14 @@
     <string name="api_overview_lan_usage">用量合計涵蓋本次工作階段中該提供者的已追蹤區域網路位址。不估算區域網路費用，但仍可能產生費用。</string>
     <string name="api_overview_ledger_full">已阻止新請求：新的統計範圍已達工作階段上限。現有已追蹤範圍仍可使用。</string>
     <string name="api_overview_configure">設定提供者</string>
+    <string name="workspace_voice_field">語音輸入：%1$s</string>
+    <string name="workspace_voice_permission">請在聊天語音功能或 Android 應用程式設定中授予麥克風權限，再返回此欄位。原草稿保持不變。</string>
+    <string name="workspace_voice_notice">目標欄位：%1$s\n單次裝置端語音辨識。選擇語言、開始錄音、檢查文字後確認附加。不自動儲存、傳送或執行；確認前保留原草稿。</string>
+    <string name="workspace_voice_start">開始錄音</string>
+    <string name="workspace_voice_title">工作區語音輸入</string>
+    <string name="workspace_voice_append">附加已檢查文字</string>
+    <string name="workspace_voice_listening">正在裝置端聆聽…請選擇結束發言或取消。</string>
+    <string name="workspace_voice_limit">文字超出欄位限制或包含無效字元。未附加任何內容。</string>
+    <string name="workspace_voice_review">請檢查下方辨識文字。附加後：%1$d / %2$d UTF-16 單位。尚未儲存或傳送。</string>
+    <string name="workspace_voice_changed">目標草稿或工作區已變更。未附加任何內容。</string>
 </resources>
