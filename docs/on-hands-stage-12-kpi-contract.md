@@ -29,6 +29,9 @@ Application candidate at adoption: 0b7da4124798fab2aa4f6763738b700720ff7baa. Sub
 
 At adoption: B1 PASS on Java CI 45793137893; B2 in progress on native CI 45793138011; B3 deterministic document policy checks included in successful Java CI but detailed case evidence to be recorded; B4–B8 incomplete. Overall BLOCKED. Prior 12-A exact-commit Java and native CI passed. No 12-C implementation may start while this gate is not fulfilled.
 
+## User-approved scheduling change — 2026-11-26
+The user explicitly directed progression to 12-C and physical-device testing at the end. 12-B application candidate 1baac26eac778aa4a17cf529c874c4f8cb411db2: Java 45794478365 SUCCESS (176 document policy checks); native 45794478381 SUCCESS. B1–B3 source/CI evidence passes. B4–B7 physical evidence and the device-dependent portion of B8 are DEFERRED_TO_12F, NOT_RUN. This is development progression only, not a full 12-B PASS. Preserve all earlier KPI thresholds, test kits and evidence. Use the exact final integrated candidate for deferred measurements; refresh candidate-bound manifests and verify unchanged fixtures before running. No production ads, main merge or release approval. For 12-C–E require all source/CI gates and a three-role source review before moving on; preserve the ten-perspective stage assessment with explicit unverified portions. No known P0/P1 source defect may advance.
+
 ## Later conference agendas (proposed, NOT frozen yet)
 Each stage will set its full KPI contract before starting, not revise targets after observing outcomes.
 
