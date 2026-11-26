@@ -505,7 +505,7 @@ public final class MainActivity extends Activity {
     }
     private void openVoice(){
         if(isUiBusy()||guestOnly)return;
-        if(voice!=null&&(voice.listening()||voice.speaking())){voice.cancel();return;}
+        if(voice!=null&&(voice.continuous()||voice.listening()||voice.speaking())){voice.cancel();return;}
         if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){
             requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},VOICE_PERMISSION);
             toast(getString(R.string.voice_permission));return;
@@ -522,10 +522,15 @@ public final class MainActivity extends Activity {
             toast(getString(R.string.need_model));showTab(1);return;
         }
         if(voice==null)voice=new OnHandsVoice(this);
+        if(conversational)voice.beginContinuous();
+        listenVoiceTurn(conversational);
+    }
+    private void listenVoiceTurn(boolean conversational){
+        if(!foreground||isFinishing()||isDestroyed()||activeTab!=0||isUiBusy()||cloudMode||guestOnly){if(voice!=null)voice.cancel();return;}
         voice.listen(value->{
-            if(!foreground||isFinishing()||isDestroyed()||activeTab!=0||isUiBusy())return;
+            if(!foreground||isFinishing()||isDestroyed()||activeTab!=0||isUiBusy()){voice.cancel();return;}
             chatInput.setText(value);chatInput.setSelection(chatInput.length());
-            if(conversational){speakNextAnswer=true;sendChat();speakNextAnswer=false;}
+            if(conversational){speakNextAnswer=true;try{sendChat();}finally{speakNextAnswer=false;}if(!chatBusy)voice.cancel();}
         });
     }
 
@@ -3220,7 +3225,9 @@ public final class MainActivity extends Activity {
                 toast(getString(R.string.transfer_changed));return;
             }
         }
-        if(voice!=null)voice.cancel();
+        final boolean continueVoice=speakThisTurn&&voice!=null&&voice.continuous()&&!"cooperative".equals(computeAtStart);
+        if(voice!=null&&!continueVoice)voice.cancel();
+        final int voiceToken=voice==null?-1:voice.sessionToken();
         try{persistLocalDraft(scopeAtStart,sessionAtStart,prompt);}
         catch(Exception e){toast(getString(R.string.chat_history_invalid));return;}
         pendingLocalPrompt=prompt;
@@ -3307,8 +3314,12 @@ public final class MainActivity extends Activity {
                 pendingLocalPrompt="";setChatBusy(false);
                 if(saved){
                     renderHistory(follow);
-                    if(speakThisTurn&&foreground&&voice!=null)voice.speak(finalAnswer);
+                    if(speakThisTurn&&foreground&&activeTab==0&&!cloudMode&&voice!=null&&voice.sessionToken()==voiceToken){
+                         if(continueVoice&&voice.continuous())voice.speakThen(ChatMarkup.parse(finalAnswer).text,()->listenVoiceTurn(true));
+                         else voice.speak(ChatMarkup.parse(finalAnswer).text);
+                     }
                 }else if(sameScope){
+                    if(voice!=null&&voice.sessionToken()==voiceToken)voice.cancel();
                     chatInput.setText(prompt);
                     String notice=chatCancelled?getString(R.string.generation_cancelled):localChatError(problem);
                     String suffix="\n\n"+getString(R.string.chat_draft_recovered);
@@ -3316,6 +3327,7 @@ public final class MainActivity extends Activity {
                     else showAssistant(assistant,notice,suffix,false);
                     if(follow)scrollBottom();
                 }else{
+                    if(voice!=null&&voice.sessionToken()==voiceToken)voice.cancel();
                     // Original draft remains stored under its captured scope.
                     renderHistory(follow);
                 }
