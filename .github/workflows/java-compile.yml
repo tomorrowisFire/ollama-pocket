@@ -56,6 +56,7 @@ on:
       - 'tests/ConferencePolicyTest.java'
       - 'tests/ConferenceCapacityTest.java'
       - 'tests/ConferenceReportTest.java'
+      - 'tests/ProjectLibraryTest.java'
       - 'tests/BenchmarkProfileTest.java'
       - 'tests/PrivacyPolicyTest.java'
       - 'tests/RpcSocketRegistryTest.java'
@@ -241,6 +242,11 @@ jobs:
           java -cp /tmp/workflow-tests:/tmp/attachment-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.ConferencePolicyTest
           java -cp /tmp/workflow-tests:/tmp/attachment-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.ConferenceCapacityTest
           java -cp /tmp/workflow-tests:/tmp/attachment-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.ConferenceReportTest
+      - name: Test isolated project version repository and transactions
+        run: |
+          mkdir -p /tmp/project-tests
+          javac -cp /tmp/cloud-stream-tests/json.jar -d /tmp/project-tests app/src/main/java/com/ollamapocket/app/ProjectTransactions.java app/src/main/java/com/ollamapocket/app/ProjectLibrary.java tests/ProjectLibraryTest.java
+          java -Xmx512m -cp /tmp/project-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.ProjectLibraryTest
       - name: Audit direct Hangul UI literals
         run: python3 tests/locale_ui_audit.py
       - name: Verify OnHand AI brand and locale resource parity
