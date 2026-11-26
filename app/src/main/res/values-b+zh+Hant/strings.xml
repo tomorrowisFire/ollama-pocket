@@ -1034,4 +1034,9 @@
     <string name="project_discard">捨棄編輯</string>
     <string name="project_discard_message">捨棄未儲存的變更？</string>
     <string name="project_draft_notice">僅儲存按鈕會寫入資料。關閉工作區或應用離開前景時，未儲存的編輯將遺失。</string>
+    <string name="project_report_save">將報告儲存至專案</string>
+    <string name="project_report_notice">在本機儲存報告原文。保留狀態與限制，生成內容未經獨立驗證。</string>
+    <string name="project_report_no_projects">請先在工作區建立專案。</string>
+    <string name="project_report_append">將報告附加為新版本</string>
+    <string name="project_report_too_large">報告超過32,000個UTF-16字元。請使用既有匯出功能；未儲存。</string>
 </resources>

@@ -1034,4 +1034,9 @@
     <string name="project_discard">編集を破棄</string>
     <string name="project_discard_message">未保存の変更を破棄しますか？</string>
     <string name="project_draft_notice">保存ボタンでのみ書き込みます。作業画面を閉じるかアプリがバックグラウンドに移ると未保存の編集は失われます。</string>
+    <string name="project_report_save">プロジェクトにレポートを保存</string>
+    <string name="project_report_notice">レポートの原文を端末に保存します。状態と制約は保持され、生成内容は独立検証されていません。</string>
+    <string name="project_report_no_projects">先にワークスペースでプロジェクトを作成してください。</string>
+    <string name="project_report_append">レポートを新バージョンとして追加</string>
+    <string name="project_report_too_large">レポートが32,000文字（UTF-16）を超えています。既存のエクスポートを利用してください。保存されていません。</string>
 </resources>

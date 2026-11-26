@@ -1034,4 +1034,9 @@
     <string name="project_discard">Discard edits</string>
     <string name="project_discard_message">Discard unsaved changes?</string>
     <string name="project_draft_notice">Only Save writes data. Unsaved edits are lost if the workspace closes or the app leaves the foreground.</string>
+    <string name="project_report_save">Save report to project</string>
+    <string name="project_report_notice">Save the exact report locally. Status and limitations are retained; generated content is not independently verified.</string>
+    <string name="project_report_no_projects">Create a project in the workspace first.</string>
+    <string name="project_report_append">Append report as version</string>
+    <string name="project_report_too_large">Report exceeds 32,000 UTF-16 characters. Use the existing export; nothing was saved.</string>
 </resources>

@@ -42,7 +42,8 @@ final class DocumentBatchUi {
     private TextView status,output;
     private EditText goal;
     private ProgressBar progress;
-    private Button preview,copy,inspect,copyJson;
+    private Button preview,copy,inspect,copyJson,saveProject;
+    private ProjectWorkspaceUi reportWorkspace;
     static boolean busy(){return BUSY.get();}
     DocumentBatchUi(Activity owner,String model,AttachmentText.Encoding encoding,BooleanSupplier eligible){
         this.owner=owner;this.model=model;this.encoding=encoding;this.eligible=eligible;
@@ -71,6 +72,7 @@ final class DocumentBatchUi {
         boolean idle=!busy();
         goal.setEnabled(idle);preview.setEnabled(idle&&sources!=null);copy.setEnabled(idle&&result!=null);
         inspect.setEnabled(idle&&result!=null&&!result.notes.isEmpty());copyJson.setEnabled(idle&&result!=null);
+        saveProject.setEnabled(idle&&result!=null);
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(idle&&sources!=null);
         dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setEnabled(!idle&&!cancelRequested);
     }
@@ -93,6 +95,7 @@ final class DocumentBatchUi {
     }
     void pause(){
         if(closed)return;closed=true;stop();
+        if(reportWorkspace!=null){reportWorkspace.pause();reportWorkspace=null;}
         AlertDialog c=confirmation;confirmation=null;if(c!=null)c.dismiss();
         AlertDialog d=dialog;dialog=null;if(d!=null)d.dismiss();
         sources=null;result=null;analyzed=null;
@@ -131,6 +134,16 @@ final class DocumentBatchUi {
         copyJson=button(panel,R.string.batch_copy_json,()->{
             if(result==null||analyzed==null||busy())return;
             try{copyReport(R.string.batch_copy_json,s(R.string.attachment_copy_notice)+"\n\n"+s(R.string.batch_json_notice),snapshot().json());}
+            catch(Exception e){toast(R.string.batch_export_failed);}
+        });
+        saveProject=button(panel,R.string.project_report_save,()->{
+            if(!visible()||busy()||ProjectWorkspaceUi.busy()||!eligible.getAsBoolean()||result==null||analyzed==null)return;
+            final DocumentBatchPolicy.Result reviewed=result;
+            try{
+                ProjectReportHandoff handoff=ProjectReportHandoff.of(snapshot());
+                reportWorkspace=new ProjectWorkspaceUi(owner,()->visible()&&!busy()&&result==reviewed);
+                reportWorkspace.openReport(handoff,s(R.string.batch_title)+" · "+handoff.status);
+            }catch(ProjectReportHandoff.TooLarge e){toast(R.string.project_report_too_large);}
             catch(Exception e){toast(R.string.batch_export_failed);}
         });
         output=label(panel,"",true);

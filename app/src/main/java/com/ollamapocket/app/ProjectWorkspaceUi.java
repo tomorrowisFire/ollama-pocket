@@ -28,18 +28,22 @@ final class ProjectWorkspaceUi {
     private TextView notice;
     private EditText titleField,textField;
     private String oldTitle="",oldText="";
-    private boolean ownsModal,reloadRequired;
+    private boolean ownsModal,reloadRequired,reportSaved;
+    private ProjectReportHandoff report;
+    private String reportTitle;
     ProjectWorkspaceUi(Activity owner,BooleanSupplier eligible){this.owner=owner;this.eligible=eligible;}
     static boolean busy(){return MODAL.get()||WORK.get();}
     private boolean valid(long token){return session.valid(token)&&eligible.getAsBoolean()&&!owner.isFinishing()&&!owner.isDestroyed();}
     private String s(int id,Object... args){return owner.getString(id,args);}
     private int dp(int n){return Math.round(n*owner.getResources().getDisplayMetrics().density);}
     private void secure(AlertDialog d){if(d.getWindow()!=null)d.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);}
-    void open(){
+    void open(){openInternal(null,null);}
+    void openReport(ProjectReportHandoff handoff,String title){openInternal(handoff,title);}
+    private void openInternal(ProjectReportHandoff handoff,String title){
         if(!eligible.getAsBoolean()||WORK.get()||!MODAL.compareAndSet(false,true)){
             Toast.makeText(owner,R.string.busy,Toast.LENGTH_SHORT).show();return;
         }
-        ownsModal=true;session.open();selection=ProjectWorkspacePolicy.Selection.root();
+        ownsModal=true;report=handoff;reportTitle=title;reportSaved=false;session.open();selection=ProjectWorkspacePolicy.Selection.root();
         body=new LinearLayout(owner);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(16),dp(8),dp(16),dp(16));
         scroll=new ScrollView(owner);scroll.setFillViewport(true);scroll.setSaveEnabled(false);scroll.addView(body);
         dialog=new AlertDialog.Builder(owner).setTitle(R.string.project_workspace).setView(scroll).setCancelable(false).create();
@@ -51,6 +55,7 @@ final class ProjectWorkspaceUi {
         if(confirmation!=null){AlertDialog d=confirmation;confirmation=null;d.dismiss();}
         if(dialog!=null){AlertDialog d=dialog;dialog=null;d.dismiss();}
         titleField=null;textField=null;oldTitle="";oldText="";snapshot=null;body=null;scroll=null;notice=null;reloadRequired=false;
+        report=null;reportTitle=null;reportSaved=false;
         if(ownsModal){ownsModal=false;MODAL.set(false);}
         // An explicitly dispatched write can finish; WORK stays held until callback.
     }
@@ -136,7 +141,7 @@ final class ProjectWorkspaceUi {
         if(reloadRequired||snapshot==null)return;
         final ProjectTransactions.Snapshot<ProjectLibrary.State> reviewed=snapshot;
         work(()->new ProjectStore(owner).commit(reviewed,mutation),saved->{
-            snapshot=saved;selection=destination.resolve(saved.value);render();status(R.string.project_saved);
+            snapshot=saved;selection=destination.resolve(saved.value);if(report!=null)reportSaved=true;render();status(R.string.project_saved);
         },error->{
             ProjectWorkspacePolicy.Outcome outcome=ProjectWorkspacePolicy.failure(error);
             if(ProjectWorkspacePolicy.reloadRequired(outcome)){
@@ -145,7 +150,8 @@ final class ProjectWorkspaceUi {
                     outcome==ProjectWorkspacePolicy.Outcome.UNCERTAIN?R.string.project_uncertain:R.string.project_unreadable);
                 // Keep draft visible but invalidate reviewed actions. Explicit reload only.
                 for(int i=0;i<body.getChildCount();i++)if(body.getChildAt(i) instanceof Button)body.getChildAt(i).setEnabled(false);
-                button(R.string.project_reload,()->leave(this::reload));button(R.string.close,()->leave(this::pause));
+                if(report==null)button(R.string.project_reload,()->leave(this::reload));
+                button(R.string.close,()->leave(this::pause));
             }else status(outcome==ProjectWorkspacePolicy.Outcome.NO_CHANGE?R.string.project_no_change:R.string.project_invalid);
         });
     }
@@ -154,6 +160,7 @@ final class ProjectWorkspaceUi {
         selection=selection.resolve(snapshot.value);reset();
         ProjectLibrary.State state=snapshot.value;
         final String pid=selection.project,aid=selection.artifact;
+        if(report!=null){renderReport(state,pid);return;}
         if(pid==null){
             label(s(R.string.project_usage,state.projects.size(),ProjectLibrary.MAX_PROJECTS,snapshot.storedByteCount(),ProjectLibrary.MAX_BYTES),false);
             label(s(R.string.project_limits),false);
@@ -193,6 +200,39 @@ final class ProjectWorkspaceUi {
             }
         }
         nav();
+    }
+    private void renderReport(ProjectLibrary.State state,String pid){
+        if(reportSaved){button(R.string.close,this::pause);return;}
+        label(s(R.string.project_report_notice),false);
+        if(pid==null){
+            if(state.projects.isEmpty())label(s(R.string.project_report_no_projects),false);
+            for(ProjectLibrary.Project p:state.projects)button(p.title,true,()->{
+                selection=new ProjectWorkspacePolicy.Selection(p.id,null,0);render();
+            });
+        }else{
+            ProjectLibrary.Project p=state.project(pid);label(p.title,true);
+            button(s(R.string.project_new_artifact),p.artifacts.size()<ProjectLibrary.MAX_ARTIFACTS,()->reviewReport(p,null));
+            for(ProjectLibrary.Artifact a:p.artifacts)
+                button(s(R.string.project_report_append)+" · "+a.title,
+                    ProjectWorkspacePolicy.canAppend(a)&&!a.current().text.equals(report.json),()->reviewReport(p,a));
+            button(R.string.project_back,()->{selection=ProjectWorkspacePolicy.Selection.root();render();});
+        }
+        button(R.string.close,this::pause);
+    }
+    private void reviewReport(ProjectLibrary.Project p,ProjectLibrary.Artifact a){
+        reset();
+        final ProjectReportHandoff reviewed=report;
+        final String pid=p.id,aid=a==null?UUID.randomUUID().toString():a.id;
+        final String title=a==null?reportTitle:a.title;
+        label(s(R.string.project_report_notice),false);
+        label(p.title+" / "+title,true);
+        label(reviewed.status+" · "+s(R.string.project_version,a==null?1:a.current().ordinal+1),false);
+        label(reviewed.json,true);
+        button(R.string.project_save,()->confirm(R.string.project_report_save,R.string.project_report_notice,
+            ()->save(st->a==null?reviewed.create(st,pid,aid,title,System.currentTimeMillis()):
+                reviewed.append(st,pid,aid,System.currentTimeMillis()),
+                new ProjectWorkspacePolicy.Selection(pid,aid,0))));
+        button(R.string.project_back,this::render);button(R.string.close,this::pause);
     }
     private void version(ProjectLibrary.Version v){
         label(s(R.string.project_version,v.ordinal)+" · "+DateFormat.getDateTimeInstance().format(new Date(v.saved)),false);

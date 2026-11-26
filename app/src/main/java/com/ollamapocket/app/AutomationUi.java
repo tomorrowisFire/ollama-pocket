@@ -22,6 +22,7 @@ final class AutomationUi {
     private LocalWorkflow workflow;
     private LocalWorkflowPlanner planner;
     private LocalConferenceRunner conference;
+    private ProjectWorkspaceUi reportWorkspace;
     private volatile Thread worker;
     private volatile boolean stopped;
     private int epoch;
@@ -58,6 +59,7 @@ final class AutomationUi {
     }
     void pause(){
         stopped=true;epoch++;
+        if(reportWorkspace!=null){reportWorkspace.pause();reportWorkspace=null;}
         if(mcp!=null){mcp.cancel();mcp=null;}
         if(workflow!=null)workflow.pause();
         if(planner!=null){planner.cancel();planner=null;}
@@ -193,7 +195,7 @@ final class AutomationUi {
         capacityStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         TextView status=output(panel);status.setTextIsSelectable(false);
         status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
-        final Button[] controls=new Button[6];
+        final Button[] controls=new Button[7];
         final ConferencePolicy.Result[] latest={null};
         final ConferenceReport[] terminal={null};
         final boolean[] stopRequested={false};
@@ -205,6 +207,7 @@ final class AutomationUi {
             controls[2].setEnabled(idle&&terminal[0]!=null);
             controls[4].setEnabled(idle&&terminal[0]!=null&&terminal[0].hasArtifact());
             controls[5].setEnabled(idle&&terminal[0]!=null);
+            controls[6].setEnabled(idle&&terminal[0]!=null);
         };
         android.text.TextWatcher resetCapacity=new android.text.TextWatcher(){
             public void beforeTextChanged(CharSequence text,int start,int count,int after){}
@@ -291,6 +294,16 @@ final class AutomationUi {
         controls[5]=button(panel,R.string.conference_copy_json,()->{
             if(busy()||terminal[0]==null)return;
             try{copyConference(terminal,R.string.conference_copy_json,terminal[0].json(),s(R.string.conference_json_notice));}
+            catch(Exception e){toast(R.string.batch_export_failed);}
+        });
+        controls[6]=button(panel,R.string.project_report_save,()->{
+            if(!valid(token)||busy()||ProjectWorkspaceUi.busy()||terminal[0]==null)return;
+            final ConferenceReport reviewed=terminal[0];
+            try{
+                ProjectReportHandoff handoff=ProjectReportHandoff.of(reviewed);
+                reportWorkspace=new ProjectWorkspaceUi(owner,()->valid(token)&&!busy()&&terminal[0]==reviewed&&dialog!=null&&dialog.isShowing());
+                reportWorkspace.openReport(handoff,s(R.string.conference_title)+" · "+handoff.status);
+            }catch(ProjectReportHandoff.TooLarge e){toast(R.string.project_report_too_large);}
             catch(Exception e){toast(R.string.batch_export_failed);}
         });
         enabled.run();show(s(R.string.conference_title),panel);
