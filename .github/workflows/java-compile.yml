@@ -44,6 +44,7 @@ on:
       - 'tests/McpInputPolicyTest.java'
       - 'tests/WorkflowLibraryTest.java'
       - 'tests/WorkflowRunJournalTest.java'
+      - 'tests/BenchmarkProfileTest.java'
       - 'tests/CoopMemoryPlannerTest.java'
       - 'tests/CoopPlanLocaleDataTest.java'
 
@@ -159,6 +160,11 @@ jobs:
           mkdir -p /tmp/local-stream-tests
           javac -cp /tmp/cloud-stream-tests/json.jar -d /tmp/local-stream-tests app/src/main/java/com/ollamapocket/app/LocalChatTurns.java app/src/main/java/com/ollamapocket/app/LocalInferenceStream.java tests/LocalInferenceStreamTest.java
           java -cp /tmp/local-stream-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.LocalInferenceStreamTest
+      - name: Test benchmark identity and engine routing policy
+        run: |
+          mkdir -p /tmp/benchmark-profile-tests
+          javac -cp /tmp/cloud-stream-tests/json.jar -d /tmp/benchmark-profile-tests app/src/main/java/com/ollamapocket/app/BenchmarkProfile.java app/src/main/java/com/ollamapocket/app/EngineLoadPolicy.java tests/BenchmarkProfileTest.java
+          java -cp /tmp/benchmark-profile-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.BenchmarkProfileTest
       - name: Test inference safety policy
         run: |
           mkdir -p /tmp/inference-safety-tests

@@ -825,4 +825,6 @@
     <string name="auto_reason_output_limit">The response exceeded the workflow output limit.</string>
     <string name="auto_reason_invalid_tokens">The engine reported an invalid output token count.</string>
     <string name="auto_reason_transport">The local inference request failed or timed out. Review before resuming.</string>
+    <string name="bench_auto_profile">Auto: recent same-model comparison selects %1$s</string>
+    <string name="bench_auto_no_profile">Auto: no eligible recent CPU/GPU comparison; existing engine checks apply.</string>
 </resources>

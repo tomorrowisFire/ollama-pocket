@@ -19,7 +19,7 @@ import java.util.List;
 public final class DistributedRunner {
     private static final int PORT=11439;
     private static volatile Process process;
-    private static volatile String activeModel="";
+    private static volatile String activeModel="",activeWeightsKey="";
     private static volatile String rpcEndpointSet="";
     private static volatile long generation;
     private static final StringBuilder logs=new StringBuilder();
@@ -35,7 +35,7 @@ public final class DistributedRunner {
         synchronized(DistributedRunner.class){
             generation++;
             if(process!=null){process.destroy();process=null;}
-            activeModel="";rpcEndpointSet="";
+            activeModel="";activeWeightsKey="";rpcEndpointSet="";
         }
     }
     public static boolean peersAvailable(Context context){
@@ -46,7 +46,8 @@ public final class DistributedRunner {
     private static boolean healthy(){
         HttpURLConnection c=null;
         try{
-            c=(HttpURLConnection)new URL(url()+"/health").openConnection();
+            c=(HttpURLConnection)new URL(url()+"/health").openConnection(java.net.Proxy.NO_PROXY);
+            c.setInstanceFollowRedirects(false);
             c.setConnectTimeout(800);c.setReadTimeout(800);
             return c.getResponseCode()==200;
         }catch(Exception ignored){return false;}
@@ -118,14 +119,15 @@ public final class DistributedRunner {
         File binary=new File(context.getApplicationInfo().nativeLibraryDir,
                              "libllama-distributed-server.so");
         if(!binary.isFile()){reason.append("RPC llama-server 실행 파일이 APK에 없습니다");return false;}
-        File weights;
-        try { weights=findModel(context,model); }
+        File weights;String weightsKey;
+        try { weights=findModel(context,model);weightsKey=EngineLoadPolicy.weightKey(weights); }
         catch(Exception e){reason.append("호스트의 GGUF 모델 확인 실패: ").append(e.getMessage());return false;}
 
         // An already-loaded model consumes RAM; never re-evaluate its admission
         // against the reduced availMem, but do detect a disconnected node.
-        if(process!=null && process.isAlive() && activeModel.equals(model)
-                && healthy()){
+        Process resident=process;
+        if(resident!=null && resident.isAlive() && activeModel.equals(model)&&activeWeightsKey.equals(weightsKey)
+                && healthy()&&process==resident){
             boolean stillConnected=true;
             String current=coop.connectedRpcEndpoints();
             for(String endpoint:rpcEndpointSet.split(","))
@@ -169,7 +171,7 @@ public final class DistributedRunner {
             args.add("--tensor-split");args.add(budget.tensorSplit);
             args.add("-c");args.add("2048");
             args.add("--threads");args.add(Integer.toString(
-                Math.max(1,Math.min(4,Runtime.getRuntime().availableProcessors()/2))));
+                EngineLoadPolicy.hostThreads(Runtime.getRuntime().availableProcessors())));
             ProcessBuilder pb=new ProcessBuilder(args);
             pb.redirectErrorStream(true);pb.directory(context.getFilesDir());
             pb.environment().put("LD_LIBRARY_PATH",context.getApplicationInfo().nativeLibraryDir);
@@ -181,7 +183,7 @@ public final class DistributedRunner {
                 if(startup!=generation||cancelled.getAsBoolean()||InferenceSafety.blocked(context))return false;
                 if(!InferenceSafetyPolicy.hasEndpoints(selection.endpoints,coop.connectedRpcEndpoints())||
                         (approvedEndpoints!=null&&!InferenceSafetyPolicy.hasEndpoints(selection.endpoints,approvedEndpoints)))return false;
-                current=pb.start();process=current;activeModel=model;rpcEndpointSet=selection.endpoints;
+                current=pb.start();process=current;activeModel=model;activeWeightsKey=weightsKey;rpcEndpointSet=selection.endpoints;
             }
             new Thread(()->{
                 try(BufferedReader r=new BufferedReader(new InputStreamReader(

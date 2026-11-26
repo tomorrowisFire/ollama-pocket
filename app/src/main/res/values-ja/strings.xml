@@ -825,4 +825,6 @@
     <string name="auto_reason_output_limit">応答がワークフローの出力制限を超えました。</string>
     <string name="auto_reason_invalid_tokens">エンジンが無効な出力トークン数を報告しました。</string>
     <string name="auto_reason_transport">ローカル推論が失敗またはタイムアウトしました。確認して再開してください。</string>
+    <string name="bench_auto_profile">自動：最近の同一モデル比較により %1$s を選択</string>
+    <string name="bench_auto_no_profile">自動：条件を満たす最近のCPU/GPU比較がないため、従来のエンジン確認方式を使用します。</string>
 </resources>

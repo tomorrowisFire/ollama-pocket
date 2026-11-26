@@ -175,6 +175,8 @@ public final class MainActivity extends Activity {
     private final Map<String,String> modelMetadata = new HashMap<>();
     private final Map<String,String> modelQuantization = new HashMap<>();
     private final Map<String,Long> modelBytes = new HashMap<>();
+    private final Map<String,String> modelDigests = new HashMap<>();
+    private String benchmarkRuntime;
     private final Map<String,TextView> tileStatusLabels = new HashMap<>();
     private final Map<String,ProgressBar> tileDownloadBars = new HashMap<>();
     private boolean animateNextTileUpdate = false;
@@ -1584,6 +1586,7 @@ public final class MainActivity extends Activity {
                 Map<String,String> descriptions=new HashMap<>();
                 Map<String,String> quantizations=new HashMap<>();
                 Map<String,Long> actualSizes=new HashMap<>();
+                Map<String,String> actualDigests=new HashMap<>();
                 if(list!=null)for(int i=0;i<list.length();i++){
                     JSONObject item=list.optJSONObject(i);
                     if(item==null)continue;
@@ -1601,9 +1604,10 @@ public final class MainActivity extends Activity {
                     if(!family.isEmpty())meta.append("\n계열: ").append(family);
                     descriptions.put(name,meta.toString());
                     actualSizes.put(name,item.optLong("size",0));
+                    actualDigests.put(name,BenchmarkProfile.normalizeDigest(item.optString("digest","")));
                 }
                 java.util.Collections.sort(names,String.CASE_INSENSITIVE_ORDER);
-                ui.post(()->updateModels(names,descriptions,quantizations,actualSizes));
+                ui.post(()->updateModels(names,descriptions,quantizations,actualSizes,actualDigests));
             }catch(Exception error){
                 ui.post(()->{
                     if(modelRows==null)return;
@@ -1614,12 +1618,13 @@ public final class MainActivity extends Activity {
     }
 
     private void updateModels(List<String> names,Map<String,String> descriptions,
-                              Map<String,String> quantizations,Map<String,Long> sizes) {
+                              Map<String,String> quantizations,Map<String,Long> sizes,Map<String,String> digests) {
         ignoreSelection=true;
         knownModels.clear();knownModels.addAll(names);
         modelMetadata.clear();modelMetadata.putAll(descriptions);
         modelQuantization.clear();modelQuantization.putAll(quantizations);
         modelBytes.clear();modelBytes.putAll(sizes);
+        modelDigests.clear();modelDigests.putAll(digests);
         List<String> shown=names.isEmpty()
             ?java.util.Collections.singletonList(getString(R.string.model_none_installed)):names;
         ArrayAdapter<String> adapter=new ArrayAdapter<String>(this,
@@ -1731,11 +1736,8 @@ public final class MainActivity extends Activity {
             deviceProfile.lowMemory,deviceProfile.ramGb,deviceProfile.availableRamGb,
             deviceProfile.freeStorageGb,deviceProfile.cores);
         if(!hf){
-            String report=getSharedPreferences("ai_pocket_bench",MODE_PRIVATE)
-                .getString("model_"+id,"");
-            score+=BenchmarkRecommendation.adjustment(
-                ModelPerformanceAdvisor.measuredCpuTps(report),
-                ModelPerformanceAdvisor.measuredGpuTps(report));
+            BenchmarkProfile profile=recentBenchmark(id);
+            if(profile!=null)score+=BenchmarkRecommendation.adjustment(profile.cpuRate(),profile.gpuRate());
         }
         return score;
     }
@@ -1862,24 +1864,31 @@ public final class MainActivity extends Activity {
         return ModelListFilter.matchesQuantization(selectedQuantization,quant);
     }
 
+    private BenchmarkProfile recentBenchmark(String model){
+        if(benchmarkRuntime==null)benchmarkRuntime=ModelBenchmark.runtimeIdentity(getApplicationContext());
+        String digest=modelDigests.get(model);
+        if(digest==null||digest.isEmpty()||benchmarkRuntime.isEmpty())return null;
+        return ModelBenchmark.freshProfile(getApplicationContext(),model,digest,benchmarkRuntime);
+    }
+
     private ModelPerformanceAdvisor.Result advise(String model,double sizeGiB) {
-        String ownReport=getSharedPreferences("ai_pocket_bench",MODE_PRIVATE)
-            .getString("model_"+model,"");
-        Double ownTps=ModelPerformanceAdvisor.measuredCpuTps(ownReport);
+        BenchmarkProfile own=recentBenchmark(model);
+        Double ownTps=own==null?null:own.cpuRate();
         Double baselineTps=null;
         double baselineSize=0;
-        if(ownTps==null){
+        if(ownTps==null&&sizeGiB>0){
+            double bestDistance=Double.POSITIVE_INFINITY;
             for(String reference:knownModels){
                 if(reference.equals(model))continue;
                 long bytes=modelBytes.getOrDefault(reference,0L);
                 if(bytes<=0)continue;
-                String report=getSharedPreferences("ai_pocket_bench",MODE_PRIVATE)
-                    .getString("model_"+reference,"");
-                Double tps=ModelPerformanceAdvisor.measuredCpuTps(report);
-                if(tps!=null){
-                    baselineTps=tps;
-                    baselineSize=bytes/(1024.0*1024.0*1024.0);
-                    break;
+                BenchmarkProfile referenceProfile=recentBenchmark(reference);
+                Double tps=referenceProfile==null?null:referenceProfile.cpuRate();
+                double referenceSize=bytes/(1024.0*1024.0*1024.0);
+                double ratio=sizeGiB/referenceSize;
+                double distance=Math.abs(Math.log(ratio));
+                if(tps!=null&&ratio>=0.2&&ratio<=5&&distance<bestDistance){
+                    bestDistance=distance;baselineTps=tps;baselineSize=referenceSize;
                 }
             }
         }
@@ -2016,9 +2025,10 @@ public final class MainActivity extends Activity {
     }
 
     private String benchmarkLabel(String tag){
-        String report=getSharedPreferences("ai_pocket_bench",MODE_PRIVATE).getString("model_"+tag,"");
-        Double cpu=ModelPerformanceAdvisor.measuredCpuTps(report);
-        Double gpu=ModelPerformanceAdvisor.measuredGpuTps(report);
+        BenchmarkProfile profile=recentBenchmark(tag);
+        if(profile==null)return "";
+        Double cpu=profile.cpuRate();
+        Double gpu=profile.gpuRate();
         double speed=BenchmarkRecommendation.bestMeasured(cpu,gpu);
         if(speed<=0)return "";
         return " · "+getString(R.string.model_measured_badge,localeDecimal(speed),gpu!=null&&(cpu==null||gpu>cpu)?"GPU":"CPU");
@@ -3378,7 +3388,15 @@ public final class MainActivity extends Activity {
                         item -> appendAnswer(item, answer, assistant));
                 } else {
                 String choice = computeAtStart;
-                boolean tryGpu = !"cpu".equals(choice) && computeReport.gpuCompute &&
+                String recentRoute=null;
+                if("auto".equals(choice)&&computeReport.gpuCompute&&GpuRunner.packaged(getApplicationContext())){
+                    String digest=ModelBenchmark.modelDigest(getApplicationContext(),modelAtStart);
+                    BenchmarkProfile profile=ModelBenchmark.freshProfile(getApplicationContext(),modelAtStart,digest,ModelBenchmark.runtimeIdentity(getApplicationContext()));
+                    if(profile!=null)recentRoute=profile.preferredLocalMode();
+                }
+                final String measuredRoute=recentRoute;
+                checkChatCancelled();
+                boolean tryGpu = !"cpu".equals(choice) && !"cpu".equals(measuredRoute) && computeReport.gpuCompute &&
                     GpuRunner.packaged(getApplicationContext());
                 boolean gpu = false;
                 StringBuilder fallback = new StringBuilder();
@@ -3389,9 +3407,10 @@ public final class MainActivity extends Activity {
                 checkChatCancelled();
                 final boolean verifiedGpu = gpu;
                 final String failedReason = fallback.toString();
-                ui.post(() -> activeEngineLabel.setText(verifiedGpu ?
+                ui.post(() -> activeEngineLabel.setText((verifiedGpu ?
                     getString(R.string.engine_gpu_verified):
-                    getString(R.string.engine_cpu_verified)+(failedReason.isEmpty()?"":" "+getString(R.string.engine_gpu_failed))));
+                    getString(R.string.engine_cpu_verified)+(failedReason.isEmpty()?"":" "+getString(R.string.engine_gpu_failed)))+
+                    (measuredRoute!=null&&measuredRoute.equals(verifiedGpu?"gpu":"cpu")?" · "+getString(R.string.bench_auto_profile,measuredRoute.toUpperCase(Locale.ROOT)):"")));
                 if (gpu) {
                     try {
                         HttpURLConnection connection = OllamaHttp.newGpuChatConnection();

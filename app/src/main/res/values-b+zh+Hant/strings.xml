@@ -825,4 +825,6 @@
     <string name="auto_reason_output_limit">回覆超過工作流程輸出限制。</string>
     <string name="auto_reason_invalid_tokens">引擎回報無效的輸出權杖數。</string>
     <string name="auto_reason_transport">本機推論失敗或逾時，請檢查後繼續。</string>
+    <string name="bench_auto_profile">自動：近期同模型比較選擇 %1$s</string>
+    <string name="bench_auto_no_profile">自動：沒有符合條件的近期 CPU/GPU 比較結果，沿用現有引擎檢查方式。</string>
 </resources>

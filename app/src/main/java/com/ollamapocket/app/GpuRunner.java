@@ -25,7 +25,7 @@ import java.nio.charset.StandardCharsets;
 public final class GpuRunner {
     private static final int PORT = 11436;
     private static volatile Process process;
-    private static volatile String activeModel = "";
+    private static volatile String activeModel = "",activeWeightsKey="";
     private static volatile boolean offloadConfirmed;
     private static final StringBuilder logBuffer = new StringBuilder();
     private static volatile int generation;
@@ -84,7 +84,8 @@ public final class GpuRunner {
     private static boolean healthy() {
         HttpURLConnection connection = null;
         try {
-            connection = (HttpURLConnection)new URL("http://127.0.0.1:" + PORT + "/health").openConnection();
+            connection = (HttpURLConnection)new URL("http://127.0.0.1:" + PORT + "/health").openConnection(java.net.Proxy.NO_PROXY);
+            connection.setInstanceFollowRedirects(false);
             connection.setConnectTimeout(900);
             connection.setReadTimeout(900);
             int status = connection.getResponseCode();
@@ -104,13 +105,14 @@ public final class GpuRunner {
         if (!packaged(context)) {
             reason.append("GPU 추론 실행 파일이 포함되지 않았습니다"); return false;
         }
-        if (process != null && process.isAlive() && activeModel.equals(model)
-                && offloadConfirmed && healthy()&&!cancelled.getAsBoolean()) return true;
+        File weights;String weightsKey;
+        try { weights = modelFile(context, model);weightsKey=EngineLoadPolicy.weightKey(weights); }
+        catch (Exception e) { reason.append(e.getMessage()); return false; }
+        Process resident=process;
+        if (resident != null && resident.isAlive() && activeModel.equals(model)&&activeWeightsKey.equals(weightsKey)
+                && offloadConfirmed && healthy()&&process==resident&&!cancelled.getAsBoolean()) return true;
         final int startup;
         synchronized (GpuRunner.class) { stopLocked(); startup=generation; }
-        File weights;
-        try { weights = modelFile(context, model); }
-        catch (Exception e) { reason.append(e.getMessage()); return false; }
         try {
             DistributedRunner.stop();
             OllamaHttp.releaseResidentModels(cancelled);
@@ -118,7 +120,7 @@ public final class GpuRunner {
             File executable = new File(context.getApplicationInfo().nativeLibraryDir, "libllama-vulkan-server.so");
             ProcessBuilder pb = new ProcessBuilder(executable.getAbsolutePath(),
                     "-m", weights.getAbsolutePath(), "--host", "127.0.0.1", "--port", String.valueOf(PORT),
-                    "-ngl", "99", "-c", "2048", "--threads", "4");
+                    "-ngl", "99", "-c", "2048", "--threads", Integer.toString(EngineLoadPolicy.hostThreads(Runtime.getRuntime().availableProcessors())));
             pb.redirectErrorStream(true);
             String libDir = context.getApplicationInfo().nativeLibraryDir;
             pb.environment().put("LD_LIBRARY_PATH", libDir);
@@ -130,7 +132,7 @@ public final class GpuRunner {
             synchronized (GpuRunner.class) {
                 if(generation!=startup||cancelled.getAsBoolean()||InferenceSafety.blocked(context))return false;
                 process = pb.start();
-                activeModel = model;
+                activeModel = model;activeWeightsKey=weightsKey;
                 offloadConfirmed = false;
                 myGeneration = generation;
                 current = process;
@@ -144,7 +146,7 @@ public final class GpuRunner {
                     }
                 } catch (Exception e) { append("GPU logs: " + e.getMessage()); }
             }, "gpu-llama-logs").start();
-            long end = SystemClock.elapsedRealtime() + 35000;
+            long end = SystemClock.elapsedRealtime() + EngineLoadPolicy.gpuStartupMs(weights.length());
             while (SystemClock.elapsedRealtime() < end) {
                 if (process != current || !current.isAlive()||cancelled.getAsBoolean()||Thread.currentThread().isInterrupted()) break;
                 if(InferenceSafety.blocked(context)){reason.append("Unsafe inference resources");synchronized(GpuRunner.class){if(process==current)stopLocked();}return false;}
@@ -167,7 +169,7 @@ public final class GpuRunner {
         generation++;
         Process old = process;
         process = null;
-        activeModel = "";
+        activeModel = "";activeWeightsKey="";
         offloadConfirmed = false;
         if (old != null) old.destroy();
     }

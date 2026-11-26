@@ -188,6 +188,7 @@ public final class ModelBenchmark {
         public String recommendedMode;
         public String recommendedName;
         public boolean interrupted;
+        BenchmarkProfile profile;
         Report(String model) { this.model = model; }
         String localizedText(Context c){
             StringBuilder s=new StringBuilder(c.getString(R.string.bench_header,model,WARMUP_TOKENS,TOKENS,REPEATS)).append("\n\n");
@@ -299,7 +300,7 @@ public final class ModelBenchmark {
                 ? "http://127.0.0.1:11434/api/generate"
                 : ("gpu".equals(mode) ? GpuRunner.url()
                    : DistributedRunner.url()) + "/completion";
-        HttpURLConnection conn = (HttpURLConnection)new URL(endpoint).openConnection();
+        HttpURLConnection conn = (HttpURLConnection)new URL(endpoint).openConnection(java.net.Proxy.NO_PROXY);
         activeConnection = conn;
         conn.setRequestMethod("POST");
         conn.setInstanceFollowRedirects(false);
@@ -319,12 +320,14 @@ public final class ModelBenchmark {
             conn.setFixedLengthStreamingMode(bytes.length);
             try(OutputStream out = conn.getOutputStream()) { out.write(bytes); }
             int responseCode = conn.getResponseCode();
-            if (responseCode >= 400)
+            if (responseCode < 200 || responseCode >= 300)
                 throw new IOException(mode + " 추론 HTTP " + responseCode);
             try(BufferedReader reader = new BufferedReader(new InputStreamReader(
                     conn.getInputStream(),StandardCharsets.UTF_8))) {
                 String line;
-                while((line=reader.readLine())!=null) {
+                long wire=0;int lines=0;
+                while((line=LocalInferenceStream.line(reader,LocalInferenceStream.MAX_LINE))!=null) {
+                    wire+=line.length()+1L;if(wire>LocalInferenceStream.MAX_WIRE||++lines>LocalInferenceStream.MAX_LINES)throw new IOException("Benchmark stream limit");
                     if(canceled||Thread.currentThread().isInterrupted())throw new InterruptedIOException("검사 취소");
                     long now=SystemClock.elapsedRealtime();
                     if(now-started>300_000)throw new java.net.SocketTimeoutException("Benchmark deadline");
@@ -343,7 +346,7 @@ public final class ModelBenchmark {
                             obj.optString("response","") : obj.optString("content","");
                     if(!chunk.isEmpty() && sample.firstTokenMs<0)
                         sample.firstTokenMs=SystemClock.elapsedRealtime()-started;
-                    if("cpu".equals(mode) && obj.optBoolean("done",false)) {
+                    if("cpu".equals(mode) && Boolean.TRUE.equals(obj.opt("done"))) {
                         terminal=true;
                         sample.generated=obj.optLong("eval_count",0);
                         sample.promptCount=obj.optLong("prompt_eval_count",0);
@@ -354,7 +357,7 @@ public final class ModelBenchmark {
                     }
                     if(!"cpu".equals(mode)) {
                         JSONObject timings=obj.optJSONObject("timings");
-                        if(timings!=null&&obj.optBoolean("stop",false)) {
+                        if(timings!=null&&Boolean.TRUE.equals(obj.opt("stop"))) {
                             terminal=true;
                             sample.generated=timings.optLong("predicted_n",0);
                             sample.promptCount=timings.optLong("prompt_n",0);
@@ -371,7 +374,7 @@ public final class ModelBenchmark {
             sample.minFreeMiB=Math.min(sample.minFreeMiB,Reading.capture(context).freeMiB);
             if(!terminal)throw new IOException("Incomplete benchmark stream");
             sample.elapsedMs = SystemClock.elapsedRealtime() - started;
-            if(sample.generated < Math.min(12, tokens) || sample.decodeTps <= 0
+            if(!BenchmarkProfile.adequateTokens(sample.generated,tokens) || !Double.isFinite(sample.decodeTps) || sample.decodeTps <= 0
                     || sample.firstTokenMs < 0)
                 throw new IOException("토큰 통계 부족 또는 첫 출력 누락: " +
                         sample.generated + " tokens");
@@ -418,7 +421,8 @@ public final class ModelBenchmark {
             }
 
             progress.update(locale.getString(R.string.bench_warmup,displayEngine));
-            measure(context,model,mode,WARMUP_TOKENS);
+            Sample warmup=measure(context,model,mode,WARMUP_TOKENS);
+            result.minFreeMiB=Math.min(result.minFreeMiB,warmup.minFreeMiB);
             List<Double> tgs=new ArrayList<>(), pps=new ArrayList<>(), firsts=new ArrayList<>();
             double firstRate=0,lastRate=0;
             for(int i=0;i<REPEATS;i++) {
@@ -452,9 +456,37 @@ public final class ModelBenchmark {
         return result;
     }
 
+    static String modelDigest(Context context,String model){
+        try{
+            org.json.JSONArray list=OllamaHttp.get("/api/tags").optJSONArray("models");
+            if(list==null||list.length()>4096)return "";
+            for(int i=0;i<list.length();i++){
+                JSONObject row=list.optJSONObject(i);
+                if(row!=null&&model.equals(row.optString("name","")))return BenchmarkProfile.normalizeDigest(row.optString("digest",""));
+            }
+        }catch(Exception ignored){}
+        return "";
+    }
+    static String runtimeIdentity(Context context){
+        try{
+            android.content.pm.PackageInfo info=context.getPackageManager().getPackageInfo(context.getPackageName(),0);
+            return LocalChatLibrary.digest(context.getPackageName()+"|"+info.versionName+"|"+info.lastUpdateTime+"|"+Build.FINGERPRINT+"|profile-v1");
+        }catch(Exception e){return "";}
+    }
+    static BenchmarkProfile freshProfile(Context context,String model,String digest,String runtime){
+        String raw=context.getSharedPreferences("ai_pocket_bench",Context.MODE_PRIVATE).getString("routing_"+model,null);
+        return BenchmarkProfile.read(raw,model,digest,runtime,System.currentTimeMillis());
+    }
+    private static BenchmarkProfile.Measurement measurement(EngineResult e){
+        if(!e.valid())return null;
+        try{return new BenchmarkProfile.Measurement(e.decodeTps,e.ttftMs,e.decayPct,e.minFreeMiB,e.thermalStart,e.thermalEnd);}
+        catch(IllegalArgumentException ignored){return null;}
+    }
+
     private Report run(Context context, String model, boolean compare, Progress progress) {
         worker=Thread.currentThread();
         Report report=new Report(model);
+        String digest=modelDigest(context,model),runtime=runtimeIdentity(context);
         String selected=context.getSharedPreferences("MainActivity",Context.MODE_PRIVATE)
                 .getString("compute_preference","auto");
         List<String> modes=new ArrayList<>();
@@ -480,6 +512,15 @@ public final class ModelBenchmark {
         } finally {
             GpuRunner.stop();DistributedRunner.stop();
             report.interrupted=canceled;
+        }
+        if(!report.interrupted&&!digest.isEmpty()&&digest.equals(modelDigest(context,model))&&runtime.equals(runtimeIdentity(context))){
+            BenchmarkProfile.Measurement cpu=null,gpu=null;
+            for(EngineResult e:report.results){
+                if("cpu".equals(e.mode))cpu=measurement(e);
+                if("gpu".equals(e.mode))gpu=measurement(e);
+            }
+            try{report.profile=new BenchmarkProfile(model,digest,runtime,System.currentTimeMillis(),cpu,gpu);}
+            catch(IllegalArgumentException ignored){}
         }
         return report;
     }
@@ -568,15 +609,20 @@ public final class ModelBenchmark {
                         activity.runOnUiThread(()->{
                             activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                             if(dialog.isShowing())dialog.dismiss();
-                            finished.run();
-                            if(activity.isFinishing())return;
-                            if(done!=null){
-                                String text=done.text(); // Preserve the canonical benchmark format used by recommendations.
+                            if(done!=null&&!done.interrupted){
                                 android.content.SharedPreferences.Editor edit=activity.getSharedPreferences("ai_pocket_bench",Context.MODE_PRIVATE).edit()
-                                    .putString("model_"+model,text).remove("structured_"+model);
+                                    .putString("model_"+model,done.text()).remove("structured_"+model).remove("routing_"+model);
                                 try{edit.putString("structured_"+model,done.structured());}catch(Exception ignored){}
+                                try{if(done.profile!=null)edit.putString("routing_"+model,done.profile.encode());}catch(Exception ignored){}
                                 edit.apply();
-                                showReport(activity,done.localizedText(activity),done.interrupted?null:done.recommendedMode);
+                            }
+                            finished.run();
+                            if(activity.isFinishing()||activity.isDestroyed())return;
+                            if(done!=null){
+                                String route=done.profile==null?null:done.profile.preferredLocalMode();
+                                String note=route==null?activity.getString(R.string.bench_auto_no_profile):
+                                    activity.getString(R.string.bench_auto_profile,route.toUpperCase(Locale.ROOT));
+                                showReport(activity,done.localizedText(activity)+"\n\n"+note,done.interrupted?null:done.recommendedMode);
                             }else showReport(activity,activity.getString(R.string.bench_failed,errorLabel(activity,problem)),null);
                         });
                     },"model-benchmark");

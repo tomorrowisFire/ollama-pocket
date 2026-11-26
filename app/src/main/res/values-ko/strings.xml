@@ -825,4 +825,6 @@
     <string name="auto_reason_output_limit">응답이 자동진행 출력 제한을 초과했습니다.</string>
     <string name="auto_reason_invalid_tokens">엔진에서 유효하지 않은 출력 토큰 수를 보고했습니다.</string>
     <string name="auto_reason_transport">로컬 추론 요청이 실패했거나 시간이 초과되었습니다. 확인 후 재개하세요.</string>
+    <string name="bench_auto_profile">자동: 최근 동일 모델 비교 기준 %1$s 선택</string>
+    <string name="bench_auto_no_profile">자동: 조건을 충족하는 최근 CPU/GPU 비교 결과가 없어 기존 엔진 확인 방식을 적용합니다.</string>
 </resources>
