@@ -21,7 +21,27 @@ final class CloudChatPanel extends LinearLayout {
     private final ExecutorService io=Executors.newSingleThreadExecutor();
     private final CloudHistory history=new CloudHistory();
     private final CloudKeyVault vault;
-    private final TextView endpoint,status;
+    private final TextView endpoint,status,usageSummary;
+    private final CloudUsageLedger ledger=new CloudUsageLedger();
+    private final java.util.EnumMap<CloudApi.Provider,Profile> profiles=new java.util.EnumMap<>(CloudApi.Provider.class);
+    private static final class Profile {
+        final String model,address;final double in,out,budget;
+        Profile(String m,String a,double i,double o,double b){model=m;address=a;in=i;out=o;budget=b;}
+    }
+    private double budget=-1;
+    private String usageScope(CloudApi.Provider p){return scope(p);}
+    private boolean budgetAllows(){
+        if(provider.remote()||budget<0)return true;
+        CloudUsageLedger.Totals t=ledger.get(usageScope(provider));
+        return inputRate>=0&&outputRate>=0&&t.unpriced==0&&t.estimated<budget;
+    }
+    private void refreshUsage(){
+        if(model.isEmpty()){usageSummary.setText("");return;}
+        CloudUsageLedger.Totals t=ledger.get(usageScope(provider));
+        String label=getResources().getString(R.string.cloud_session_usage,Long.toString(t.requests),Long.toString(t.input),Long.toString(t.output));
+        if(!provider.remote())label+="\n"+getResources().getString(R.string.cloud_session_cost,String.format(java.util.Locale.US,"%.6f",t.estimated),Long.toString(t.unpriced));
+        usageSummary.setText(label);
+    }
     private final LinearLayout transcript;
     private final ScrollView scroll;
     private final EditText prompt;
@@ -67,6 +87,7 @@ final class CloudChatPanel extends LinearLayout {
         back.setOnClickListener(v->local.run());configure.setOnClickListener(v->configure());
         endpoint=new TextView(owner);endpoint.setTextSize(16);endpoint.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
         addView(endpoint,new LayoutParams(-1,-2));
+        usageSummary=new TextView(owner);usageSummary.setTextSize(12);addView(usageSummary,new LayoutParams(-1,-2));
         conversations=button(R.string.cloud_conversations);
         conversations.setOnClickListener(v->chooseConversation());
         addView(conversations,new LayoutParams(-1,-2));
@@ -108,7 +129,7 @@ final class CloudChatPanel extends LinearLayout {
         if(busy)cancel();token="";
     }
     void resume(){if(!closed)active=true;}
-    void destroy(){pause();closed=true;history.clear();io.shutdownNow();}
+    void destroy(){pause();closed=true;history.clear();ledger.clear();profiles.clear();io.shutdownNow();}
     private CloudHistory.Session session(){return history.session(scope(provider),model);}
     private boolean current(CloudApi.Provider p,String id,CloudHistory.Session s,long revision){
         return active&&!closed&&!busy&&p==provider&&id.equals(model)&&history.isCurrent(scope(p),id,s,revision);
@@ -136,6 +157,7 @@ final class CloudChatPanel extends LinearLayout {
     }
     private void render(){
         endpoint.setText(model.isEmpty()?getResources().getString(R.string.cloud_provider_model):provider.title+(provider.remote()?" · "+pcAddress:"")+" · "+model);
+        refreshUsage();
         transcript.removeAllViews();
         conversations.setEnabled(!busy&&!model.isEmpty());
         if(!model.isEmpty()){
@@ -255,18 +277,21 @@ final class CloudChatPanel extends LinearLayout {
         EditText outRate=input(R.string.cloud_output_rate,InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL,20);
         if(inputRate>=0)inRate.setText(Double.toString(inputRate));if(outputRate>=0)outRate.setText(Double.toString(outputRate));
         fields.addView(inRate);fields.addView(outRate);
+        EditText spending=input(R.string.cloud_budget,InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL,20);
+        if(budget>=0)spending.setText(Double.toString(budget));fields.addView(spending);
         CheckBox remember=new CheckBox(owner);remember.setText(R.string.cloud_key_remember);fields.addView(remember);
         Button load=button(R.string.cloud_key_load),delete=button(R.string.cloud_key_delete);
         fields.addView(load);fields.addView(delete);
         Runnable updateFields=()->{boolean remote=values[pick.getSelectedItemPosition()].remote();
-            for(View v:new View[]{key,inRate,outRate,remember,load,delete})v.setVisibility(remote?GONE:VISIBLE);
+            for(View v:new View[]{key,inRate,outRate,spending,remember,load,delete})v.setVisibility(remote?GONE:VISIBLE);
             address.setVisibility(remote?VISIBLE:GONE);lanNotice.setVisibility(remote?VISIBLE:GONE);};
         updateFields.run();
         final int[] last={provider.ordinal()};
         pick.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
             @Override public void onNothingSelected(android.widget.AdapterView<?> p){}
             @Override public void onItemSelected(android.widget.AdapterView<?> p,View v,int pos,long id){
-                if(pos!=last[0]){last[0]=pos;chosenModel.setText("");key.setText("");inRate.setText("");outRate.setText("");remember.setChecked(false);address.setText("");}
+                if(pos!=last[0]){last[0]=pos;chosenModel.setText("");key.setText("");inRate.setText("");outRate.setText("");remember.setChecked(false);address.setText("");spending.setText("");
+                    Profile saved=profiles.get(values[pos]);if(saved!=null){chosenModel.setText(saved.model);address.setText(saved.address);if(saved.in>=0)inRate.setText(Double.toString(saved.in));if(saved.out>=0)outRate.setText(Double.toString(saved.out));if(saved.budget>=0)spending.setText(Double.toString(saved.budget));}}
                 updateFields.run();
             }
         });
@@ -316,9 +341,9 @@ final class CloudChatPanel extends LinearLayout {
             if(id.isEmpty()||(!selected.remote()&&apiKey.isEmpty())||apiKey.indexOf('\r')>=0||apiKey.indexOf('\n')>=0){toast(R.string.cloud_fields);return;}
             try{history.session(selected.remote()?selected.name()+"@"+target:selected.name(),id);}catch(IllegalStateException e){toast(R.string.cloud_session_capacity);return;}
             catch(IllegalArgumentException e){toast(R.string.cloud_fields);return;}
-            double ir,or;try{ir=rate(inRate.getText().toString());or=rate(outRate.getText().toString());}catch(RuntimeException e){toast(R.string.cloud_fields);return;}
+            double ir,or,limit;try{ir=rate(inRate.getText().toString());or=rate(outRate.getText().toString());limit=rate(spending.getText().toString());}catch(RuntimeException e){toast(R.string.cloud_fields);return;}
             if(!selected.remote()&&remember.isChecked())try{vault.save(selected,apiKey);}catch(Exception e){toast(R.string.cloud_key_error);return;}
-            rememberDraft();inputRate=ir;outputRate=or;provider=selected;model=id;pcAddress=selected.remote()?target:"";token=selected.remote()?"":apiKey;restoreDraft();status.setText("");dialog.dismiss();render();
+            rememberDraft();profiles.put(selected,new Profile(id,selected.remote()?target:"",ir,or,limit));inputRate=ir;outputRate=or;budget=limit;provider=selected;model=id;pcAddress=selected.remote()?target:"";token=selected.remote()?"":apiKey;restoreDraft();status.setText("");dialog.dismiss();render();
         });
     }
     private void setBusy(boolean b){
@@ -330,6 +355,7 @@ final class CloudChatPanel extends LinearLayout {
         if(busy||!active||closed)return;
         final String q=prompt.getText().toString().trim();if(q.isEmpty())return;
         if(model.isEmpty()||(provider.remote()?pcAddress.isEmpty():token.isEmpty())){toast(R.string.cloud_key_needed);configure();return;}
+        if(!budgetAllows()){toast(R.string.cloud_budget_stop);return;}
         final CloudApi.Provider p=provider;final String id=model;final CloudHistory.Session s=session();
         final long revision=s.revision();
         final String target=p.remote()?pcAddress:token;
@@ -352,10 +378,12 @@ final class CloudChatPanel extends LinearLayout {
                 if(target.isEmpty()||!target.equals(p.remote()?pcAddress:token)||!current(p,id,s,revision)||!q.equals(prompt.getText().toString().trim())){
                     toast(R.string.cloud_context_changed);return;
                 }
+                if(!budgetAllows()){toast(R.string.cloud_budget_stop);return;}
                 request(p,id,target,q,s,revision,messages);
             }).create());
     }
     private void request(CloudApi.Provider p,String id,String apiKey,String q,CloudHistory.Session s,long revision,List<CloudHistory.Message> messages){
+        final String ledgerScope=usageScope(p);final double ir=p.remote()?-1:inputRate,or=p.remote()?-1:outputRate;
         s.draft(q);int request=++serial;setBusy(true);status.setText(R.string.thinking);
         TextView question=new TextView(owner);question.setText(q);question.setTextSize(15);question.setPadding(dp(10),dp(10),dp(10),dp(10));transcript.addView(question,new LayoutParams(-1,-2));
         TextView partial=new TextView(owner);partial.setTextSize(15);partial.setPadding(dp(10),dp(10),dp(10),dp(10));partial.setAutoLinkMask(0);partial.setTextIsSelectable(true);transcript.addView(partial,new LayoutParams(-1,-2));
@@ -372,13 +400,15 @@ final class CloudChatPanel extends LinearLayout {
                 if(closed||request!=serial||!active)return;
                 setBusy(false);
                 if(!current(p,id,s,revision)){status.setText(R.string.cloud_context_changed);return;}
-                if(output==null){render();status.setText(failure);return;}
+                if(output==null){ledger.record(ledgerScope,-1,-1,ir,or);render();status.setText(failure);return;}
+                ledger.record(ledgerScope,output.inputTokens,output.outputTokens,ir,or);
                 try{s.complete(q,output.text);prompt.setText("");status.setText(usageLabel(output));render();}
                 catch(IllegalArgumentException e){status.setText(R.string.cloud_fail);}
             });
         });
     }
     private void cancel(){
+        if(busy)ledger.record(usageScope(provider),-1,-1,-1,-1);
         serial++;HttpURLConnection c=connection;if(c!=null)c.disconnect();
         setBusy(false);render();status.setText(R.string.cloud_cancel_cost);
     }
