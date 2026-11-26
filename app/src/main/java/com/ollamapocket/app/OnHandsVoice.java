@@ -28,7 +28,14 @@ final class OnHandsVoice {
     private String utterancePrefix;
     private long speechSequence;
     private final android.os.Handler handler=new android.os.Handler(android.os.Looper.getMainLooper());
-    private Runnable timeout;
+    private Runnable timeout, resumeListening;
+    private static final long PLAYBACK_TAIL_MS=350L;
+    private void clearResume(){if(resumeListening!=null)handler.removeCallbacks(resumeListening);resumeListening=null;}
+    private void resumeAfterPlayback(Runnable next){
+        clearResume(); final int token=generation;
+        resumeListening=()->{resumeListening=null;if(!closed&&continuous&&token==generation)next.run();};
+        handler.postDelayed(resumeListening,PLAYBACK_TAIL_MS);
+    }
     private void clearTimeout(){if(timeout!=null)handler.removeCallbacks(timeout);timeout=null;}
     private void armTimeout(long ms){clearTimeout();final int token=generation;timeout=()->{if(token==generation){cancel();toast(R.string.voice_error);}};handler.postDelayed(timeout,ms);}
     boolean continuous(){return continuous;}
@@ -40,7 +47,7 @@ final class OnHandsVoice {
         if(event==VoiceQueuePolicy.Event.ERROR){cancel();toast(R.string.tts_unavailable);return;}
         if(event!=VoiceQueuePolicy.Event.COMPLETE)return;
         clearTimeout();utterancePrefix=null;lastUtterance=null; Runnable next=afterSpeech; afterSpeech=null;
-        if(success&&continuous&&next!=null)next.run(); else if(!success)cancel();
+        if(success&&continuous&&next!=null)resumeAfterPlayback(next);
     }
     OnHandsVoice(Activity a) {
         this.a=a;
@@ -124,7 +131,7 @@ final class OnHandsVoice {
         }catch(RuntimeException e){cancel();toast(R.string.tts_unavailable);}
     }
     void cancel(){
-        generation++;clearTimeout();pendingSpeech=null;continuous=false;afterSpeech=null;lastUtterance=null;utterancePrefix=null;
+        generation++;clearTimeout();clearResume();pendingSpeech=null;continuous=false;afterSpeech=null;lastUtterance=null;utterancePrefix=null;
         SpeechRecognizer old=recognizer;recognizer=null;
         if(old!=null){try{old.cancel();}catch(RuntimeException ignored){}try{old.destroy();}catch(RuntimeException ignored){}}
         if(tts!=null)tts.stop();
