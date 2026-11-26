@@ -7,7 +7,7 @@ import java.util.*;
 /** Bounded text excerpt extraction. No networking, persistence or execution. */
 final class AttachmentText {
     static final int MAX_BYTES=1024*1024,MAX_EXCERPT=6000;
-    enum Problem { UNSUPPORTED, TOO_LARGE, INVALID, EMPTY, PDF_VERSION, PDF_NO_TEXT, PDF_PROTECTED, PDF_TIMEOUT }
+    enum Problem { UNSUPPORTED, TOO_LARGE, INVALID, EMPTY, PDF_VERSION, PDF_NO_TEXT, PDF_PROTECTED, PDF_TIMEOUT, OCR_NO_TEXT, OCR_FAILED, OCR_BUSY, OCR_TIMEOUT, OCR_PAGE }
     static final class Failure extends IOException {
         final Problem problem;
         Failure(Problem p){super(p.name());problem=p;}
@@ -15,11 +15,17 @@ final class AttachmentText {
     static final class Result {
         final String name,text;final boolean partial,office,pdf;
         final int pdfPages,pdfExamined,pdfTextPages;
+        final boolean ocr;final int ocrPage,ocrPages;
         Result(String name,String text,boolean partial){this(name,text,partial,false);}
         Result(String name,String text,boolean partial,boolean office){this(name,text,partial,office,false,0,0,0);}
         Result(String name,String text,boolean partial,boolean office,boolean pdf,int total,int examined,int withText){
+            this(name,text,partial,office,pdf,total,examined,withText,false,0,0);
+        }
+        Result(String name,String text,boolean partial,boolean office,boolean pdf,int total,int examined,int withText,
+                boolean ocr,int ocrPage,int ocrPages){
             this.name=name;this.text=text;this.partial=partial;this.office=office;this.pdf=pdf;
             this.pdfPages=total;this.pdfExamined=examined;this.pdfTextPages=withText;
+            this.ocr=ocr;this.ocrPage=ocrPage;this.ocrPages=ocrPages;
         }
     }
     private AttachmentText(){}
@@ -29,7 +35,7 @@ final class AttachmentText {
         if(clean.length()>180)clean=clean.substring(0,160)+"…"+clean.substring(clean.length()-19);
         return clean.isEmpty()?"file":clean;
     }
-    static int maxBytes(String name){return PdfExcerpt.supports(name)?PdfExcerpt.MAX_BYTES:OfficeText.supports(name)?OfficeText.MAX_BYTES:MAX_BYTES;}
+    static int maxBytes(String name){return OcrPolicy.image(name)?OcrPolicy.MAX_BYTES:PdfExcerpt.supports(name)?PdfExcerpt.MAX_BYTES:OfficeText.supports(name)?OfficeText.MAX_BYTES:MAX_BYTES;}
     static Result read(String name,InputStream source)throws IOException{
         if(OfficeText.supports(name))return OfficeText.read(name,source);
         if(name==null||!name.toLowerCase(Locale.ROOT).matches("(?s).+\\.(txt|md|csv|tsv|json|log)"))
