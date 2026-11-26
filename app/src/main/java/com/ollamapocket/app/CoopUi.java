@@ -138,7 +138,7 @@ public final class CoopUi {
             if(model.isEmpty()){message(a,a.getString(R.string.coop_select_model));return;}
             preflight.setEnabled(false);
             new Thread(()->{
-                String result=DistributedRunner.preview(a.getApplicationContext(),model);
+                String result=DistributedRunner.previewLocalized(a.getApplicationContext(),model);
                 a.runOnUiThread(()->{
                     preflight.setEnabled(true);
                     if(!a.isFinishing())message(a,result);

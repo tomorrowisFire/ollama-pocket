@@ -251,7 +251,7 @@ jobs:
           assert 'dp(300),Math.max(dp(228)' in src
           assert 'SolarTheme.isNight(' in src
           assert 'switchAutoThemeWithoutRestart()' in src
-          assert 'SolarTheme.CITY_LABELS' in src
+          assert 'UiText.cityLabels(this)' in src and 'SolarTheme.CITY_CODES[index]' in src
           assert 'searchCache.get(' in src
           assert 'fetchSearchSource(' in src
           assert 'renderGroupedSearch(' in src

@@ -991,12 +991,12 @@ public final class MainActivity extends Activity {
             11,MUTED,false),content,0,8);
         String chosenCity=getPreferences(MODE_PRIVATE).getString("sunset_city","device");
         Button cityChoice=button(getString(R.string.theme_city)+"  ·  "+
-            SolarTheme.CITY_LABELS[SolarTheme.cityIndex(chosenCity)],false);
+            UiText.cityLabels(this)[SolarTheme.cityIndex(chosenCity)],false);
         margin(cityChoice,content,0,12);
         cityChoice.setVisibility("auto".equals(themeMode)?View.VISIBLE:View.GONE);
         cityChoice.setOnClickListener(v->new AlertDialog.Builder(this)
             .setTitle(getString(R.string.theme_city_title))
-            .setSingleChoiceItems(SolarTheme.CITY_LABELS,SolarTheme.cityIndex(chosenCity),
+            .setSingleChoiceItems(UiText.cityLabels(this),SolarTheme.cityIndex(chosenCity),
                 (dialog,index)->{
                     dialog.dismiss();
                     applySetting("sunset_city",SolarTheme.CITY_CODES[index]);
@@ -1598,7 +1598,7 @@ public final class MainActivity extends Activity {
         io.execute(()->{
             List<ModelVariantCatalog.Variant> results=Collections.emptyList();String error="";
             try{results=ModelVariantCatalog.fetchFamilies(families);}
-            catch(Exception ex){error=ex.getMessage()==null?"온라인 확인 실패":ex.getMessage();}
+            catch(Exception ex){error=UiText.error(this,ex.getMessage()==null?"온라인 확인 실패":ex.getMessage());}
             final List<ModelVariantCatalog.Variant> ready=results;final String problem=error;
             ui.post(()->{
                 if(isDestroyed()||isFinishing())return;
@@ -1871,7 +1871,7 @@ public final class MainActivity extends Activity {
         card.setElevation(0);
         card.setContentDescription(getString(R.string.model_card_access,item.title,item.id,
             getString(item.id.equals(downloadingCardId)?R.string.model_downloading:item.installed?R.string.model_installed:R.string.model_not_installed),
-            filterDisplay(item.quantization)));
+            filterDisplay(item.quantization))+" · "+UiText.modelDescription(this,item.description));
         TypedValue ripple=new TypedValue();
         if(getTheme().resolveAttribute(android.R.attr.selectableItemBackground,ripple,true)
                 &&ripple.resourceId!=0)
@@ -1952,7 +1952,7 @@ public final class MainActivity extends Activity {
         card.setElevation(0);
         card.setContentDescription(getString(R.string.model_card_access,item.title,item.id,
             getString(item.id.equals(downloadingCardId)?R.string.model_downloading:item.installed?R.string.model_installed:R.string.model_not_installed),
-            filterDisplay(item.quantization)+(item.featured?" · "+getString(R.string.model_recommend_mark):"")));
+            filterDisplay(item.quantization)+(item.featured?" · "+getString(R.string.model_recommend_mark):""))+" · "+UiText.modelDescription(this,item.description));
         TypedValue ripple=new TypedValue();
         if(getTheme().resolveAttribute(android.R.attr.selectableItemBackground,ripple,true)
                 &&ripple.resourceId!=0)card.setForeground(getDrawable(ripple.resourceId));
@@ -2088,7 +2088,7 @@ public final class MainActivity extends Activity {
                 searchCache.put(ModelSearchCache.key(provider,query),
                     ready,android.os.SystemClock.elapsedRealtime());
         }catch(Exception ex){
-            error=provider+": "+(ex.getMessage()==null?"연결 오류":ex.getMessage());
+            error=provider+": "+UiText.error(this,ex.getMessage()==null?"연결 오류":ex.getMessage());
         }
         final List<ModelVariantCatalog.Variant> result=ready;final String failure=error;
         ui.post(()->{
@@ -2450,7 +2450,7 @@ public final class MainActivity extends Activity {
                 renderInstalledModels();
                 pullButton.setEnabled(true); pullButton.setAlpha(1f);
                 cancelPullButton.setEnabled(false); cancelPullButton.setVisibility(View.GONE);
-                progressStatus.setText(pullCancelled?getString(R.string.download_stopped):failure!=null?getString(R.string.download_failed,failure):getString(R.string.download_completed,model));
+                progressStatus.setText(pullCancelled?getString(R.string.download_stopped):failure!=null?getString(R.string.download_failed,UiText.error(this,failure)):getString(R.string.download_completed,model));
                 lastFailedPullModel=!pullCancelled&&failure!=null?model:"";
                 if(downloadRetryButton!=null)
                     downloadRetryButton.setVisibility(lastFailedPullModel.isEmpty()?View.GONE:View.VISIBLE);
@@ -2738,7 +2738,7 @@ public final class MainActivity extends Activity {
                 try {
                     JSONArray previous = new JSONArray(legacy);
                     if (previous.length() > 0 && previous.optJSONObject(0) != null)
-                        ensureSessionListed(previous.optJSONObject(0).optString("content", "이전 대화"));
+                        ensureSessionListed(previous.optJSONObject(0).optString("content",getString(R.string.legacy_chat_title)));
                 } catch (Exception ignored) { }
             }
         }
@@ -2880,7 +2880,7 @@ public final class MainActivity extends Activity {
                     StringBuilder reason = new StringBuilder();
                     ui.post(() -> activeEngineLabel.setText(getString(R.string.engine_rpc_load)));
                     if (!DistributedRunner.ensure(getApplicationContext(), modelAtStart, reason))
-                        throw new java.io.IOException(getString(R.string.coop_error_fallback,reason.toString()));
+                        throw new java.io.IOException(getString(R.string.coop_error_fallback,UiText.error(this,reason.toString())));
                     if (chatCancelled) {
                         ui.post(() -> { showAssistant(assistant,getString(R.string.stopped),"",false); setChatBusy(false); });
                         return;
@@ -2943,12 +2943,12 @@ public final class MainActivity extends Activity {
                 if(isFinishing()||isDestroyed())return;
                 boolean follow=followsLatest();
                 if (!finalAnswer.isEmpty()) {
-                    showAssistant(assistant,finalAnswer,chatCancelled?"\n\n"+getString(R.string.generation_cancelled):finalError!=null?"\n\n"+getString(R.string.error_label)+finalError:"",true);
+                    showAssistant(assistant,finalAnswer,chatCancelled?"\n\n"+getString(R.string.generation_cancelled):finalError!=null?"\n\n"+getString(R.string.error_label)+UiText.error(this,finalError):"",true);
                     // Keep incomplete responses visible but out of next turn's request context.
                     if (!chatCancelled && finalError == null && modelAtStart.equals(currentModel))
                         addHistory("assistant", finalAnswer);
                 } else {
-                    showAssistant(assistant,chatCancelled?getString(R.string.stopped):getString(R.string.error_label)+finalError,"",false);
+                    showAssistant(assistant,chatCancelled?getString(R.string.stopped):getString(R.string.error_label)+UiText.error(this,finalError),"",false);
                 }
                 setChatBusy(false);
                 if(speakThisTurn&&foreground&&!isDestroyed()&&!chatCancelled&&finalError==null&&!finalAnswer.isEmpty()&&voice!=null)voice.speak(finalAnswer);
@@ -3031,7 +3031,7 @@ public final class MainActivity extends Activity {
                     }
                 }
                 int exit = p.waitFor();
-                if (exit != 0) throw new Exception("ollama create 종료 코드 " + exit + ": " + output);
+                if (exit != 0) throw new Exception(getString(R.string.error_create_exit,exit,output.toString()));
                 importStatus = getString(R.string.gguf_register_done,modelName);
                 // The created Ollama model has its own blob, so remove the temporary copy.
                 if (copied != null) copied.delete();

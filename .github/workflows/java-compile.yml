@@ -14,6 +14,7 @@ on:
       - 'tests/WorkspaceLayoutPolicyTest.java'
       - 'tests/DiagnosticValuesTest.java'
       - 'tests/AdvisorDisplayDataTest.java'
+      - 'tests/CoopPlanLocaleDataTest.java'
 
 jobs:
   compile:
@@ -69,6 +70,12 @@ jobs:
           java -cp /tmp/diagnostic-tests com.ollamapocket.app.DiagnosticValuesTest
           java -cp /tmp/diagnostic-tests com.ollamapocket.app.AdvisorDisplayDataTest
           java -cp /tmp/diagnostic-tests ModelPerformanceAdvisorTest
+      - name: Test cooperative plan display data (pure Java)
+        run: |
+          mkdir -p /tmp/coop-plan-tests
+          javac -d /tmp/coop-plan-tests app/src/main/java/com/ollamapocket/app/CoopMemoryPlanner.java tests/CoopMemoryPlannerTest.java tests/CoopPlanLocaleDataTest.java
+          java -cp /tmp/coop-plan-tests CoopMemoryPlannerTest
+          java -cp /tmp/coop-plan-tests CoopPlanLocaleDataTest
       - name: Verify OnHand AI brand and locale resource parity
         run: |
           python3 - <<'PY'

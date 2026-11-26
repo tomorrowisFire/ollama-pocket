@@ -80,6 +80,19 @@ public final class DistributedRunner {
         }catch(Exception e){return "모델 사전 점검 실패: "+e.getMessage();}
     }
 
+    /** Same read-only preflight, localized; no model allocation or transfer. */
+    public static String previewLocalized(Context context,String model){
+        Context c=OnHandsLocale.wrap(context);
+        CoopSession coop=CoopSession.get(context);
+        if(!"host".equals(coop.role()))return c.getString(R.string.coop_preflight_host);
+        try{
+            File weights=findModel(context,model);
+            BudgetSelection selection=plan(context,weights);
+            return c.getString(R.string.advisor_current,model)+"\n"+CoopMemoryPresentation.summary(c,selection.budget)+"\n"+
+                c.getString(R.string.rpc_plan_split,selection.budget.tensorSplit);
+        }catch(Exception e){return c.getString(R.string.rpc_preflight_failed,UiText.error(c,e.getMessage()));}
+    }
+
     /** Called only from a worker thread, before the distributed server is started. */
     public static boolean ensure(Context context,String model,StringBuilder reason){
         CoopSession coop=CoopSession.get(context);
@@ -108,8 +121,9 @@ public final class DistributedRunner {
         BudgetSelection selection=plan(context,weights);
         CoopMemoryPlanner.Plan budget=selection.budget;
         if(!budget.allowed){
-            reason.append(budget.summary())
-                  .append("\n더 작은 모델 또는 메모리 여유가 있는 노드로 재시도하세요.");
+            Context locale=OnHandsLocale.wrap(context);
+            reason.append(CoopMemoryPresentation.summary(locale,budget))
+                  .append('\n').append(locale.getString(R.string.rpc_plan_retry));
             return false;
         }
         if(selection.endpoints.isEmpty() || budget.tensorSplit.isEmpty()){

@@ -29,8 +29,10 @@ public final class CoopMemoryPlanner {
     }
 
     public static final class Plan {
+        public enum ReasonCode { UNKNOWN_MODEL, NO_REMOTE, HOST_LOW, SHORTFALL, PASS }
         public final boolean allowed;
         public final String reason;
+        public final ReasonCode reasonCode;
         public final long modelMiB;
         public final long overheadMiB;
         public final long requiredMiB;
@@ -40,12 +42,13 @@ public final class CoopMemoryPlanner {
         public final List<Long> remoteSafeMiB;
         public final String tensorSplit;
 
-        private Plan(boolean allowed, String reason, long modelMiB,
+        private Plan(boolean allowed, String reason, ReasonCode reasonCode, long modelMiB,
                      long overheadMiB, long requiredMiB, long hostSafeMiB,
                      long totalSafeMiB, List<Integer> selectedIndices,
                      List<Long> remoteSafeMiB, String tensorSplit) {
             this.allowed = allowed;
             this.reason = reason;
+            this.reasonCode=reasonCode;
             this.modelMiB = modelMiB;
             this.overheadMiB = overheadMiB;
             this.requiredMiB = requiredMiB;
@@ -92,18 +95,26 @@ public final class CoopMemoryPlanner {
             split.add(Long.toString(Math.max(1, budget - 192)));
         }
         String reason;
+        Plan.ReasonCode code;
         boolean allowed = false;
-        if (weight < 128) reason = "모델 GGUF 용량을 확인할 수 없습니다.";
-        else if (used.isEmpty()) reason = "안전 RAM 384 MiB 이상인 보조 노드가 없습니다.";
-        else if (host < Math.max(512, overhead / 2))
+        if (weight < 128) {
+            code=Plan.ReasonCode.UNKNOWN_MODEL;
+            reason = "모델 GGUF 용량을 확인할 수 없습니다.";
+        } else if (used.isEmpty()) {
+            code=Plan.ReasonCode.NO_REMOTE;
+            reason = "안전 RAM 384 MiB 이상인 보조 노드가 없습니다.";
+        } else if (host < Math.max(512, overhead / 2)) {
+            code=Plan.ReasonCode.HOST_LOW;
             reason = "호스트의 KV 캐시·추론 작업용 RAM이 부족합니다.";
-        else if (safe < required)
+        } else if (safe < required) {
+            code=Plan.ReasonCode.SHORTFALL;
             reason = "안전 RAM 약 " + (required - safe) + " MiB 추가 확보가 필요합니다.";
-        else {
+        } else {
             allowed = true;
+            code=Plan.ReasonCode.PASS;
             reason = "사전 RAM 조건 통과 · 실제 RPC 로딩 및 토큰 생성 검증 필요";
         }
-        return new Plan(allowed, reason, weight, overhead, required, host, safe,
+        return new Plan(allowed, reason, code, weight, overhead, required, host, safe,
                 used, capacities, String.join(",", split));
     }
 }
