@@ -27,5 +27,10 @@ final class CloudUsageLedger {
             t.estimated+=(inRate*input+outRate*output)/1000000d;
         else t.unpriced=add(t.unpriced,1);
     }
+    boolean allows(String scope,double budget,double inRate,double outRate){
+        if(budget<0)return true;
+        Totals t=get(scope);
+        return Double.isFinite(budget)&&Double.isFinite(inRate)&&Double.isFinite(outRate)&&inRate>=0&&outRate>=0&&t.unpriced==0&&t.estimated<budget;
+    }
     void clear(){entries.clear();}
 }
