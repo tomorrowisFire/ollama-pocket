@@ -229,6 +229,15 @@ public final class MainActivity extends Activity {
     };
     private volatile HttpURLConnection chatConnection, pullConnection;
     private volatile boolean chatBusy, pullBusy, chatCancelled, pullCancelled;
+    private volatile InferenceSafetyPolicy.Reason chatSafetyReason=InferenceSafetyPolicy.Reason.NONE;
+    private String chatComputeRoute="";
+    private final Runnable inferenceWatch=new Runnable(){public void run(){
+        if(!chatBusy||chatCancelled||isDestroyed()||isFinishing())return;
+        InferenceSafetyPolicy.Reason risk=InferenceSafety.check(getApplicationContext());
+        if(risk==InferenceSafetyPolicy.Reason.NONE&&"cooperative".equals(chatComputeRoute)&&!DistributedRunner.peersAvailable(getApplicationContext()))risk=InferenceSafetyPolicy.Reason.PEER_LOST;
+        if(risk!=InferenceSafetyPolicy.Reason.NONE){chatSafetyReason=risk;stopChat();GpuRunner.stop();DistributedRunner.stop();return;}
+        ui.postDelayed(this,2000);
+    }};
     private volatile boolean serverPollBusy;
     private JSONArray history = new JSONArray();
     private boolean historyReadable=true;
@@ -448,6 +457,7 @@ public final class MainActivity extends Activity {
         if (pullConnection != null) pullConnection.disconnect();
         ui.removeCallbacks(hudPoll);
         ui.removeCallbacks(voiceStatePoll);
+        ui.removeCallbacks(inferenceWatch);
         ui.removeCallbacks(sunsetThemePoll);
         if(onlineSearchRunnable!=null)ui.removeCallbacks(onlineSearchRunnable);
         if(onlineSearchTask!=null)onlineSearchTask.cancel(true);
@@ -3203,6 +3213,8 @@ public final class MainActivity extends Activity {
     private void scrollBottom() { if(messageScroll!=null)messageScroll.post(()->messageScroll.fullScroll(View.FOCUS_DOWN)); }
     private void setChatBusy(boolean busy) {
         chatBusy = busy;
+        ui.removeCallbacks(inferenceWatch);
+        if(busy)ui.post(inferenceWatch);
         if(chatInput!=null)chatInput.setEnabled(!busy);
         sendButton.setEnabled(!busy);sendButton.setVisibility(busy?View.GONE:View.VISIBLE);
         stopChatButton.setEnabled(busy);stopChatButton.setVisibility(busy?View.VISIBLE:View.GONE);
@@ -3249,6 +3261,8 @@ public final class MainActivity extends Activity {
         }
         final JSONArray requestHistory;
         try{requestHistory=modelContext(history,prompt);}catch(Exception e){toast(getString(R.string.chat_history_invalid));return;}
+        InferenceSafetyPolicy.Reason startupRisk=InferenceSafety.check(getApplicationContext());
+        if(startupRisk!=InferenceSafetyPolicy.Reason.NONE){toast(getString(InferenceSafety.label(startupRisk)));return;}
         final String computeAtStart=computePreference();
         final boolean speakThisTurn=speakNextAnswer;speakNextAnswer=false;
         if("cooperative".equals(computeAtStart)||approvedTransfer!=null){
@@ -3271,11 +3285,14 @@ public final class MainActivity extends Activity {
         bubble("user",prompt);
         TextView assistant=bubble("assistant",getString(R.string.thinking),true);
         lastStreamUi=0;
+        chatSafetyReason=InferenceSafetyPolicy.Reason.NONE;chatComputeRoute=computeAtStart;
         chatCancelled=false;setChatBusy(true);scrollBottom();
         io.execute(() -> {
             final StringBuilder answer = new StringBuilder();
             String error = null;
             try {
+                checkChatCancelled();
+                if(InferenceSafety.blocked(getApplicationContext()))throw new java.io.IOException("Unsafe inference resources");
                 if ("cooperative".equals(computeAtStart)) {
                     StringBuilder reason = new StringBuilder();
                     ui.post(() -> activeEngineLabel.setText(getString(R.string.engine_rpc_load)));
@@ -3317,6 +3334,8 @@ public final class MainActivity extends Activity {
                             item -> appendAnswer(item, answer, assistant));
                     } catch (Exception gpuError) {
                         if(chatCancelled||Thread.currentThread().isInterrupted()||answer.length()>0)throw gpuError; // never duplicate a partial/cancelled response
+                        GpuRunner.stop();
+                        if(InferenceSafety.blocked(getApplicationContext()))throw gpuError;
                         ui.post(() -> activeEngineLabel.setText(getString(R.string.engine_cpu_fallback)));
                         HttpURLConnection connection = OllamaHttp.newChatConnection();
                         publishChatConnection(connection);
@@ -3333,7 +3352,12 @@ public final class MainActivity extends Activity {
                 checkChatCancelled();
                 if(!LocalChatTurns.validReply(answer.toString()))throw new java.io.IOException("CHAT_EMPTY_ANSWER");
             } catch (Exception ex) { error=ex.getMessage()==null?ex.getClass().getSimpleName():ex.getMessage(); }
-            finally { chatConnection = null; }
+            finally { chatConnection = null;
+                if(chatSafetyReason!=InferenceSafetyPolicy.Reason.NONE){
+                    GpuRunner.stop();DistributedRunner.stop();
+                    try{OllamaHttp.post("/api/generate",new JSONObject().put("model",modelAtStart).put("keep_alive",0).put("stream",false),"POST");}catch(Exception ignored){}
+                }
+            }
             String finalError=error,finalAnswer=answer.toString();
             ui.post(()->{
                 if(isFinishing()||isDestroyed())return;
@@ -3354,7 +3378,7 @@ public final class MainActivity extends Activity {
                 }else if(sameScope){
                     if(voice!=null&&voice.sessionToken()==voiceToken)voice.cancel();
                     chatInput.setText(prompt);
-                    String notice=chatCancelled?getString(R.string.generation_cancelled):localChatError(problem);
+                    String notice=chatSafetyReason!=InferenceSafetyPolicy.Reason.NONE?getString(InferenceSafety.label(chatSafetyReason)):chatCancelled?getString(R.string.generation_cancelled):localChatError(problem);
                     String suffix="\n\n"+getString(R.string.chat_draft_recovered);
                     if(!finalAnswer.isEmpty())showAssistant(assistant,finalAnswer,"\n\n"+notice+suffix,true);
                     else showAssistant(assistant,notice,suffix,false);
