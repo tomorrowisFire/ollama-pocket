@@ -993,4 +993,11 @@
     <string name="conference_capacity_estimate">These are conservative serialized-text estimates, not exact model token counts. Long multilingual text may have a shorter usable limit. Nothing is silently truncated.</string>
     <string name="conference_capacity_impossible">The configured condition cannot fit the conference artifact limits. Revise it before starting.</string>
     <string name="conference_capacity_insufficient">The estimated context cannot safely accommodate all roles and one correction. Shorten the goal or condition before starting.</string>
+    <string name="conference_elapsed">Analysis elapsed: %1$s ms (excluding final cleanup)</string>
+    <string name="conference_stop_reason">Stop reason</string>
+    <string name="conference_report_invalid">The terminal meeting record is inconsistent. Export is unavailable.</string>
+    <string name="conference_copy_artifact">Copy artifact only</string>
+    <string name="conference_partial_copy">This artifact is from an incomplete, blocked or stopped meeting. It is not an accepted result. Review before copying.</string>
+    <string name="conference_copy_json">Copy JSON meeting report</string>
+    <string name="conference_json_notice">The JSON includes the goal, condition, model, artifact and role transcripts. It is not independent or factual verification. Review before sharing.</string>
 </resources>

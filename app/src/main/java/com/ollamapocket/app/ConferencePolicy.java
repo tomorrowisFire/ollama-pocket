@@ -63,19 +63,20 @@ final class ConferencePolicy {
         }
     }
     static final class Result {
+        final Request request;
         final Status status;final Cause cause;final List<Turn> turns;
         final int attempts;final Role activeRole;final int round;
         final String artifact;
         final WorkflowPolicy.Sample predicate;
         final Recommendation recommendation;
-        Result(Status status,Cause cause,List<Turn> turns,int attempts,Role activeRole,int round,
+        Result(Request request,Status status,Cause cause,List<Turn> turns,int attempts,Role activeRole,int round,
                String artifact,WorkflowPolicy.Sample predicate,Recommendation recommendation){
-            this.status=status;this.cause=cause;this.turns=Collections.unmodifiableList(new ArrayList<>(turns));
+            this.request=request;this.status=status;this.cause=cause;this.turns=Collections.unmodifiableList(new ArrayList<>(turns));
             this.attempts=attempts;this.activeRole=activeRole;this.round=round;
             this.artifact=artifact;this.predicate=predicate;this.recommendation=recommendation;
         }
         Result stopped(){
-            return new Result(Status.STOPPED,Cause.STOP,turns,attempts,null,round,artifact,predicate,recommendation);
+            return new Result(request,Status.STOPPED,Cause.STOP,turns,attempts,null,round,artifact,predicate,recommendation);
         }
     }
     private static final class Halt extends Exception {}
@@ -106,6 +107,17 @@ final class ConferencePolicy {
         String value=text(json,key,max,blankAllowed);
         if(quoteCost(value)>allowance)throw new InvalidReply();
         return value;
+    }
+    static boolean validTurnText(Turn turn,Capacity cap){
+        if(turn==null||turn.role==null||turn.text==null||cap==null||!cap.ready())return false;
+        int max,allowance;boolean blank=false;
+        switch(turn.role){
+            case PLANNER:max=MAX_PLAN;allowance=cap.plan;break;
+            case PRODUCER:max=MAX_ARTIFACT;allowance=cap.artifact;break;
+            default:max=MAX_ISSUES;allowance=cap.issues;blank=turn.recommendation==Recommendation.ACCEPT;
+        }
+        try{handoffText(new JSONObject().put("text",turn.text),"text",max,allowance,blank);return true;}
+        catch(Exception e){return false;}
     }
     private static JSONObject inputs(Request req,Capacity cap)throws Exception{
         return new JSONObject().put("goal",req.goal).put("language",req.language)
@@ -248,7 +260,7 @@ final class ConferencePolicy {
             progress.accept(result(Status.RUNNING,Cause.NONE));
         }
         Result result(Status status,Cause cause){
-            return new Result(status,cause,turns,attempts,status==Status.RUNNING?active:null,round,artifact,predicate,recommendation);
+            return new Result(req,status,cause,turns,attempts,status==Status.RUNNING?active:null,round,artifact,predicate,recommendation);
         }
     }
 }

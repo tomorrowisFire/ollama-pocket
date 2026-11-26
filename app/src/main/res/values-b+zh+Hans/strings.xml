@@ -993,4 +993,11 @@
     <string name="conference_capacity_estimate">这是序列化文本的保守估计，并非模型的实际令牌数。较长的多语言文本可用长度可能缩短。不会擅自截断内容。</string>
     <string name="conference_capacity_impossible">设定条件无法满足会议室成果上限。请在开始前修改条件。</string>
     <string name="conference_capacity_insufficient">预计上下文无法安全容纳所有角色及一次修订。请在开始前缩短目标或条件。</string>
+    <string name="conference_elapsed">分析用时：%1$s毫秒（不含最终清理）</string>
+    <string name="conference_stop_reason">停止原因</string>
+    <string name="conference_report_invalid">会议结束记录不一致，无法导出。</string>
+    <string name="conference_copy_artifact">仅复制成果</string>
+    <string name="conference_partial_copy">此成果来自未完成、受阻或已停止的会议，并非已接受的结果。复制前请检查。</string>
+    <string name="conference_copy_json">复制JSON会议报告</string>
+    <string name="conference_json_notice">JSON包含目标、条件、模型、成果和角色记录。这不代表独立验证或事实核验。分享前请检查。</string>
 </resources>

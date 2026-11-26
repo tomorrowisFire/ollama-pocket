@@ -143,6 +143,23 @@ final class AutomationUi {
         }
         return out.toString();
     }
+    private String conferenceTerminalReport(ConferenceReport report){
+        return conferenceReport(report.request,report.result)+"\n\n"+
+            owner.getString(R.string.conference_elapsed,Long.toString(report.elapsedMillis))+
+            (report.stopReason==null?"":"\n"+s(R.string.conference_stop_reason)+": "+report.stopReason);
+    }
+    private void copyConference(ConferenceReport[] current,int title,String value,String extra){
+        if(busy()||current[0]==null)return;
+        final ConferenceReport reviewed=current[0];
+        confirm(s(title),s(R.string.attachment_copy_notice)+(extra.isEmpty()?"":"\n\n"+extra),()->{
+            if(busy()||current[0]!=reviewed)return;
+            try{
+                android.content.ClipboardManager clipboard=(android.content.ClipboardManager)owner.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                if(clipboard==null)throw new IllegalStateException("Clipboard unavailable");
+                clipboard.setPrimaryClip(SensitiveClipboard.text(s(R.string.conference_title),value));toast(R.string.copied);
+            }catch(RuntimeException e){toast(R.string.batch_export_failed);}
+        });
+    }
     private void showConference(String model){
         if(busy()||model==null||model.isEmpty()){toast(R.string.test_need_model);return;}
         final int token=epoch;
@@ -176,16 +193,18 @@ final class AutomationUi {
         capacityStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         TextView status=output(panel);status.setTextIsSelectable(false);
         status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
-        final Button[] controls=new Button[4];
+        final Button[] controls=new Button[6];
         final ConferencePolicy.Result[] latest={null};
-        final ConferencePolicy.Request[] executed={null};
+        final ConferenceReport[] terminal={null};
         final boolean[] stopRequested={false};
         Runnable enabled=()->{
             boolean idle=!busy();
             goal.setEnabled(idle);picker.setEnabled(idle);required.setEnabled(idle);
             controls[0].setEnabled(idle);controls[3].setEnabled(idle);
             controls[1].setEnabled(!idle&&conference!=null&&!stopRequested[0]);
-            controls[2].setEnabled(idle&&latest[0]!=null&&latest[0].status!=ConferencePolicy.Status.RUNNING&&!latest[0].turns.isEmpty());
+            controls[2].setEnabled(idle&&terminal[0]!=null);
+            controls[4].setEnabled(idle&&terminal[0]!=null&&terminal[0].hasArtifact());
+            controls[5].setEnabled(idle&&terminal[0]!=null);
         };
         android.text.TextWatcher resetCapacity=new android.text.TextWatcher(){
             public void beforeTextChanged(CharSequence text,int start,int count,int after){}
@@ -225,7 +244,7 @@ final class AutomationUi {
                 if(!OllamaForegroundService.isRunning()){toast(R.string.test_need_server);return;}
                 if(!"off".equals(CoopSession.get(owner).role())){toast(R.string.guest_stop_first);return;}
                 final LocalConferenceRunner runner=new LocalConferenceRunner(owner);
-                conference=runner;executed[0]=request;latest[0]=null;stopRequested[0]=false;
+                conference=runner;latest[0]=null;terminal[0]=null;stopRequested[0]=false;
                 status.setText(R.string.thinking);
                 work(()->runner.run(request,value->owner.runOnUiThread(()->{
                     if(valid(token)&&conference==runner&&!stopRequested[0]){
@@ -235,13 +254,19 @@ final class AutomationUi {
                     if(conference!=runner)return;
                     conference=null;
                     latest[0]=stopRequested[0]?value.stopped():value;
-                    status.setText(conferenceReport(request,latest[0]));
-                    if(latest[0].status==ConferencePolicy.Status.STOPPED&&runner.reason()!=null)
-                        status.append("\n"+runner.reason().name());
+                    String stopReason=null;
+                    if(latest[0].status==ConferencePolicy.Status.STOPPED)
+                        stopReason=runner.reason()!=null?runner.reason().name():stopRequested[0]?"USER":"UNKNOWN";
+                    try{
+                        terminal[0]=new ConferenceReport(request,latest[0],stopReason,runner.elapsedMillis());
+                        status.setText(conferenceTerminalReport(terminal[0]));
+                    }catch(IllegalArgumentException e){
+                        terminal[0]=null;status.setText(R.string.conference_report_invalid);
+                    }
                     enabled.run();
                 },()->{
                     if(conference!=runner)return;
-                    conference=null;latest[0]=null;status.setText(R.string.conference_failed);enabled.run();
+                    conference=null;terminal[0]=null;latest[0]=null;status.setText(R.string.conference_failed);enabled.run();
                 });
                 enabled.run();
             });
@@ -252,17 +277,21 @@ final class AutomationUi {
             }
         });
         controls[2]=button(panel,R.string.conference_copy,()->{
-            if(busy()||latest[0]==null||executed[0]==null||latest[0].status==ConferencePolicy.Status.RUNNING)return;
-            final ConferencePolicy.Result reviewed=latest[0];
-            final String report=conferenceReport(executed[0],reviewed);
-            confirm(s(R.string.conference_copy),s(R.string.attachment_copy_notice),()->{
-                if(busy()||latest[0]!=reviewed)return;
-                try{
-                    android.content.ClipboardManager clipboard=(android.content.ClipboardManager)owner.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
-                    if(clipboard==null)throw new IllegalStateException("Clipboard unavailable");
-                    clipboard.setPrimaryClip(SensitiveClipboard.text(s(R.string.conference_title),report));toast(R.string.copied);
-                }catch(RuntimeException e){toast(R.string.batch_export_failed);}
-            });
+            if(busy()||terminal[0]==null)return;
+            copyConference(terminal,R.string.conference_copy,conferenceTerminalReport(terminal[0]),"");
+        });
+        controls[4]=button(panel,R.string.conference_copy_artifact,()->{
+            if(busy()||terminal[0]==null||!terminal[0].hasArtifact())return;
+            ConferenceReport report=terminal[0];
+            String notice=(report.completed()?s(R.string.conference_evidence_notice):s(R.string.conference_partial_copy))+
+                "\n"+conferenceState(report.result)+"\n"+conferencePredicate(report.result.predicate)+"\n"+
+                (report.result.recommendation==null?s(R.string.conference_pending):conferenceRecommendation(report.result.recommendation));
+            copyConference(terminal,R.string.conference_copy_artifact,report.result.artifact,notice);
+        });
+        controls[5]=button(panel,R.string.conference_copy_json,()->{
+            if(busy()||terminal[0]==null)return;
+            try{copyConference(terminal,R.string.conference_copy_json,terminal[0].json(),s(R.string.conference_json_notice));}
+            catch(Exception e){toast(R.string.batch_export_failed);}
         });
         enabled.run();show(s(R.string.conference_title),panel);
     }

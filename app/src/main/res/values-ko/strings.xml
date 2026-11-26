@@ -993,4 +993,11 @@
     <string name="conference_capacity_estimate">직렬화된 텍스트의 보수적 추정값이며 실제 모델 토큰 수는 아닙니다. 긴 다국어 텍스트는 사용 가능 길이가 줄어들 수 있습니다. 내용을 임의로 자르지 않습니다.</string>
     <string name="conference_capacity_impossible">설정한 조건이 회의실 결과물 한도를 충족할 수 없습니다. 시작 전에 조건을 수정하세요.</string>
     <string name="conference_capacity_insufficient">예상 컨텍스트에 모든 역할과 보완 작업을 안전하게 수용할 수 없습니다. 시작 전에 목표나 조건을 줄이세요.</string>
+    <string name="conference_elapsed">분석 경과: %1$s ms (최종 정리 제외)</string>
+    <string name="conference_stop_reason">중단 사유</string>
+    <string name="conference_report_invalid">회의 종료 기록이 일치하지 않습니다. 내보내기를 사용할 수 없습니다.</string>
+    <string name="conference_copy_artifact">결과물만 복사</string>
+    <string name="conference_partial_copy">미완료·차단·중단된 회의의 결과물입니다. 승인된 결과가 아닙니다. 복사 전에 확인하세요.</string>
+    <string name="conference_copy_json">JSON 회의 보고서 복사</string>
+    <string name="conference_json_notice">JSON에는 목표, 검증 조건, 모델, 결과물 및 역할별 기록이 포함됩니다. 독립 검증이나 사실 검증을 의미하지 않습니다. 공유 전 확인하세요.</string>
 </resources>

@@ -20,9 +20,10 @@ final class LocalConferenceRunner {
     private final AtomicBoolean used=new AtomicBoolean();
     private final AtomicReference<Stop> reason=new AtomicReference<>();
     private volatile HttpURLConnection connection;
-    private volatile long deadline;
+    private volatile long deadline,elapsedMillis;
     LocalConferenceRunner(Context context){this.context=context.getApplicationContext();}
     Stop reason(){return reason.get();}
+    long elapsedMillis(){return elapsedMillis;}
     void cancel(){
         if(reason.compareAndSet(null,Stop.USER)){
             Thread closer=new Thread(this::disconnect,"onhand-conference-close");
@@ -53,7 +54,8 @@ final class LocalConferenceRunner {
     }
     ConferencePolicy.Result run(ConferencePolicy.Request request,Consumer<ConferencePolicy.Result> progress){
         if(!used.compareAndSet(false,true))throw new IllegalStateException("Conference already used");
-        deadline=SystemClock.elapsedRealtime()+ConferencePolicy.MAX_MILLIS;
+        long started=SystemClock.elapsedRealtime();
+        deadline=started+ConferencePolicy.MAX_MILLIS;
         ScheduledExecutorService watchdog=Executors.newSingleThreadScheduledExecutor(r->{
             Thread t=new Thread(r,"onhand-conference-safety");t.setDaemon(true);return t;
         });
@@ -62,6 +64,7 @@ final class LocalConferenceRunner {
             if(!stopped()){GpuRunner.stop();DistributedRunner.stop();}
             return ConferencePolicy.run(request,call->generate(request.model,call),this::stopped,progress);
         }finally{
+            elapsedMillis=Math.max(0,SystemClock.elapsedRealtime()-started);
             watchdog.shutdownNow();disconnect();connection=null;
             if(InferenceSafety.blocked(context))try{
                 OllamaHttp.post("/api/generate",new JSONObject().put("model",request.model).put("keep_alive",0).put("stream",false),"POST");

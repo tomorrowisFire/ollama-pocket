@@ -993,4 +993,11 @@
     <string name="conference_capacity_estimate">直列化テキストの保守的な推定値であり、実際のモデルトークン数ではありません。長い多言語テキストでは使用可能な長さが短くなる場合があります。内容を無断で切り捨てません。</string>
     <string name="conference_capacity_impossible">設定条件は会議室の成果物上限に収まりません。開始前に条件を変更してください。</string>
     <string name="conference_capacity_insufficient">推定コンテキスト内に全役割と修正作業を安全に収容できません。開始前に目標や条件を短くしてください。</string>
+    <string name="conference_elapsed">分析経過：%1$s ms（最終クリーンアップを除く）</string>
+    <string name="conference_stop_reason">中止理由</string>
+    <string name="conference_report_invalid">会議の終了記録に不整合があります。エクスポートできません。</string>
+    <string name="conference_copy_artifact">成果物のみコピー</string>
+    <string name="conference_partial_copy">未完了・ブロック・中止された会議の成果物です。承認された結果ではありません。コピー前に確認してください。</string>
+    <string name="conference_copy_json">JSON会議レポートをコピー</string>
+    <string name="conference_json_notice">JSONには目標、条件、モデル、成果物、役割別記録が含まれます。独立した検証や事実確認ではありません。共有前に確認してください。</string>
 </resources>
