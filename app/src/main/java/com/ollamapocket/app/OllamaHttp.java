@@ -109,26 +109,19 @@ public final class OllamaHttp {
             write(conn, request);
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(
                     checkedStream(conn), StandardCharsets.UTF_8))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    if (!line.trim().isEmpty()) {
-                        JSONObject message = new JSONObject(line);
-                        if (message.has("error")) throw new IOException(message.optString("error"));
-                        onChunk.onChunk(message);
-                    }
-                }
+                LocalInferenceStream.ndjson(reader,onChunk::onChunk,false);
             }
         } finally { conn.disconnect(); }
     }
 
     /** Only interactive chat requires a normal terminal marker. Pulls and diagnostics keep their existing API. */
     public static void streamChat(HttpURLConnection connection,JSONObject request,ChunkListener listener)throws Exception{
-        final boolean[] done={false};
-        stream(connection,request,item->{
-            if(item.optBoolean("done",false))done[0]=true;
-            listener.onChunk(item);
-        });
-        if(!done[0])throw new IOException("CHAT_STREAM_INCOMPLETE");
+        try{
+            write(connection,request);
+            try(BufferedReader reader=new BufferedReader(new InputStreamReader(checkedStream(connection),StandardCharsets.UTF_8))){
+                LocalInferenceStream.ndjson(reader,listener::onChunk,true);
+            }
+        }finally{connection.disconnect();}
     }
     public static HttpURLConnection newGpuChatConnection() throws Exception {
         HttpURLConnection conn = (HttpURLConnection)new URL(GpuRunner.url() + "/v1/chat/completions").openConnection(java.net.Proxy.NO_PROXY);
@@ -173,34 +166,12 @@ public final class OllamaHttp {
         streamGpuInternal(connection,request,onChunk,true);
     }
     private static void streamGpuInternal(HttpURLConnection connection,JSONObject request,ChunkListener onChunk,boolean requireTerminal)throws Exception{
-        boolean terminal=false;
-        try {
-            write(connection, request);
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-                    checkedStream(connection), StandardCharsets.UTF_8))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    if (!line.startsWith("data: ")) continue;
-                    String data = line.substring(6).trim();
-                    if (data.equals("[DONE]")) {terminal=true;break;}
-                    JSONObject message = new JSONObject(data);
-                    if (message.has("error")) throw new IOException(message.optString("error"));
-                    JSONArray choices = message.optJSONArray("choices");
-                    if (choices == null || choices.length() == 0) continue;
-                    JSONObject first=choices.getJSONObject(0);
-                    String reason=first.isNull("finish_reason")?"":first.optString("finish_reason","");
-                    if(LocalChatTurns.gpuTerminal(reason))terminal=true;
-                    else if(requireTerminal&&!reason.isEmpty())throw new IOException("CHAT_STREAM_INCOMPLETE");
-                    JSONObject delta = first.optJSONObject("delta");
-                    if (delta != null) {
-                        JSONObject adapted = new JSONObject();
-                        adapted.put("message", new JSONObject().put("content", delta.optString("content", "")));
-                        onChunk.onChunk(adapted);
-                    }
-                }
+        try{
+            write(connection,request);
+            try(BufferedReader reader=new BufferedReader(new InputStreamReader(checkedStream(connection),StandardCharsets.UTF_8))){
+                LocalInferenceStream.sse(reader,onChunk::onChunk,requireTerminal);
             }
-            if(requireTerminal&&!terminal)throw new IOException("CHAT_STREAM_INCOMPLETE");
-        } finally { connection.disconnect(); }
+        }finally{connection.disconnect();}
     }
 
     public static HttpURLConnection newChatConnection() throws Exception { return open("/api/chat", "POST", 300_000); }

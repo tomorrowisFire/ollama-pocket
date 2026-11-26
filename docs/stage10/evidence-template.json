@@ -1,0 +1,152 @@
+{
+  "schema": 1,
+  "candidate_commit": null,
+  "gates": {
+    "java_regression": {
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    "native_apk": {
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    "aab_build": {
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    "native_16k_audit": {
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    "signed_update": {
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    "api36_4k_device": {
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    "api36_16k_device": {
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    "phone_tablet_layout": {
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    "five_locale_accessibility": {
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    "local_chat_document_code": {
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    "voice_stt_tts": {
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    "cloud_provider_calls": {
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    "pc_lan_calls": {
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    "cpu_vulkan_rpc": {
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    "rpc_zero_model_guest": {
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    "rpc_disconnect_thermal": {
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    "mcp_manual_permissions": {
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    "workflow_10_steps": {
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    "workflow_resume_cancel": {
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    "network_privacy_sdk": {
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    "test_ads_consent": {
+      "status": "NOT_RUN",
+      "evidence": []
+    },
+    "play_policy_review": {
+      "status": "NOT_RUN",
+      "evidence": []
+    }
+  },
+  "reviews": {
+    "A": {
+      "status": "NOT_RUN",
+      "scores": null,
+      "evidence": []
+    },
+    "B": {
+      "status": "NOT_RUN",
+      "scores": null,
+      "evidence": []
+    },
+    "C": {
+      "status": "NOT_RUN",
+      "scores": null,
+      "evidence": []
+    },
+    "D": {
+      "status": "NOT_RUN",
+      "scores": null,
+      "evidence": []
+    },
+    "E": {
+      "status": "NOT_RUN",
+      "scores": null,
+      "evidence": []
+    },
+    "F": {
+      "status": "NOT_RUN",
+      "scores": null,
+      "evidence": []
+    },
+    "G": {
+      "status": "NOT_RUN",
+      "scores": null,
+      "evidence": []
+    },
+    "H": {
+      "status": "NOT_RUN",
+      "scores": null,
+      "evidence": []
+    },
+    "I": {
+      "status": "NOT_RUN",
+      "scores": null,
+      "evidence": []
+    },
+    "J": {
+      "status": "NOT_RUN",
+      "scores": null,
+      "evidence": []
+    }
+  },
+  "defects": {
+    "status": "NOT_RUN",
+    "unresolved": [],
+    "evidence": []
+  },
+  "note": "Template only. No device, reviewer or release result is asserted."
+}
