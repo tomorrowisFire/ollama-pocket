@@ -463,7 +463,7 @@
     <string name="bench_best">가장 빠른 확인된 모드: %1$s</string>
     <string name="bench_no_best">통과한 비교 결과 없음.</string>
     <string name="bench_interrupted">사용자가 검사를 중단했습니다.</string>
-    <string name="bench_limitations">토큰 속도는 엔진 실측 통계입니다. 배터리 온도는 SoC 온도가 아니며 2회 반복 속도 저하는 30분 안정성 인증이 아닙니다. 모델·앱 버전·기기 상태에 따라 달라집니다. 결과는 기기에만 저장합니다.</string>
+    <string name="bench_limitations">토큰 속도는 엔진 실측 통계입니다. 배터리 온도는 SoC 온도가 아니며 단기 반복 속도 저하는 30분 안정성 인증이 아닙니다. 엔진별 프롬프트 캐시 동작은 다를 수 있습니다. 모델·앱 버전·기기 상태에 따라 달라집니다. 결과는 기기에만 저장합니다.</string>
     <string name="bench_failed">검사 실패: %1$s</string>
     <string name="bench_cancelled_error">검사 취소</string>
     <string name="bench_hot">기기가 심하게 뜨거워져 안전을 위해 검사 중단</string>

@@ -3634,9 +3634,7 @@ public final class MainActivity extends Activity {
                 String choice = computeAtStart;
                 String recentRoute=null;
                 if("auto".equals(choice)&&computeReport.gpuCompute&&GpuRunner.packaged(getApplicationContext())){
-                    String digest=ModelBenchmark.modelDigest(getApplicationContext(),modelAtStart);
-                    BenchmarkProfile profile=ModelBenchmark.freshProfile(getApplicationContext(),modelAtStart,digest,ModelBenchmark.runtimeIdentity(getApplicationContext()));
-                    if(profile!=null)recentRoute=profile.preferredLocalMode();
+                    recentRoute=ModelBenchmark.measuredAutoRoute(getApplicationContext(),modelAtStart);
                 }
                 final String measuredRoute=recentRoute;
                 checkChatCancelled();

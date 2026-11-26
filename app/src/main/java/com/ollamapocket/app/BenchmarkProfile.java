@@ -64,14 +64,34 @@ final class BenchmarkProfile {
         if(gpu!=null)j.put("gpu",gpu.json());
         return j.toString();
     }
-    static BenchmarkProfile read(String raw,String model,String digest,String runtime,long now){
+    private static BenchmarkProfile decode(String raw){
         if(raw==null||raw.length()>8192)return null;
         try{
             JSONObject o=new JSONObject(raw);if(o.getInt("schema")!=1)return null;
-            BenchmarkProfile p=new BenchmarkProfile(o.getString("model"),o.getString("digest"),o.getString("runtime"),
+            return new BenchmarkProfile(o.getString("model"),o.getString("digest"),o.getString("runtime"),
                 o.getLong("measuredAt"),Measurement.read(o.optJSONObject("cpu")),Measurement.read(o.optJSONObject("gpu")));
-            return p.fresh(model,digest,runtime,now)?p:null;
         }catch(Exception e){return null;}
+    }
+    static BenchmarkProfile read(String raw,String model,String digest,String runtime,long now){
+        BenchmarkProfile p=decode(raw);
+        return p!=null&&p.fresh(model,digest,runtime,now)?p:null;
+    }
+    /** Skip metadata I/O unless a locally stored comparison could actually control Auto.
+     * A stored digest is never sufficient: any returned route must match a live digest. */
+    static String measuredRoute(String raw,String model,java.util.function.Supplier<String> runtime,
+                                java.util.function.Supplier<String> liveDigest,java.util.function.LongSupplier now){
+        try{
+            BenchmarkProfile p=decode(raw);
+            if(p==null||!p.model.equals(model))return null;
+            long before=now.getAsLong();
+            if(before<p.measuredAt||before-p.measuredAt>MAX_AGE_MS)return null;
+            String route=p.preferredLocalMode();
+            if(route==null)return null;
+            String identity=runtime.get();
+            if(!p.runtime.equals(identity))return null;
+            String digest=liveDigest.get();
+            return p.fresh(model,digest,identity,now.getAsLong())?route:null;
+        }catch(RuntimeException e){return null;}
     }
     /** Minimum sample coverage for a fairer comparison, not a quality test. */
     static boolean adequateTokens(long generated,int requested){

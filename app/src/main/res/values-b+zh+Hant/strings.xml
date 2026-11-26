@@ -463,7 +463,7 @@
     <string name="bench_best">最快的已驗證模式：%1$s</string>
     <string name="bench_no_best">無通過的比較結果。</string>
     <string name="bench_interrupted">使用者停止了測試。</string>
-    <string name="bench_limitations">權杖速度為引擎實測統計。電池溫度不是 SoC 溫度，兩次執行降速不代表 30 分鐘穩定性認證。結果依模型、應用程式版本及裝置狀態而異，僅儲存於本機。</string>
+    <string name="bench_limitations">權杖速度為引擎實測統計。電池溫度不是 SoC 溫度，短期重複執行的降速不代表 30 分鐘穩定性認證。不同引擎的提示快取行為可能不同。結果依模型、應用程式版本及裝置狀態而異，僅儲存於本機。</string>
     <string name="bench_failed">測試失敗：%1$s</string>
     <string name="bench_cancelled_error">測試已取消</string>
     <string name="bench_hot">裝置過熱，已為安全停止測試。</string>

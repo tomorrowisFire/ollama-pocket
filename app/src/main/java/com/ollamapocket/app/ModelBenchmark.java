@@ -48,7 +48,7 @@ import java.util.Locale;
 public final class ModelBenchmark {
     private static final int TOKENS = 72;
     private static final int WARMUP_TOKENS = 12;
-    private static final int REPEATS = 2;
+    private static final int REPEATS = 3;
     private static final int TIMEOUT_MS = 180_000;
     private static final String PROMPT =
             "Explain how the memory hierarchy of a computer works, including CPU caches, " +
@@ -136,17 +136,21 @@ public final class ModelBenchmark {
         public float batteryStartC = Float.NaN, batteryEndC = Float.NaN;
         public int thermalStart = -1, thermalEnd = -1;
         public int passes;
-        EngineResult(String mode, String name) {
-            this.mode = mode; this.name = name;
+        final int expectedPasses;
+        EngineResult(String mode,String name){this(mode,name,REPEATS);}
+        EngineResult(String mode,String name,int expectedPasses) {
+            this.mode=mode;this.name=name;this.expectedPasses=expectedPasses;
         }
         public boolean valid() {
-            return passes == REPEATS && Double.isFinite(decodeTps)&&decodeTps > 0 && thermalStart<3&&thermalEnd<3&&error.isEmpty();
+            return passes==expectedPasses&&Double.isFinite(decodeTps)&&decodeTps>0&&
+                Double.isFinite(ttftMs)&&ttftMs>=0&&Double.isFinite(decayPct)&&decayPct>=0&&decayPct<=100&&
+                thermalStart<3&&thermalEnd<3&&error.isEmpty();
         }
         String localizedSummary(Context c){
             String name=engineLabel(c,mode);
             if(!valid())return c.getString(R.string.bench_unmeasured,name,errorLabel(c,error));
-            return c.getString(R.string.bench_rates,name,decimal(c,decodeTps,1),decimal(c,prefillTps,1))+"\n"+
-                c.getString(R.string.bench_latency,decimal(c,ttftMs,0),decimal(c,decayPct,1),passes,REPEATS)+"\n"+
+            return c.getString(R.string.bench_rates,name,decimal(c,decodeTps,1),prefillTps>0?decimal(c,prefillTps,1):c.getString(R.string.metric_unavailable))+"\n"+
+                c.getString(R.string.bench_latency,decimal(c,ttftMs,0),decimal(c,decayPct,1),passes,expectedPasses)+"\n"+
                 c.getString(R.string.bench_resources,minFreeMiB,metricTemperature(c,batteryStartC),metricTemperature(c,batteryEndC),
                     metricThermal(c,thermalStart),metricThermal(c,thermalEnd));
         }
@@ -157,16 +161,16 @@ public final class ModelBenchmark {
                 .put("batteryEnd",Float.isFinite(batteryEndC)?(Object)Double.valueOf(batteryEndC):JSONObject.NULL)
                 .put("thermalStart",thermalStart).put("thermalEnd",thermalEnd).put("passes",passes);
         }
-        static EngineResult fromStructured(JSONObject o)throws Exception{
+        static EngineResult fromStructured(JSONObject o,int repeats)throws Exception{
             String mode=o.getString("mode");
             if(!Arrays.asList("cpu","gpu","cooperative").contains(mode))throw new IOException("Invalid engine");
-            EngineResult e=new EngineResult(mode,mode);
+            EngineResult e=new EngineResult(mode,mode,repeats);
             e.error=o.getString("error");e.decodeTps=o.getDouble("decode");e.prefillTps=o.getDouble("prefill");
             e.ttftMs=o.getDouble("ttft");e.decayPct=o.getDouble("decay");e.minFreeMiB=o.getLong("ram");
             e.batteryStartC=o.isNull("batteryStart")?Float.NaN:(float)o.getDouble("batteryStart");
             e.batteryEndC=o.isNull("batteryEnd")?Float.NaN:(float)o.getDouble("batteryEnd");
             e.thermalStart=o.getInt("thermalStart");e.thermalEnd=o.getInt("thermalEnd");e.passes=o.getInt("passes");
-            if(e.passes<0||e.passes>REPEATS||e.minFreeMiB<0||!Double.isFinite(e.decodeTps)||!Double.isFinite(e.prefillTps)||
+            if(e.passes<0||e.passes>repeats||e.minFreeMiB<0||!Double.isFinite(e.decodeTps)||!Double.isFinite(e.prefillTps)||
                 !Double.isFinite(e.ttftMs)||!Double.isFinite(e.decayPct))throw new IOException("Invalid benchmark");
             return e;
         }
@@ -177,7 +181,7 @@ public final class ModelBenchmark {
                     "첫 출력 %.0fms · 반복 속도 저하 %.1f%% · 완료 %d/%d\n" +
                     "최소 가용 RAM %d MiB · 배터리 %.1f→%.1f℃ · 열 상태 %d→%d",
                     name, decodeTps, prefillTps, ttftMs, decayPct,
-                    passes, REPEATS, minFreeMiB,
+                    passes, expectedPasses, minFreeMiB,
                     batteryStartC, batteryEndC, thermalStart, thermalEnd);
         }
     }
@@ -189,9 +193,11 @@ public final class ModelBenchmark {
         public String recommendedName;
         public boolean interrupted;
         BenchmarkProfile profile;
-        Report(String model) { this.model = model; }
+        final int repeats;
+        Report(String model){this(model,REPEATS);}
+        Report(String model,int repeats){this.model=model;this.repeats=repeats;}
         String localizedText(Context c){
-            StringBuilder s=new StringBuilder(c.getString(R.string.bench_header,model,WARMUP_TOKENS,TOKENS,REPEATS)).append("\n\n");
+            StringBuilder s=new StringBuilder(c.getString(R.string.bench_header,model,WARMUP_TOKENS,TOKENS,repeats)).append("\n\n");
             for(EngineResult result:results)s.append(result.localizedSummary(c)).append("\n\n");
             s.append(c.getString(R.string.bench_npu)).append('\n');
             s.append(recommendedMode==null?c.getString(R.string.bench_no_best):
@@ -202,16 +208,17 @@ public final class ModelBenchmark {
         String structured()throws Exception{
             org.json.JSONArray values=new org.json.JSONArray();
             for(EngineResult e:results)values.put(e.structured());
-            return new JSONObject().put("schema",1).put("model",model).put("results",values)
+            return new JSONObject().put("schema",repeats==2?1:2).put("repeats",repeats).put("model",model).put("results",values)
                 .put("recommended",recommendedMode==null?JSONObject.NULL:recommendedMode).put("interrupted",interrupted).toString();
         }
         static Report fromStructured(String value,String expectedModel)throws Exception{
             if(value==null||value.length()>120000)throw new IOException("Invalid report");
             JSONObject o=new JSONObject(value);
-            if(o.getInt("schema")!=1||!expectedModel.equals(o.getString("model")))throw new IOException("Invalid report scope");
-            Report r=new Report(expectedModel);org.json.JSONArray list=o.getJSONArray("results");
+            int repeats=BenchmarkStats.reportRepeats(o.getInt("schema"),o.optInt("repeats",0));
+            if(!expectedModel.equals(o.getString("model")))throw new IOException("Invalid report scope");
+            Report r=new Report(expectedModel,repeats);org.json.JSONArray list=o.getJSONArray("results");
             if(list.length()>3)throw new IOException("Invalid report size");
-            for(int i=0;i<list.length();i++)r.results.add(EngineResult.fromStructured(list.getJSONObject(i)));
+            for(int i=0;i<list.length();i++)r.results.add(EngineResult.fromStructured(list.getJSONObject(i),repeats));
             r.recommendedMode=o.isNull("recommended")?null:o.getString("recommended");
             if(r.recommendedMode!=null&&!Arrays.asList("cpu","gpu","cooperative").contains(r.recommendedMode))throw new IOException("Invalid recommendation");
             r.interrupted=o.getBoolean("interrupted");return r;
@@ -222,7 +229,7 @@ public final class ModelBenchmark {
                 .append("모델: ").append(model).append("\n")
                 .append("측정: 각 엔진 준비 후 워밍업 ").append(WARMUP_TOKENS)
                 .append("토큰(점수 제외), 본 측정 ").append(TOKENS)
-                .append("토큰 × ").append(REPEATS).append("회\n")
+                .append("토큰 × ").append(repeats).append("회\n")
                 .append("동일 RAW 프롬프트 · 컨텍스트 2048 · 온도 0 · 시드 7\n\n");
             for (EngineResult result: results) {
                 s.append(result.summary()).append("\n\n");
@@ -233,7 +240,7 @@ public final class ModelBenchmark {
             else s.append("통과한 비교 결과 없음\n");
             if (interrupted) s.append("사용자가 검사를 중단했습니다.\n");
             s.append("\n참고: 토큰 속도는 엔진이 반환한 실제 생성·평가 통계입니다. " +
-                "배터리 온도는 SoC 온도가 아니며, 속도 저하는 2회 반복의 변화량이지 " +
+                "배터리 온도는 SoC 온도가 아니며, 속도 저하는 짧은 반복 측정의 변화량이지 " +
                 "30분 안정성 인증이 아닙니다. 앱 버전·모델·기기 상태에 따라 달라집니다.\n" +
                 "이 결과는 기기에만 저장되며 자동 업로드되지 않습니다.");
             return s.toString();
@@ -424,7 +431,6 @@ public final class ModelBenchmark {
             Sample warmup=measure(context,model,mode,WARMUP_TOKENS);
             result.minFreeMiB=Math.min(result.minFreeMiB,warmup.minFreeMiB);
             List<Double> tgs=new ArrayList<>(), pps=new ArrayList<>(), firsts=new ArrayList<>();
-            double firstRate=0,lastRate=0;
             for(int i=0;i<REPEATS;i++) {
                 check(context);
                 progress.update(locale.getString(R.string.bench_measuring,displayEngine,i+1,REPEATS));
@@ -434,15 +440,19 @@ public final class ModelBenchmark {
                 tgs.add(m.decodeTps);
                 pps.add(m.promptTps);
                 firsts.add((double)m.firstTokenMs);
-                if(i==0)firstRate=m.decodeTps;
-                lastRate=m.decodeTps;
                 Reading now=Reading.capture(context);
                 result.minFreeMiB=Math.min(result.minFreeMiB,now.freeMiB);
             }
-            result.decodeTps=BenchmarkStats.median(tgs);
-            result.prefillTps=BenchmarkStats.median(pps);
-            result.ttftMs=BenchmarkStats.median(firsts);
-            result.decayPct=BenchmarkStats.dropPercent(firstRate,lastRate);
+            double decode=BenchmarkStats.strictMedian(tgs,REPEATS,false);
+            double first=BenchmarkStats.strictMedian(firsts,REPEATS,true);
+            double prefill=BenchmarkStats.strictMedian(pps,REPEATS,false);
+            double decay=BenchmarkStats.worstDrop(tgs,REPEATS);
+            if(!Double.isFinite(decode)||!Double.isFinite(first)||!Double.isFinite(decay))
+                throw new IOException("Incomplete benchmark samples");
+            result.decodeTps=decode;
+            result.prefillTps=Double.isFinite(prefill)?prefill:0; // unavailable if any prefill measurement is absent
+            result.ttftMs=first;
+            result.decayPct=decay;
         } catch (Exception e) {
             result.error=e.getMessage()==null?e.getClass().getSimpleName():e.getMessage();
         } finally {
@@ -476,6 +486,12 @@ public final class ModelBenchmark {
     static BenchmarkProfile freshProfile(Context context,String model,String digest,String runtime){
         String raw=context.getSharedPreferences("ai_pocket_bench",Context.MODE_PRIVATE).getString("routing_"+model,null);
         return BenchmarkProfile.read(raw,model,digest,runtime,System.currentTimeMillis());
+    }
+    static String measuredAutoRoute(Context context,String model){
+        try{
+            String raw=context.getSharedPreferences("ai_pocket_bench",Context.MODE_PRIVATE).getString("routing_"+model,null);
+            return BenchmarkProfile.measuredRoute(raw,model,()->runtimeIdentity(context),()->modelDigest(context,model),System::currentTimeMillis);
+        }catch(RuntimeException e){return null;}
     }
     private static BenchmarkProfile.Measurement measurement(EngineResult e){
         if(!e.valid())return null;

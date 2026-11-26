@@ -463,7 +463,7 @@
     <string name="bench_best">Fastest verified mode: %1$s</string>
     <string name="bench_no_best">No passing comparison result.</string>
     <string name="bench_interrupted">User stopped the test.</string>
-    <string name="bench_limitations">Token rates are engine-reported measurements. Battery temperature is not SoC temperature; two-run slowdown is not a 30-minute stability test. Results vary with model, app version and device state. Results stay on this device.</string>
+    <string name="bench_limitations">Token rates are engine-reported measurements. Battery temperature is not SoC temperature; short-run slowdown is not a 30-minute stability test. Prompt cache behavior may differ between engines. Results vary with model, app version and device state. Results stay on this device.</string>
     <string name="bench_failed">Test failed: %1$s</string>
     <string name="bench_cancelled_error">Test cancelled</string>
     <string name="bench_hot">Stopped for safety because the device became very hot.</string>

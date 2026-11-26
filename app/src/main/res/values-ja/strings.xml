@@ -463,7 +463,7 @@
     <string name="bench_best">確認済みの最速モード: %1$s</string>
     <string name="bench_no_best">合格した比較結果なし。</string>
     <string name="bench_interrupted">ユーザーがテストを中止しました。</string>
-    <string name="bench_limitations">トークン速度はエンジン実測値です。電池温度は SoC 温度ではなく、2回の速度低下は30分の安定性認証ではありません。モデル・アプリ版・端末状態で変動し、結果は端末内に保持します。</string>
+    <string name="bench_limitations">トークン速度はエンジン実測値です。電池温度は SoC 温度ではなく、短時間の反復測定は30分の安定性認証ではありません。エンジンによりプロンプトキャッシュの動作は異なる場合があります。モデル・アプリ版・端末状態で変動し、結果は端末内に保持します。</string>
     <string name="bench_failed">テスト失敗: %1$s</string>
     <string name="bench_cancelled_error">テストを中止</string>
     <string name="bench_hot">端末が高温になったため安全のため中止しました。</string>
