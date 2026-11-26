@@ -30,6 +30,9 @@ on:
       - 'tests/VoiceQueuePolicyTest.java'
       - 'tests/CloudUsageLedgerTest.java'
       - 'tests/CloudStreamTest.java'
+      - 'tests/InferenceSafetyPolicyTest.java'
+      - 'tests/CoopMemoryPlannerTest.java'
+      - 'tests/CoopPlanLocaleDataTest.java'
 
 jobs:
   compile:
@@ -138,6 +141,11 @@ jobs:
           curl --fail --silent --show-error --location --max-time 60 https://repo.maven.apache.org/maven2/org/json/json/20240303/json-20240303.jar -o /tmp/cloud-stream-tests/json.jar
           javac -cp /tmp/cloud-stream-tests/json.jar -d /tmp/cloud-stream-tests app/src/main/java/com/ollamapocket/app/CloudApi.java app/src/main/java/com/ollamapocket/app/CloudHistory.java tests/CloudStreamTest.java
           java -cp /tmp/cloud-stream-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.CloudStreamTest
+      - name: Test inference safety policy
+        run: |
+          mkdir -p /tmp/inference-safety-tests
+          javac -d /tmp/inference-safety-tests app/src/main/java/com/ollamapocket/app/InferenceSafetyPolicy.java tests/InferenceSafetyPolicyTest.java
+          java -cp /tmp/inference-safety-tests com.ollamapocket.app.InferenceSafetyPolicyTest
       - name: Audit direct Hangul UI literals
         run: python3 tests/locale_ui_audit.py
       - name: Verify OnHand AI brand and locale resource parity
