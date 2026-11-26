@@ -27,6 +27,7 @@ on:
       - 'tests/PdfExcerptTest.java'
       - 'tests/OcrPolicyTest.java'
       - 'tests/DocumentWindowTest.java'
+      - 'tests/VoiceQueuePolicyTest.java'
 
 jobs:
   compile:
@@ -119,6 +120,11 @@ jobs:
           java -cp /tmp/attachment-tests com.ollamapocket.app.PdfExcerptTest
           java -cp /tmp/attachment-tests com.ollamapocket.app.OcrPolicyTest
           java -cp /tmp/attachment-tests com.ollamapocket.app.DocumentWindowTest
+      - name: Test voice queue policy and Unicode boundaries
+        run: |
+          mkdir -p /tmp/voice-tests
+          javac -d /tmp/voice-tests app/src/main/java/com/ollamapocket/app/VoiceQueuePolicy.java tests/VoiceQueuePolicyTest.java
+          java -cp /tmp/voice-tests com.ollamapocket.app.VoiceQueuePolicyTest
       - name: Audit direct Hangul UI literals
         run: python3 tests/locale_ui_audit.py
       - name: Verify OnHand AI brand and locale resource parity
