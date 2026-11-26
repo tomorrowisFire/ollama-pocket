@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'app/src/main/java/**'
+      - 'tests/ProjectReportHandoffTest.java'
       - 'app/src/main/AndroidManifest.xml'
       - 'app/build.gradle'
       - 'build.gradle'

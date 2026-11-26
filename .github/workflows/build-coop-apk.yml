@@ -13,6 +13,7 @@ on:
       - 'settings.gradle'
       - 'scripts/build_rpc_cpu.sh'
       - 'app/src/main/java/**'
+      - 'tests/ProjectReportHandoffTest.java'
       - 'tests/RpcSocketRegistryTest.java'
       - 'tests/SecureRpcTransportTest.java'
       - 'app/src/main/java/com/ollamapocket/app/DistributedRunner.java'
