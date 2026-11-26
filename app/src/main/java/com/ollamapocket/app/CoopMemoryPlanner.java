@@ -12,6 +12,10 @@ import java.util.Locale;
  */
 public final class CoopMemoryPlanner {
     public static final long MIN_REMOTE_MIB = 384;
+    public static final long REMOTE_RUNTIME_RESERVE_MIB = 192;
+    // Bound untrusted peer telemetry to a generous 1 TiB per device.
+    private static final long MAX_DEVICE_MIB = 1_048_576;
+    private static long bounded(long mib){return Math.max(0,Math.min(MAX_DEVICE_MIB,mib));}
     private CoopMemoryPlanner() {}
 
     /** Estimate temporary model budget from live ActivityManager.MemoryInfo. */
@@ -19,6 +23,7 @@ public final class CoopMemoryPlanner {
                                long lowThresholdMiB, boolean lowMemory,
                                boolean host) {
         if (totalMiB <= 0 || availableMiB <= 0 || lowMemory) return 0;
+        totalMiB=bounded(totalMiB);
         long available = Math.min(totalMiB, availableMiB);
         long threshold = Math.min(totalMiB, Math.max(0, lowThresholdMiB));
         long appReserve = host ? Math.max(768, totalMiB / 12)
@@ -77,22 +82,23 @@ public final class CoopMemoryPlanner {
      */
     public static Plan evaluate(long modelMiB, long hostSafeMiB, List<Long> remotes) {
         long weight = Math.max(0, modelMiB);
-        long host = Math.max(0, hostSafeMiB);
-        long overhead = Math.max(768, (weight + 4) / 5);
-        long required = weight + overhead;
+        long host = bounded(hostSafeMiB);
+        long overhead = Math.max(768, weight/5+(weight%5==0?0:1));
+        long required = weight>Long.MAX_VALUE-overhead?Long.MAX_VALUE:weight+overhead;
         List<Integer> used = new ArrayList<>();
         List<Long> capacities = new ArrayList<>();
         List<String> split = new ArrayList<>();
         long safe = host;
         if (remotes != null) for (int i = 0; i < remotes.size(); i++) {
             Long raw = remotes.get(i);
-            long budget = raw == null ? 0 : Math.max(0, raw);
+            long budget = raw == null ? 0 : bounded(raw);
             if (budget < MIN_REMOTE_MIB) continue;
             used.add(i);
             capacities.add(budget);
-            safe += budget;
-            // Keep a conservative RPC runtime overhead outside tensor weights.
-            split.add(Long.toString(Math.max(1, budget - 192)));
+            // Exclude the RPC runtime reserve from BOTH admission and tensor weights.
+            long usable=budget-REMOTE_RUNTIME_RESERVE_MIB;
+            safe += usable;
+            split.add(Long.toString(usable));
         }
         String reason;
         Plan.ReasonCode code;
