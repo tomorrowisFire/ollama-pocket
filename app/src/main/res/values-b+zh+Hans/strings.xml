@@ -947,4 +947,10 @@
     <string name="batch_generated_note">生成笔记（未验证）</string>
     <string name="batch_whitespace_record">仅含空白的片段，没有证据或生成笔记。</string>
     <string name="batch_report_status">分析状态</string>
+    <string name="auto_goal_planner">AI目标规划</string>
+    <string name="auto_goal_planner_notice">输入单行目标（最多400字）。所选本地CPU模型通过一次最长120秒、最多512个输出令牌的请求，建议2至4个文本任务步骤。不会自动执行。请先审核并应用草稿，再单独启动。JSON字段检查不验证事实或质量。不调用外部工具或云端。</string>
+    <string name="auto_goal_planner_goal">AI计划目标</string>
+    <string name="auto_goal_generate">生成计划草稿</string>
+    <string name="auto_goal_cancelled">已停止生成草稿，原有计划未更改。</string>
+    <string name="auto_goal_failed">无法生成有效的受限计划。请检查本地模型、服务器和目标后重试。原有计划未更改。</string>
 </resources>

@@ -51,6 +51,7 @@ on:
       - 'tests/WorkflowLibraryTest.java'
       - 'tests/WorkflowRunJournalTest.java'
       - 'tests/WorkflowPlanEditorTest.java'
+      - 'tests/WorkflowGoalPlannerTest.java'
       - 'tests/BenchmarkProfileTest.java'
       - 'tests/PrivacyPolicyTest.java'
       - 'tests/RpcSocketRegistryTest.java'
@@ -222,6 +223,10 @@ jobs:
           java -cp /tmp/workflow-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.WorkflowLibraryTest
           java -cp /tmp/workflow-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.WorkflowRunJournalTest
           java -cp /tmp/workflow-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.WorkflowPlanEditorTest
+      - name: Test strict goal-to-plan draft compiler
+        run: |
+          javac -cp /tmp/workflow-tests:/tmp/cloud-stream-tests/json.jar -d /tmp/workflow-tests app/src/main/java/com/ollamapocket/app/WorkflowGoalPlanner.java tests/WorkflowGoalPlannerTest.java
+          java -cp /tmp/workflow-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.WorkflowGoalPlannerTest
       - name: Audit direct Hangul UI literals
         run: python3 tests/locale_ui_audit.py
       - name: Verify OnHand AI brand and locale resource parity

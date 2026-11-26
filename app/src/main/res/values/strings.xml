@@ -947,4 +947,10 @@
     <string name="batch_generated_note">Generated note (unverified)</string>
     <string name="batch_whitespace_record">Whitespace-only range; no evidence or generated note.</string>
     <string name="batch_report_status">Analysis status</string>
+    <string name="auto_goal_planner">AI goal planner</string>
+    <string name="auto_goal_planner_notice">Enter a goal on one line (up to 400 characters). The selected local CPU model makes one draft request, up to 120 seconds and 512 output tokens, proposing 2–4 text steps. Nothing runs automatically. Review and apply the draft, then use Start separately. JSON field checks do not verify facts or quality. No external tools or cloud calls.</string>
+    <string name="auto_goal_planner_goal">Goal for the AI plan</string>
+    <string name="auto_goal_generate">Generate draft</string>
+    <string name="auto_goal_cancelled">Draft generation stopped. Existing plan is unchanged.</string>
+    <string name="auto_goal_failed">Could not generate a valid bounded plan. Check the local model, server and goal, then try again. Existing plan is unchanged.</string>
 </resources>

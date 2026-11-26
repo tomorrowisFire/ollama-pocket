@@ -20,6 +20,7 @@ final class AutomationUi {
     private AlertDialog dialog,confirmation;
     private McpLanClient mcp;
     private LocalWorkflow workflow;
+    private LocalWorkflowPlanner planner;
     private volatile Thread worker;
     private volatile boolean stopped;
     private int epoch;
@@ -58,6 +59,7 @@ final class AutomationUi {
         stopped=true;epoch++;
         if(mcp!=null){mcp.cancel();mcp=null;}
         if(workflow!=null)workflow.pause();
+        if(planner!=null){planner.cancel();planner=null;}
         Thread t=worker;if(t!=null)t.interrupt();
         AlertDialog c=confirmation;confirmation=null;if(c!=null)c.dismiss();
         AlertDialog d=dialog;dialog=null;if(d!=null)d.dismiss();
@@ -141,7 +143,7 @@ final class AutomationUi {
         final LocalWorkflow runner=new LocalWorkflow(owner);workflow=runner;
         LocalWorkflow.Checkpoint saved=null;
         try{saved=runner.load();}catch(Exception e){toast(R.string.auto_checkpoint_error);}
-        Button[] buttons=new Button[10];
+        Button[] buttons=new Button[11];
         EditText plan=field(l,R.string.auto_plan,saved==null?"":saved.plan,24000,true);
         final LocalWorkflow.Checkpoint[] checkpoint={saved};
         buttons[8]=button(l,R.string.auto_visual_editor,()->{
@@ -154,6 +156,7 @@ final class AutomationUi {
         ProgressBar progress=new ProgressBar(owner,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(10);l.addView(progress,new LinearLayout.LayoutParams(-1,dp(12)));
         if(saved!=null){display(status,saved);progress.setMax(saved.steps().size());progress.setProgress(saved.results.size());}
         Runnable enabled=()->{boolean idle=!busy();plan.setEnabled(idle);for(Button b:buttons)if(b!=null)b.setEnabled(idle);};
+        buttons[10]=button(l,R.string.auto_goal_planner,()->{if(!busy())showGoalPlanner(model,plan,enabled);});
         Consumer<LocalWorkflow.Checkpoint> start=c->{
             if(!c.model.equals(model)){toast(R.string.need_model);return;}
             if(!c.resumable()){display(status,c);toast(R.string.auto_blocked);return;}
@@ -189,8 +192,10 @@ final class AutomationUi {
             confirm(s(R.string.auto_clear),s(R.string.auto_clear_current_notice),()->{try{runner.clear();checkpoint[0]=null;plan.setText("");status.setText("");progress.setProgress(0);}catch(Exception e){toast(R.string.auto_checkpoint_error);}});
         });
         button(l,R.string.auto_cancel_run,()->{
+            if(planner!=null&&busy()){toast(R.string.busy);return;}
             if(checkpoint[0]==null)return;
             confirm(s(R.string.auto_cancel_run),s(R.string.auto_cancel_notice),()->{
+                if(planner!=null&&busy()){toast(R.string.busy);return;}
                 if(busy()){runner.cancel();status.setText(R.string.auto_cancel_notice);}
                 else try{runner.cancelSaved(checkpoint[0]);display(status,checkpoint[0]);}catch(Exception e){toast(R.string.auto_checkpoint_error);}
             });
@@ -200,6 +205,7 @@ final class AutomationUi {
             showJournal(checkpoint[0]);
         });
         button(l,R.string.auto_pause_now,()->{
+            if(planner!=null&&busy()){planner.cancel();return;}
             if(busy()){runner.pause();status.setText(R.string.auto_pause_requested);}
         });
         button(l,R.string.auto_pause,()->{pause();});
@@ -292,6 +298,91 @@ final class AutomationUi {
             if(invalid>=0){index[0]=invalid;render.run();error.setText(owner.getString(R.string.auto_editor_invalid,Integer.toString(invalid+1)));return;}
             try{plan.setText(editor.encode());d.dismiss();}
             catch(IllegalArgumentException e){error.setText(R.string.auto_invalid_plan);}
+        });
+    }
+    private void showGoalPlanner(String model,EditText draft,Runnable updateParent){
+        if(busy()||model==null||model.isEmpty()||!OllamaForegroundService.isRunning()){
+            toast(R.string.test_need_model);return;
+        }
+        if(!"off".equals(CoopSession.get(owner).role())){toast(R.string.guest_stop_first);return;}
+        final int token=epoch;
+        final String original=draft.getText().toString();
+        LinearLayout l=column();
+        label(l,s(R.string.auto_goal_planner_notice));
+        label(l,s(R.string.model_label)+": "+model);
+        EditText goal=field(l,R.string.auto_goal_planner_goal,"",WorkflowGoalPlanner.MAX_GOAL,false);
+        goal.setSingleLine(true);
+        TextView preview=output(l);preview.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        final String[] candidate={null},reviewedGoal={null};
+        final LocalWorkflowPlanner[] active={null};
+        final boolean[] cancelling={false};
+        final Button[] generate={null};
+        ScrollView sc=new ScrollView(owner);sc.addView(l);
+        AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.auto_goal_planner).setView(sc)
+            .setNegativeButton(R.string.close,null).setNeutralButton(R.string.stop,null).setPositiveButton(R.string.auto_apply_draft,null).create();
+        generate[0]=button(l,R.string.auto_goal_generate,()->{
+            if(!valid(token)||!d.isShowing()||busy()||active[0]!=null)return;
+            final String requested;
+            try{requested=WorkflowGoalPlanner.goal(goal.getText().toString());}
+            catch(IllegalArgumentException e){toast(R.string.auto_goal_planner_goal);return;}
+            if(!original.equals(draft.getText().toString())){d.dismiss();return;}
+            final String locale=OnHandsLocale.normalize(owner.getResources().getConfiguration().getLocales().get(0));
+            LocalWorkflowPlanner request=new LocalWorkflowPlanner(owner);
+            active[0]=request;planner=request;cancelling[0]=false;
+            candidate[0]=null;reviewedGoal[0]=null;
+            preview.setText(R.string.thinking);
+            work(()->request.generate(requested,model,locale),value->{
+                if(planner==request)planner=null;
+                if(active[0]!=request){updateParent.run();return;}
+                active[0]=null;updateParent.run();
+                if(!d.isShowing())return;
+                goal.setEnabled(true);
+                if(!cancelling[0]&&requested.equals(goal.getText().toString().trim())&&original.equals(draft.getText().toString())){
+                    candidate[0]=value;reviewedGoal[0]=requested;preview.setText(value);
+                }else preview.setText(R.string.auto_goal_cancelled);
+                d.getButton(DialogInterface.BUTTON_POSITIVE).setEnabled(candidate[0]!=null);
+                d.getButton(DialogInterface.BUTTON_NEUTRAL).setEnabled(false);
+                d.getButton(DialogInterface.BUTTON_NEGATIVE).setEnabled(true);
+                generate[0].setEnabled(true);
+            },()->{
+                if(planner==request)planner=null;
+                if(active[0]!=request){updateParent.run();return;}
+                active[0]=null;updateParent.run();
+                if(!d.isShowing())return;
+                preview.setText(cancelling[0]?R.string.auto_goal_cancelled:R.string.auto_goal_failed);
+                goal.setEnabled(true);d.getButton(DialogInterface.BUTTON_POSITIVE).setEnabled(false);
+                d.getButton(DialogInterface.BUTTON_NEUTRAL).setEnabled(false);
+                d.getButton(DialogInterface.BUTTON_NEGATIVE).setEnabled(true);
+                generate[0].setEnabled(true);
+            });
+            updateParent.run();goal.setEnabled(false);
+            d.getButton(DialogInterface.BUTTON_POSITIVE).setEnabled(false);
+            d.getButton(DialogInterface.BUTTON_NEUTRAL).setEnabled(true);
+            generate[0].setEnabled(false);
+        });
+        confirmation=d;d.setOnDismissListener(x->{
+            if(active[0]!=null){cancelling[0]=true;active[0].cancel();}
+            if(confirmation==d)confirmation=null;
+            updateParent.run();
+        });
+        d.show();secure(d);
+        d.getButton(DialogInterface.BUTTON_POSITIVE).setEnabled(false);
+        d.getButton(DialogInterface.BUTTON_NEUTRAL).setEnabled(false);
+        d.getButton(DialogInterface.BUTTON_NEUTRAL).setOnClickListener(v->{
+            if(active[0]==null)return;
+            cancelling[0]=true;candidate[0]=null;reviewedGoal[0]=null;
+            active[0].cancel();preview.setText(R.string.auto_pause_requested);
+            v.setEnabled(false);
+        });
+        d.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(v->{
+            if(!valid(token)||busy()||active[0]!=null||candidate[0]==null||!original.equals(draft.getText().toString())){
+                toast(R.string.auto_preview_first);return;
+            }
+            try{
+                if(!WorkflowGoalPlanner.goal(goal.getText().toString()).equals(reviewedGoal[0]))throw new IllegalArgumentException("Goal changed");
+                WorkflowPolicy.parse(candidate[0]);
+                draft.setText(candidate[0]);d.dismiss();
+            }catch(IllegalArgumentException e){toast(R.string.auto_preview_first);}
         });
     }
     private void showBusinessTemplates(EditText plan){

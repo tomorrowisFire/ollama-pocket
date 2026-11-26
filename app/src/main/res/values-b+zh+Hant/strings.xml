@@ -947,4 +947,10 @@
     <string name="batch_generated_note">生成筆記（未驗證）</string>
     <string name="batch_whitespace_record">僅含空白的片段，沒有證據或生成筆記。</string>
     <string name="batch_report_status">分析狀態</string>
+    <string name="auto_goal_planner">AI目標規劃</string>
+    <string name="auto_goal_planner_notice">輸入單行目標（最多400字）。所選本機CPU模型透過一次最長120秒、最多512個輸出權杖的請求，建議2至4個文字任務步驟。不會自動執行。請先審閱並套用草稿，再另行啟動。JSON欄位檢查不驗證事實或品質。不呼叫外部工具或雲端。</string>
+    <string name="auto_goal_planner_goal">AI計畫目標</string>
+    <string name="auto_goal_generate">產生計畫草稿</string>
+    <string name="auto_goal_cancelled">已停止產生草稿，原有計畫未變更。</string>
+    <string name="auto_goal_failed">無法產生有效的受限計畫。請檢查本機模型、伺服器和目標後重試。原有計畫未變更。</string>
 </resources>

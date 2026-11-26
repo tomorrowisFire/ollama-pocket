@@ -947,4 +947,10 @@
     <string name="batch_generated_note">AI 작성 메모(미검증)</string>
     <string name="batch_whitespace_record">공백만 있는 구간으로, 근거 또는 AI 작성 메모가 없습니다.</string>
     <string name="batch_report_status">분석 상태</string>
+    <string name="auto_goal_planner">AI 목표 기반 계획 생성</string>
+    <string name="auto_goal_planner_notice">한 줄로 목표를 입력하세요(최대 400자). 선택한 로컬 CPU 모델이 최대 120초·출력 512토큰의 요청 1회로 2~4개 텍스트 작업 단계를 제안합니다. 자동 실행하지 않습니다. 초안을 확인·적용한 뒤 별도로 시작하세요. JSON 필드 검사는 사실이나 품질 검증이 아닙니다. 외부 도구·클라우드 호출은 없습니다.</string>
+    <string name="auto_goal_planner_goal">AI 계획의 목표</string>
+    <string name="auto_goal_generate">계획 초안 생성</string>
+    <string name="auto_goal_cancelled">초안 생성을 중단했습니다. 기존 계획은 변경되지 않았습니다.</string>
+    <string name="auto_goal_failed">유효한 계획을 생성하지 못했습니다. 로컬 모델·서버·목표를 확인한 뒤 다시 시도하세요. 기존 계획은 변경되지 않았습니다.</string>
 </resources>

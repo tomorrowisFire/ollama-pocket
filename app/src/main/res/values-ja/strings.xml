@@ -947,4 +947,10 @@
     <string name="batch_generated_note">生成メモ（未検証）</string>
     <string name="batch_whitespace_record">空白のみの区間です。根拠や生成メモはありません。</string>
     <string name="batch_report_status">分析状態</string>
+    <string name="auto_goal_planner">AI目標プランナー</string>
+    <string name="auto_goal_planner_notice">目標を1行で入力してください（最大400文字）。選択したローカルCPUモデルが最大120秒・出力512トークンの1回の要求で2～4個のテキスト作業を提案します。自動実行はしません。下書きを確認して適用し、別途開始してください。JSONフィールド検査は事実や品質の検証ではありません。外部ツールやクラウド呼び出しはありません。</string>
+    <string name="auto_goal_planner_goal">AI計画の目標</string>
+    <string name="auto_goal_generate">計画の下書きを生成</string>
+    <string name="auto_goal_cancelled">下書きの生成を中止しました。既存の計画は変更されていません。</string>
+    <string name="auto_goal_failed">有効な計画を生成できませんでした。ローカルモデル、サーバー、目標を確認して再試行してください。既存の計画は変更されていません。</string>
 </resources>
