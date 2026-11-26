@@ -1045,4 +1045,15 @@
     <string name="project_context_limit">来源为空或超出本地草稿限制。未插入。</string>
     <string name="project_context_changed">本地对话或草稿已更改。未插入。</string>
     <string name="project_context_added">已添加到本地草稿，尚未发送。</string>
+    <string name="project_links_heading">已关联的本地聊天 (%1$d/%2$d)</string>
+    <string name="project_link_notice">仅保存本地聊天引用，不复制或发送消息及草稿。要关联其他聊天，请先打开该已保存的聊天。</string>
+    <string name="project_link_add">关联当前已保存的聊天</string>
+    <string name="project_link_current_unavailable">当前聊天无法关联。请先打开可读取的已保存本地聊天。</string>
+    <string name="project_link_open">打开关联的聊天</string>
+    <string name="project_link_remove">移除关联</string>
+    <string name="project_link_remove_notice">仅移除此引用？原始聊天将保留。</string>
+    <string name="project_link_available">已保存的聊天可用</string>
+    <string name="project_link_missing">找不到已保存的聊天</string>
+    <string name="project_link_unreadable">无法安全读取已保存的聊天</string>
+    <string name="project_link_model_missing">原始模型尚未安装</string>
 </resources>

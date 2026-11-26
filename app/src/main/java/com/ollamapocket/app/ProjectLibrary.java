@@ -18,7 +18,8 @@ import org.json.JSONTokener;
 final class ProjectLibrary {
     static final int MAX_PROJECTS=12,MAX_ARTIFACTS=20,MAX_VERSIONS=6;
     static final int MAX_TITLE=80,MAX_INSTRUCTIONS=2000,MAX_TEXT=32000,MAX_BYTES=2*1024*1024;
-    private static final int SCHEMA=1;
+    static final int MAX_LINKS=12;
+    private static final int SCHEMA=1,LINK_SCHEMA=2;
     private ProjectLibrary(){}
     static final class Version {
         final int ordinal;final long saved;final String text;
@@ -35,10 +36,22 @@ final class ProjectLibrary {
             return versions.get(ordinal-1);
         }
     }
+    /** Stable local identity only; no copied chat title, draft or message. */
+    static final class Link {
+        final String model,session;
+        Link(String model,String session){
+            text(model,256);
+            if(!model.matches("[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}")||session==null||!session.matches("[0-9]{1,19}"))
+                throw invalid("Invalid chat identity");
+            this.model=model;this.session=session;
+        }
+        @Override public boolean equals(Object o){return o instanceof Link&&model.equals(((Link)o).model)&&session.equals(((Link)o).session);}
+        @Override public int hashCode(){return 31*model.hashCode()+session.hashCode();}
+    }
     static final class Project {
-        final String id,title,instructions;final List<Artifact> artifacts;
-        private Project(String id,String title,String instructions,List<Artifact> artifacts){
-            this.id=id;this.title=title;this.instructions=instructions;this.artifacts=immutable(artifacts);
+        final String id,title,instructions;final List<Artifact> artifacts;final List<Link> links;
+        private Project(String id,String title,String instructions,List<Artifact> artifacts,List<Link> links){
+            this.id=id;this.title=title;this.instructions=instructions;this.artifacts=immutable(artifacts);this.links=immutable(links);
         }
         Artifact artifact(String id){
             for(Artifact a:artifacts)if(a.id.equals(id))return a;
@@ -101,18 +114,34 @@ final class ProjectLibrary {
         List<Artifact> artifacts=new ArrayList<>(p.artifacts);int i=artifacts.indexOf(old);
         if(i<0)throw invalid("Artifact scope");
         if(replacement==null)artifacts.remove(i);else artifacts.set(i,replacement);
-        return replace(s,p,new Project(p.id,p.title,p.instructions,artifacts));
+        return replace(s,p,new Project(p.id,p.title,p.instructions,artifacts,p.links));
     }
     static State createProject(State s,String id,String title,String instructions){
         newId(s,id);if(s.projects.size()>=MAX_PROJECTS)throw invalid("Project limit");
         List<Project> projects=new ArrayList<>(s.projects);
-        projects.add(new Project(id,title(title),text(instructions,MAX_INSTRUCTIONS),Collections.emptyList()));
+        projects.add(new Project(id,title(title),text(instructions,MAX_INSTRUCTIONS),Collections.emptyList(),Collections.emptyList()));
         return next(s,projects);
     }
     static State editProject(State s,String id,String title,String instructions){
         Project p=s.project(id);String name=title(title);text(instructions,MAX_INSTRUCTIONS);
         if(p.title.equals(name)&&p.instructions.equals(instructions))return s;
-        return replace(s,p,new Project(p.id,name,instructions,p.artifacts));
+        return replace(s,p,new Project(p.id,name,instructions,p.artifacts,p.links));
+    }
+    static State addLink(State s,String pid,Link link){
+        Project p=s.project(pid);if(link==null)throw invalid("Missing link");
+        if(p.links.contains(link))return s;
+        if(p.links.size()>=MAX_LINKS)throw invalid("Chat link limit");
+        List<Link> links=new ArrayList<>(p.links);links.add(link);
+        return replace(s,p,new Project(p.id,p.title,p.instructions,p.artifacts,links));
+    }
+    static State removeLink(State s,String pid,Link link){
+        Project p=s.project(pid);List<Link> links=new ArrayList<>(p.links);
+        if(!links.remove(link))throw invalid("Unknown link");
+        return replace(s,p,new Project(p.id,p.title,p.instructions,p.artifacts,links));
+    }
+    private static int schema(State s){
+        for(Project p:s.projects)if(!p.links.isEmpty())return LINK_SCHEMA;
+        return SCHEMA;
     }
     static State deleteProject(State s,String id){return replace(s,s.project(id),null);}
     static State createArtifact(State s,String projectId,String id,String title,String value,long now){
@@ -120,7 +149,7 @@ final class ProjectLibrary {
         if(p.artifacts.size()>=MAX_ARTIFACTS)throw invalid("Artifact limit");
         List<Artifact> artifacts=new ArrayList<>(p.artifacts);
         artifacts.add(new Artifact(id,title(title),Collections.singletonList(new Version(1,now,text(value,MAX_TEXT)))));
-        return replace(s,p,new Project(p.id,p.title,p.instructions,artifacts));
+        return replace(s,p,new Project(p.id,p.title,p.instructions,artifacts,p.links));
     }
     static State renameArtifact(State s,String projectId,String id,String title){
         Project p=s.project(projectId);Artifact a=p.artifact(id);String name=title(title);
@@ -152,6 +181,7 @@ final class ProjectLibrary {
             id(p.id);
             if(!ids.add(p.id)||!p.title.equals(title(p.title))||p.artifacts.size()>MAX_ARTIFACTS)throw invalid("Invalid project");
             text(p.instructions,MAX_INSTRUCTIONS);
+            if(p.links.size()>MAX_LINKS||p.links.contains(null)||new HashSet<>(p.links).size()!=p.links.size())throw invalid("Invalid chat links");
             for(Artifact a:p.artifacts){
                 id(a.id);
                 if(!ids.add(a.id)||!a.title.equals(title(a.title))||a.versions.isEmpty()||a.versions.size()>MAX_VERSIONS)
@@ -203,7 +233,16 @@ final class ProjectLibrary {
                 }
                 b.append("]}");
             }
-            b.append("]}");
+            b.append(']');
+            if(schema(state)==LINK_SCHEMA){
+                b.append(",\"links\":[");boolean fl=true;
+                for(Link link:p.links){
+                    if(!fl)b.append(',');fl=false;
+                    b.append('{');field(b,"model",link.model);b.append(',');field(b,"session",link.session);b.append('}');
+                }
+                b.append(']');
+            }
+            b.append('}');
         }
         return b.append("]}").toString();
     }
@@ -215,7 +254,7 @@ final class ProjectLibrary {
     }
     static byte[] encode(State state)throws Exception{
         String payload=payload(state);
-        StringBuilder b=new StringBuilder("{\"schema\":").append(SCHEMA).append(',');
+        StringBuilder b=new StringBuilder("{\"schema\":").append(schema(state)).append(',');
         field(b,"payload",payload);b.append(',');field(b,"sha256",digest(payload));b.append('}');
         byte[] bytes=b.toString().getBytes(StandardCharsets.UTF_8);
         if(bytes.length>MAX_BYTES)throw invalid("Store size limit");
@@ -273,7 +312,7 @@ final class ProjectLibrary {
         String raw=StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
             .onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes)).toString();
         JSONObject envelope=object(raw);keys(envelope,"schema","payload","sha256");
-        if(number(envelope,"schema")!=SCHEMA)throw invalid("Unknown schema");
+        long schema=number(envelope,"schema");if(schema!=SCHEMA&&schema!=LINK_SCHEMA)throw invalid("Unknown schema");
         String payload=string(envelope,"payload"),hash=string(envelope,"sha256");
         text(payload,MAX_BYTES);
         if(!hash.matches("[0-9a-f]{64}")||!digest(payload).equals(hash))throw invalid("Store digest mismatch");
@@ -282,7 +321,7 @@ final class ProjectLibrary {
         JSONArray pp=array(root,"projects",MAX_PROJECTS);
         List<Project> projects=new ArrayList<>();
         for(int i=0;i<pp.length();i++){
-            JSONObject p=row(pp,i);keys(p,"id","title","instructions","artifacts");
+            JSONObject p=row(pp,i);if(schema==LINK_SCHEMA)keys(p,"id","title","instructions","artifacts","links");else keys(p,"id","title","instructions","artifacts");
             JSONArray aa=array(p,"artifacts",MAX_ARTIFACTS);List<Artifact> artifacts=new ArrayList<>();
             for(int j=0;j<aa.length();j++){
                 JSONObject a=row(aa,j);keys(a,"id","title","versions");
@@ -294,7 +333,14 @@ final class ProjectLibrary {
                 }
                 artifacts.add(new Artifact(string(a,"id"),string(a,"title"),versions));
             }
-            projects.add(new Project(string(p,"id"),string(p,"title"),string(p,"instructions"),artifacts));
+            List<Link> links=new ArrayList<>();
+            if(schema==LINK_SCHEMA){
+                JSONArray ll=array(p,"links",MAX_LINKS);
+                for(int j=0;j<ll.length();j++){
+                    JSONObject link=row(ll,j);keys(link,"model","session");links.add(new Link(string(link,"model"),string(link,"session")));
+                }
+            }
+            projects.add(new Project(string(p,"id"),string(p,"title"),string(p,"instructions"),artifacts,links));
         }
         State state=new State(revision,projects);validate(state);
         if(!Arrays.equals(bytes,encode(state)))throw invalid("Noncanonical project store");

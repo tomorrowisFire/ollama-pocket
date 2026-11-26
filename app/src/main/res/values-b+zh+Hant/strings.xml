@@ -1045,4 +1045,15 @@
     <string name="project_context_limit">來源為空或超出本機草稿限制。未插入。</string>
     <string name="project_context_changed">本機對話或草稿已變更。未插入。</string>
     <string name="project_context_added">已加入本機草稿，尚未傳送。</string>
+    <string name="project_links_heading">已連結的本機聊天 (%1$d/%2$d)</string>
+    <string name="project_link_notice">僅儲存本機聊天參照，不複製或傳送訊息及草稿。若要連結其他聊天，請先開啟該已儲存的聊天。</string>
+    <string name="project_link_add">連結目前已儲存的聊天</string>
+    <string name="project_link_current_unavailable">目前聊天無法連結。請先開啟可讀取的已儲存本機聊天。</string>
+    <string name="project_link_open">開啟連結的聊天</string>
+    <string name="project_link_remove">移除連結</string>
+    <string name="project_link_remove_notice">僅移除此參照？原始聊天將保留。</string>
+    <string name="project_link_available">已儲存的聊天可用</string>
+    <string name="project_link_missing">找不到已儲存的聊天</string>
+    <string name="project_link_unreadable">無法安全讀取已儲存的聊天</string>
+    <string name="project_link_model_missing">原始模型尚未安裝</string>
 </resources>

@@ -1045,4 +1045,15 @@
     <string name="project_context_limit">Source is empty or exceeds the local draft limit. Nothing was inserted.</string>
     <string name="project_context_changed">Local chat or draft changed. Nothing was inserted.</string>
     <string name="project_context_added">Added to local draft. Not sent.</string>
+    <string name="project_links_heading">Linked local chats (%1$d/%2$d)</string>
+    <string name="project_link_notice">Only a local chat reference is stored. No messages or drafts are copied or sent. Open another saved chat first to link it here.</string>
+    <string name="project_link_add">Link current saved chat</string>
+    <string name="project_link_current_unavailable">The current chat is not eligible for linking. Open a readable saved local chat first.</string>
+    <string name="project_link_open">Open linked chat</string>
+    <string name="project_link_remove">Remove link</string>
+    <string name="project_link_remove_notice">Remove only this reference? The original chat will remain.</string>
+    <string name="project_link_available">Saved chat available</string>
+    <string name="project_link_missing">Saved chat is missing</string>
+    <string name="project_link_unreadable">Saved chat cannot be read safely</string>
+    <string name="project_link_model_missing">The original model is not installed</string>
 </resources>

@@ -3515,9 +3515,14 @@ public final class MainActivity extends Activity {
         if(voice!=null)voice.cancel();
         if(projectWorkspaceUi==null)projectWorkspaceUi=new ProjectWorkspaceUi(this,()->foreground&&!guestOnly&&!cloudMode&&activeTab==0);
         if(chatInput==null||currentModel.isEmpty()||!historyReadable||!ownsLoadedScope()){
-            projectWorkspaceUi.open();return;
+            projectWorkspaceUi.openContext(null,null,null,this::projectLinkStatus,this::openProjectLink);return;
         }
         final String scope=loadedHistoryScope,session=currentSessionId(),original=history.toString(),draft=chatInput.getText().toString();
+        ProjectLibrary.Link current=null;
+        try{
+            ProjectLibrary.Link candidate=new ProjectLibrary.Link(currentModel,session);
+            if(originalStillStored(scope,original)&&projectLinkStatus(candidate)==ProjectChatLinkPolicy.Status.AVAILABLE)current=candidate;
+        }catch(Exception ignored){}
         projectWorkspaceUi.openContext(chosen->chosen.appendTo(draft),reviewed->{
             if(!foreground||guestOnly||cloudMode||isUiBusy()||activeTab!=0||chatInput==null||!historyReadable||!ownsLoadedScope()||
                 !ProjectContext.sameDestination(scope,session,original,draft,loadedHistoryScope,currentSessionId(),history.toString(),chatInput.getText().toString())){
@@ -3528,7 +3533,25 @@ public final class MainActivity extends Activity {
             }catch(Exception e){toast(getString(R.string.project_context_changed));return;}
             chatInput.setText(reviewed);chatInput.setSelection(reviewed.length());saveLocalDraft();updateDraftBudget();
             toast(getString(R.string.project_context_added));
-        });
+        },current,this::projectLinkStatus,this::openProjectLink);
+    }
+    private ProjectChatLinkPolicy.Status projectLinkStatus(ProjectLibrary.Link link){
+        try{
+            android.content.SharedPreferences prefs=getPreferences(MODE_PRIVATE);
+            return ProjectChatLinkPolicy.inspect(link,prefs.getString("chat_list_"+link.model,null),
+                prefs.getString("chat_v4_"+link.model+"_"+link.session,null),knownModels.contains(link.model));
+        }catch(RuntimeException e){return ProjectChatLinkPolicy.Status.UNREADABLE;}
+    }
+    private void openProjectLink(ProjectLibrary.Link link){
+        if(!foreground||guestOnly||cloudMode||activeTab!=0||isUiBusy()||isFinishing()||isDestroyed()){
+            toast(getString(R.string.busy));return;
+        }
+        ProjectChatLinkPolicy.Status status=projectLinkStatus(link);
+        if(status!=ProjectChatLinkPolicy.Status.AVAILABLE){
+            toast(getString(status==ProjectChatLinkPolicy.Status.MISSING?R.string.project_link_missing:
+                status==ProjectChatLinkPolicy.Status.MODEL_UNAVAILABLE?R.string.project_link_model_missing:R.string.project_link_unreadable));return;
+        }
+        openSavedConversation(new DrawerChat(link.model,link.session,getString(R.string.chat),false),null);
     }
     private void openLocalAutomation(){
         if(!foreground||guestOnly||cloudMode||isUiBusy()||activeTab!=0){toast(getString(R.string.busy));return;}

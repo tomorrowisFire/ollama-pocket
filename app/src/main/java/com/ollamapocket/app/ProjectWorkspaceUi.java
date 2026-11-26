@@ -34,20 +34,27 @@ final class ProjectWorkspaceUi {
     private String reportTitle;
     private Function<ProjectContext,String> contextPreview;
     private Consumer<String> contextApply;
+    private ProjectLibrary.Link currentLink;
+    private Function<ProjectLibrary.Link,ProjectChatLinkPolicy.Status> linkResolver;
+    private Consumer<ProjectLibrary.Link> linkOpener;
     ProjectWorkspaceUi(Activity owner,BooleanSupplier eligible){this.owner=owner;this.eligible=eligible;}
     static boolean busy(){return MODAL.get()||WORK.get();}
     private boolean valid(long token){return session.valid(token)&&eligible.getAsBoolean()&&!owner.isFinishing()&&!owner.isDestroyed();}
     private String s(int id,Object... args){return owner.getString(id,args);}
     private int dp(int n){return Math.round(n*owner.getResources().getDisplayMetrics().density);}
     private void secure(AlertDialog d){if(d.getWindow()!=null)d.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);}
-    void open(){openInternal(null,null,null,null);}
-    void openContext(Function<ProjectContext,String> preview,Consumer<String> apply){openInternal(null,null,preview,apply);}
-    void openReport(ProjectReportHandoff handoff,String title){openInternal(handoff,title,null,null);}
-    private void openInternal(ProjectReportHandoff handoff,String title,Function<ProjectContext,String> preview,Consumer<String> apply){
+    void open(){openInternal(null,null,null,null,null,null,null);}
+    void openContext(Function<ProjectContext,String> preview,Consumer<String> apply,ProjectLibrary.Link current,
+            Function<ProjectLibrary.Link,ProjectChatLinkPolicy.Status> resolver,Consumer<ProjectLibrary.Link> opener){
+        openInternal(null,null,preview,apply,current,resolver,opener);
+    }
+    void openReport(ProjectReportHandoff handoff,String title){openInternal(handoff,title,null,null,null,null,null);}
+    private void openInternal(ProjectReportHandoff handoff,String title,Function<ProjectContext,String> preview,Consumer<String> apply,
+            ProjectLibrary.Link current,Function<ProjectLibrary.Link,ProjectChatLinkPolicy.Status> resolver,Consumer<ProjectLibrary.Link> opener){
         if(!eligible.getAsBoolean()||WORK.get()||!MODAL.compareAndSet(false,true)){
             Toast.makeText(owner,R.string.busy,Toast.LENGTH_SHORT).show();return;
         }
-        contextPreview=preview;contextApply=apply;
+        contextPreview=preview;contextApply=apply;currentLink=current;linkResolver=resolver;linkOpener=opener;
         ownsModal=true;report=handoff;reportTitle=title;reportSaved=false;session.open();selection=ProjectWorkspacePolicy.Selection.root();
         body=new LinearLayout(owner);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(16),dp(8),dp(16),dp(16));
         scroll=new ScrollView(owner);scroll.setFillViewport(true);scroll.setSaveEnabled(false);scroll.addView(body);
@@ -60,7 +67,7 @@ final class ProjectWorkspaceUi {
         if(confirmation!=null){AlertDialog d=confirmation;confirmation=null;d.dismiss();}
         if(dialog!=null){AlertDialog d=dialog;dialog=null;d.dismiss();}
         titleField=null;textField=null;oldTitle="";oldText="";snapshot=null;body=null;scroll=null;notice=null;reloadRequired=false;
-        report=null;reportTitle=null;reportSaved=false;contextPreview=null;contextApply=null;
+        report=null;reportTitle=null;reportSaved=false;contextPreview=null;contextApply=null;currentLink=null;linkResolver=null;linkOpener=null;
         if(ownsModal){ownsModal=false;MODAL.set(false);}
         // An explicitly dispatched write can finish; WORK stays held until callback.
     }
@@ -177,6 +184,7 @@ final class ProjectWorkspaceUi {
             if(aid==null){
                 label(s(R.string.project_instructions),false);label(p.instructions,true);
                 contextButton(state,p.id,null,0);
+                linkButtons(p);
                 button(R.string.project_edit,()->projectEditor(p));
                 button(s(R.string.project_new_artifact),p.artifacts.size()<ProjectLibrary.MAX_ARTIFACTS,()->artifactEditor(p,null,false));
                 if(p.artifacts.isEmpty())label(s(R.string.project_empty_artifacts),false);
@@ -206,6 +214,59 @@ final class ProjectWorkspaceUi {
             }
         }
         nav();
+    }
+    private int linkStatus(ProjectChatLinkPolicy.Status state){
+        switch(state){
+            case AVAILABLE:return R.string.project_link_available;
+            case MISSING:return R.string.project_link_missing;
+            case MODEL_UNAVAILABLE:return R.string.project_link_model_missing;
+            default:return R.string.project_link_unreadable;
+        }
+    }
+    private ProjectChatLinkPolicy.Status resolveLink(ProjectLibrary.Link link){
+        if(linkResolver==null)return ProjectChatLinkPolicy.Status.UNREADABLE;
+        try{return linkResolver.apply(link);}catch(RuntimeException e){return ProjectChatLinkPolicy.Status.UNREADABLE;}
+    }
+    private String identity(ProjectLibrary.Link link){return link.model+" / "+link.session;}
+    private void linkButtons(ProjectLibrary.Project project){
+        label(s(R.string.project_links_heading,project.links.size(),ProjectLibrary.MAX_LINKS),false);
+        label(s(R.string.project_link_notice),false);
+        final ProjectLibrary.Link current=currentLink;
+        boolean add=current!=null&&!project.links.contains(current)&&project.links.size()<ProjectLibrary.MAX_LINKS&&
+            resolveLink(current)==ProjectChatLinkPolicy.Status.AVAILABLE;
+        button(s(R.string.project_link_add),add,()->reviewAddLink(project,current));
+        if(current==null||resolveLink(current)!=ProjectChatLinkPolicy.Status.AVAILABLE)label(s(R.string.project_link_current_unavailable),false);
+        for(ProjectLibrary.Link link:project.links)button(identity(link),true,()->reviewLink(project,link));
+    }
+    private void reviewAddLink(ProjectLibrary.Project project,ProjectLibrary.Link link){
+        reset();label(project.title,false);label(identity(link),false);label(s(R.string.project_link_notice),false);
+        button(R.string.project_link_add,()->confirm(R.string.project_link_add,R.string.project_link_notice,()->{
+            if(resolveLink(link)!=ProjectChatLinkPolicy.Status.AVAILABLE){status(linkStatus(resolveLink(link)));return;}
+            save(st->ProjectLibrary.addLink(st,project.id,link),selection);
+        }));
+        button(R.string.project_back,this::render);button(R.string.close,this::pause);
+    }
+    private void reviewLink(ProjectLibrary.Project project,ProjectLibrary.Link link){
+        reset();label(project.title,false);label(identity(link),false);
+        ProjectChatLinkPolicy.Status state=resolveLink(link);
+        label(s(linkStatus(state)),false);
+        button(s(R.string.project_link_open),state==ProjectChatLinkPolicy.Status.AVAILABLE&&linkOpener!=null,
+            ()->confirm(R.string.project_link_open,R.string.project_link_notice,()->{
+                if(resolveLink(link)!=ProjectChatLinkPolicy.Status.AVAILABLE){status(linkStatus(resolveLink(link)));return;}
+                final ProjectTransactions.Snapshot<ProjectLibrary.State> reviewed=snapshot;
+                work(()->{
+                    ProjectTransactions.Snapshot<ProjectLibrary.State> fresh=new ProjectStore(owner).read();
+                    return reviewed.revision==fresh.revision&&java.util.Arrays.equals(ProjectLibrary.encode(reviewed.value),ProjectLibrary.encode(fresh.value))
+                        &&fresh.value.project(project.id).links.contains(link);
+                },available->{
+                    if(!available){status(R.string.project_stale);return;}
+                    final Consumer<ProjectLibrary.Link> opener=linkOpener;
+                    pause();if(opener!=null)opener.accept(link);
+                },error->status(R.string.project_unreadable));
+            }));
+        button(R.string.project_link_remove,()->confirm(R.string.project_link_remove,R.string.project_link_remove_notice,
+            ()->save(st->ProjectLibrary.removeLink(st,project.id,link),selection)));
+        button(R.string.project_back,this::render);button(R.string.close,this::pause);
     }
     private void contextButton(ProjectLibrary.State state,String pid,String aid,int ordinal){
         if(contextPreview==null||contextApply==null)return;

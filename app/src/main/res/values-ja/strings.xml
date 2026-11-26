@@ -1045,4 +1045,15 @@
     <string name="project_context_limit">内容が空か、下書きの上限を超えています。挿入していません。</string>
     <string name="project_context_changed">ローカルチャットまたは下書きが変わりました。挿入していません。</string>
     <string name="project_context_added">ローカル下書きに追加しました。未送信です。</string>
+    <string name="project_links_heading">リンク済みローカルチャット (%1$d/%2$d)</string>
+    <string name="project_link_notice">ローカルチャットの参照のみを保存します。メッセージや下書きはコピーも送信もしません。別のチャットをリンクするには、先に保存済みのチャットを開いてください。</string>
+    <string name="project_link_add">現在の保存済みチャットをリンク</string>
+    <string name="project_link_current_unavailable">現在のチャットはリンクできません。読み取り可能な保存済みローカルチャットを先に開いてください。</string>
+    <string name="project_link_open">リンク済みチャットを開く</string>
+    <string name="project_link_remove">リンクを削除</string>
+    <string name="project_link_remove_notice">この参照だけを削除しますか？元のチャットは残ります。</string>
+    <string name="project_link_available">保存済みチャットを利用できます</string>
+    <string name="project_link_missing">保存済みチャットが見つかりません</string>
+    <string name="project_link_unreadable">保存済みチャットを安全に読み取れません</string>
+    <string name="project_link_model_missing">元のモデルがインストールされていません</string>
 </resources>

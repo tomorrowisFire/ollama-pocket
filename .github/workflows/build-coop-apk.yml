@@ -15,6 +15,7 @@ on:
       - 'app/src/main/java/**'
       - 'tests/ProjectReportHandoffTest.java'
       - 'tests/ProjectContextTest.java'
+      - 'tests/ProjectChatLinkTest.java'
       - 'tests/RpcSocketRegistryTest.java'
       - 'tests/SecureRpcTransportTest.java'
       - 'app/src/main/java/com/ollamapocket/app/DistributedRunner.java'
