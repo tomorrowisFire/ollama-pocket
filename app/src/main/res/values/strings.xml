@@ -740,4 +740,6 @@
     <string name="cloud_estimated_cost">Estimated cost (USD): %1$s</string>
     <string name="cloud_input_rate">Input USD per million tokens</string>
     <string name="cloud_output_rate">Output USD per million tokens</string>
+    <string name="cloud_pc_address">PC address (private IPv4:port)</string>
+    <string name="cloud_pc_notice">Unencrypted LAN connection. Use only a trusted private network; messages can be read or modified on the network.</string>
 </resources>
