@@ -527,8 +527,8 @@ public final class CoopSession {
         this.guestId=randomId(14);this.startedAt=SystemClock.elapsedRealtime();this.workerDigest=digest();
         this.lastError="";this.role="guest";
         try {
-            InferenceSafetyPolicy.Reason risk=InferenceSafety.check(app);
-            if(risk!=InferenceSafetyPolicy.Reason.NONE)throw new IOException(OnHandsLocale.wrap(app).getString(InferenceSafety.label(risk)));
+            InferenceSafetyPolicy.Reason startupRisk=InferenceSafety.check(app);
+            if(startupRisk!=InferenceSafetyPolicy.Reason.NONE)throw new IOException(OnHandsLocale.wrap(app).getString(InferenceSafety.label(startupRisk)));
             startWorker();
             String localAddress=localIPv4();
             if(localAddress.isEmpty())throw new IOException("동일 Wi-Fi의 기기 IPv4 주소가 필요합니다");
