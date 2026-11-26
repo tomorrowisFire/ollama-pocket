@@ -30,6 +30,7 @@ final class CloudChatPanel extends LinearLayout {
     private volatile int serial;
     private volatile boolean closed;
     private boolean active, busy;
+    private AlertDialog keyDialog;
     private CloudApi.Provider provider=CloudApi.Provider.OPENAI;
     private String model="",token="";
     CloudChatPanel(Activity activity,Runnable local){
@@ -76,7 +77,11 @@ final class CloudChatPanel extends LinearLayout {
     private void toast(int label){Toast.makeText(owner,label,Toast.LENGTH_SHORT).show();}
     boolean isBusy(){return busy;}
     void activate(){if(closed)return;active=true;owner.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);render();}
-    void pause(){if(busy)cancel();token="";active=false;}
+    void pause(){
+        active=false;
+        if(keyDialog!=null){keyDialog.dismiss();keyDialog=null;}
+        if(busy)cancel();token="";
+    }
     void resume(){if(!closed)active=true;}
     void destroy(){pause();closed=true;history.clear();io.shutdownNow();}
     private CloudHistory.Session session(){return history.session(provider.name(),model);}
@@ -149,7 +154,8 @@ final class CloudChatPanel extends LinearLayout {
         });
         AlertDialog dialog=new AlertDialog.Builder(owner).setTitle(R.string.cloud_config).setView(sc)
             .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,null).create();
-        dialog.setOnDismissListener(d->key.setText(""));
+        keyDialog=dialog;
+        dialog.setOnDismissListener(d->{key.setText("");if(keyDialog==dialog)keyDialog=null;});
         dialog.show();
         if(dialog.getWindow()!=null)dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{

@@ -30,6 +30,25 @@ jobs:
           mkdir -p /tmp/chat-markup-tests
           javac -d /tmp/chat-markup-tests app/src/main/java/com/ollamapocket/app/ChatMarkup.java tests/ChatMarkupTest.java
           java -cp /tmp/chat-markup-tests com.ollamapocket.app.ChatMarkupTest
+      - name: Guard first-run advertisement and production lock
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('app/src/main/java/com/ollamapocket/app')
+          src=(root/'MainActivity.java').read_text()
+          ads=(root/'AdSupport.java').read_text()
+          guide=src.split('private void showFirstRunGuide() {',1)[1].split('private void startServer()',1)[0]
+          assert 'ads.register(guideAd,AdSupport.PLACEMENT_ONBOARDING)' in guide
+          assert 'ads.showBanner(guideAd)' in guide
+          assert 'ads.detach(guideAd)' in guide
+          assert 'guideAd.setVisibility(View.GONE)' not in guide
+          assert guide.index('dialog.show();') < guide.index('ads.showBanner(guideAd)')
+          assert 'LIVE_ONBOARDING_BANNER = "ca-app-pub-4763897710237099/9558835282"' in ads
+          assert 'return BuildConfig.DEBUG && prefs.getBoolean("enabled", true)' in ads
+          assert 'PLACEMENT_ONBOARDING.equals(placement) ? LIVE_ONBOARDING_BANNER' in ads
+          assert '!consent.canRequestAds()' in ads
+          print('PASS: first-run banner placement and unit preserved, production requests disabled')
+          PY
       - name: Test cloud scope and authenticated encryption (pure Java)
         run: |
           mkdir -p /tmp/cloud-tests
