@@ -8,8 +8,16 @@ public final class ProjectReportHandoffTest {
     public static void main(String[] args)throws Exception{
         DocumentBatchPolicy.Plan plan=new DocumentBatchPolicy.Plan("Goal",List.of(
             new DocumentBatchPolicy.Source("source.txt","PRIVATE source",DocumentBatchPolicy.Kind.TEXT,false,0,0,0)));
-        DocumentBatchPolicy.Result result=DocumentBatchPolicy.analyze(plan,(prompt,chars,tokens)->"Note 😀 [D1-S1]",()->false,x->{});
-        DocumentBatchReport doc=new DocumentBatchReport(plan,result,"model",null,2,10);
+        // Count actual fixture generator invocations, including singleton group synthesis.
+        java.util.concurrent.atomic.AtomicInteger requests=new java.util.concurrent.atomic.AtomicInteger();
+        DocumentBatchPolicy.Result result=DocumentBatchPolicy.analyze(plan,(prompt,chars,tokens)->{
+            requests.incrementAndGet();return "Note 😀 [D1-S1]";
+        },()->false,x->{});
+        ok(result.status==DocumentBatchPolicy.Status.COMPLETED&&result.notes.size()==1&&result.groupsDone==1);
+        ok(requests.get()==3); // excerpt, singleton group, final synthesis
+        reject(()->new DocumentBatchReport(plan,result,"model",null,requests.get()-1,10));
+        reject(()->new DocumentBatchReport(plan,result,"model",null,requests.get()+1,10));
+        DocumentBatchReport doc=new DocumentBatchReport(plan,result,"model",null,requests.get(),10);
         ProjectReportHandoff h=ProjectReportHandoff.of(doc);
         ok(h.json.equals(doc.json())&&h.status.equals("COMPLETED"));
         ok(!new JSONObject(h.json).getBoolean("factual_verification"));
