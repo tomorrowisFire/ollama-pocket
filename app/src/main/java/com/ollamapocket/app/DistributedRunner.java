@@ -36,6 +36,13 @@ public final class DistributedRunner {
             activeModel="";rpcEndpointSet="";
         }
     }
+    public static boolean peersAvailable(Context context){
+        String expected=rpcEndpointSet;
+        if(expected.isEmpty())return true;
+        String available=","+CoopSession.get(context).connectedRpcEndpoints()+",";
+        for(String endpoint:expected.split(","))if(!available.contains(","+endpoint+","))return false;
+        return true;
+    }
     private static boolean healthy(){
         HttpURLConnection c=null;
         try{
@@ -96,7 +103,8 @@ public final class DistributedRunner {
     /** Called only from a worker thread, before the distributed server is started. */
     public static boolean ensure(Context context,String model,StringBuilder reason){
         CoopSession coop=CoopSession.get(context);
-        if(!"host".equals(coop.role()) || coop.readyNodes().isEmpty()){
+        if(InferenceSafety.blocked(context)){reason.append(OnHandsLocale.wrap(context).getString(InferenceSafety.label(InferenceSafety.check(context))));return false;}
+        if(!"host".equals(coop.role()) || coop.connectedRpcEndpoints().isEmpty()){
             reason.append("호스트 세션 또는 활성 보조 노드가 없습니다");return false;
         }
         File binary=new File(context.getApplicationInfo().nativeLibraryDir,
@@ -111,7 +119,7 @@ public final class DistributedRunner {
         if(process!=null && process.isAlive() && activeModel.equals(model)
                 && healthy()){
             boolean stillConnected=true;
-            String current=coop.rpcEndpoints();
+            String current=coop.connectedRpcEndpoints();
             for(String endpoint:rpcEndpointSet.split(","))
                 if(!(","+current+",").contains(","+endpoint+","))stillConnected=false;
             if(stillConnected)return true;
@@ -126,7 +134,7 @@ public final class DistributedRunner {
                   .append('\n').append(locale.getString(R.string.rpc_plan_retry));
             return false;
         }
-        if(selection.endpoints.isEmpty() || budget.tensorSplit.isEmpty()){
+        if(selection.endpoints.isEmpty() || budget.tensorSplit.isEmpty() || selection.endpoints.split(",").length!=budget.selectedIndices.size()){
             reason.append("RAM 조건을 만족하는 RPC 노드가 없습니다");return false;
         }
         log("RAM admission: "+budget.summary().replace('\n',' '));
@@ -157,6 +165,7 @@ public final class DistributedRunner {
             pb.environment().put("GGML_RPC_NO_RDMA","1");
             pb.environment().put("HOME",context.getFilesDir().getAbsolutePath());
             pb.environment().put("TMPDIR",context.getCacheDir().getAbsolutePath());
+            if(InferenceSafety.blocked(context))throw new java.io.IOException("Unsafe inference resources");
             final Process current=pb.start();
             synchronized(DistributedRunner.class){
                 process=current;activeModel=model;rpcEndpointSet=selection.endpoints;
@@ -171,7 +180,8 @@ public final class DistributedRunner {
             long seconds=Math.max(180,Math.min(900,weights.length()/(12L*1024*1024)));
             long until=SystemClock.elapsedRealtime()+seconds*1000;
             while(SystemClock.elapsedRealtime()<until && current.isAlive()){
-                String now=coop.rpcEndpoints();
+                if(InferenceSafety.blocked(context)){stop();reason.append("Unsafe inference resources");return false;}
+                String now=coop.connectedRpcEndpoints();
                 for(String endpoint:selection.endpoints.split(",")){
                     if(!(","+now+",").contains(","+endpoint+",")){
                         reason.append("모델 로딩 중 보조 노드가 연결 해제되었습니다");
