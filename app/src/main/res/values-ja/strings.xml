@@ -1056,4 +1056,22 @@
     <string name="project_link_missing">保存済みチャットが見つかりません</string>
     <string name="project_link_unreadable">保存済みチャットを安全に読み取れません</string>
     <string name="project_link_model_missing">元のモデルがインストールされていません</string>
+    <string name="knowledge_workspace">ナレッジライブラリ</string>
+    <string name="knowledge_usage">資料 %1$d/%2$d · 保存領域 %3$d/%4$d バイト</string>
+    <string name="knowledge_notice">手動入力したテキストのみ非公開で保存します。最大24件、各32,000 UTF-16単位、合計2MiB。自動索引・ファイル取込・モデル呼出は行いません。</string>
+    <string name="knowledge_add">テキスト資料を追加</string>
+    <string name="knowledge_search">文字列検索</string>
+    <string name="knowledge_empty">保存済み資料はありません。</string>
+    <string name="knowledge_manual">ローカルに保存するテキストを入力または貼り付けます。手動資料であり、元ファイルの出所は検証していません。</string>
+    <string name="knowledge_text">資料本文</string>
+    <string name="knowledge_review">保存内容を確認</string>
+    <string name="knowledge_review_notice">下のタイトルと本文全体を確認してください。保存はこの内容のみをローカルに保存し、送信しません。</string>
+    <string name="knowledge_id">資料ID: %1$s</string>
+    <string name="knowledge_delete_notice">保存済み資料を削除しますか。他のファイル、会話、プロジェクトは変更しません。</string>
+    <string name="knowledge_search_notice">大文字小文字を区別する部分一致検索。重複しない最大40件。位置は保存資料内で、元ファイルの位置ではありません。意味検索ではありません。</string>
+    <string name="knowledge_query">検索語（最大120 UTF-16単位）</string>
+    <string name="knowledge_hits">%1$d件表示（上限%2$d件）</string>
+    <string name="knowledge_range">保存資料内のUTF-16位置 %1$d–%2$d（両端含む）</string>
+    <string name="knowledge_open_source">資料全体を表示</string>
+    <string name="knowledge_input_limit">入力上限を超えたため、この変更は反映されませんでした。</string>
 </resources>

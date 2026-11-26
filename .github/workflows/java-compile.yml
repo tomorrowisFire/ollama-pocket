@@ -9,6 +9,7 @@ on:
       - 'tests/ProjectContextTest.java'
       - 'tests/ProjectChatLinkTest.java'
       - 'tests/KnowledgeLibraryTest.java'
+      - 'tests/KnowledgeWorkspacePolicyTest.java'
       - 'app/src/main/AndroidManifest.xml'
       - 'app/build.gradle'
       - 'build.gradle'
@@ -269,6 +270,8 @@ jobs:
         run: |
           javac -cp /tmp/project-tests:/tmp/cloud-stream-tests/json.jar -d /tmp/project-tests app/src/main/java/com/ollamapocket/app/KnowledgeLibrary.java tests/KnowledgeLibraryTest.java
           java -Xmx512m -cp /tmp/project-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.KnowledgeLibraryTest
+          javac -cp /tmp/project-tests:/tmp/cloud-stream-tests/json.jar -d /tmp/project-tests app/src/main/java/com/ollamapocket/app/KnowledgeWorkspacePolicy.java tests/KnowledgeWorkspacePolicyTest.java
+          java -cp /tmp/project-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.KnowledgeWorkspacePolicyTest
       - name: Audit direct Hangul UI literals
         run: python3 tests/locale_ui_audit.py
       - name: Verify OnHand AI brand and locale resource parity

@@ -1056,4 +1056,22 @@
     <string name="project_link_missing">找不到已儲存的聊天</string>
     <string name="project_link_unreadable">無法安全讀取已儲存的聊天</string>
     <string name="project_link_model_missing">原始模型尚未安裝</string>
+    <string name="knowledge_workspace">個人知識庫</string>
+    <string name="knowledge_usage">資料 %1$d/%2$d · 儲存 %3$d/%4$d 位元組</string>
+    <string name="knowledge_notice">僅私密儲存手動輸入的文字。最多24份，每份32,000個UTF-16單元，總計2MiB。不自動索引、匯入檔案或呼叫模型。</string>
+    <string name="knowledge_add">新增文字資料</string>
+    <string name="knowledge_search">字面搜尋</string>
+    <string name="knowledge_empty">尚無資料。</string>
+    <string name="knowledge_manual">輸入或貼上要本機儲存的文字。這是手動資料，並非經過驗證的檔案來源。</string>
+    <string name="knowledge_text">資料原文</string>
+    <string name="knowledge_review">確認完整內容</string>
+    <string name="knowledge_review_notice">請確認以下完整標題和文字。儲存僅在本機儲存此資料，不傳送訊息。</string>
+    <string name="knowledge_id">資料ID：%1$s</string>
+    <string name="knowledge_delete_notice">刪除此資料？其他檔案、對話和專案不會變更。</string>
+    <string name="knowledge_search_notice">區分大小寫的精確子字串搜尋，最多40筆非重疊結果。位置相對於儲存資料，並非原檔案。不是語意搜尋。</string>
+    <string name="knowledge_query">精確查詢（最多120個UTF-16單元）</string>
+    <string name="knowledge_hits">顯示%1$d筆（上限%2$d筆）</string>
+    <string name="knowledge_range">資料UTF-16位置 %1$d–%2$d（含兩端）</string>
+    <string name="knowledge_open_source">檢視完整資料</string>
+    <string name="knowledge_input_limit">超過輸入限制，本次編輯未被接受。</string>
 </resources>

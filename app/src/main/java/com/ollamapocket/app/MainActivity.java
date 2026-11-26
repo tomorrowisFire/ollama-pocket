@@ -146,7 +146,7 @@ public final class MainActivity extends Activity {
         if(voiceFinishButton!=null)voiceFinishButton.setVisibility(active&&voice.canFinishListening()&&!chatBusy?View.VISIBLE:View.GONE);
         if(voiceEndButton!=null)voiceEndButton.setVisibility(active?View.VISIBLE:View.GONE);
         voiceButton.setContentDescription(getString(active?R.string.stop:R.string.voice));
-        voiceButton.setEnabled(!ProjectWorkspaceUi.busy()&&!AutomationUi.busy()&&!DocumentBatchUi.busy()&&(!chatBusy||active));
+        voiceButton.setEnabled(!KnowledgeWorkspaceUi.busy()&&!ProjectWorkspaceUi.busy()&&!AutomationUi.busy()&&!DocumentBatchUi.busy()&&(!chatBusy||active));
     }
     private final ExecutorService chatSearchIo=Executors.newSingleThreadExecutor();
     private java.util.concurrent.Future<?> chatSearchTask;
@@ -251,6 +251,7 @@ public final class MainActivity extends Activity {
     private volatile boolean benchmarkBusy;
     private AutomationUi automationUi;
     private ProjectWorkspaceUi projectWorkspaceUi;
+    private KnowledgeWorkspaceUi knowledgeWorkspaceUi;
     private TextView diagnosticStatus, performanceHudView;
     private volatile PerformanceHud.Sample lastHud;
     private volatile boolean hudPollBusy;
@@ -493,7 +494,7 @@ public final class MainActivity extends Activity {
         long now = android.os.SystemClock.elapsedRealtime();
         if (lastPauseElapsed > 0 && now - lastPauseElapsed > 120_000
                 && getPreferences(MODE_PRIVATE).getBoolean("welcome_v2_seen", false)
-                && !ProjectWorkspaceUi.busy() && !AutomationUi.busy() && !DocumentBatchUi.busy() && !cloudMode && !pullBusy && !chatBusy && !benchmarkBusy && (voice==null||(!voice.listening()&&!voice.speaking()))) {
+                && !KnowledgeWorkspaceUi.busy()&&!ProjectWorkspaceUi.busy() && !AutomationUi.busy() && !DocumentBatchUi.busy() && !cloudMode && !pullBusy && !chatBusy && !benchmarkBusy && (voice==null||(!voice.listening()&&!voice.speaking()))) {
             ads.showAppOpenIfReady();
         }
     }
@@ -503,6 +504,7 @@ public final class MainActivity extends Activity {
         if(documentBatch!=null){documentBatch.pause();documentBatch=null;}
         if(automationUi!=null)automationUi.pause();
         if(projectWorkspaceUi!=null){projectWorkspaceUi.pause();projectWorkspaceUi=null;}
+        if(knowledgeWorkspaceUi!=null){knowledgeWorkspaceUi.pause();knowledgeWorkspaceUi=null;}
         if(localTransferDialog!=null){localTransferDialog.dismiss();localTransferDialog=null;}
         saveLocalDraft();
         if(cloudPanel!=null)cloudPanel.pause();
@@ -519,6 +521,7 @@ public final class MainActivity extends Activity {
         if(documentBatch!=null){documentBatch.pause();documentBatch=null;}
         if(automationUi!=null)automationUi.pause();
         if(projectWorkspaceUi!=null){projectWorkspaceUi.pause();projectWorkspaceUi=null;}
+        if(knowledgeWorkspaceUi!=null){knowledgeWorkspaceUi.pause();knowledgeWorkspaceUi=null;}
         chatCancelled=true;
         if(navigationDrawer!=null&&navigationDrawer.isShowing())navigationDrawer.dismiss();
         if (chatConnection != null) chatConnection.disconnect();
@@ -1099,14 +1102,15 @@ public final class MainActivity extends Activity {
 
     private void showChatActions(){
         if(guestOnly||cloudMode||isUiBusy()){toast(getString(R.string.busy));return;}
-        String[] labels={getString(R.string.cloud_short),getString(R.string.auto_title),getString(R.string.chat_export),getString(R.string.compute_select),getString(R.string.project_workspace)};
+        String[] labels={getString(R.string.cloud_short),getString(R.string.auto_title),getString(R.string.chat_export),getString(R.string.compute_select),getString(R.string.project_workspace),getString(R.string.knowledge_workspace)};
         new AlertDialog.Builder(this).setTitle(R.string.chat_actions).setItems(labels,(d,w)->{
             if(isUiBusy()||guestOnly||cloudMode||!foreground)return;
             if(w==0)openCloud();
             else if(w==1)openLocalAutomation();
             else if(w==2)chooseChatExport();
             else if(w==3)showComputeChoiceDialog();
-            else openProjectWorkspace();
+            else if(w==4)openProjectWorkspace();
+            else openKnowledgeWorkspace();
         }).setNegativeButton(R.string.close,null).show();
     }
 
@@ -1376,7 +1380,7 @@ public final class MainActivity extends Activity {
     }
 
     private boolean isUiBusy(){
-        return ProjectWorkspaceUi.busy()||AutomationUi.busy()||DocumentBatchUi.busy()||attachmentReading||chatBusy||pullBusy||diagnosticBusy||benchmarkBusy
+        return KnowledgeWorkspaceUi.busy()||ProjectWorkspaceUi.busy()||AutomationUi.busy()||DocumentBatchUi.busy()||attachmentReading||chatBusy||pullBusy||diagnosticBusy||benchmarkBusy
                ||(cloudPanel!=null&&cloudPanel.isBusy())||HuggingFaceCatalog.isDownloading();
     }
 
@@ -3338,7 +3342,7 @@ public final class MainActivity extends Activity {
     private void renderHistory(){renderHistory(true);}
     private void renderHistory(boolean follow) {
         if (messages == null) return;
-        if(chatActionsButton!=null)chatActionsButton.setEnabled(!chatBusy&&!ProjectWorkspaceUi.busy()&&!AutomationUi.busy());
+        if(chatActionsButton!=null)chatActionsButton.setEnabled(!chatBusy&&!KnowledgeWorkspaceUi.busy()&&!ProjectWorkspaceUi.busy()&&!AutomationUi.busy());
         int oldY=messageScroll==null?0:messageScroll.getScrollY();
         followWanted=follow;scrollRevision++;starterPanel=null;
         messages.removeAllViews();
@@ -3510,6 +3514,12 @@ public final class MainActivity extends Activity {
         heading.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);caption.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         card.setOnClickListener(v->action.run());return card;
     }
+    private void openKnowledgeWorkspace(){
+        if(!foreground||guestOnly||cloudMode||isUiBusy()||activeTab!=0){toast(getString(R.string.busy));return;}
+        if(voice!=null)voice.cancel();
+        if(knowledgeWorkspaceUi==null)knowledgeWorkspaceUi=new KnowledgeWorkspaceUi(this,()->foreground&&!guestOnly&&!cloudMode&&activeTab==0);
+        knowledgeWorkspaceUi.open();
+    }
     private void openProjectWorkspace(){
         if(!foreground||guestOnly||cloudMode||isUiBusy()||activeTab!=0){toast(getString(R.string.busy));return;}
         if(voice!=null)voice.cancel();
@@ -3592,7 +3602,7 @@ public final class MainActivity extends Activity {
         modelChooser.setEnabled(!busy && !knownModels.isEmpty());
         if(voiceButton!=null)voiceButton.setEnabled(!busy||(voice!=null&&voice.continuous()));
         if(attachFileButton!=null)attachFileButton.setEnabled(!busy&&!attachmentReading);
-        if(chatActionsButton!=null)chatActionsButton.setEnabled(!busy&&!ProjectWorkspaceUi.busy()&&!AutomationUi.busy()&&!DocumentBatchUi.busy());
+        if(chatActionsButton!=null)chatActionsButton.setEnabled(!busy&&!KnowledgeWorkspaceUi.busy()&&!ProjectWorkspaceUi.busy()&&!AutomationUi.busy()&&!DocumentBatchUi.busy());
         updateDraftBudget();
     }
     private void sendChat(){sendChat(null);}

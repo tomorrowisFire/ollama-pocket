@@ -1056,4 +1056,22 @@
     <string name="project_link_missing">저장된 대화를 찾을 수 없음</string>
     <string name="project_link_unreadable">저장된 대화를 안전하게 읽을 수 없음</string>
     <string name="project_link_model_missing">원래 모델이 설치되어 있지 않음</string>
+    <string name="knowledge_workspace">개인 지식 DB</string>
+    <string name="knowledge_usage">자료 %1$d/%2$d · 저장공간 %3$d/%4$d바이트</string>
+    <string name="knowledge_notice">수동 입력한 텍스트만 비공개 저장합니다. 최대 24개, 자료당 UTF-16 32,000단위, 전체 2MiB. 자동 색인·파일 가져오기·모델 호출은 하지 않습니다.</string>
+    <string name="knowledge_add">텍스트 자료 추가</string>
+    <string name="knowledge_search">원문 검색</string>
+    <string name="knowledge_empty">저장된 자료가 없습니다.</string>
+    <string name="knowledge_manual">로컬에 보관할 텍스트를 입력하거나 붙여넣으세요. 수동 자료이며 원본 파일 출처를 검증하지 않습니다.</string>
+    <string name="knowledge_text">자료 원문</string>
+    <string name="knowledge_review">저장할 원문 확인</string>
+    <string name="knowledge_review_notice">아래 제목과 원문 전체를 확인하세요. 저장하면 해당 자료만 로컬에 보관하며 메시지는 전송하지 않습니다.</string>
+    <string name="knowledge_id">자료 ID: %1$s</string>
+    <string name="knowledge_delete_notice">저장된 자료를 삭제할까요? 다른 파일·대화·프로젝트는 변경하지 않습니다.</string>
+    <string name="knowledge_search_notice">대소문자를 구분하는 원문 검색입니다. 중복되지 않는 결과 최대 40개를 표시합니다. 위치는 저장된 자료 기준이며 원본 파일이나 의미 검색이 아닙니다.</string>
+    <string name="knowledge_query">검색어(UTF-16 최대 120단위)</string>
+    <string name="knowledge_hits">검색 결과 %1$d개(최대 %2$d개)</string>
+    <string name="knowledge_range">자료 내 UTF-16 위치 %1$d–%2$d(양 끝 포함)</string>
+    <string name="knowledge_open_source">자료 전체 보기</string>
+    <string name="knowledge_input_limit">입력 한도를 초과해 이번 입력은 반영되지 않았습니다.</string>
 </resources>

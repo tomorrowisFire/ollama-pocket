@@ -1056,4 +1056,22 @@
     <string name="project_link_missing">Saved chat is missing</string>
     <string name="project_link_unreadable">Saved chat cannot be read safely</string>
     <string name="project_link_model_missing">The original model is not installed</string>
+    <string name="knowledge_workspace">Knowledge library</string>
+    <string name="knowledge_usage">Sources %1$d/%2$d · Storage %3$d/%4$d bytes</string>
+    <string name="knowledge_notice">Private manual text snapshots only: up to 24 sources, 32,000 UTF-16 units each, shared 2 MiB. No automatic indexing, file import or model calls here.</string>
+    <string name="knowledge_add">Add text snapshot</string>
+    <string name="knowledge_search">Literal search</string>
+    <string name="knowledge_empty">No sources saved.</string>
+    <string name="knowledge_manual">Enter or paste text you choose to keep locally. It is a manual snapshot, not verified file provenance.</string>
+    <string name="knowledge_text">Source text</string>
+    <string name="knowledge_review">Review exact snapshot</string>
+    <string name="knowledge_review_notice">Review the full title and text below. Save stores exactly this snapshot locally; no message is sent.</string>
+    <string name="knowledge_id">Source ID: %1$s</string>
+    <string name="knowledge_delete_notice">Remove this saved snapshot? Other files, chats and projects are not changed.</string>
+    <string name="knowledge_search_notice">Case-sensitive exact substring search, up to 40 nonoverlapping hits. Positions are in the saved snapshot, not the original file. This is not semantic search.</string>
+    <string name="knowledge_query">Exact query (up to 120 UTF-16 units)</string>
+    <string name="knowledge_hits">Showing %1$d hits (limit %2$d)</string>
+    <string name="knowledge_range">Snapshot UTF-16 positions %1$d–%2$d (inclusive)</string>
+    <string name="knowledge_open_source">View full snapshot</string>
+    <string name="knowledge_input_limit">Edit exceeds the input limit. No part of this edit was accepted.</string>
 </resources>

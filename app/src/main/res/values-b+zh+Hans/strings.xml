@@ -1056,4 +1056,22 @@
     <string name="project_link_missing">找不到已保存的聊天</string>
     <string name="project_link_unreadable">无法安全读取已保存的聊天</string>
     <string name="project_link_model_missing">原始模型尚未安装</string>
+    <string name="knowledge_workspace">个人知识库</string>
+    <string name="knowledge_usage">资料 %1$d/%2$d · 存储 %3$d/%4$d 字节</string>
+    <string name="knowledge_notice">仅私密保存手动输入的文本。最多24份，每份32,000个UTF-16单元，总计2MiB。不自动索引、导入文件或调用模型。</string>
+    <string name="knowledge_add">添加文本资料</string>
+    <string name="knowledge_search">字面搜索</string>
+    <string name="knowledge_empty">尚无资料。</string>
+    <string name="knowledge_manual">输入或粘贴要本地保存的文本。这是手动资料，并非经过验证的文件来源。</string>
+    <string name="knowledge_text">资料原文</string>
+    <string name="knowledge_review">确认准确内容</string>
+    <string name="knowledge_review_notice">请确认以下完整标题和文本。保存仅在本地保存此资料，不发送消息。</string>
+    <string name="knowledge_id">资料ID：%1$s</string>
+    <string name="knowledge_delete_notice">删除此资料？其他文件、对话和项目不会更改。</string>
+    <string name="knowledge_search_notice">区分大小写的精确子串搜索，最多40条非重叠结果。位置相对于保存的资料，并非原文件。不是语义搜索。</string>
+    <string name="knowledge_query">精确查询（最多120个UTF-16单元）</string>
+    <string name="knowledge_hits">显示%1$d条（上限%2$d条）</string>
+    <string name="knowledge_range">资料UTF-16位置 %1$d–%2$d（含两端）</string>
+    <string name="knowledge_open_source">查看完整资料</string>
+    <string name="knowledge_input_limit">超过输入限制，本次编辑未被接受。</string>
 </resources>
