@@ -49,6 +49,11 @@ public final class WorkflowPlanEditorTest {
         ok(WorkflowPolicy.parse(preset).size()==3&&preset.contains("보고서")&&preset.contains("@jsonfields:final:string"));
         rejects(()->WorkflowPlanEditor.preset("x\nx",new String[]{"%GOAL%"},new String[]{"x:string"}));
         rejects(()->WorkflowPlanEditor.preset("x",new String[]{"missing"},new String[]{"x:string"}));
+        WorkflowPlanEditor scalar=new WorkflowPlanEditor("verify | @jsonvalues:{\"status\":\"OK\",\"count\":3}",2);
+        ok(scalar.row(0).gate==WorkflowPolicy.Gate.JSON_VALUES&&scalar.firstInvalid()==-1);
+        ok(scalar.encode().equals("verify | @jsonvalues:{\"status\":\"OK\",\"count\":3}"));
+        ok(WorkflowPolicy.verified(WorkflowPolicy.parse(scalar.encode()).get(0),"{\"count\":3,\"status\":\"OK\"}"));
+        scalar.row(0).required="{\"x\":null}";ok(scalar.firstInvalid()==0);
         System.out.println("PASS: "+n+" strict workflow fields and editor assertions");
     }
 }

@@ -211,6 +211,7 @@ final class AutomationUi {
             case MIN_CHARS:return s(R.string.auto_gate_minchars);
             case JSON_KEYS:return s(R.string.auto_gate_jsonkeys);
             case JSON_FIELDS:return s(R.string.auto_gate_jsonfields);
+            case JSON_VALUES:return s(R.string.auto_gate_jsonvalues);
             default:return s(R.string.auto_gate_contains);
         }
     }
@@ -220,6 +221,7 @@ final class AutomationUi {
             case MIN_CHARS:return "80";
             case JSON_KEYS:return "title,result";
             case JSON_FIELDS:return "title:string,items:array";
+            case JSON_VALUES:return "{\"status\":\"OK\",\"count\":3}";
             default:return s(R.string.auto_gate_contains_hint);
         }
     }
@@ -244,6 +246,7 @@ final class AutomationUi {
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);picker.setAdapter(adapter);
         picker.setMinimumHeight(dp(48));l.addView(picker,new LinearLayout.LayoutParams(-1,-2));
         EditText required=field(l,R.string.auto_step_condition,"",200,false);
+        TextView gateHelp=output(l);gateHelp.setText(s(R.string.auto_gate_jsonvalues_help));gateHelp.setVisibility(View.GONE);
         TextView error=output(l);
         error.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         final int[] index={0};
@@ -258,7 +261,7 @@ final class AutomationUi {
             WorkflowPlanEditor.Row row=editor.row(index[0]);
             stepLabel.setText(owner.getString(R.string.auto_editor_index,Integer.toString(index[0]+1),Integer.toString(editor.size())));
             prompt.setText(row.prompt);required.setText(row.required);picker.setSelection(row.gate.ordinal());
-            required.setHint(gateHint(row.gate));error.setText("");
+            required.setHint(gateHint(row.gate));gateHelp.setVisibility(row.gate==WorkflowPolicy.Gate.JSON_VALUES?View.VISIBLE:View.GONE);error.setText("");
             if(controls[0]!=null)controls[0].setEnabled(index[0]>0);
             if(controls[1]!=null)controls[1].setEnabled(index[0]+1<editor.size());
             if(controls[2]!=null)controls[2].setEnabled(editor.size()<WorkflowPolicy.MAX_STEPS);
@@ -267,7 +270,7 @@ final class AutomationUi {
             if(controls[5]!=null)controls[5].setEnabled(index[0]+1<editor.size());
         };
         picker.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
-            public void onItemSelected(AdapterView<?> parent,View view,int position,long id){if(position>=0&&position<gates.length)required.setHint(gateHint(gates[position]));}
+            public void onItemSelected(AdapterView<?> parent,View view,int position,long id){if(position>=0&&position<gates.length){required.setHint(gateHint(gates[position]));gateHelp.setVisibility(gates[position]==WorkflowPolicy.Gate.JSON_VALUES?View.VISIBLE:View.GONE);}}
             public void onNothingSelected(AdapterView<?> parent){}
         });
         controls[0]=button(l,R.string.auto_editor_previous,()->{capture.run();if(index[0]>0)index[0]--;render.run();});
@@ -499,7 +502,7 @@ final class AutomationUi {
     private String summary(LocalWorkflow.Checkpoint c){
         String seconds=c.updated<=0?s(R.string.metric_unavailable):Long.toString(Math.max(0,Math.min(WorkflowPolicy.MAX_MILLIS,c.updated-c.started))/1000);
         String reason=reasonLabel(c.reason);
-        String next=c.complete()?"":"\n"+owner.getString(R.string.auto_current_step,Integer.toString(c.results.size()+1),Integer.toString(c.steps().size()),c.steps().get(c.results.size()).gate.name());
+        String next=c.complete()?"":"\n"+owner.getString(R.string.auto_current_step,Integer.toString(c.results.size()+1),Integer.toString(c.steps().size()),gateLabel(c.steps().get(c.results.size()).gate));
         return stateLabel(c.status)+" · "+c.results.size()+"/"+c.steps().size()+" · "+c.attempts+"/"+WorkflowPolicy.MAX_ATTEMPTS+
             (reason.isEmpty()?"":"\n"+reason)+next+
             "\n"+owner.getString(R.string.auto_run_stats,seconds,Integer.toString(c.totalAttempts),Long.toString(c.reportedTokens),Integer.toString(c.unknownAttempts))+
@@ -507,7 +510,7 @@ final class AutomationUi {
     }
     private void display(TextView status,LocalWorkflow.Checkpoint c){
         StringBuilder text=new StringBuilder(summary(c));
-        for(int i=0;i<c.results.size();i++)text.append("\n\n").append(i+1).append(". PASS (").append(c.steps().get(i).gate.name()).append(")\n").append(c.results.get(i));
+        for(int i=0;i<c.results.size();i++)text.append("\n\n").append(i+1).append(". PASS (").append(gateLabel(c.steps().get(i).gate)).append(")\n").append(c.results.get(i));
         status.setText(text.toString());
     }
 }

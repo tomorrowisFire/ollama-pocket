@@ -10,7 +10,8 @@ import org.json.JSONTokener;
 final class WorkflowPolicy {
     static final int MAX_STEPS=10, MAX_ATTEMPTS=3, MAX_STEP_CHARS=2000, MAX_OUTPUT=4000, MAX_TOKENS=512;
     static final long MAX_MILLIS=30L*60*1000;
-    enum Gate { CONTAINS, EXACT, MIN_CHARS, JSON_KEYS, JSON_FIELDS }
+    enum Gate { CONTAINS, EXACT, MIN_CHARS, JSON_KEYS, JSON_FIELDS, JSON_VALUES }
+    enum Decision { ADVANCE, RETRY, BLOCK }
     static final class Step {
         final String prompt,required;
         final Gate gate;
@@ -38,6 +39,7 @@ final class WorkflowPolicy {
                     case "minchars": gate=Gate.MIN_CHARS;break;
                     case "jsonkeys": gate=Gate.JSON_KEYS;break;
                     case "jsonfields": gate=Gate.JSON_FIELDS;break;
+                    case "jsonvalues": gate=Gate.JSON_VALUES;break;
                     default:throw new IllegalArgumentException("Unknown verifier");
                 }
                 if(required.isEmpty())throw new IllegalArgumentException("Empty verifier");
@@ -46,6 +48,7 @@ final class WorkflowPolicy {
                     int n=Integer.parseInt(required);if(n<1||n>MAX_OUTPUT)throw new IllegalArgumentException("Invalid length");
                 }
                 if(gate==Gate.JSON_FIELDS)WorkflowJsonFields.fields(required);
+                if(gate==Gate.JSON_VALUES)WorkflowJsonFields.validateValues(required);
                 if(gate==Gate.JSON_KEYS){
                     java.util.HashSet<String> seen=new java.util.HashSet<>();
                     for(String key:required.split(",",-1))if(!key.matches("[A-Za-z0-9_.-]{1,64}")||!seen.add(key)||seen.size()>12)
@@ -64,6 +67,7 @@ final class WorkflowPolicy {
             case EXACT:return trimmed.equals(step.required);
             case MIN_CHARS:return trimmed.codePointCount(0,trimmed.length())>=Integer.parseInt(step.required);
             case JSON_FIELDS:return WorkflowJsonFields.matches(step.required,output);
+            case JSON_VALUES:return WorkflowJsonFields.matchesValues(step.required,output);
             case JSON_KEYS:
                 try{
                     JSONTokener tok=new JSONTokener(trimmed);
@@ -76,6 +80,12 @@ final class WorkflowPolicy {
             default:return output.contains(step.required);
         }
     }
+    /** Shared runner decision: never accept truncated, invalid or unbudgeted attempts. */
+    static Decision decide(Step step,String output,boolean truncated,int attempts){
+        if(attempts<1||attempts>MAX_ATTEMPTS)return Decision.BLOCK;
+        if(!truncated&&verified(step,output))return Decision.ADVANCE;
+        return attempts<MAX_ATTEMPTS?Decision.RETRY:Decision.BLOCK;
+    }
     static boolean canAttempt(int attempts,long now,long started){
         return attempts>=0&&attempts<MAX_ATTEMPTS&&started>0&&now>=started&&now-started<MAX_MILLIS;
     }
@@ -85,6 +95,7 @@ final class WorkflowPolicy {
             case MIN_CHARS:return "Output must contain at least "+step.required+" Unicode characters after trimming.";
             case JSON_KEYS:return "Return a JSON object only, with non-null top-level keys: "+step.required;
             case JSON_FIELDS:return "Return exactly one strict JSON object, no markdown, no duplicate or extra fields, using these top-level field names and types: "+step.required+". Integer means an integer literal. Do not invent unknown facts.";
+            case JSON_VALUES:return "Return exactly one strict JSON object matching these required top-level scalar values and types: "+step.required+". No extra fields, duplicate keys, nulls, arrays, objects or markdown. Integer literals and fractional/exponent numbers are distinct types. If the task cannot meet the condition, do not invent facts.";
             default:return "Required literal in the output: "+step.required;
         }
     }

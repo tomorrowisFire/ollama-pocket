@@ -38,6 +38,7 @@ final class WorkflowPlanEditor {
             case MIN_CHARS:directive="minchars";break;
             case JSON_KEYS:directive="jsonkeys";break;
             case JSON_FIELDS:directive="jsonfields";break;
+            case JSON_VALUES:directive="jsonvalues";break;
             default:directive="contains";
         }
         String value=prompt.trim()+" | @"+directive+":"+required.trim();

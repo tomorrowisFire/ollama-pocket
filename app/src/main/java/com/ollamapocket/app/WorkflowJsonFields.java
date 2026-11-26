@@ -40,6 +40,56 @@ final class WorkflowJsonFields {
             return true;
         }catch(IllegalArgumentException e){return false;}
     }
+    /** New value gate uses strict scalar parsing; legacy validators remain unchanged. */
+    private static final class Scalar {
+        final String type;
+        final Object value;
+        Scalar(String type,Object value){this.type=type;this.value=value;}
+        boolean same(Scalar other){
+            if(other==null||!type.equals(other.type))return false;
+            if(value instanceof java.math.BigDecimal)
+                return ((java.math.BigDecimal)value).compareTo((java.math.BigDecimal)other.value)==0;
+            return value.equals(other.value);
+        }
+    }
+    private static Map<String,Scalar> scalarObject(String input,int limit){
+        if(input==null||input.length()>limit)throw new IllegalArgumentException("Scalar object limit");
+        Parser p=new Parser(input);p.bound(0);p.require('{');
+        Map<String,Scalar> fields=new LinkedHashMap<>();
+        if(p.take('}'))throw p.invalid();
+        do{
+            p.space();String key=p.string();p.require(':');p.space();
+            if(!key.matches("[A-Za-z0-9_.-]{1,64}")||fields.containsKey(key)||fields.size()>=12)throw p.invalid();
+            if(p.pos>=input.length())throw p.invalid();
+            Scalar scalar;
+            if(input.charAt(p.pos)=='"'){
+                p.bound(1);scalar=new Scalar("string",p.string());
+            }else{
+                int start=p.pos;String type=p.value(1);String token=input.substring(start,p.pos);
+                if("integer".equals(type)||"number".equals(type)){
+                    java.math.BigDecimal number=new java.math.BigDecimal(token);
+                    // Bound scale as well as literal length, including underflow exponents.
+                    if(number.scale()<-1024||number.scale()>1024)throw p.invalid();
+                    scalar=new Scalar(type,number);
+                }else if("boolean".equals(type))scalar=new Scalar(type,token);
+                else throw p.invalid();
+            }
+            fields.put(key,scalar);
+            if(p.take('}'))break;
+            p.require(',');
+        }while(true);
+        p.space();if(p.pos!=input.length())throw p.invalid();
+        return fields;
+    }
+    static void validateValues(String spec){scalarObject(spec,200);}
+    static boolean matchesValues(String spec,String output){
+        try{
+            Map<String,Scalar> expected=scalarObject(spec,200),actual=scalarObject(output,WorkflowPolicy.MAX_OUTPUT);
+            if(!expected.keySet().equals(actual.keySet()))return false;
+            for(Map.Entry<String,Scalar> e:expected.entrySet())if(!e.getValue().same(actual.get(e.getKey())))return false;
+            return true;
+        }catch(IllegalArgumentException e){return false;}
+    }
     private static final class Parser {
         final String source;int pos,nodes;
         Parser(String source){this.source=source;}

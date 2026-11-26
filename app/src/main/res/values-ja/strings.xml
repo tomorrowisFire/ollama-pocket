@@ -928,4 +928,6 @@
     <string name="batch_actual_scope">記録完了範囲（空白のみの記録区間を含む）</string>
     <string name="batch_actual_range">予定UTF-16 %2$s単位のうち%1$sまで記録完了</string>
     <string name="batch_run_metrics">ローカルチャット要求試行: %1$s回 · 分析経過: %2$s ms（最終モデル解放を除く）</string>
+    <string name="auto_gate_jsonvalues">JSON値の完全一致</string>
+    <string name="auto_gate_jsonvalues_help">期待する文字列・整数・数値・真偽値をJSONオブジェクトで入力してください（1～12項目）。余分・不足・null・入れ子の項目は失敗します。整数と小数・指数表記は異なる型です。指定値の一致のみを確認し、事実の検証は行いません。</string>
 </resources>

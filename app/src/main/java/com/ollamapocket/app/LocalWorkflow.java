@@ -187,10 +187,14 @@ final class LocalWorkflow {
                 watch.run();WorkflowRunJournal.Reason reason=stopReason.get();
                 if(reason!=null){stopped(c,reason);break;}
                 c.status="VERIFYING";c.reason=WorkflowRunJournal.Reason.NONE;save(c);progress.accept(c);
-                if(!truncated[0]&&WorkflowPolicy.verified(step,output.toString())){
+                WorkflowPolicy.Decision decision=WorkflowPolicy.decide(step,output.toString(),truncated[0],c.attempts);
+                // Recheck safety/stop at the verification-to-checkpoint boundary.
+                watch.run();reason=stopReason.get();
+                if(reason!=null){stopped(c,reason);break;}
+                if(decision==WorkflowPolicy.Decision.ADVANCE){
                     c.results.add(output.toString());c.attempts=0;c.status=c.complete()?"COMPLETED":"QUEUED";c.reason=WorkflowRunJournal.Reason.VERIFIED;save(c);progress.accept(c);
                 }else{
-                    c.status=c.attempts>=WorkflowPolicy.MAX_ATTEMPTS?"BLOCKED":"RETRY_WAIT";c.reason=truncated[0]?WorkflowRunJournal.Reason.TRUNCATED:WorkflowRunJournal.Reason.VERIFY_FAILED;save(c);progress.accept(c);
+                    c.status=decision==WorkflowPolicy.Decision.BLOCK?"BLOCKED":"RETRY_WAIT";c.reason=truncated[0]?WorkflowRunJournal.Reason.TRUNCATED:WorkflowRunJournal.Reason.VERIFY_FAILED;save(c);progress.accept(c);
                     if("BLOCKED".equals(c.status))break;
                 }
             }

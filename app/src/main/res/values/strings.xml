@@ -928,4 +928,6 @@
     <string name="batch_actual_scope">Completed excerpt coverage (includes recorded whitespace-only ranges)</string>
     <string name="batch_actual_range">Completed through %1$s of %2$s planned UTF-16 units</string>
     <string name="batch_run_metrics">Attempted local chat requests: %1$s · analysis elapsed: %2$s ms (excludes final model cleanup)</string>
+    <string name="auto_gate_jsonvalues">Exact JSON values</string>
+    <string name="auto_gate_jsonvalues_help">Enter a JSON object with the exact expected string, integer, number or boolean values (1–12 fields). Extra, missing, null or nested fields fail. Integer and decimal/exponent types are distinct. This verifies the specified values, not factual accuracy.</string>
 </resources>
