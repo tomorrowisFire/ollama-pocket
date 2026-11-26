@@ -18,22 +18,26 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Model family returned by public search -> real Ollama size/quantization. */
 public final class OllamaFamilyPicker {
     private OllamaFamilyPicker(){}
+    static String displayLabel(Activity activity,OllamaQuantCatalog.Variant variant){
+        String quant="기본 양자화".equals(variant.quantization)?activity.getString(R.string.picker_default_quant):variant.quantization;
+        return (variant.installed?activity.getString(R.string.model_installed)+" · ":"")+quant+"\n"+variant.tag;
+    }
     private static final AtomicBoolean OPEN=new AtomicBoolean(false);
     private static final int MAX_PAGE=3_000_000;
 
     public static void show(Activity activity,String family,
             List<String> installed,OllamaQuantPicker.Listener onChoose) {
         if(family==null||!family.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,68}")){
-            Toast.makeText(activity,"모델명을 확인하세요",Toast.LENGTH_SHORT).show();
+            Toast.makeText(activity,activity.getString(R.string.model_tag_invalid),Toast.LENGTH_SHORT).show();
             return;
         }
         if(!OPEN.compareAndSet(false,true))return;
         final List<String> installedSnapshot=new ArrayList<>(installed);
         final AtomicBoolean dismissed=new AtomicBoolean(false);
         AlertDialog loading=new AlertDialog.Builder(activity)
-            .setTitle(family+" · 모델 목록")
-            .setMessage("공식 Ollama에서 모델 크기와 양자화 버전을 확인합니다…")
-            .setNegativeButton("취소",(d,w)->dismissed.set(true))
+            .setTitle(activity.getString(R.string.picker_family_title,family))
+            .setMessage(activity.getString(R.string.picker_family_loading))
+            .setNegativeButton(activity.getString(R.string.cancel),(d,w)->dismissed.set(true))
             .setOnCancelListener(d->dismissed.set(true)).create();
         loading.show();
         Thread worker=new Thread(()->{
@@ -53,7 +57,7 @@ public final class OllamaFamilyPicker {
                         ByteArrayOutputStream out=new ByteArrayOutputStream()){
                         byte[] buffer=new byte[8192];int n;
                         while((n=input.read(buffer))!=-1){
-                            if(out.size()+n>MAX_PAGE)throw new Exception("태그 목록 너무 큼");
+                            if(out.size()+n>MAX_PAGE)throw new Exception(activity.getString(R.string.picker_page_limit));
                             out.write(buffer,0,n);
                         }
                         html=out.toString(StandardCharsets.UTF_8.name());
@@ -73,30 +77,28 @@ public final class OllamaFamilyPicker {
                 if(results.isEmpty()){
                     OPEN.set(false);
                     new AlertDialog.Builder(activity)
-                        .setTitle("모델 버전 조회 실패")
-                        .setMessage("Ollama에서 이 모델의 실제 버전을 확인하지 못했습니다."+
-                            (problem==null?"":"\n"+problem)+
-                            "\n없는 모델명을 임의로 생성하지 않습니다.")
-                        .setNegativeButton("닫기",null)
-                        .setPositiveButton("Ollama에서 확인",(d,w)->activity.startActivity(
+                        .setTitle(activity.getString(R.string.picker_lookup_failed))
+                        .setMessage(activity.getString(R.string.picker_no_fake)+(problem==null?"":"\n"+problem))
+                        .setNegativeButton(activity.getString(R.string.close),null)
+                        .setPositiveButton(activity.getString(R.string.picker_web),(d,w)->activity.startActivity(
                             new Intent(Intent.ACTION_VIEW,
                                 Uri.parse("https://ollama.com/library/"+family+"/tags"))))
                         .show();
                     return;
                 }
                 String[] labels=new String[results.size()];
-                for(int i=0;i<results.size();i++)labels[i]=results.get(i).display();
+                for(int i=0;i<results.size();i++)labels[i]=displayLabel(activity,results.get(i));
                 AlertDialog chooser=new AlertDialog.Builder(activity)
-                    .setTitle(family+" · 크기와 양자화 선택")
+                    .setTitle(activity.getString(R.string.picker_family_select,family))
                     .setItems(labels,(d,index)->{
                         OllamaQuantCatalog.Variant selected=results.get(index);
                         OPEN.set(false);
                         onChoose.onChosen(selected.tag,selected.installed);
                     })
-                    .setNeutralButton("웹에서 태그 확인",(d,w)->activity.startActivity(
+                    .setNeutralButton(activity.getString(R.string.picker_view_tags),(d,w)->activity.startActivity(
                         new Intent(Intent.ACTION_VIEW,
                             Uri.parse("https://ollama.com/library/"+family+"/tags"))))
-                    .setNegativeButton("닫기",null)
+                    .setNegativeButton(activity.getString(R.string.close),null)
                     .create();
                 chooser.setOnDismissListener(d->OPEN.set(false));
                 chooser.show();

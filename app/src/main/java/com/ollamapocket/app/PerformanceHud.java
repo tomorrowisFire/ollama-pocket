@@ -60,6 +60,22 @@ public final class PerformanceHud {
                     "\nGPU: 제조사 커널 지표 접근 가능 시에만 실제 사용률 표시"+
                     "\n온도는 배터리 센서이며 CPU/GPU 칩 온도가 아닙니다.";
         }
+        /** Resource-backed display only; telemetry sampling and legacy metrics stay unchanged. */
+        public String compact(Context c){
+            String unavailable=c.getString(R.string.metric_unavailable);
+            String cpu=cpuPercent==null?unavailable:PerformanceHudMetrics.percent(cpuPercent);
+            String gpu=gpuPercent==null?unavailable:PerformanceHudMetrics.percent(gpuPercent);
+            String temp=batteryTenths<0?"":"   ·   "+c.getString(R.string.hud_battery,
+                String.format(c.getResources().getConfiguration().getLocales().get(0),"%.1f℃",batteryTenths/10.0));
+            return c.getString(cpuSystemWide?R.string.hud_system_cpu:R.string.hud_app_cpu)+" "+cpu+
+                "   ·   GPU "+gpu+"\nRAM "+availableMiB+"/"+totalMiB+" MiB"+temp;
+        }
+        public String detail(Context c){
+            String therm=thermalStatus<0?c.getString(R.string.metric_unavailable):String.valueOf(thermalStatus);
+            return compact(c)+"\n"+c.getString(R.string.hud_thermal,therm)+
+                "\nCPU: "+c.getString(cpuSystemWide?R.string.hud_system_scope:R.string.hud_app_scope)+
+                "\n"+c.getString(R.string.hud_accuracy_note);
+        }
         public int cpuPermille(){return cpuPercent==null?-1:(int)Math.round(cpuPercent*10);}
         public int gpuPermille(){return gpuPercent==null?-1:(int)Math.round(gpuPercent*10);}
     }

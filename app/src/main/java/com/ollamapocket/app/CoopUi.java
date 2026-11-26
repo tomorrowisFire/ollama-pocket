@@ -47,16 +47,13 @@ public final class CoopUi {
         ScrollView scroll=new ScrollView(a);
         LinearLayout col=new LinearLayout(a);col.setOrientation(LinearLayout.VERTICAL);col.setPadding(25,15,25,20);
         col.setBackgroundColor(background(a));scroll.addView(col);
-        add(col,label(a,"하나의 호스트가 세션을 열면 같은 Wi-Fi의 보조 기기가 검색해 참가합니다.\n"+
-            "RPC는 기기 내부에서 실행하고 기기 사이 연결은 암호화 중계합니다.\n"+
-            "신뢰하는 Wi-Fi에서만 사용하세요. 최대 3대 · 45분 뒤 종료."));
+        add(col,label(a,a.getString(R.string.coop_intro_detail)));
         TextView state=label(a,a.getString(R.string.coop_status_check));add(col,state);
         TextView secret=label(a,"");secret.setTextIsSelectable(true);add(col,secret);
         Button host=button(a,a.getString(R.string.coop_host));add(col,host);
         Button share=button(a,a.getString(R.string.coop_share));add(col,share);
         Button stop=button(a,a.getString(R.string.guest_end));add(col,stop);
-        add(col,label(a,"호스트에서 연결된 보조 기기들의 RAM·CPU·GPU·배터리 온도·연결 상태를 확인할 수 있습니다.\n" +
-            "GPU 지표는 제조사 커널에서 제공하고 앱에 읽기 권한이 있을 때만 표시합니다."));
+        add(col,label(a,a.getString(R.string.coop_metrics_detail)));
         add(col,label(a,a.getString(R.string.coop_guest_prompt)));
         Button scan=button(a,a.getString(R.string.guest_scan));add(col,scan);
         TextView found=label(a,a.getString(R.string.coop_scan_idle));add(col,found);
@@ -79,13 +76,11 @@ public final class CoopUi {
         Runnable[] refresh={null};
         refresh[0]=()->{
             if(!dialog.isShowing())return;
-            state.setText(session.status()+"\n패키지: "+(CoopSession.packaged(a)?"협력용 RPC 엔진 포함":"협력 RPC 엔진 없음"));
+            state.setText(session.status(a)+"\n"+a.getString(R.string.coop_package,a.getString(CoopSession.packaged(a)?R.string.coop_rpc_available:R.string.coop_rpc_missing)));
             if("host".equals(session.role())){
-                secret.setText("호스트: "+session.hostIp()+":"+CoopSession.CONTROL_PORT+"\n"+
-                    "세션 ID: "+session.sessionId()+"\n연결 코드: "+session.joinCode()+"\n"+
-                    "보조 노드 (승인된 코드 보유자만):\n"+formatNodes(session));
+                secret.setText(a.getString(R.string.coop_host_details,session.hostIp()+":"+CoopSession.CONTROL_PORT,session.sessionId(),session.joinCode(),formatNodes(session)));
             }else secret.setText("");
-            StringBuilder sb=new StringBuilder("발견된 호스트 (탭하면 주소·세션 ID 입력):\n");
+            StringBuilder sb=new StringBuilder(a.getString(R.string.coop_found_hosts));
             for(Map.Entry<String,String> item:session.discovered().entrySet()) {
                 sb.append(item.getKey()).append(" → ").append(item.getValue()).append("\n");
             }
@@ -101,8 +96,7 @@ public final class CoopUi {
         };
         host.setOnClickListener(v->new AlertDialog.Builder(a)
             .setTitle(a.getString(R.string.coop_start_host))
-            .setMessage("이 기기를 호스트로 설정합니다. 신뢰하는 같은 Wi-Fi의 기기만 연결하세요. " +
-                "기기 이름과 메모리 여유량이 세션에 표시됩니다. 45분 뒤 자동 종료됩니다.")
+            .setMessage(R.string.coop_host_confirm)
             .setNegativeButton(R.string.cancel,null)
             .setPositiveButton(a.getString(R.string.coop_create),(d,w)->{
                 try{CoopService.start(a,CoopService.HOST,null,null,null,null);}
@@ -128,8 +122,7 @@ public final class CoopUi {
         });
         share.setOnClickListener(v->{
             if(!"host".equals(session.role())){message(a,a.getString(R.string.coop_create_first));return;}
-            String value="OnHand AI 협력 세션\n호스트 IP: "+session.hostIp()+"\n세션 ID: "+session.sessionId()+
-                "\n연결 코드: "+session.joinCode()+"\n이 코드는 신뢰하는 보조 기기에만 공유하세요.";
+            String value=a.getString(R.string.coop_share_body,session.hostIp(),session.sessionId(),session.joinCode());
             Intent send=new Intent(Intent.ACTION_SEND);
             send.setType("text/plain");send.putExtra(Intent.EXTRA_TEXT,value);
             a.startActivity(Intent.createChooser(send,a.getString(R.string.coop_share)));

@@ -78,7 +78,7 @@ jobs:
           src=Path('app/src/main/java/com/ollamapocket/app')
           for path in src.glob('*.java'):
               assert 'On Hands AI' not in path.read_text(),path
-              for k in re.findall(r'(?<!android\.)R\.string\.([a-z_]+)',path.read_text()):
+              for k in re.findall(r'(?<!android\.)R\.string\.([a-z_][a-z0-9_]*)',path.read_text()):
                   assert k in baseline,(path,k)
           assert "applicationId 'io.github.tomorrowisfire.aiinpocket'" in Path('app/build.gradle').read_text()
           print('PASS: exact OnHand AI display name, five-locale parity and format arguments; application ID retained')

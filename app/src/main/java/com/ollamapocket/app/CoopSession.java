@@ -237,6 +237,18 @@ public final class CoopSession {
         if (!lastError.isEmpty()) s.append("\n상태: ").append(lastError);
         return s.toString();
     }
+    /** Locale-aware display only; wire fields and legacy diagnostics are unchanged. */
+    public String status(Context context) {
+        String current=role;
+        String label=context.getString("host".equals(current)?R.string.role_host:"guest".equals(current)?R.string.role_guest:R.string.off);
+        StringBuilder out=new StringBuilder(context.getString(R.string.coop_mode_status,label,secondsRemaining()/60));
+        if("host".equals(current))out.append('\n').append(context.getString(R.string.coop_node_count,readyNodes().size(),MAX_NODES))
+            .append('\n').append(context.getString(R.string.coop_safe_total,aggregatedSafeMiB()));
+        if("guest".equals(current))out.append('\n').append(context.getString(R.string.coop_connected_host,hostIp))
+            .append('\n').append(context.getString(R.string.coop_worker_status,context.getString(worker!=null&&worker.isAlive()?R.string.status_running:R.string.status_stopped)));
+        if(!lastError.isEmpty())out.append('\n').append(context.getString(R.string.status_detail,lastError));
+        return out.toString();
+    }
     public List<Node> readyNodes() {
         long now=SystemClock.elapsedRealtime();
         List<Node> out=new ArrayList<>();

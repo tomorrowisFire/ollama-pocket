@@ -181,12 +181,9 @@ public final class MainActivity extends Activity {
                         if(isFinishing()||isDestroyed())return;
                         lastHud=reading;
                         if(performanceHudView!=null){
-                            String identity=deviceProfile==null?"기기 확인 중":
-                                deviceProfile.device+" · "+deviceProfile.cores+"코어";
-                            performanceHudView.setText(identity+"\n"+reading.compact());
-                            performanceHudView.setContentDescription(
-                                "기기 상태 실시간 갱신. "+reading.detail()+
-                                ". 탭하면 상세 진단을 볼 수 있습니다.");
+                            String identity=deviceProfile==null?getString(R.string.hud_check):getString(R.string.hud_identity,deviceProfile.device,deviceProfile.cores);
+                            performanceHudView.setText(identity+"\n"+reading.compact(MainActivity.this));
+                            performanceHudView.setContentDescription(getString(R.string.hud_accessibility,reading.detail(MainActivity.this)));
                         }
                         if(activeTab==3)refreshDiagnosticViews();
                     });
@@ -1114,10 +1111,7 @@ public final class MainActivity extends Activity {
             renderInstalledModels();
         });
         margin(text(getString(R.string.permissions),16,WHITE,true),content,0,6);
-        margin(text("기기 모델·CPU·RAM·저장공간 진단은 Android 시스템에서 " +
-            "공개하는 정보로 수행하며 별도 위치 권한은 요청하지 않습니다. " +
-            "일부 GPU 사용률·NPU 정보는 제조사 제한으로 조회할 수 없습니다. " +
-            "Wi-Fi 세션 검색에는 네트워크·멀티캐스트 권한을 사용합니다.",
+        margin(text(getString(R.string.diag_permission_detail),
             12,MUTED,false),content,0,7);
         Button notification=button(getString(R.string.notification_permission),false);
         margin(notification,content,0,14);
@@ -1177,26 +1171,26 @@ public final class MainActivity extends Activity {
                     getSystemService(Context.CONNECTIVITY_SERVICE);
             android.net.Network net=manager==null?null:manager.getActiveNetwork();
             android.net.NetworkCapabilities cap=net==null?null:manager.getNetworkCapabilities(net);
-            if(cap==null)return "네트워크: 연결 확인 불가 · 세션 검색을 위해 Wi-Fi 연결 필요";
+            if(cap==null)return getString(R.string.network_unavailable);
             String kind=cap.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)
                     ?"Wi-Fi":cap.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR)
-                    ?"모바일 데이터":"기타 네트워크";
+                    ?getString(R.string.network_mobile):getString(R.string.network_other);
             boolean internet=cap.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED);
             String ip=CoopSession.localIPv4();
-            return "네트워크: "+kind+(internet?" · 인터넷 연결 확인":" · 인터넷 확인 불가")
-                    +(ip.isEmpty()?"":"\n로컬 IPv4: "+ip);
-        }catch(Exception ex){return "네트워크: 시스템 정보 접근 제한";}
+            return getString(R.string.network_summary,kind,getString(internet?R.string.network_validated:R.string.network_unvalidated))
+                    +(ip.isEmpty()?"":"\n"+getString(R.string.network_ip_address,ip));
+        }catch(Exception ex){return getString(R.string.network_restricted);}
     }
 
     private void refreshDiagnosticViews(){
         if(deviceSummary==null||computeSummary==null||connectionSessionStatus==null)return;
         deviceSummary.setText(deviceProfile.description()+
-            (lastHud==null?"":"\n\n실시간: "+lastHud.detail()));
+            (lastHud==null?"":"\n\n"+getString(R.string.hud_live_detail,lastHud.detail(this))));
         computeSummary.setText(computeReport.description());
         if(suitabilitySummary!=null)suitabilitySummary.setText(suitabilityOverview());
         if(localConnectionStatus!=null)localConnectionStatus.setText(networkDiagnostics());
         CoopSession session=CoopSession.get(this);
-        connectionSessionStatus.setText(session.status());
+        connectionSessionStatus.setText(session.status(this));
         if(nodeRows==null)return;
         nodeRows.removeAllViews();
         if("host".equals(session.role())&&!session.nodes().isEmpty()){
@@ -1245,9 +1239,7 @@ public final class MainActivity extends Activity {
         }
         new AlertDialog.Builder(this)
             .setTitle(getString(R.string.verify_inference))
-            .setMessage("모델: " + currentModel + "\n\n기기에서 CPU 응답을 생성하고 GPU가 지원되면 " +
-                "Vulkan 오프로드와 토큰 생성까지 확인합니다. 발열과 배터리 사용량이 증가할 수 있습니다. " +
-                "새 모델은 다운로드하지 않으며 NPU 실행은 현재 지원하지 않습니다.")
+            .setMessage(getString(R.string.hardware_confirm,currentModel))
             .setNegativeButton(getString(R.string.cancel), null)
             .setPositiveButton(getString(R.string.test_start), (d,which) -> {
                 diagnosticBusy = true;
@@ -1296,9 +1288,7 @@ public final class MainActivity extends Activity {
             getString(R.string.compute_npu_unsupported);
         String[] options = {getString(R.string.compute_auto), getString(R.string.compute_cpu), gpuInfo, npuInfo};
         new AlertDialog.Builder(this).setTitle(getString(R.string.compute_select))
-            .setMessage("연산 장치를 감지한 뒤 실제 추론 가능 여부를 확인합니다. " +
-                "GPU는 Vulkan runner 탑재·오프로드 확인 조건을 충족해야 사용하며, " +
-                "NPU는 전용 제조사 백엔드가 없어 선택할 수 없습니다.")
+            .setMessage(R.string.compute_notice)
             .setSingleChoiceItems(options,
                 "cpu".equals(computePreference()) ? 1 : "gpu".equals(computePreference()) ? 2 : 0,
                 (dialog, which) -> {
@@ -1313,7 +1303,7 @@ public final class MainActivity extends Activity {
                     getPreferences(MODE_PRIVATE).edit().putString("compute_preference", pref).apply();
                     if (which == 1) GpuRunner.stop();
                     if (activeEngineLabel != null)
-                        activeEngineLabel.setText("선택한 모드: " + pref + " · 다음 답변부터 적용");
+                        activeEngineLabel.setText(getString(R.string.compute_selected,pref));
                     toast(getString(R.string.compute_saved));
                     dialog.dismiss();
                 }).setNegativeButton(getString(R.string.cancel), null).show();
@@ -1391,7 +1381,7 @@ public final class MainActivity extends Activity {
             if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent);
             else startService(intent);
             toast(getString(R.string.local_start_requested));
-        } catch (Exception e) { toast("서버 시작 실패: " + e.getMessage()); }
+        } catch (Exception e) { toast(getString(R.string.server_start_failed,e.getMessage())); }
     }
     private void stopServer() {
         if (chatBusy) stopChat();
@@ -1400,9 +1390,39 @@ public final class MainActivity extends Activity {
         Intent intent = new Intent(this, OllamaForegroundService.class).setAction(OllamaForegroundService.ACTION_STOP);
         startService(intent);
     }
-    private static String installedSize(long bytes) {
-        if(bytes<=0)return "용량 미확인";
-        return String.format(Locale.KOREA,"%.2f GB",bytes/1_000_000_000.0);
+    private String installedSize(long bytes) {
+        if(bytes<=0)return getString(R.string.storage_unknown);
+        return String.format(getResources().getConfiguration().getLocales().get(0),"%.2f GB",bytes/1_000_000_000.0);
+    }
+    // UI mapping only; original suitability values remain stable for admission rules.
+    private String suitabilityLabel(String value){
+        if(value==null)return getString(R.string.unknown);
+        switch(value){
+            case "미지원":return getString(R.string.suitability_unsupported);
+            case "원활":return getString(R.string.suitability_smooth);
+            case "보통":return getString(R.string.suitability_moderate);
+            case "느림":return getString(R.string.suitability_slow);
+            case "메모리 주의":return getString(R.string.suitability_memory);
+            case "권장하지 않음":return getString(R.string.suitability_not_recommended);
+            case "주의":return getString(R.string.suitability_caution);
+            case "실행 여유 예상":return getString(R.string.suitability_expected);
+            default:return value;
+        }
+    }
+    private String localizedLayerLabel(String status,long completed,long total){
+        String raw=status==null?"":status;
+        String label=raw;
+        if(raw.isEmpty()||"진행 중".equals(raw))label=getString(R.string.pull_progress);
+        else if("pulling manifest".equals(raw))label=getString(R.string.pull_manifest);
+        else if(raw.startsWith("pulling "))label=getString(R.string.pull_data)+" · "+raw.substring(8);
+        else if("verifying sha256 digest".equals(raw))label=getString(R.string.pull_verify);
+        else if("writing manifest".equals(raw))label=getString(R.string.pull_write);
+        else if("success".equals(raw))label=getString(R.string.pull_success);
+        int percent=ModelDownloadBudget.layerPercent(completed,total);
+        if(percent<0)return label;
+        if("ko".equals(getResources().getConfiguration().getLocales().get(0).getLanguage()))
+            return ModelDownloadBudget.layerLabel(label,completed,total);
+        return getString(R.string.download_layer_percent,label,percent);
     }
 
     private void refreshModels() {
@@ -1763,8 +1783,8 @@ public final class MainActivity extends Activity {
             buttons[i].setTextColor(active[i]?BG:WHITE);
             buttons[i].setSelected(active[i]);
         }
-        modelListViewButton.setContentDescription("리스트형 보기"+(modelListView?" · 선택됨":""));
-        modelGridViewButton.setContentDescription("카드형 보기"+(!modelListView?" · 선택됨":""));
+        modelListViewButton.setContentDescription(getString(R.string.list_view)+(modelListView?" · "+getString(R.string.workspace_selected):""));
+        modelGridViewButton.setContentDescription(getString(R.string.grid_view)+(!modelListView?" · "+getString(R.string.workspace_selected):""));
     }
 
     private int tileBackgroundColor(boolean selected){
@@ -1812,10 +1832,10 @@ public final class MainActivity extends Activity {
             String[] labels=new String[options.size()];
             for(int i=0;i<labels.length;i++){
                 ModelVariantCatalog.Variant v=options.get(i);
-                labels[i]=v.label()+"\n"+v.quant+" · "+(v.bytes>0?installedSize(v.bytes):"용량 미확인")+
+                labels[i]=v.label()+"\n"+v.quant+" · "+(v.bytes>0?installedSize(v.bytes):getString(R.string.storage_unknown))+
                     (best.get(v.group())==v?" (추천)":"")+(knownModels.contains(v.model)?" · 설치됨":"");
             }
-            new AlertDialog.Builder(this).setTitle("크기·양자화 버전 선택")
+            new AlertDialog.Builder(this).setTitle(getString(R.string.model_quant_title))
                 .setItems(labels,(d,i)->{
                     if(isUiBusy())return;
                     ModelVariantCatalog.Variant choice=options.get(i);
@@ -1894,7 +1914,7 @@ public final class MainActivity extends Activity {
         variant.setEllipsize(TextUtils.TruncateAt.END);
         margin(variant,card,0,1);
 
-        String suffix=item.bytes>0?installedSize(item.bytes):"용량 미확인";
+        String suffix=item.bytes>0?installedSize(item.bytes):getString(R.string.storage_unknown);
         String provider=remote!=null?remote.source:item.installed?getString(R.string.own_device):"Ollama";
         TextView details=text(item.quantization+" · "+suffix+"\n"+
             provider+benchmarkLabel(item.id),10,secondary,false);
@@ -1956,7 +1976,7 @@ public final class MainActivity extends Activity {
         margin(identifier,body,0,4);
         String provider=remote!=null?remote.source:item.installed?getString(R.string.own_device):"Ollama";
         TextView details=text(item.quantization+"  ·  "+
-            (item.bytes>0?installedSize(item.bytes):"용량 미확인")+"  ·  "+provider+
+            (item.bytes>0?installedSize(item.bytes):getString(R.string.storage_unknown))+"  ·  "+provider+
             benchmarkLabel(item.id),11,secondary,false);
         details.setSingleLine(true);
         details.setEllipsize(TextUtils.TruncateAt.END);
@@ -2005,7 +2025,7 @@ public final class MainActivity extends Activity {
         TextView status=tileStatusLabels.get(downloadingCardId);
         if(status!=null){
             status.setText(downloadingPercent<0?getString(R.string.model_download_preparing):
-                "↓ 다운로드 중 · 레이어 "+downloadingPercent+"%");
+                getString(R.string.tile_layer_percent,downloadingPercent));
         }
         ProgressBar bar=tileDownloadBars.get(downloadingCardId);
         if(bar!=null){
@@ -2099,14 +2119,12 @@ public final class MainActivity extends Activity {
         String query=modelFilter==null?"":modelFilter.getText().toString().trim();
         if(query.isEmpty()){
             modelSearchStatus.setText(recommendationLoading?getString(R.string.search_check_sizes):
-                !recommendationError.isEmpty()?"온라인 추천 조회 실패 · 새로고침으로 재시도":
-                "추천은 RAM·저장공간·CPU 기준 추정이며 실제 실행은 벤치마크에서 확인하세요.");
+                !recommendationError.isEmpty()?getString(R.string.search_recommend_fail):getString(R.string.search_estimate_notice));
         }else if(query.length()<2)modelSearchStatus.setText(getString(R.string.search_min_chars));
         else if(query.length()>120)modelSearchStatus.setText(getString(R.string.search_max_chars));
-        else if(onlineSearchPending)modelSearchStatus.setText(filterDisplay(selectedSource)+" · "+onlineVariants.size()+
-            "개 우선 표시 · 나머지 검색 중… (최근 검색 10분 캐시)");
-        else modelSearchStatus.setText("온라인 양자화 버전 "+onlineVariants.size()+"개 · "+
-            (onlineSearchError.isEmpty()?"용량 미확인 항목은 정렬 마지막에 표시":onlineSearchError+" · 검색 버튼으로 재시도"));
+        else if(onlineSearchPending)modelSearchStatus.setText(getString(R.string.search_pending_count,filterDisplay(selectedSource),onlineVariants.size()));
+        else modelSearchStatus.setText(getString(R.string.search_result_count,onlineVariants.size(),
+            onlineSearchError.isEmpty()?getString(R.string.search_unknown_last):getString(R.string.search_error_retry,onlineSearchError)));
     }
     private List<ModelTileCatalog.Tile> allSearchTiles(String query){
         List<ModelTileCatalog.Tile> tiles=new ArrayList<>();
@@ -2177,7 +2195,7 @@ public final class MainActivity extends Activity {
             margin(label,details,0,4);
             String source=section.getKey().startsWith("hf:")?"Hugging Face":"Ollama";
             String metadata=items.size()+"개 양자화 · "+best.quantization+" · "+
-                (best.bytes>0?installedSize(best.bytes):"용량 미확인")+" · "+source;
+                (best.bytes>0?installedSize(best.bytes):getString(R.string.storage_unknown))+" · "+source;
             if(items.stream().anyMatch(t->t.id.equals(downloadingCardId)&&pullBusy))
                 metadata+=" · 다운로드 중";
             TextView info=text(metadata,11,MUTED,false);
@@ -2187,8 +2205,7 @@ public final class MainActivity extends Activity {
             TextView arrow=text(opened?"⌄":"›",22,MUTED,false);
             arrow.setGravity(Gravity.CENTER);
             rowItem(heading,arrow,0,0);
-            heading.setContentDescription(best.title+", 양자화 "+items.size()+
-                "개, "+(opened?"접기":"펼치기"));
+            heading.setContentDescription(getString(R.string.model_group_access,best.title,items.size(),getString(opened?R.string.collapse:R.string.expand)));
             heading.setOnClickListener(v->{
                 if(!expandedGroups.add(id))expandedGroups.remove(id);
                 renderInstalledModels();
@@ -2367,35 +2384,25 @@ public final class MainActivity extends Activity {
         catch(Exception e){availableBytes=-1;}
         long reserved=ModelDownloadBudget.requiredBytes(featuredBytes);
         if(availableBytes>=0&&featuredBytes>0&&!ModelDownloadBudget.enough(availableBytes,featuredBytes)){
-            new AlertDialog.Builder(this).setTitle("저장공간 부족")
-                .setMessage("필요 공간(여유분 포함): "+installedSize(reserved)+
-                    "\n현재 여유 공간: "+installedSize(availableBytes)+
-                    "\n다른 모델·파일을 정리한 뒤 다시 시도하세요.")
+            new AlertDialog.Builder(this).setTitle(getString(R.string.storage_low))
+                .setMessage(getString(R.string.storage_required,installedSize(reserved),installedSize(availableBytes)))
                 .setPositiveButton(R.string.ok,null).show();
             return;
         }
-        String storageHint=featuredBytes>0 ?
-            ("모델 크기: "+installedSize(featuredBytes)+" · 권장 여유 "+installedSize(reserved)+"\n"):
-            "모델 크기 미확인 · 저장공간을 직접 확인하세요.\n";
-        String memoryHint=featuredBytes>0 ?
-            ("RAM 적합도: "+advise(model,featuredBytes/(1024.0*1024.0*1024.0))
-                .suitability+" (사전 추정)\n\n"):"\n";
+        String storageHint=featuredBytes>0?getString(R.string.download_storage_hint,installedSize(featuredBytes),installedSize(reserved)):getString(R.string.download_size_unknown);
+        String memoryHint=featuredBytes>0?getString(R.string.download_ram_hint,suitabilityLabel(advise(model,featuredBytes/(1024.0*1024.0*1024.0)).suitability)):"\n";
         new AlertDialog.Builder(this)
-            .setTitle("다운로드 · 데이터 요금 안내")
-            .setMessage("선택 모델: " + model + "\n"+storageHint+memoryHint+
-                "모델 다운로드는 수백 MB~수십 GB의 인터넷 데이터를 사용할 수 있습니다. " +
-                "Wi-Fi나 모바일 데이터 요금제에 따라 통신료가 발생할 수 있습니다. " +
-                "저장공간과 인터넷 연결을 확인하세요.\n\n" +
-                "다운로드 중 표시되는 광고에도 인터넷 데이터가 사용될 수 있습니다.")
+            .setTitle(getString(R.string.download_data_title))
+            .setMessage(getString(R.string.download_confirm_body,model,storageHint,memoryHint))
             .setNegativeButton(getString(R.string.cancel), null)
-            .setPositiveButton("확인 후 다운로드", (d,w) -> beginDownload(model))
+            .setPositiveButton(getString(R.string.download_confirm), (d,w) -> beginDownload(model))
             .show();
     }
 
     private void beginDownload(String model) {
         if (pullBusy) return;
         if (!OllamaForegroundService.isRunning()) {
-            toast("로컬 서버 시작 중입니다. 연결되면 다시 다운로드하세요.");
+            toast(getString(R.string.download_server_wait));
             startServer(); return;
         }
         pullBusy = true; pullCancelled = false;
@@ -2418,7 +2425,7 @@ public final class MainActivity extends Activity {
         ads.showBanner(downloadAdSlot);
         pullButton.setEnabled(false); pullButton.setAlpha(0.5f);
         cancelPullButton.setEnabled(true); cancelPullButton.setVisibility(View.VISIBLE);
-        progressStatus.setText(model + " 다운로드 준비 중…");
+        progressStatus.setText(getString(R.string.download_prepare_model,model));
         io.execute(() -> {
             String error = null;
             try {
@@ -2426,7 +2433,7 @@ public final class MainActivity extends Activity {
                 OllamaHttp.stream(connection, OllamaHttp.pullBody(model), item -> {
                     String status = item.optString("status", "진행 중");
                     long total = item.optLong("total", 0), completed = item.optLong("completed", 0);
-                    String info=model+" · "+ModelDownloadBudget.layerLabel(status,completed,total);
+                    String info=model+" · "+localizedLayerLabel(status,completed,total);
                     ui.post(() -> {
                         progressStatus.setText(info);
                         downloadingPercent=ModelDownloadBudget.layerPercent(completed,total);
@@ -2450,8 +2457,7 @@ public final class MainActivity extends Activity {
                 renderInstalledModels();
                 pullButton.setEnabled(true); pullButton.setAlpha(1f);
                 cancelPullButton.setEnabled(false); cancelPullButton.setVisibility(View.GONE);
-                progressStatus.setText(pullCancelled ? "다운로드 중단" : failure != null ?
-                    "다운로드 실패: " + failure : "모델 설치 완료: " + model);
+                progressStatus.setText(pullCancelled?getString(R.string.download_stopped):failure!=null?getString(R.string.download_failed,failure):getString(R.string.download_completed,model));
                 lastFailedPullModel=!pullCancelled&&failure!=null?model:"";
                 if(downloadRetryButton!=null)
                     downloadRetryButton.setVisibility(lastFailedPullModel.isEmpty()?View.GONE:View.VISIBLE);
@@ -2460,10 +2466,10 @@ public final class MainActivity extends Activity {
                 else downloadProgress.setVisibility(View.GONE);
                 if (failure == null && !pullCancelled) {
                     refreshModels();
-                    new AlertDialog.Builder(this).setTitle("모델 준비 완료")
-                        .setMessage(model + "이 설치됐습니다. 이제 이 기기에서 질문할 수 있습니다.")
-                        .setNegativeButton("모델 화면 유지", null)
-                        .setPositiveButton("채팅 시작", (d,w) -> showTab(0)).show();
+                    new AlertDialog.Builder(this).setTitle(getString(R.string.model_ready))
+                        .setMessage(getString(R.string.download_ready_message,model))
+                        .setNegativeButton(getString(R.string.stay_models), null)
+                        .setPositiveButton(getString(R.string.start_chat), (d,w) -> showTab(0)).show();
                 }
             });
         });
@@ -2879,17 +2885,16 @@ public final class MainActivity extends Activity {
             try {
                 if ("cooperative".equals(computePreference())) {
                     StringBuilder reason = new StringBuilder();
-                    ui.post(() -> activeEngineLabel.setText("협력 RPC 모델 로딩 · 보조 기기로 데이터 전송 중"));
+                    ui.post(() -> activeEngineLabel.setText(getString(R.string.engine_rpc_load)));
                     if (!DistributedRunner.ensure(getApplicationContext(), modelAtStart, reason))
-                        throw new java.io.IOException("협력 모델 실행 실패: " + reason +
-                            " · 보조 노드가 끊어졌다면 작은 단독 모델로 변경하세요.");
+                        throw new java.io.IOException(getString(R.string.coop_error_fallback,reason.toString()));
                     if (chatCancelled) {
                         ui.post(() -> { showAssistant(assistant,getString(R.string.stopped),"",false); setChatBusy(false); });
                         return;
                     }
                     HttpURLConnection connection = OllamaHttp.newCooperativeChatConnection();
                     chatConnection = connection;
-                    ui.post(() -> activeEngineLabel.setText("협력 RPC 경로 연결 · 실제 토큰 생성 확인 중"));
+                    ui.post(() -> activeEngineLabel.setText(getString(R.string.engine_rpc_test)));
                     OllamaHttp.streamGpu(connection, OllamaHttp.gpuChatBody(modelAtStart, requestHistory),
                         item -> appendAnswer(item, answer, assistant));
                 } else {
@@ -2899,7 +2904,7 @@ public final class MainActivity extends Activity {
                 boolean gpu = false;
                 StringBuilder fallback = new StringBuilder();
                 if (tryGpu && !chatCancelled) {
-                    ui.post(() -> activeEngineLabel.setText("GPU Vulkan 실행 검증 중…"));
+                    ui.post(() -> activeEngineLabel.setText(getString(R.string.engine_gpu_test)));
                     // Release the CPU model before allocating the second GPU runtime.
                     try {
                         OllamaHttp.post("/api/generate", new JSONObject()
@@ -2915,8 +2920,8 @@ public final class MainActivity extends Activity {
                 final boolean verifiedGpu = gpu;
                 final String failedReason = fallback.toString();
                 ui.post(() -> activeEngineLabel.setText(verifiedGpu ?
-                    "실제 연산: GPU · Vulkan 레이어 오프로드 검증" :
-                    "실제 연산: CPU · Ollama" + (failedReason.isEmpty() ? "" : " (GPU 전환 실패)")));
+                    getString(R.string.engine_gpu_verified):
+                    getString(R.string.engine_cpu_verified)+(failedReason.isEmpty()?"":" "+getString(R.string.engine_gpu_failed))));
                 if (gpu) {
                     try {
                         HttpURLConnection connection = OllamaHttp.newGpuChatConnection();
@@ -2925,7 +2930,7 @@ public final class MainActivity extends Activity {
                             item -> appendAnswer(item, answer, assistant));
                     } catch (Exception gpuError) {
                         if (answer.length() > 0) throw gpuError; // never duplicate partial responses
-                        ui.post(() -> activeEngineLabel.setText("GPU 추론 실패 · CPU Ollama로 전환"));
+                        ui.post(() -> activeEngineLabel.setText(getString(R.string.engine_cpu_fallback)));
                         HttpURLConnection connection = OllamaHttp.newChatConnection();
                         chatConnection = connection;
                         OllamaHttp.stream(connection, OllamaHttp.chatBody(modelAtStart, requestHistory),
@@ -2989,29 +2994,29 @@ public final class MainActivity extends Activity {
             }
         } catch (Exception ignored) { }
         if (displayName == null || !displayName.toLowerCase().endsWith(".gguf")) {
-            toast("GGUF 파일을 선택하세요"); return;
+            toast(getString(R.string.gguf_pick)); return;
         }
         final String modelName = "imported-" + System.currentTimeMillis();
-        progressStatus.setText("GGUF 가져오는 중 · 화면을 유지하세요");
+        progressStatus.setText(getString(R.string.gguf_importing));
         io.execute(() -> {
             File copied = null, modelfile = null;
             String importStatus = "";
             try {
                 File imports = new File(getFilesDir(), "imports");
-                if (!imports.exists() && !imports.mkdirs()) throw new Exception("저장 폴더 생성 실패");
+                if (!imports.exists() && !imports.mkdirs()) throw new Exception(getString(R.string.file_directory_failed));
                 copied = new File(imports, modelName + ".gguf");
                 modelfile = new File(imports, modelName + ".Modelfile");
                 long available = new StatFs(imports.getAbsolutePath()).getAvailableBytes();
                 long total = 0;
                 try (InputStream in = getContentResolver().openInputStream(uri);
                      FileOutputStream out = new FileOutputStream(copied)) {
-                    if (in == null) throw new Exception("파일을 열 수 없음");
+                    if (in == null) throw new Exception(getString(R.string.file_open_failed));
                     byte[] buf = new byte[1024 * 1024];
                     int n;
                     while ((n = in.read(buf)) != -1) {
                         total += n;
                         if (total > available - (256L * 1024 * 1024))
-                            throw new Exception("저장 공간 부족");
+                            throw new Exception(getString(R.string.storage_low));
                         out.write(buf, 0, n);
                     }
                 }
@@ -3029,15 +3034,15 @@ public final class MainActivity extends Activity {
                         if (output.length() > 3500) output.delete(0, 1500);
                         output.append(line).append('\n');
                         String now = line;
-                        ui.post(() -> progressStatus.setText("GGUF 등록: " + now));
+                        ui.post(() -> progressStatus.setText(getString(R.string.gguf_register_progress,now)));
                     }
                 }
                 int exit = p.waitFor();
                 if (exit != 0) throw new Exception("ollama create 종료 코드 " + exit + ": " + output);
-                importStatus = "GGUF 등록 완료: " + modelName;
+                importStatus = getString(R.string.gguf_register_done,modelName);
                 // The created Ollama model has its own blob, so remove the temporary copy.
                 if (copied != null) copied.delete();
-            } catch (Exception e) { importStatus = "GGUF 가져오기 실패: " + e.getMessage(); }
+            } catch (Exception e) { importStatus = getString(R.string.gguf_import_error,e.getMessage()); }
             finally {
                 if (modelfile != null) modelfile.delete();
                 if (copied != null) copied.delete();
