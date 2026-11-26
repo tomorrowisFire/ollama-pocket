@@ -219,7 +219,7 @@ jobs:
       - name: Test resource advisor estimates and read-only recommendations
         run: |
           mkdir -p /tmp/resource-advice-tests
-          javac -cp /tmp/cloud-stream-tests/json.jar -d /tmp/resource-advice-tests app/src/main/java/com/ollamapocket/app/BenchmarkProfile.java app/src/main/java/com/ollamapocket/app/InferenceSafetyPolicy.java app/src/main/java/com/ollamapocket/app/ModelVariantCatalog.java app/src/main/java/com/ollamapocket/app/ModelGroupings.java app/src/main/java/com/ollamapocket/app/ModelResourceAdvice.java tests/ModelResourceAdviceTest.java
+          javac -cp /tmp/cloud-stream-tests/json.jar -d /tmp/resource-advice-tests app/src/main/java/com/ollamapocket/app/BenchmarkProfile.java app/src/main/java/com/ollamapocket/app/InferenceSafetyPolicy.java app/src/main/java/com/ollamapocket/app/OllamaLibrarySearch.java app/src/main/java/com/ollamapocket/app/ModelVariantCatalog.java app/src/main/java/com/ollamapocket/app/ModelGroupings.java app/src/main/java/com/ollamapocket/app/ModelResourceAdvice.java tests/ModelResourceAdviceTest.java
           java -cp /tmp/resource-advice-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.ModelResourceAdviceTest
       - name: Test inference safety policy
         run: |

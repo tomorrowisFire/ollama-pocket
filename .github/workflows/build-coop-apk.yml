@@ -13,6 +13,7 @@ on:
       - 'settings.gradle'
       - 'scripts/build_rpc_cpu.sh'
       - 'app/src/main/java/**'
+      - 'tests/ModelResourceAdviceTest.java'
       - 'tests/KnowledgeAnswerPolicyTest.java'
       - 'tests/KnowledgeImportPolicyTest.java'
       - 'tests/ProjectReportHandoffTest.java'
