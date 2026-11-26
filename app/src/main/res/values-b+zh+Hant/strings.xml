@@ -742,4 +742,8 @@
     <string name="cloud_output_rate">每百萬輸出權杖 USD</string>
     <string name="cloud_pc_address">PC 位址（私有 IPv4:連接埠）</string>
     <string name="cloud_pc_notice">未加密的區域網路連線。僅在可信私有網路使用；訊息可能被讀取或竄改。</string>
+    <string name="cloud_session_usage">工作階段用量：%1$s 次請求 · 輸入 %2$s / 輸出 %3$s 權杖</string>
+    <string name="cloud_session_cost">已知預估費用：$%1$s · 費用未知請求：%2$s</string>
+    <string name="cloud_budget">工作階段預估支出上限（USD，選填）</string>
+    <string name="cloud_budget_stop">已達預估支出上限或用量未知。修改上限前請確認服務商帳單。</string>
 </resources>
