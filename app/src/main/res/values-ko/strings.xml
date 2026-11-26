@@ -892,4 +892,17 @@
     <string name="batch_no_synthesis">최종 종합 미생성.</string>
     <string name="batch_unit_notes">구간별 분석 기록 및 추출 위치</string>
     <string name="batch_file_limit">서로 다른 파일을 1~3개 선택하세요.</string>
+    <string name="voice_review_ready">입력창의 인식 결과를 확인·수정한 뒤 전송하면 대화를 계속합니다.</string>
+    <string name="voice_recognizing">음성 인식 처리 중…</string>
+    <string name="voice_preparing">오프라인 마이크 준비 중…</string>
+    <string name="voice_playback_paused">읽기 일시정지. 재개하면 미완료 구간부터 다시 읽습니다.</string>
+    <string name="voice_playback_percent">읽기: %1$s%%</string>
+    <string name="voice_partial">임시 인식: %1$s</string>
+    <string name="voice_resume_playback">읽기 재개</string>
+    <string name="voice_pause_playback">읽기 일시정지</string>
+    <string name="voice_end_session">음성 세션 종료</string>
+    <string name="voice_language">음성 언어</string>
+    <string name="voice_app_language">앱 언어와 동일</string>
+    <string name="voice_rate">읽기 속도</string>
+    <string name="voice_review_option">매 발화의 인식 결과를 확인·수정한 후 전송 (권장)</string>
 </resources>

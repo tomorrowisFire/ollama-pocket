@@ -892,4 +892,17 @@
     <string name="batch_no_synthesis">No final synthesis generated.</string>
     <string name="batch_unit_notes">Individual excerpt notes and extracted ranges</string>
     <string name="batch_file_limit">Select between 1 and 3 distinct files.</string>
+    <string name="voice_review_ready">Review the recognized text in the input field, then send to continue.</string>
+    <string name="voice_recognizing">Recognizing speech…</string>
+    <string name="voice_preparing">Preparing offline microphone…</string>
+    <string name="voice_playback_paused">Playback paused. Resume repeats the unfinished chunk.</string>
+    <string name="voice_playback_percent">Read: %1$s%%</string>
+    <string name="voice_partial">Provisional: %1$s</string>
+    <string name="voice_resume_playback">Resume reading</string>
+    <string name="voice_pause_playback">Pause reading</string>
+    <string name="voice_end_session">End voice session</string>
+    <string name="voice_language">Speech language</string>
+    <string name="voice_app_language">Same as app</string>
+    <string name="voice_rate">Reading speed</string>
+    <string name="voice_review_option">Review/edit each recognized turn before sending (recommended)</string>
 </resources>

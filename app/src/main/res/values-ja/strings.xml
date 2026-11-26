@@ -892,4 +892,17 @@
     <string name="batch_no_synthesis">最終統合は未生成です。</string>
     <string name="batch_unit_notes">区間別分析記録と抽出位置</string>
     <string name="batch_file_limit">異なるファイルを1～3件選択してください。</string>
+    <string name="voice_review_ready">入力欄の認識結果を確認・編集して送信すると会話を続けます。</string>
+    <string name="voice_recognizing">音声認識処理中…</string>
+    <string name="voice_preparing">オフラインマイク準備中…</string>
+    <string name="voice_playback_paused">読み上げ一時停止。再開すると未完了区間を読み直します。</string>
+    <string name="voice_playback_percent">読み上げ：%1$s%%</string>
+    <string name="voice_partial">暫定認識：%1$s</string>
+    <string name="voice_resume_playback">読み上げ再開</string>
+    <string name="voice_pause_playback">読み上げ一時停止</string>
+    <string name="voice_end_session">音声セッション終了</string>
+    <string name="voice_language">音声言語</string>
+    <string name="voice_app_language">アプリ言語と同じ</string>
+    <string name="voice_rate">読み上げ速度</string>
+    <string name="voice_review_option">認識結果を毎回確認・編集してから送信（推奨）</string>
 </resources>

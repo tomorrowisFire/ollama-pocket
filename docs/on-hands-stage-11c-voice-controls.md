@@ -1,0 +1,9 @@
+# Stage 11-C — voice interaction and playback controls
+
+Baseline bc2c0186a71ee10191a3ae20d675937578205964. 11-B Java CI 45787425769 SUCCESS; 11-A Java and native APK/QA AAB CI SUCCESS. 11-B native CI 45787425500 pending when reviewed.
+
+- Independent speech language preference (app language, Korean, English, simplified Chinese, traditional Chinese, Japanese) and reading rate 0.8/1.0/1.2/1.4x. Only existing offline speech recognizer and non-network TTS voices are selected; language availability depends on the installed device engine. No cloud fallback.
+- Continuous conversation defaults to reviewing/editing each recognized turn in the existing input composer before explicit send. The opt-in automatic-send mode is retained by disabling the review option. Existing draft text remains protected. Review does not automatically send anything; existing cloud/cooperative approval boundaries still apply. Dictation remains a separate mode.
+- Local voice status panel distinguishes preparation/listening/recognizing/review/generation/playback/pause. Provisional recognition is bounded and display-only; only final recognized text enters the draft. Existing draft persistence rules apply to final text. Partial transcripts are not stored by this feature.
+- Pause/resume playback in the voice panel, with exact utterance identifiers and completed-character progress. Resume repeats the unfinished chunk, not an exact audio timestamp. Overall playback deadline includes pauses. End session cancels voice and prevents automatic listening after cancellation. Experimental wired-headset energy interruption remains opt-in, with stale callback guards.
+- Added pure Java interaction/cursor fixtures, 5-locale resource parity and existing Java compile pipeline. Actual microphone latency, five-language accuracy, offline TTS, hardware audio routing, accessibility and device UX are NOT_RUN. No score uplift asserted. Existing onboarding ad and production ad lock untouched.

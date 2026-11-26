@@ -892,4 +892,17 @@
     <string name="batch_no_synthesis">未生成最終綜合。</string>
     <string name="batch_unit_notes">各片段分析記錄與擷取位置</string>
     <string name="batch_file_limit">請選擇1至3個不同檔案。</string>
+    <string name="voice_review_ready">在輸入框中核對或編輯辨識結果，傳送後繼續對話。</string>
+    <string name="voice_recognizing">正在處理語音辨識…</string>
+    <string name="voice_preparing">正在準備離線麥克風…</string>
+    <string name="voice_playback_paused">朗讀已暫停。恢復時重新朗讀未完成的片段。</string>
+    <string name="voice_playback_percent">朗讀：%1$s%%</string>
+    <string name="voice_partial">暫時辨識：%1$s</string>
+    <string name="voice_resume_playback">恢復朗讀</string>
+    <string name="voice_pause_playback">暫停朗讀</string>
+    <string name="voice_end_session">結束語音對話</string>
+    <string name="voice_language">語音語言</string>
+    <string name="voice_app_language">與應用程式語言相同</string>
+    <string name="voice_rate">朗讀速度</string>
+    <string name="voice_review_option">每輪辨識後先核對或編輯再傳送（建議）</string>
 </resources>

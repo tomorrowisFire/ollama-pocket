@@ -94,7 +94,11 @@ public final class MainActivity extends Activity {
     private LinearLayout chatComposer,composerActions;
     private Boolean composerStacked;
     private boolean keyboardVisible;
-    private TextView voiceStateView;
+    private TextView voiceStateView,voicePartialView;
+    private LinearLayout voicePanel,voiceControls;
+    private Button voicePauseButton,voiceEndButton;
+    private boolean voiceReviewBeforeSend=true;
+    private String voiceReviewScope="";
     private final Runnable voiceStatePoll=new Runnable(){public void run(){
         if(!foreground||isFinishing()||isDestroyed())return;
         refreshVoiceState();ui.postDelayed(this,250);
@@ -102,11 +106,29 @@ public final class MainActivity extends Activity {
     private void refreshVoiceState(){
         if(voiceStateView==null||voiceButton==null)return;
         boolean active=voice!=null&&(voice.continuous()||voice.listening()||voice.speaking());
-        int label=!active?0:chatBusy?R.string.thinking:voice.listening()?R.string.listening:voice.speaking()?R.string.voice_playback:R.string.voice;
-        voiceStateView.setVisibility(active?View.VISIBLE:View.GONE);
-        if(active){String next=getString(label);if(!next.contentEquals(voiceStateView.getText()))voiceStateView.setText(next);}
+        if(!active)voiceReviewScope="";
+        int label=!active?0:chatBusy?R.string.thinking:voice.awaitingReview()?R.string.voice_review_ready:
+            voice.listening()?(voice.processingSpeech()?R.string.voice_recognizing:voice.speechReady()?R.string.listening:R.string.voice_preparing):
+            voice.playbackPaused()?R.string.voice_playback_paused:voice.speaking()?R.string.voice_playback:R.string.voice;
+        if(voicePanel!=null)voicePanel.setVisibility(active?View.VISIBLE:View.GONE);
+        if(active){
+            String next=getString(label);
+            if(voice.canPausePlayback())next+=" · "+getString(R.string.voice_playback_percent,Integer.toString(voice.playbackPercent()));
+            if(!next.contentEquals(voiceStateView.getText()))voiceStateView.setText(next);
+        }
+        if(voicePartialView!=null){
+            String partial=active&&voice.listening()?voice.partialTranscript():"";
+            voicePartialView.setVisibility(partial.isEmpty()?View.GONE:View.VISIBLE);
+            String value=partial.isEmpty()?"":getString(R.string.voice_partial,partial);
+            if(!value.contentEquals(voicePartialView.getText()))voicePartialView.setText(value);
+        }
+        if(voicePauseButton!=null){
+            voicePauseButton.setVisibility(active&&voice.canPausePlayback()?View.VISIBLE:View.GONE);
+            if(active)voicePauseButton.setText(voice.playbackPaused()?R.string.voice_resume_playback:R.string.voice_pause_playback);
+        }
+        if(voiceEndButton!=null)voiceEndButton.setVisibility(active?View.VISIBLE:View.GONE);
         voiceButton.setContentDescription(getString(active?R.string.stop:R.string.voice));
-        voiceButton.setEnabled(!AutomationUi.busy()&&(!chatBusy||active));
+        voiceButton.setEnabled(!AutomationUi.busy()&&!DocumentBatchUi.busy()&&(!chatBusy||active));
     }
     private final ExecutorService chatSearchIo=Executors.newSingleThreadExecutor();
     private java.util.concurrent.Future<?> chatSearchTask;
@@ -567,22 +589,70 @@ public final class MainActivity extends Activity {
             requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},VOICE_PERMISSION);
             toast(getString(R.string.voice_permission));return;
         }
+        LinearLayout panel=column();panel.setPadding(dp(16),dp(8),dp(16),dp(8));
+        margin(text(getString(R.string.voice_notice),13,WHITE,false),panel,0,8);
+        margin(text(getString(R.string.voice_language),13,WHITE,true),panel,0,4);
+        Spinner language=new Spinner(this);
+        String[] languages={getString(R.string.voice_app_language),"한국어","English","简体中文","繁體中文","日本語"};
+        ArrayAdapter<String> languageAdapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,languages);
+        languageAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);language.setAdapter(languageAdapter);
+        String savedLanguage=VoiceInteractionPolicy.language(getPreferences(MODE_PRIVATE).getString("voice_language","app"));
+        language.setSelection(Math.max(0,java.util.Arrays.asList(VoiceInteractionPolicy.LANGUAGES).indexOf(savedLanguage)));
+        language.setMinimumHeight(dp(48));margin(language,panel,0,6);
+        margin(text(getString(R.string.voice_rate),13,WHITE,true),panel,0,4);
+        Spinner rate=new Spinner(this);
+        ArrayAdapter<String> rateAdapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,new String[]{"0.8×","1.0×","1.2×","1.4×"});
+        rateAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);rate.setAdapter(rateAdapter);
+        rate.setSelection(VoiceInteractionPolicy.rateIndex(getPreferences(MODE_PRIVATE).getInt("voice_rate",1)));
+        rate.setMinimumHeight(dp(48));margin(rate,panel,0,6);
+        android.widget.CheckBox review=new android.widget.CheckBox(this);review.setText(R.string.voice_review_option);
+        review.setChecked(getPreferences(MODE_PRIVATE).getBoolean("voice_review",true));margin(review,panel,0,6);
         android.widget.CheckBox barge=new android.widget.CheckBox(this);
-        barge.setText(R.string.voice_barge_opt_in);barge.setChecked(false);
-        new AlertDialog.Builder(this).setTitle(R.string.voice_options)
-            .setMessage(R.string.voice_notice).setView(barge)
+        barge.setText(R.string.voice_barge_opt_in);barge.setChecked(false);margin(barge,panel,0,6);
+        ScrollView scroll=new ScrollView(this);scroll.addView(panel);
+        new AlertDialog.Builder(this).setTitle(R.string.voice_options).setView(scroll)
             .setNegativeButton(R.string.cancel,null)
-            .setNeutralButton(R.string.dictate,(d,w)->startVoice(false))
-            .setPositiveButton(R.string.voice_turn,(d,w)->startVoice(true,barge.isChecked())).show();
+            .setNeutralButton(R.string.dictate,(d,w)->{
+                saveVoiceOptions(language.getSelectedItemPosition(),rate.getSelectedItemPosition(),review.isChecked());
+                startVoice(false);
+            })
+            .setPositiveButton(R.string.voice_turn,(d,w)->{
+                saveVoiceOptions(language.getSelectedItemPosition(),rate.getSelectedItemPosition(),review.isChecked());
+                startVoice(true,barge.isChecked());
+            }).show();
+    }
+    private void saveVoiceOptions(int language,int rate,boolean review){
+        String tag=language>=0&&language<VoiceInteractionPolicy.LANGUAGES.length?VoiceInteractionPolicy.LANGUAGES[language]:"app";
+        getPreferences(MODE_PRIVATE).edit().putString("voice_language",tag).putInt("voice_rate",VoiceInteractionPolicy.rateIndex(rate)).putBoolean("voice_review",review).apply();
+        voiceReviewBeforeSend=review;
+    }
+    private void configureVoice(){
+        if(voice==null)voice=new OnHandsVoice(this);
+        voice.configure(getPreferences(MODE_PRIVATE).getString("voice_language","app"),getPreferences(MODE_PRIVATE).getInt("voice_rate",1));
+    }
+    private void endVoiceSession(){
+        voiceReviewScope="";
+        if(voice!=null){if(chatBusy&&voice.continuous())stopChat();else voice.cancel();}
+        refreshVoiceState();
+    }
+    private void sendReviewedVoiceOrChat(){
+        if(voice==null||!voice.awaitingReview()){sendChat();return;}
+        if(!foreground||cloudMode||guestOnly||isUiBusy()||!ownsLoadedScope()||!voiceReviewScope.equals(historyKey())){endVoiceSession();return;}
+        String edited=chatInput.getText().toString().trim();
+        if(!LocalChatTurns.validPrompt(edited)){toast(getString(R.string.chat_prompt_limit));return;}
+        voice.reviewPending(false);voiceReviewScope="";speakNextAnswer=true;
+        try{sendChat();}finally{speakNextAnswer=false;}
+        if(!chatBusy&&localTransferDialog==null)voice.cancel();
     }
     private void startVoice(boolean conversational){startVoice(conversational,false);}
     private void startVoice(boolean conversational,boolean bargeOptIn){
-        if(!foreground||isUiBusy()||guestOnly)return;
+        if(!foreground||isUiBusy()||guestOnly||cloudMode||activeTab!=0)return;
         if(conversational&&(currentModel.isEmpty()||knownModels.isEmpty())){
             toast(getString(R.string.need_model));showTab(1);return;
         }
         if(conversational&&!chatInput.getText().toString().trim().isEmpty()){toast(getString(R.string.voice_existing_draft));return;}
-        if(voice==null)voice=new OnHandsVoice(this);
+        configureVoice();voiceReviewScope="";
+        voiceReviewBeforeSend=getPreferences(MODE_PRIVATE).getBoolean("voice_review",true);
         if(conversational){voice.beginContinuous();voice.enableBarge(bargeOptIn);}
         listenVoiceTurn(conversational);
     }
@@ -598,7 +668,8 @@ public final class MainActivity extends Activity {
                 String merged=VoiceQueuePolicy.mergeDictation(autoSend?"":draft,value,LocalChatTurns.MAX_PROMPT);
                 chatInput.setText(merged);chatInput.setSelection(chatInput.length());saveLocalDraft();
             }catch(IllegalArgumentException e){voice.cancel();toast(getString(R.string.chat_prompt_limit));return;}
-            if(autoSend){speakNextAnswer=true;try{sendChat();}finally{speakNextAnswer=false;}if(!chatBusy&&localTransferDialog==null)voice.cancel();}
+            if(autoSend&&voiceReviewBeforeSend){voiceReviewScope=voiceScope;voice.reviewPending(true);refreshVoiceState();}
+            else if(autoSend){speakNextAnswer=true;try{sendChat();}finally{speakNextAnswer=false;}if(!chatBusy&&localTransferDialog==null)voice.cancel();}
             else if(conversational){voice.cancel();toast(getString(R.string.voice_existing_draft));}
         });
     }
@@ -944,16 +1015,23 @@ public final class MainActivity extends Activity {
         stopChatButton = button("■", false);
         stopChatButton.setContentDescription(getString(R.string.stop));
         stopChatButton.setTooltipText(getString(R.string.stop));rowItem(composerActions, stopChatButton, 0, 0);
-        voiceStateView=text("",12,MUTED,false);
-        voiceStateView.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
-        voiceStateView.setVisibility(View.GONE);
-        margin(voiceStateView,localChatContent,4,0);
+        voicePanel=column();voicePanel.setPadding(dp(10),dp(6),dp(10),dp(6));voicePanel.setBackground(bg(FIELD,12));
+        voiceStateView=text("",12,WHITE,true);
+        voiceStateView.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);voiceStateView.setSaveEnabled(false);
+        margin(voiceStateView,voicePanel,0,2);
+        voicePartialView=text("",12,MUTED,false);voicePartialView.setMaxLines(2);voicePartialView.setEllipsize(TextUtils.TruncateAt.END);
+        voicePartialView.setSaveEnabled(false);voicePartialView.setVisibility(View.GONE);margin(voicePartialView,voicePanel,0,2);
+        voiceControls=row();
+        voicePauseButton=button(getString(R.string.voice_pause_playback),false);voicePauseButton.setOnClickListener(v->{if(voice!=null){voice.togglePlaybackPause();refreshVoiceState();}});
+        voiceEndButton=button(getString(R.string.voice_end_session),false);voiceEndButton.setOnClickListener(v->endVoiceSession());
+        rowItem(voiceControls,voicePauseButton,1,4);rowItem(voiceControls,voiceEndButton,1,0);voicePanel.addView(voiceControls,lp(-1,-2));
+        voicePanel.setVisibility(View.GONE);margin(voicePanel,localChatContent,4,0);
         margin(composer, localChatContent, 4, 2);
         stopChatButton.setEnabled(false);stopChatButton.setVisibility(View.GONE);
         sendButton.setMinWidth(dp(48));sendButton.setMinimumWidth(dp(48));
         stopChatButton.setMinWidth(dp(48));stopChatButton.setMinimumWidth(dp(48));
         voiceButton.setMinWidth(dp(48));voiceButton.setMinimumWidth(dp(48));
-        sendButton.setOnClickListener(v -> sendChat());
+        sendButton.setOnClickListener(v -> sendReviewedVoiceOrChat());
         stopChatButton.setOnClickListener(v -> stopChat());
         margin(text(getString(R.string.disclaimer),
             10, MUTED, false), localChatContent, 0, 0);
@@ -3256,8 +3334,8 @@ public final class MainActivity extends Activity {
                 if(cb!=null){cb.setPrimaryClip(SensitiveClipboard.text(getString(R.string.app_name),(String)raw));toast(getString(R.string.copied));}
             });
             read.setOnClickListener(v->{
-                Object raw=t.getTag();if(!(raw instanceof String)||chatBusy||!foreground)return;
-                if(voice==null)voice=new OnHandsVoice(this);
+                Object raw=t.getTag();if(!(raw instanceof String)||isUiBusy()||!foreground||cloudMode)return;
+                configureVoice();
                 if(voice.speaking()){voice.cancel();return;}
                 voice.cancel();voice.speak(ChatMarkup.parse((String)raw).text);
             });

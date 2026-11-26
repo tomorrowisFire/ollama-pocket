@@ -39,6 +39,7 @@ on:
       - 'tests/DocumentWindowTest.java'
       - 'tests/DocumentBatchPolicyTest.java'
       - 'tests/VoiceQueuePolicyTest.java'
+      - 'tests/VoiceInteractionPolicyTest.java'
       - 'tests/CloudUsageLedgerTest.java'
       - 'tests/CloudStreamTest.java'
       - 'tests/InferenceSafetyPolicyTest.java'
@@ -150,8 +151,9 @@ jobs:
       - name: Test voice queue policy and Unicode boundaries
         run: |
           mkdir -p /tmp/voice-tests
-          javac -d /tmp/voice-tests app/src/main/java/com/ollamapocket/app/VoiceQueuePolicy.java tests/VoiceQueuePolicyTest.java
+          javac -d /tmp/voice-tests app/src/main/java/com/ollamapocket/app/VoiceQueuePolicy.java app/src/main/java/com/ollamapocket/app/VoiceInteractionPolicy.java tests/VoiceQueuePolicyTest.java tests/VoiceInteractionPolicyTest.java
           java -cp /tmp/voice-tests com.ollamapocket.app.VoiceQueuePolicyTest
+          java -cp /tmp/voice-tests com.ollamapocket.app.VoiceInteractionPolicyTest
       - name: Test cloud usage ledger and estimated spending policy
         run: |
           mkdir -p /tmp/cloud-usage-tests

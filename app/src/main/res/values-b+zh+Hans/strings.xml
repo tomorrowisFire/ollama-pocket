@@ -892,4 +892,17 @@
     <string name="batch_no_synthesis">未生成最终综合。</string>
     <string name="batch_unit_notes">各片段分析记录与提取位置</string>
     <string name="batch_file_limit">请选择1至3个不同文件。</string>
+    <string name="voice_review_ready">在输入框中核对或编辑识别结果，发送后继续对话。</string>
+    <string name="voice_recognizing">正在处理语音识别…</string>
+    <string name="voice_preparing">正在准备离线麦克风…</string>
+    <string name="voice_playback_paused">朗读已暂停。恢复时重新朗读未完成的片段。</string>
+    <string name="voice_playback_percent">朗读：%1$s%%</string>
+    <string name="voice_partial">临时识别：%1$s</string>
+    <string name="voice_resume_playback">恢复朗读</string>
+    <string name="voice_pause_playback">暂停朗读</string>
+    <string name="voice_end_session">结束语音会话</string>
+    <string name="voice_language">语音语言</string>
+    <string name="voice_app_language">与应用语言相同</string>
+    <string name="voice_rate">朗读速度</string>
+    <string name="voice_review_option">每轮识别后先核对或编辑再发送（推荐）</string>
 </resources>
