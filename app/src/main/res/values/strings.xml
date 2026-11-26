@@ -50,6 +50,7 @@
     <string name="dictate">Dictate · review before sending</string>
     <string name="voice_turn">Continuous voice chat · automatically listen again</string>
     <string name="voice_playback">Speaking… Tap the microphone to interrupt.</string>
+    <string name="voice_barge_opt_in">Experimental hands-free interruption (wired headset only; speak again after playback stops).</string>
     <string name="voice_notice">Start with a tap. The microphone resumes after each spoken reply until you stop. Offline recognition and playback require installed language support.</string>
     <string name="voice_permission">Allow microphone access, then tap Voice again.</string>
     <string name="voice_unavailable">Offline speech recognition is unavailable. Install a supported speech language or type instead.</string>
