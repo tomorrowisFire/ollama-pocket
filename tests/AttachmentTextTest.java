@@ -24,6 +24,23 @@ public final class AttachmentTextTest {
         String included=AttachmentText.include("Summarize","report.txt","raw text");
         ok(included.startsWith("Summarize")&&included.contains("source data")&&included.contains("raw text"),"explicit context");
         try{AttachmentText.include("q".repeat(16000),"a.txt","x");throw new AssertionError("limit");}catch(IllegalArgumentException e){n++;}
+        for(AttachmentText.Encoding encoding:new AttachmentText.Encoding[]{AttachmentText.Encoding.CP949,AttachmentText.Encoding.JAPANESE,AttachmentText.Encoding.GB18030,AttachmentText.Encoding.BIG5}){
+            String value=encoding==AttachmentText.Encoding.CP949?"한글":encoding==AttachmentText.Encoding.JAPANESE?"日本語":"中文";
+            byte[] raw=value.getBytes(java.nio.charset.Charset.forName(encoding.charset));
+            ok(AttachmentText.read("legacy.csv",new ByteArrayInputStream(raw),1,encoding).text.equals(value),"explicit legacy encoding");
+        }
+        try{AttachmentText.read("bom.txt",new ByteArrayInputStream("한글".getBytes(StandardCharsets.UTF_16)),1,AttachmentText.Encoding.CP949);throw new AssertionError("BOM");}
+        catch(AttachmentText.Failure e){ok(e.problem==AttachmentText.Problem.INVALID,"no legacy reinterpretation of BOM");}
+        AttachmentText.Result partial=read("report.txt",bytes("x".repeat(7000)));
+        String reviewed=AttachmentText.includeReviewed("Analyze",partial,"edited");
+        ok(reviewed.contains("PARTIAL SOURCE")&&reviewed.contains("USER-EDITED PREVIEW"),"scope and edit provenance");
+        ok(reviewed.contains("positions 1–5999")&&reviewed.contains("edited"),"original range retained");
+        ok(!AttachmentText.includeReviewed("",partial,partial.text).contains("USER-EDITED PREVIEW"),"unedited evidence");
+        AttachmentText.Result pdf=new AttachmentText.Result("a.pdf","data",true,false,true,20,3,2,false,0,0,0,0,0,4);
+        ok(AttachmentText.includeReviewed("",pdf,"data").contains("pages 4–6 of 20"),"PDF source coverage");
+        AttachmentText.Result ocr=new AttachmentText.Result("scan.pdf","data",true,false,false,0,0,0,true,2,4);
+        ok(AttachmentText.includeReviewed("",ocr,"data").contains("OCR page 2 of 4"),"OCR provenance");
+        try{AttachmentText.includeReviewed("q".repeat(16000),partial,"edited");throw new AssertionError("limit");}catch(IllegalArgumentException e){n++;}
         System.out.println("AttachmentTextTest PASS: "+n+" assertions");
     }
 }

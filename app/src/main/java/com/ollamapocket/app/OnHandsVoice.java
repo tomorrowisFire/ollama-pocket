@@ -33,14 +33,16 @@ final class OnHandsVoice {
         final String playback=utterancePrefix;
         BargeMonitor monitor=new BargeMonitor(a,()->handler.post(()->{
             if(closed||token!=generation||barge==null||!continuous||afterSpeech==null||playback==null||!playback.equals(utterancePrefix))return;
-            Runnable next=afterSpeech;afterSpeech=null;utterancePrefix=null;lastUtterance=null;
+            Runnable next=afterSpeech;afterSpeech=null;clearPlayback();
             stopBarge();clearTimeout();if(tts!=null)tts.stop();resumeAfterPlayback(next);
         }));
         barge=monitor;monitor.start();
     }
     private Runnable afterSpeech;
-    private String lastUtterance;
-    private String utterancePrefix;
+    private String currentUtterance,utterancePrefix,speechText;
+    private int speechCursor,speechLimit;
+    private long speechDeadline;
+    private void clearPlayback(){currentUtterance=null;utterancePrefix=null;speechText=null;speechCursor=0;speechDeadline=0;}
     private long speechSequence;
     private final android.os.Handler handler=new android.os.Handler(android.os.Looper.getMainLooper());
     private Runnable timeout, resumeListening;
@@ -58,19 +60,34 @@ final class OnHandsVoice {
     void beginContinuous(){continuous=true;}
     private void finishSpeech(String id, boolean success){
         if(closed)return;
-        VoiceQueuePolicy.Event event=VoiceQueuePolicy.event(utterancePrefix,lastUtterance,id,success);
+        VoiceQueuePolicy.Event event=VoiceQueuePolicy.currentEvent(currentUtterance,id,success);
         if(event==VoiceQueuePolicy.Event.ERROR){cancel();toast(R.string.tts_unavailable);return;}
         if(event!=VoiceQueuePolicy.Event.COMPLETE)return;
-        stopBarge();clearTimeout();utterancePrefix=null;lastUtterance=null; Runnable next=afterSpeech; afterSpeech=null;
-        if(success&&continuous&&next!=null)resumeAfterPlayback(next);
+        currentUtterance=null;clearTimeout();
+        if(speechText!=null&&speechCursor<speechText.length()){playNextSpeechChunk();return;}
+        stopBarge();clearPlayback();Runnable next=afterSpeech;afterSpeech=null;
+        if(continuous&&next!=null)resumeAfterPlayback(next);
+    }
+    private void playNextSpeechChunk(){
+        if(closed||tts==null||speechText==null||speechCursor>=speechText.length())return;
+        long left=speechDeadline-android.os.SystemClock.elapsedRealtime();
+        if(left<=0){cancel();toast(R.string.tts_unavailable);return;}
+        int start=speechCursor,end=VoiceQueuePolicy.naturalChunkEnd(speechText,start,speechLimit);
+        currentUtterance=utterancePrefix+start;speechCursor=end;
+        armTimeout(Math.min(left,VoiceQueuePolicy.timeout(end-start)));
+        try{
+            if(tts.speak(speechText.substring(start,end),TextToSpeech.QUEUE_FLUSH,null,currentUtterance)!=TextToSpeech.SUCCESS){
+                cancel();toast(R.string.tts_unavailable);
+            }
+        }catch(RuntimeException e){cancel();toast(R.string.tts_unavailable);}
     }
     OnHandsVoice(Activity a) {
         this.a=a;
-        tts=new TextToSpeech(a.getApplicationContext(), status->a.runOnUiThread(()->{
+        tts=new TextToSpeech(a.getApplicationContext(), status->handler.post(()->{
             if(closed)return;
             initialized=true;ready=status==TextToSpeech.SUCCESS;
             if(ready)tts.setOnUtteranceProgressListener(new android.speech.tts.UtteranceProgressListener(){
-                public void onStart(String id){a.runOnUiThread(()->{if(!closed&&id!=null&&utterancePrefix!=null&&id.startsWith(utterancePrefix))startBarge();});}
+                public void onStart(String id){a.runOnUiThread(()->{if(!closed&&id!=null&&id.equals(currentUtterance))startBarge();});}
                 public void onDone(String id){a.runOnUiThread(()->finishSpeech(id,true));}
                 public void onError(String id){a.runOnUiThread(()->finishSpeech(id,false));}
                 public void onStop(String id,boolean interrupted){a.runOnUiThread(()->finishSpeech(id,false));}
@@ -80,7 +97,7 @@ final class OnHandsVoice {
         }));
     }
     boolean listening(){return recognizer!=null;}
-    boolean speaking(){return pendingSpeech!=null || lastUtterance!=null || (tts!=null && tts.isSpeaking());}
+    boolean speaking(){return pendingSpeech!=null||speechText!=null;}
     private void toast(int id){if(!closed)Toast.makeText(a,id,Toast.LENGTH_SHORT).show();}
     void listen(Result cb) {
         boolean loop=continuous, opt=bargeOptIn; cancel(); continuous=loop;bargeOptIn=opt;
@@ -98,7 +115,7 @@ final class OnHandsVoice {
                 public void onEndOfSpeech(){}
                 public void onPartialResults(Bundle b){}
                 public void onEvent(int type,Bundle b){}
-                public void onError(int error){if(id==generation){cancel();toast(R.string.voice_error);}}
+                public void onError(int error){if(id==generation){cancel();toast(error==SpeechRecognizer.ERROR_NO_MATCH||error==SpeechRecognizer.ERROR_SPEECH_TIMEOUT?R.string.voice_no_match:error==SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS?R.string.voice_permission:R.string.voice_error);}}
                 public void onResults(Bundle b){
                     if(closed||id!=generation)return;
                     ArrayList<String> rows=b==null?null:b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
@@ -131,23 +148,17 @@ final class OnHandsVoice {
             }
             if(selected==null||tts.setVoice(selected)!=TextToSpeech.SUCCESS){cancel();toast(R.string.tts_unavailable);return;}
             int max=Math.min(2000,TextToSpeech.getMaxSpeechInputLength());
-            stopBarge();utterancePrefix=null;lastUtterance=null;tts.stop();
+            if(max<2||text.length()>160000){cancel();toast(R.string.tts_unavailable);return;}
+            stopBarge();clearPlayback();clearTimeout();tts.stop();
             utterancePrefix="oh-"+generation+"-"+(++speechSequence)+"-";
-            armTimeout(VoiceQueuePolicy.timeout(text.length()));
-            for(int i=0;i<text.length();){
-                int end=VoiceQueuePolicy.chunkEnd(text,i,max);
-                String utterance=utterancePrefix+i;
-                if(end==text.length())lastUtterance=utterance;
-                if(tts.speak(text.substring(i,end),i==0?TextToSpeech.QUEUE_FLUSH:TextToSpeech.QUEUE_ADD,null,utterance)==TextToSpeech.ERROR){
-                    cancel();toast(R.string.tts_unavailable);break;
-                }
-                i=end;
-            }
+            speechText=text;speechLimit=max;speechCursor=0;
+            speechDeadline=android.os.SystemClock.elapsedRealtime()+VoiceQueuePolicy.timeout(text.length());
+            playNextSpeechChunk();
             // Start monitoring only when the current utterance actually begins playback.
         }catch(RuntimeException e){cancel();toast(R.string.tts_unavailable);}
     }
     void cancel(){
-        generation++;stopBarge();clearTimeout();clearResume();pendingSpeech=null;continuous=false;bargeOptIn=false;afterSpeech=null;lastUtterance=null;utterancePrefix=null;
+        generation++;stopBarge();clearTimeout();clearResume();pendingSpeech=null;continuous=false;bargeOptIn=false;afterSpeech=null;clearPlayback();
         SpeechRecognizer old=recognizer;recognizer=null;
         if(old!=null){try{old.cancel();}catch(RuntimeException ignored){}try{old.destroy();}catch(RuntimeException ignored){}}
         if(tts!=null)tts.stop();

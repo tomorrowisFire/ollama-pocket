@@ -13,6 +13,29 @@ final class VoiceQueuePolicy {
         if(end<text.length()&&Character.isHighSurrogate(text.charAt(end-1))&&Character.isLowSurrogate(text.charAt(end)))end--;
         return end;
     }
+    /** Each callback must identify the one queued utterance, not merely its playback prefix. */
+    static Event currentEvent(String expected,String actual,boolean success){
+        if(expected==null||!expected.equals(actual))return Event.IGNORE;
+        return success?Event.COMPLETE:Event.ERROR;
+    }
+    /** Prefer sentence and word boundaries without deleting any code units. */
+    static int naturalChunkEnd(String text,int start,int limit){
+        int end=chunkEnd(text,start,limit);
+        if(end==text.length())return end;
+        int floor=start+Math.max(1,(end-start)*2/3),space=-1;
+        for(int i=end;i>floor;i--){
+            char c=text.charAt(i-1);
+            if(".!?。！？；;\n".indexOf(c)>=0)return i;
+            if(space<0&&Character.isWhitespace(c))space=i;
+        }
+        return space>start?space:end;
+    }
+    static String mergeDictation(String draft,String spoken,int max){
+        if(draft==null||spoken==null||spoken.trim().isEmpty()||max<1)throw new IllegalArgumentException();
+        String result=draft+(draft.isEmpty()?"":"\n")+spoken.trim();
+        if(result.length()>max)throw new IllegalArgumentException("Draft limit");
+        return result;
+    }
     // 20ms frames at 16kHz; conservative energy gate, not semantic speech recognition.
     static int bargeFrames(short[] frame,int count,int previous){
         if(frame==null||count<240||count>frame.length)return 0;

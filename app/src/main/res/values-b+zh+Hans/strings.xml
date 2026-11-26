@@ -803,4 +803,9 @@
     <string name="auto_state_completed">已完成</string>
     <string name="auto_state_cancelled">已取消</string>
     <string name="chat_actions">聊天工具</string>
+    <string name="voice_no_match">未识别到语音。请点击麦克风重试。</string>
+    <string name="voice_existing_draft">已保留现有草稿。连续语音聊天需要空输入框；可使用听写追加内容，或先发送草稿。</string>
+    <string name="attachment_encoding">文本文件编码（Office 和 PDF 不适用）</string>
+    <string name="attachment_encoding_auto">Unicode（UTF-8 / UTF-16 BOM）</string>
+    <string name="attachment_edited_scope">编辑预览后，原始提取范围与编辑状态将包含在问题中。部分摘录或 OCR 不代表已核对整个文档。</string>
 </resources>

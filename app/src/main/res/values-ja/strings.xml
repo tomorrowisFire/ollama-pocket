@@ -803,4 +803,9 @@
     <string name="auto_state_completed">完了</string>
     <string name="auto_state_cancelled">取消</string>
     <string name="chat_actions">チャットツール</string>
+    <string name="voice_no_match">音声を認識できませんでした。マイクを押して再試行してください。</string>
+    <string name="voice_existing_draft">既存の下書きを保持しました。連続音声会話は空の入力欄から開始してください。音声入力で追記するか、先に下書きを送信してください。</string>
+    <string name="attachment_encoding">テキストの文字コード（Office・PDFには適用されません）</string>
+    <string name="attachment_encoding_auto">Unicode（UTF-8 / UTF-16 BOM）</string>
+    <string name="attachment_edited_scope">プレビューを編集すると、元の抽出範囲と編集状態が質問に含まれます。部分抜粋やOCRは文書全体の確認を保証しません。</string>
 </resources>

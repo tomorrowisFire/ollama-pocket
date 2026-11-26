@@ -1,0 +1,11 @@
+# Stage 10-B — document and speech quality candidate
+
+Baseline 4eabf8229259c9223533a5a97d5a1f2d269178c1. Prior stage 09 Java, Vulkan APK and cooperative APK/AAB workflow succeeded; exact latest 10-A CI and new 10-B verification are checked separately.
+
+- Explicit text decoding for Unicode (default UTF-8 or UTF-16 with BOM), CP949/MS949, Windows-31J, GB18030 and Big5. No silent encoding guess, no reinterpretation of a Unicode BOM using a selected legacy encoding. Office/PDF parsing unchanged. Android codec availability must be verified on actual devices.
+- The model-facing reviewed excerpt records source type, original extracted range, PDF examined/readable pages, OCR and Office limitations, partial coverage, and whether the preview was edited. The extracted text remains data and the prompt asks not to invent missing evidence; this is not a guaranteed defense against prompt injection or a full-document analysis. Existing 6000-character excerpt/16000-character prompt caps retained.
+- Secure attachment preview, no autofill. Existing local/remote transfer approval and source document handling preserved.
+- Dictation appends to the current draft instead of replacing it. Continuous automatic send requires empty draft; if the user types while speech recognition runs, recognized text is appended and automatic send is stopped. No silent removal of attachments or draft. Over-limit input is refused.
+- TTS submits only one bounded chunk at a time, prefers sentence/word boundaries and ignores stale utterance callbacks. Overall playback deadline retained. Existing on-device-only recognition and offline voice selection, cancellation and opt-in experimental wired-headset interruption retained; no new microphone background activity or semantic interruption.
+- Added 11 document checks and voice policy tests for exact callback identity, natural chunk boundaries, multilingual Unicode round-trip and draft preservation. Existing CI runs the actual pure-Java policies.
+- New code is a candidate. Real document/OCR output quality, Android codec availability, actual STT/TTS latency/audio route/continuous recovery, accessibility and 10-user acceptance NOT_RUN. No measured score increase. First-run advertising and package identity unchanged.

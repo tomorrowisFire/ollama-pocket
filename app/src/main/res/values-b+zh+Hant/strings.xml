@@ -803,4 +803,9 @@
     <string name="auto_state_completed">已完成</string>
     <string name="auto_state_cancelled">已取消</string>
     <string name="chat_actions">聊天工具</string>
+    <string name="voice_no_match">未辨識到語音。請點選麥克風重試。</string>
+    <string name="voice_existing_draft">已保留現有草稿。連續語音對話需要空白輸入框；可使用聽寫追加內容，或先傳送草稿。</string>
+    <string name="attachment_encoding">文字檔編碼（Office 和 PDF 不適用）</string>
+    <string name="attachment_encoding_auto">Unicode（UTF-8 / UTF-16 BOM）</string>
+    <string name="attachment_edited_scope">編輯預覽後，原始擷取範圍與編輯狀態將包含在問題中。部分摘錄或 OCR 不代表已核對整份文件。</string>
 </resources>

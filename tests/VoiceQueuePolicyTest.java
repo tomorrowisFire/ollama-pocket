@@ -44,6 +44,24 @@ public final class VoiceQueuePolicyTest {
         check(VoiceQueuePolicy.bargeFrames(loud,100,7)==0);
         check(VoiceQueuePolicy.bargeFrames(null,320,7)==0);
         check(VoiceQueuePolicy.bargeFrames(loud,321,7)==0);
-        System.out.println("PASS: voice queue policy, stale callback and multilingual round-trip checks");
+        check(VoiceQueuePolicy.currentEvent("current","previous",false)==VoiceQueuePolicy.Event.IGNORE);
+        check(VoiceQueuePolicy.currentEvent("current","current",true)==VoiceQueuePolicy.Event.COMPLETE);
+        check(VoiceQueuePolicy.currentEvent("current","current",false)==VoiceQueuePolicy.Event.ERROR);
+        check(VoiceQueuePolicy.currentEvent(null,"old",true)==VoiceQueuePolicy.Event.IGNORE);
+        String sentences="Hello world. Next sentence.";
+        check(VoiceQueuePolicy.naturalChunkEnd(sentences,0,15)==12);
+        String multilingual="한국어 문장입니다. 中文句子。 日本語です！ 😀 and more ".repeat(180);
+        StringBuilder exact=new StringBuilder();
+        for(int pos=0;pos<multilingual.length();){
+            int end=VoiceQueuePolicy.naturalChunkEnd(multilingual,pos,128);
+            check(end>pos&&end-pos<=128);
+            check(end==multilingual.length()||!Character.isLowSurrogate(multilingual.charAt(end)));
+            exact.append(multilingual,pos,end);pos=end;
+        }
+        check(exact.toString().equals(multilingual));
+        check(VoiceQueuePolicy.mergeDictation("draft"," spoken ",30).equals("draft\nspoken"));
+        check(VoiceQueuePolicy.mergeDictation("","spoken",30).equals("spoken"));
+        try{VoiceQueuePolicy.mergeDictation("old","new",6);throw new AssertionError();}catch(IllegalArgumentException expected){}
+        System.out.println("PASS: voice queue, current callback, natural chunks, draft preservation and multilingual round-trip checks");
     }
 }

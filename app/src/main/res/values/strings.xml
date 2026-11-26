@@ -803,4 +803,9 @@
     <string name="auto_state_completed">Completed</string>
     <string name="auto_state_cancelled">Cancelled</string>
     <string name="chat_actions">Chat tools</string>
+    <string name="voice_no_match">No speech recognized. Tap the microphone to try again.</string>
+    <string name="voice_existing_draft">An existing draft is preserved. Continuous chat needs an empty input; use dictation to append text or send the draft first.</string>
+    <string name="attachment_encoding">Text file encoding (Office and PDF ignore this choice)</string>
+    <string name="attachment_encoding_auto">Unicode (UTF-8 / UTF-16 BOM)</string>
+    <string name="attachment_edited_scope">If you edit this preview, its original extraction range and edited status will be included in the question. Partial or OCR text is not proof of a complete document.</string>
 </resources>

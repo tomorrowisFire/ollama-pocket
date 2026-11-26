@@ -78,7 +78,7 @@ public final class MainActivity extends Activity {
     private String attachmentScope="";
     private AlertDialog localTransferDialog;
     private boolean attachmentOcr;
-    private int attachmentOcrScript,attachmentOcrPage=1,attachmentSegment=1;
+    private int attachmentOcrScript,attachmentOcrPage=1,attachmentSegment=1,attachmentEncoding;
     private String lastAttachmentScope="",lastAttachmentDigest="";
     private int lastAttachmentLength;
     private long attachmentSerial;
@@ -403,7 +403,7 @@ public final class MainActivity extends Activity {
         showTab(state==null?0:state.getInt("activeTab",0));
         if(state!=null){
             attachmentScope=state.getString("attachmentScope","");
-            attachmentOcr=state.getBoolean("attachmentOcr",false);attachmentOcrScript=state.getInt("attachmentOcrScript",0);attachmentOcrPage=state.getInt("attachmentOcrPage",1);attachmentSegment=state.getInt("attachmentSegment",1);
+            attachmentOcr=state.getBoolean("attachmentOcr",false);attachmentOcrScript=state.getInt("attachmentOcrScript",0);attachmentOcrPage=state.getInt("attachmentOcrPage",1);attachmentSegment=state.getInt("attachmentSegment",1);attachmentEncoding=state.getInt("attachmentEncoding",0);
             exportScope=state.getString("exportScope","");
             exportDigest=state.getString("exportDigest","");
             exportModel=state.getString("exportModel","");
@@ -424,7 +424,7 @@ public final class MainActivity extends Activity {
         super.onSaveInstanceState(out);
         out.putInt("activeTab",activeTab);
         out.putString("attachmentScope",attachmentScope);
-        out.putBoolean("attachmentOcr",attachmentOcr);out.putInt("attachmentOcrScript",attachmentOcrScript);out.putInt("attachmentOcrPage",attachmentOcrPage);out.putInt("attachmentSegment",attachmentSegment);
+        out.putBoolean("attachmentOcr",attachmentOcr);out.putInt("attachmentOcrScript",attachmentOcrScript);out.putInt("attachmentOcrPage",attachmentOcrPage);out.putInt("attachmentSegment",attachmentSegment);out.putInt("attachmentEncoding",attachmentEncoding);
         out.putString("exportScope",exportScope);out.putString("exportDigest",exportDigest);
         out.putString("exportModel",exportModel);out.putBoolean("exportJson",exportJson);
         saveLocalDraft();
@@ -570,17 +570,25 @@ public final class MainActivity extends Activity {
         if(conversational&&(currentModel.isEmpty()||knownModels.isEmpty())){
             toast(getString(R.string.need_model));showTab(1);return;
         }
+        if(conversational&&!chatInput.getText().toString().trim().isEmpty()){toast(getString(R.string.voice_existing_draft));return;}
         if(voice==null)voice=new OnHandsVoice(this);
         if(conversational){voice.beginContinuous();voice.enableBarge(bargeOptIn);}
         listenVoiceTurn(conversational);
     }
     private void listenVoiceTurn(boolean conversational){
         if(!foreground||isFinishing()||isDestroyed()||activeTab!=0||isUiBusy()||cloudMode||guestOnly){if(voice!=null)voice.cancel();return;}
+        if(conversational&&!chatInput.getText().toString().trim().isEmpty()){voice.cancel();toast(getString(R.string.voice_existing_draft));return;}
         final String voiceScope=historyKey();
         voice.listen(value->{
             if(!foreground||isFinishing()||isDestroyed()||activeTab!=0||isUiBusy()||cloudMode||guestOnly||!voiceScope.equals(historyKey())||!ownsLoadedScope()){voice.cancel();return;}
-            chatInput.setText(value);chatInput.setSelection(chatInput.length());
-            if(conversational){speakNextAnswer=true;try{sendChat();}finally{speakNextAnswer=false;}if(!chatBusy&&localTransferDialog==null)voice.cancel();}
+            String draft=chatInput.getText().toString();
+            boolean autoSend=conversational&&draft.trim().isEmpty();
+            try{
+                String merged=VoiceQueuePolicy.mergeDictation(autoSend?"":draft,value,LocalChatTurns.MAX_PROMPT);
+                chatInput.setText(merged);chatInput.setSelection(chatInput.length());saveLocalDraft();
+            }catch(IllegalArgumentException e){voice.cancel();toast(getString(R.string.chat_prompt_limit));return;}
+            if(autoSend){speakNextAnswer=true;try{sendChat();}finally{speakNextAnswer=false;}if(!chatBusy&&localTransferDialog==null)voice.cancel();}
+            else if(conversational){voice.cancel();toast(getString(R.string.voice_existing_draft));}
         });
     }
 
@@ -3533,13 +3541,19 @@ public final class MainActivity extends Activity {
         EditText page=edit(getString(R.string.attachment_pdf_first),"1",false);
         page.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);page.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(5)});
         margin(page,panel,0,6);
+        margin(text(getString(R.string.attachment_encoding),13,WHITE,true),panel,0,3);
+        Spinner encoding=new Spinner(this);
+        String[] encodings={getString(R.string.attachment_encoding_auto),"CP949 / MS949","Windows-31J (Shift-JIS)","GB18030","Big5"};
+        ArrayAdapter<String> encAdapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,encodings);
+        encAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);encoding.setAdapter(encAdapter);
+        encoding.setMinimumHeight(dp(48));margin(encoding,panel,0,6);
         AlertDialog d=new AlertDialog.Builder(this).setTitle(R.string.attachment_select_range).setView(scroll)
             .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,null).create();
         d.show();d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
             try{
                 int seg=Integer.parseInt(segment.getText().toString().trim()),first=Integer.parseInt(page.getText().toString().trim());
                 if(!DocumentWindow.validSegment(seg)||!OcrPolicy.validPage(first))throw new NumberFormatException();
-                d.dismiss();openAttachmentPicker(scope,false,0,first,seg);
+                d.dismiss();openAttachmentPicker(scope,false,0,first,seg,encoding.getSelectedItemPosition());
             }catch(NumberFormatException e){toast(getString(R.string.attachment_range_invalid));}
         });
     }
@@ -3565,12 +3579,12 @@ public final class MainActivity extends Activity {
             int number;
             try{number=Integer.parseInt(page.getText().toString().trim());if(!OcrPolicy.validPage(number))throw new NumberFormatException();}
             catch(NumberFormatException e){toast(getString(R.string.attachment_ocr_bad_page));return;}
-            int script=language.getSelectedItemPosition();d.dismiss();openAttachmentPicker(scope,true,script,number,1);
+            int script=language.getSelectedItemPosition();d.dismiss();openAttachmentPicker(scope,true,script,number,1,0);
         });
     }
-    private void openAttachmentPicker(String scope,boolean ocr,int script,int page,int segment){
+    private void openAttachmentPicker(String scope,boolean ocr,int script,int page,int segment,int encoding){
         if(guestOnly||isUiBusy()||cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
-        attachmentScope=scope;attachmentOcr=ocr;attachmentOcrScript=script;attachmentOcrPage=page;attachmentSegment=segment;
+        attachmentScope=scope;attachmentOcr=ocr;attachmentOcrScript=script;attachmentOcrPage=page;attachmentSegment=segment;attachmentEncoding=encoding;
         try{
             Intent picker=new Intent(Intent.ACTION_OPEN_DOCUMENT);
             picker.addCategory(Intent.CATEGORY_OPENABLE);picker.setType("*/*");picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
@@ -3584,7 +3598,7 @@ public final class MainActivity extends Activity {
     private void finishChatAttachment(int result,Intent data){
         String scope=attachmentScope;attachmentScope="";
         final boolean ocr=attachmentOcr;attachmentOcr=false;
-        final int script=attachmentOcrScript,page=attachmentOcrPage,segment=attachmentSegment;
+        final int script=attachmentOcrScript,page=attachmentOcrPage,segment=attachmentSegment,encoding=attachmentEncoding;
         if(result!=RESULT_OK||data==null||data.getData()==null)return;
         Uri uri=data.getData();
         if(guestOnly||cloudMode||isUiBusy()||!ownsLoadedScope()||!scope.equals(loadedHistoryScope)||!"content".equals(uri.getScheme())){
@@ -3614,7 +3628,10 @@ public final class MainActivity extends Activity {
                     if(ocr){
                         OcrPolicy.Script chosen=OcrPolicy.Script.values()[script];
                         extracted=pdf?PdfTextClient.ocr(this,name,in,chosen,page):ImageOcr.read(name,in,chosen);
-                    }else extracted=pdf?PdfTextClient.read(this,name,in,page):AttachmentText.read(name,in,segment);
+                    }else {
+                        if(encoding<0||encoding>=AttachmentText.Encoding.values().length)throw new AttachmentText.Failure(AttachmentText.Problem.INVALID);
+                        extracted=pdf?PdfTextClient.read(this,name,in,page):AttachmentText.read(name,in,segment,AttachmentText.Encoding.values()[encoding]);
+                    }
                 }
             }catch(AttachmentText.Failure e){
                 error=e.problem==AttachmentText.Problem.UNSUPPORTED?R.string.attachment_unsupported:
@@ -3663,13 +3680,14 @@ public final class MainActivity extends Activity {
             }
         }
         if(preview.partial)margin(text(getString(R.string.attachment_partial),12,MUTED,true),panel,0,6);
+        margin(text(getString(R.string.attachment_edited_scope),12,MUTED,false),panel,0,6);
         EditText excerpt=edit(getString(R.string.attachment_preview),preview.text,true);
         excerpt.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(AttachmentText.MAX_EXCERPT)});
-        excerpt.setMinLines(4);excerpt.setMaxLines(10);excerpt.setSaveEnabled(false);panel.addView(excerpt,lp(-1,-2));
+        excerpt.setMinLines(4);excerpt.setMaxLines(10);excerpt.setSaveEnabled(false);excerpt.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);panel.addView(excerpt,lp(-1,-2));
         AlertDialog dialog=new AlertDialog.Builder(this).setTitle(R.string.attachment_preview).setView(scroll)
             .setNegativeButton(R.string.cancel,null).setNeutralButton(R.string.attachment_copy_excerpt,null)
             .setPositiveButton(R.string.attachment_insert,null).create();
-        dialog.show();
+        dialog.show();if(dialog.getWindow()!=null)dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
         dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v->{
             if(isUiBusy()||cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
             final String reviewed=excerpt.getText().toString();
@@ -3687,7 +3705,7 @@ public final class MainActivity extends Activity {
             }
             try{
                 String previous=chatInput.getText().toString();
-                String combined=AttachmentText.include(previous,preview.sourceName(),excerpt.getText().toString());
+                String combined=AttachmentText.includeReviewed(previous,preview,excerpt.getText().toString());
                 String suffix=combined.substring(previous.length());
                 lastAttachmentScope=scope;lastAttachmentLength=suffix.length();lastAttachmentDigest=LocalChatLibrary.digest(suffix);
                 chatInput.setText(combined);chatInput.setSelection(combined.length());saveLocalDraft();
