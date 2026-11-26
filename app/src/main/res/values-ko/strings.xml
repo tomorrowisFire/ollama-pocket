@@ -742,4 +742,8 @@
     <string name="cloud_output_rate">출력 100만 토큰당 USD</string>
     <string name="cloud_pc_address">PC 주소 (사설 IPv4:포트)</string>
     <string name="cloud_pc_notice">암호화되지 않은 LAN 연결입니다. 신뢰하는 사설 네트워크에서만 사용하세요. 메시지가 노출되거나 변경될 수 있습니다.</string>
+    <string name="cloud_session_usage">세션 사용량: 요청 %1$s회 · 입력 %2$s / 출력 %3$s 토큰</string>
+    <string name="cloud_session_cost">확인된 예상 비용: $%1$s · 비용 미확인 요청: %2$s회</string>
+    <string name="cloud_budget">세션 예상 지출 제한 (USD, 선택)</string>
+    <string name="cloud_budget_stop">예상 지출 제한에 도달했거나 사용량을 알 수 없습니다. 제한 변경 전 제공사 청구 내역을 확인하세요.</string>
 </resources>
