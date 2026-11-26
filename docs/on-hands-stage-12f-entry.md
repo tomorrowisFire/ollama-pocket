@@ -1,0 +1,16 @@
+# 12-E acceptance and 12-F integrated test entry
+Application candidate eed2009e7d4cab546d7fbb350329ae888f3d6150. Process baseline 219d0d5c0cf1951f6f4c0f304659c01ac97a0663. User authorized physical tests deferred to 12-F. Three-role discussion is simulated by one assistant, not separately executed agents.
+
+## 12-E source/CI
+Java run 45804552817 SUCCESS. Native run 45804552751 SUCCESS. Exact-candidate receipts are in docs/stage12f/ci-receipts.json.
+A accepts no-profile lookup elimination and report denominator preservation at source level. B accepts lazy route decision with live digest revalidation, strict 3-pass aggregation, and preserved manual choice/context/engine settings. C accepts 54 benchmark/profile and 23 benchmark math assertions, old document/workflow/voice regressions, original ad guard, APK/QA AAB and 16 KiB static CI. No known P0/P1 identified in this scoped source review; no broad security certification. E1–E4 PASS at source/CI scope. E5 NOT_RUN, moved to the now-open 12-F device gate.
+Ten-perspective provisional review A–J stays 75,74,79,81,82,76,78,73,74,80 (mean 77.2, minimum 73). No speedup or new end-to-end evidence justifies a score increase. These are not actual ten reviewer results.
+
+## 12-F frozen gate
+All earlier frozen device KPIs and 22 existing release gates remain mandatory on final application candidate, with exact actual APK SHA-256, all ten actual reviews >=90 and mean >=90, zero unresolved P0/P1, reviewed audit reports and separate user approval. The three-role simulated kickoff accepts the previously prepared combined kit and rejects changing any target after measuring. No application changes in this process commit.
+- CI receipts support java_regression, native_apk and aab_build at build scope only. 16 KiB CI step passed; actual packaged alignment/ELF report and artifact bytes require inspection, so release evidence status CI_PASS_REVIEW_REQUIRED.
+- The native workflow step "Publish verified fixed-signed update APK" was SKIPPED. No stable-signed update artifact is listed; do not install an incompatible signer or uninstall existing app. Confirm compatible signing key and actual signed-update/data-retention test before release.
+- APK artifact 15109640625, unsigned QA AAB 15109780835, compatibility audit 15108938906, signing tools 15108084996. Download from run 45804552751. Archive digests are not APK hashes; the connector did not download or inspect binary contents. QA AAB is NOT FOR PLAY.
+- Actual local environment check: adb absent; /dev/kvm absent. No connected authorized physical device or independent human reviewers in this session. Real document, workflow, voice, performance and provider/RPC/security/UX tests NOT_RUN. No real score or release approval.
+
+Overall: 12-F OPEN, final gate BLOCKED. Preserve candidate, use the same-commit test kit, obtain the original device-compatible APK/signature and record actual evidence before approving or changing stage. No production ads, Play submission, main merge or fabricated acceptance.

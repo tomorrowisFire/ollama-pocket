@@ -1,0 +1,478 @@
+[
+  {
+    "run": {
+      "id": 45804552817,
+      "head_sha": "eed2009e7d4cab546d7fbb350329ae888f3d6150",
+      "head_branch": "dev/on-hands-ai-v012",
+      "path": ".github/workflows/java-compile.yml",
+      "run_attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/tomorrowisFire/ollama-pocket/actions/runs/45804552817",
+      "repository": {
+        "full_name": "tomorrowisFire/ollama-pocket"
+      }
+    },
+    "jobs": [
+      {
+        "id": 139856223072,
+        "name": "compile",
+        "status": "completed",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v4",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test safe Markdown parser (pure Java)",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test bounded rich answer blocks and simple formula rendering",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Guard first-run advertisement and production lock",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test cloud scope and authenticated encryption (pure Java)",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test responsive workspace policy (pure Java)",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test diagnostic formatting and advisor display data (pure Java)",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test cooperative plan display data (pure Java)",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test local chat branching and completed-turn context",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test local conversation search and export helpers",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test chat title and pin ordering",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test bounded local attachment text extraction",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test voice queue policy and Unicode boundaries",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test cloud usage ledger and estimated spending policy",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test credential, PDF cache and RPC socket ownership policies",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test offline SSE protocol fixtures",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test bounded local inference protocol",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test benchmark identity and engine routing policy",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test inference safety policy",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test compact RPC allocation and fallback policy",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test bounded local workflow policy",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Audit direct Hangul UI literals",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify OnHand AI brand and locale resource parity",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test release artifact audit",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify final evidence-gate rules",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Android SDK",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run gradle/actions/setup-gradle@v4",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Compile Java without native Ollama/Vulkan compilation",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run gradle/actions/setup-gradle@v4",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v4",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success"
+          }
+        ]
+      }
+    ],
+    "artifacts": [],
+    "scope": "GitHub Actions API receipts only. Artifact digests refer to archive bytes, not extracted APK/AAB or verified device execution."
+  },
+  {
+    "run": {
+      "id": 45804552751,
+      "head_sha": "eed2009e7d4cab546d7fbb350329ae888f3d6150",
+      "head_branch": "dev/on-hands-ai-v012",
+      "path": ".github/workflows/build-coop-apk.yml",
+      "run_attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/tomorrowisFire/ollama-pocket/actions/runs/45804552751",
+      "repository": {
+        "full_name": "tomorrowisFire/ollama-pocket"
+      }
+    },
+    "jobs": [
+      {
+        "id": 139856223341,
+        "name": "secure-relay-unit-test",
+        "status": "completed",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v4",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test AES-GCM loopback tunnel",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test live-RAM budget and RPC split planner (pure Java)",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test benchmark math and HUD parsers (pure Java)",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test model family quantization and performance suitability",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify model grid status, recommendations and dynamic installation",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify six-device-recommendation grid selection",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test real registry model-tag quantization parsing",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify online Ollama model discovery parser (no fabricated results)",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify exact quantization discovery, size ranking and responsive grid",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify offline astronomical sunset theme",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify search caching, model grouping, download budget and measured ranking",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v4",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 139856387227,
+        "name": "cooperative-apk",
+        "status": "completed",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v4",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Configure Android SDK and NDK",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Fetch pinned CPU/Vulkan base APK",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Extract CPU + GPU base payload",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build pinned Android llama.cpp CPU RPC host and worker",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run gradle/actions/setup-gradle@v4",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Provision stable signing key (when repository secrets are configured)",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify sidebar-only navigation source (no fixed bottom tabs)",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Compile app with cooperative session and RPC tunnel",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify that host, worker and prior inference binaries are packaged",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Publish installation artifact",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Make official Android apksigner available for offline stable re-signing",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Audit release candidate prerequisites and complete native payload",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build unsigned QA bundle (sample ad ID, not for Play submission)",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Audit all packaged ARM64 native ELF segments and stored APK alignment",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload 16 KB audit evidence",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Publish verified fixed-signed update APK",
+            "status": "completed",
+            "conclusion": "skipped"
+          },
+          {
+            "name": "Upload unsigned QA-only app bundle",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run gradle/actions/setup-gradle@v4",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v4",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "status": "completed",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success"
+          }
+        ]
+      }
+    ],
+    "artifacts": [
+      {
+        "id": 15109780835,
+        "name": "OnHand-QA-UNSIGNED-NOT-FOR-PLAY",
+        "size_in_bytes": 53698354,
+        "digest": "sha256:34ca22e4af5eee9373a090963bd5e15067d8296f168cde3bed85310f082cae27",
+        "expired": false
+      },
+      {
+        "id": 15109640625,
+        "name": "AI-in-Pocket-Cooperative-RPC-APK",
+        "size_in_bytes": 58738204,
+        "digest": "sha256:43338d60b6eafee43ff2b4639121abce9ae255b9f006da35b8734318a95908a8",
+        "expired": false
+      },
+      {
+        "id": 15108938906,
+        "name": "OnHand-Release-Compatibility-Audit",
+        "size_in_bytes": 9188,
+        "digest": "sha256:5212db6ebb95eedbf1af42d557c1ea36913aaece145174595a4b01cde8cd9cc2",
+        "expired": false
+      },
+      {
+        "id": 15108084996,
+        "name": "AI-in-Pocket-Official-Signing-Tools",
+        "size_in_bytes": 1102276,
+        "digest": "sha256:5fd865100b116ce6aaef0f3b0aba0ad2f6729bc0cb7b6dda5461b8221d4bb62b",
+        "expired": false
+      }
+    ],
+    "scope": "GitHub Actions API receipts only. Artifact digests refer to archive bytes, not extracted APK/AAB or verified device execution."
+  }
+]
