@@ -722,4 +722,9 @@
     <string name="attachment_removed">마지막 발췌문을 초안에서 제거했습니다.</string>
     <string name="attachment_copy_excerpt">발췌문 복사</string>
     <string name="attachment_copy_notice">검토한 발췌문을 클립보드에 복사할까요? 다른 앱 또는 클립보드 동기화에서 접근할 수 있습니다. 클라우드 채팅에 붙여넣은 경우 별도 전송 승인이 필요합니다.</string>
+    <string name="transfer_review">요청 문맥 확인</string>
+    <string name="transfer_coop_notice">협력 추론은 연결된 신뢰 보조 기기와 모델 연산 데이터를 공유할 수 있습니다. 이전 첨부 발췌문을 포함해 아래 실제 메시지 문맥을 확인하세요. 연결 기기 구성은 바뀔 수 있습니다. 해당 기기에서 처리해도 되는 내용만 승인하세요.</string>
+    <string name="transfer_cloud_notice">아래는 이번 제공사 요청에 포함될 메시지 내용입니다. 붙여넣은 문서 발췌문이나 이전 대화가 포함될 수 있습니다. 전송 전에 확인하세요. 제공사별 요청 메타데이터는 표시하지 않습니다.</string>
+    <string name="transfer_changed">요청 문맥 또는 추론 모드가 변경되었습니다. 다시 확인하고 승인하세요.</string>
+    <string name="transfer_review_failed">전체 요청 문맥을 안전하게 표시할 수 없습니다. 요청을 전송하지 않았습니다.</string>
 </resources>

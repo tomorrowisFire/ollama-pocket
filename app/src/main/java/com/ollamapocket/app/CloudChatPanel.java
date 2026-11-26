@@ -280,8 +280,20 @@ final class CloudChatPanel extends LinearLayout {
         final CloudApi.Provider p=provider;final String id=model;final CloudHistory.Session s=session();
         final long revision=s.revision();
         final List<CloudHistory.Message> messages=s.request(q);
-        showAction(new AlertDialog.Builder(owner).setTitle(p.title)
-            .setMessage(getResources().getString(R.string.cloud_send_context,p.title,messages.size()))
+        String preview;
+        try{
+            java.util.ArrayList<LocalChatTurns.Message> selected=new java.util.ArrayList<>();
+            for(CloudHistory.Message message:messages)selected.add(new LocalChatTurns.Message(message.role,message.content));
+            preview=TransferReview.text(selected,getResources().getString(R.string.chat_export_user),
+                getResources().getString(R.string.chat_export_assistant),getResources().getString(R.string.chat_export_other));
+        }catch(Exception e){toast(R.string.transfer_review_failed);return;}
+        ScrollView review=new ScrollView(owner);LinearLayout panel=new LinearLayout(owner);panel.setOrientation(VERTICAL);panel.setPadding(dp(16),dp(10),dp(16),dp(10));review.addView(panel);
+        TextView notice=new TextView(owner);notice.setText(getResources().getString(R.string.cloud_send_context,p.title,messages.size())+"\n\n"+getResources().getString(R.string.transfer_cloud_notice));
+        notice.setTextSize(13);panel.addView(notice,new LinearLayout.LayoutParams(-1,-2));
+        TextView content=new TextView(owner);content.setText(preview);content.setTextSize(13);content.setAutoLinkMask(0);content.setTextIsSelectable(false);content.setSaveEnabled(false);
+        panel.addView(content,new LinearLayout.LayoutParams(-1,-2));
+        showAction(new AlertDialog.Builder(owner).setTitle(p.title+" · "+getResources().getString(R.string.transfer_review))
+            .setView(review)
             .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.send,(d,w)->{
                 if(token.isEmpty()||!current(p,id,s,revision)||!q.equals(prompt.getText().toString().trim())){
                     toast(R.string.cloud_context_changed);return;

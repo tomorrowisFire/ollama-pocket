@@ -722,4 +722,9 @@
     <string name="attachment_removed">已从草稿移除最后的摘录</string>
     <string name="attachment_copy_excerpt">复制摘录</string>
     <string name="attachment_copy_notice">将已检查的摘录复制到剪贴板？其他应用或剪贴板同步可能访问它。粘贴至云端聊天后仍需确认发送。</string>
+    <string name="transfer_review">确认请求上下文</string>
+    <string name="transfer_coop_notice">协作推理可能与受信任的已连接设备共享模型计算数据。请检查下方实际消息上下文，包括先前的摘录。连接设备可能变化。仅在适合这些设备处理时继续。</string>
+    <string name="transfer_cloud_notice">以下消息内容将用于本次服务商请求，可能包含粘贴的文档摘录或先前对话。发送前请确认。不显示服务商特定请求元数据。</string>
+    <string name="transfer_changed">请求上下文或推理模式已变化。请重新确认。</string>
+    <string name="transfer_review_failed">无法安全显示完整请求上下文。未发送请求。</string>
 </resources>

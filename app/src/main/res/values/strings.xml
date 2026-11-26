@@ -722,4 +722,9 @@
     <string name="attachment_removed">Last excerpt removed from draft</string>
     <string name="attachment_copy_excerpt">Copy excerpt</string>
     <string name="attachment_copy_notice">Copy the reviewed excerpt to the clipboard? Other apps or clipboard sync may access it. Pasting into cloud chat requires separate send confirmation.</string>
+    <string name="transfer_review">Review request context</string>
+    <string name="transfer_coop_notice">Cooperative inference may share model computation data with trusted connected guest devices. Review the exact message context below, including earlier excerpts. The current connected guest set can change. Continue only if this context is appropriate for those devices.</string>
+    <string name="transfer_cloud_notice">The following message content is selected for this provider request. It may include pasted document excerpts or earlier conversation. Review before sending; provider-specific request metadata is not shown.</string>
+    <string name="transfer_changed">Request context or inference mode changed. Review and confirm again.</string>
+    <string name="transfer_review_failed">Unable to display the complete request context safely. No request was sent.</string>
 </resources>

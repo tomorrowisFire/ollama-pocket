@@ -76,6 +76,7 @@ public final class MainActivity extends Activity {
     private static final int EXPORT_CHAT = 703;
     private static final int PICK_ATTACHMENT = 704;
     private String attachmentScope="";
+    private AlertDialog localTransferDialog;
     private boolean attachmentOcr;
     private int attachmentOcrScript,attachmentOcrPage=1,attachmentSegment=1;
     private String lastAttachmentScope="",lastAttachmentDigest="";
@@ -413,6 +414,7 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onPause() {
         foreground=false;
+        if(localTransferDialog!=null){localTransferDialog.dismiss();localTransferDialog=null;}
         saveLocalDraft();
         if(cloudPanel!=null)cloudPanel.pause();
         if(voice!=null)voice.cancel();
@@ -3172,7 +3174,31 @@ public final class MainActivity extends Activity {
         if(attachFileButton!=null)attachFileButton.setEnabled(!busy&&!attachmentReading);
         if(exportConversation!=null)exportConversation.setEnabled(!busy&&historyReadable&&history.length()>0);
     }
-    private void sendChat() {
+    private void sendChat(){sendChat(null);}
+    private void confirmCooperativeTransfer(String fingerprint,JSONArray requestHistory,boolean speak){
+        if(!foreground||isFinishing()||isDestroyed()||cloudMode)return;
+        if(localTransferDialog!=null&&localTransferDialog.isShowing())return;
+        String preview;
+        try{preview=TransferReview.text(localMessages(requestHistory),getString(R.string.chat_export_user),
+            getString(R.string.chat_export_assistant),getString(R.string.chat_export_other));}
+        catch(Exception e){toast(getString(R.string.transfer_review_failed));return;}
+        ScrollView scroll=new ScrollView(this);LinearLayout panel=column();panel.setPadding(dp(16),dp(10),dp(16),dp(10));scroll.addView(panel);
+        margin(text(getString(R.string.transfer_coop_notice),13,WHITE,false),panel,0,10);
+        TextView payload=text(preview,13,WHITE,false);payload.setAutoLinkMask(0);payload.setTextIsSelectable(false);payload.setSaveEnabled(false);
+        panel.addView(payload,lp(-1,-2));
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle(R.string.transfer_review).setView(scroll)
+            .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.send,(d,w)->{
+                if(!foreground||isFinishing()||isDestroyed()||cloudMode)return;
+                speakNextAnswer=speak;
+                try{sendChat(fingerprint);}finally{speakNextAnswer=false;}
+            }).create();
+        localTransferDialog=dialog;
+        dialog.setOnDismissListener(d->{if(localTransferDialog==dialog)localTransferDialog=null;});
+        dialog.show();
+        if(dialog.getWindow()!=null)dialog.getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE);
+    }
+    private void sendChat(String approvedTransfer) {
+        if(guestOnly||cloudMode)return;
         String prompt=chatInput.getText().toString().trim();
         if(prompt.isEmpty())return;
         if(!LocalChatTurns.validPrompt(prompt)){toast(getString(R.string.chat_prompt_limit));return;}
@@ -3185,12 +3211,20 @@ public final class MainActivity extends Activity {
         }
         final JSONArray requestHistory;
         try{requestHistory=modelContext(history,prompt);}catch(Exception e){toast(getString(R.string.chat_history_invalid));return;}
+        final String computeAtStart=computePreference();
         final boolean speakThisTurn=speakNextAnswer;speakNextAnswer=false;
+        if("cooperative".equals(computeAtStart)||approvedTransfer!=null){
+            String fingerprint=TransferReview.fingerprint(scopeAtStart,modelAtStart,computeAtStart,requestHistory.toString());
+            if(approvedTransfer==null){confirmCooperativeTransfer(fingerprint,requestHistory,speakThisTurn);return;}
+            if(!"cooperative".equals(computeAtStart)||!fingerprint.equals(approvedTransfer)){
+                toast(getString(R.string.transfer_changed));return;
+            }
+        }
         if(voice!=null)voice.cancel();
         try{persistLocalDraft(scopeAtStart,sessionAtStart,prompt);}
         catch(Exception e){toast(getString(R.string.chat_history_invalid));return;}
         pendingLocalPrompt=prompt;
-        chatInput.setText("");
+        forgetLastAttachment();chatInput.setText("");
         ((InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(chatInput.getWindowToken(),0);
         renderHistory();
         if(history.length()==0)messages.removeAllViews();
@@ -3202,7 +3236,7 @@ public final class MainActivity extends Activity {
             final StringBuilder answer = new StringBuilder();
             String error = null;
             try {
-                if ("cooperative".equals(computePreference())) {
+                if ("cooperative".equals(computeAtStart)) {
                     StringBuilder reason = new StringBuilder();
                     ui.post(() -> activeEngineLabel.setText(getString(R.string.engine_rpc_load)));
                     if (!DistributedRunner.ensure(getApplicationContext(), modelAtStart, reason))
@@ -3214,7 +3248,7 @@ public final class MainActivity extends Activity {
                     OllamaHttp.streamGpuChat(connection, OllamaHttp.gpuChatBody(modelAtStart, requestHistory),
                         item -> appendAnswer(item, answer, assistant));
                 } else {
-                String choice = computePreference();
+                String choice = computeAtStart;
                 boolean tryGpu = !"cpu".equals(choice) && computeReport.gpuCompute &&
                     GpuRunner.packaged(getApplicationContext());
                 boolean gpu = false;

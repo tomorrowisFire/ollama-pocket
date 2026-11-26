@@ -722,4 +722,9 @@
     <string name="attachment_removed">已從草稿移除最後的摘錄</string>
     <string name="attachment_copy_excerpt">複製摘錄</string>
     <string name="attachment_copy_notice">將已檢查的摘錄複製到剪貼簿？其他應用程式或剪貼簿同步可能存取。貼到雲端聊天後仍需確認傳送。</string>
+    <string name="transfer_review">確認請求文脈</string>
+    <string name="transfer_coop_notice">協作推論可能與受信任的已連線裝置分享模型運算資料。請檢查下方實際訊息文脈，包括先前的摘錄。連線裝置可能變更。僅於適合這些裝置處理時繼續。</string>
+    <string name="transfer_cloud_notice">以下訊息內容將用於本次服務商請求，可能包含貼上的文件摘錄或先前對話。傳送前請確認。不顯示服務商特定請求中繼資料。</string>
+    <string name="transfer_changed">請求文脈或推論模式已變更。請重新確認。</string>
+    <string name="transfer_review_failed">無法安全顯示完整請求文脈。未傳送請求。</string>
 </resources>

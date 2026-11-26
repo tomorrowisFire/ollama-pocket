@@ -20,6 +20,7 @@ on:
       - 'tests/locale_ui_audit.py'
       - 'tests/LocalChatTurnsTest.java'
       - 'tests/LocalChatLibraryTest.java'
+      - 'tests/TransferReviewTest.java'
       - 'tests/ChatOrganizationTest.java'
       - 'tests/AttachmentTextTest.java'
       - 'tests/OfficeTextTest.java'
@@ -101,8 +102,9 @@ jobs:
       - name: Test local conversation search and export helpers
         run: |
           mkdir -p /tmp/chat-library-tests
-          javac -d /tmp/chat-library-tests app/src/main/java/com/ollamapocket/app/LocalChatTurns.java app/src/main/java/com/ollamapocket/app/LocalChatLibrary.java tests/LocalChatLibraryTest.java
+          javac -d /tmp/chat-library-tests app/src/main/java/com/ollamapocket/app/LocalChatTurns.java app/src/main/java/com/ollamapocket/app/LocalChatLibrary.java app/src/main/java/com/ollamapocket/app/TransferReview.java tests/LocalChatLibraryTest.java tests/TransferReviewTest.java
           java -cp /tmp/chat-library-tests com.ollamapocket.app.LocalChatLibraryTest
+          java -cp /tmp/chat-library-tests com.ollamapocket.app.TransferReviewTest
       - name: Test chat title and pin ordering
         run: |
           mkdir -p /tmp/chat-organization-tests
