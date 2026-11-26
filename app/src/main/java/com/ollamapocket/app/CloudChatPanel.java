@@ -293,7 +293,7 @@ final class CloudChatPanel extends LinearLayout {
             final CloudApi.Provider selected=values[pick.getSelectedItemPosition()];final String secret=selected.remote()?address.getText().toString().trim():key.getText().toString().trim();
             if(selected.remote()){try{CloudApi.remoteBase(secret);}catch(RuntimeException e){toast(R.string.cloud_pc_address);return;}}
             if(secret.isEmpty()){toast(R.string.cloud_key_needed);return;}
-            new AlertDialog.Builder(owner).setMessage(selected.remote()?getResources().getString(R.string.cloud_pc_notice)+"\n"+secret:R.string.cloud_fetch_notice).setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,(d,w)->{
+            new AlertDialog.Builder(owner).setMessage(selected.remote()?getResources().getString(R.string.cloud_pc_notice)+"\n"+secret:getResources().getString(R.string.cloud_fetch_notice)).setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,(d,w)->{
                 if(!active||closed||keyDialog!=dialog||!dialog.isShowing()||values[pick.getSelectedItemPosition()]!=selected||!secret.equals((selected.remote()?address:key).getText().toString().trim()))return;fetch.setEnabled(false);
                 io.execute(()->{HttpURLConnection c=null;List<String> models=null;int err=R.string.cloud_fail;
                     try{c=selected.remote()?CloudApi.remoteConnection(selected,secret,false):CloudApi.catalogConnection(selected,secret);catalogRequest=c;models=CloudApi.catalog(c);}catch(Exception e){err=errorLabel(e);}finally{if(c!=null)c.disconnect();if(catalogRequest==c)catalogRequest=null;}
