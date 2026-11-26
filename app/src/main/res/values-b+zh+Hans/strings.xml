@@ -729,4 +729,15 @@
     <string name="transfer_cloud_notice">以下消息内容将用于本次服务商请求，可能包含粘贴的文档摘录或先前对话。发送前请确认。不显示服务商特定请求元数据。</string>
     <string name="transfer_changed">请求上下文或推理模式已变化。请重新确认。</string>
     <string name="transfer_review_failed">无法安全显示完整请求上下文。未发送请求。</string>
+    <string name="cloud_fetch_models">获取模型</string>
+    <string name="cloud_fetch_notice">使用 API 密钥向所选提供商获取模型列表。不发送聊天内容。</string>
+    <string name="cloud_usage">输入令牌：%1$s · 输出令牌：%2$s</string>
+    <string name="cloud_usage_unknown">用量未知</string>
+    <string name="cloud_rate_limit">已达到调用限制，请稍后重试。</string>
+    <string name="cloud_auth_error">身份验证或权限错误，请检查 API 密钥。</string>
+    <string name="cloud_provider_error">提供商暂时不可用。</string>
+    <string name="cloud_timeout">请求超时。</string>
+    <string name="cloud_estimated_cost">预估费用（USD）：%1$s</string>
+    <string name="cloud_input_rate">每百万输入令牌 USD</string>
+    <string name="cloud_output_rate">每百万输出令牌 USD</string>
 </resources>
