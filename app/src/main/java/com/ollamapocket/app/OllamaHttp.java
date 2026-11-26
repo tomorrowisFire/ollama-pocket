@@ -98,6 +98,15 @@ public final class OllamaHttp {
         } finally { conn.disconnect(); }
     }
 
+    /** Only interactive chat requires a normal terminal marker. Pulls and diagnostics keep their existing API. */
+    public static void streamChat(HttpURLConnection connection,JSONObject request,ChunkListener listener)throws Exception{
+        final boolean[] done={false};
+        stream(connection,request,item->{
+            if(item.optBoolean("done",false))done[0]=true;
+            listener.onChunk(item);
+        });
+        if(!done[0])throw new IOException("CHAT_STREAM_INCOMPLETE");
+    }
     public static HttpURLConnection newGpuChatConnection() throws Exception {
         HttpURLConnection conn = (HttpURLConnection)new URL(GpuRunner.url() + "/v1/chat/completions").openConnection();
         conn.setRequestMethod("POST");
@@ -132,8 +141,14 @@ public final class OllamaHttp {
     }
 
     /** OpenAI compatible SSE returned by the local Vulkan llama.cpp server. */
-    public static void streamGpu(HttpURLConnection connection, JSONObject request,
-            ChunkListener onChunk) throws Exception {
+    public static void streamGpu(HttpURLConnection connection,JSONObject request,ChunkListener onChunk)throws Exception{
+        streamGpuInternal(connection,request,onChunk,false);
+    }
+    public static void streamGpuChat(HttpURLConnection connection,JSONObject request,ChunkListener onChunk)throws Exception{
+        streamGpuInternal(connection,request,onChunk,true);
+    }
+    private static void streamGpuInternal(HttpURLConnection connection,JSONObject request,ChunkListener onChunk,boolean requireTerminal)throws Exception{
+        boolean terminal=false;
         try {
             write(connection, request);
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(
@@ -142,12 +157,16 @@ public final class OllamaHttp {
                 while ((line = reader.readLine()) != null) {
                     if (!line.startsWith("data: ")) continue;
                     String data = line.substring(6).trim();
-                    if (data.equals("[DONE]")) break;
+                    if (data.equals("[DONE]")) {terminal=true;break;}
                     JSONObject message = new JSONObject(data);
                     if (message.has("error")) throw new IOException(message.optString("error"));
                     JSONArray choices = message.optJSONArray("choices");
                     if (choices == null || choices.length() == 0) continue;
-                    JSONObject delta = choices.getJSONObject(0).optJSONObject("delta");
+                    JSONObject first=choices.getJSONObject(0);
+                    String reason=first.isNull("finish_reason")?"":first.optString("finish_reason","");
+                    if(LocalChatTurns.gpuTerminal(reason))terminal=true;
+                    else if(requireTerminal&&!reason.isEmpty())throw new IOException("CHAT_STREAM_INCOMPLETE");
+                    JSONObject delta = first.optJSONObject("delta");
                     if (delta != null) {
                         JSONObject adapted = new JSONObject();
                         adapted.put("message", new JSONObject().put("content", delta.optString("content", "")));
@@ -155,6 +174,7 @@ public final class OllamaHttp {
                     }
                 }
             }
+            if(requireTerminal&&!terminal)throw new IOException("CHAT_STREAM_INCOMPLETE");
         } finally { connection.disconnect(); }
     }
 

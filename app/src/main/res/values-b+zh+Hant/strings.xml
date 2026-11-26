@@ -621,4 +621,19 @@
     <string name="error_ollama_tags">Ollama 標籤查詢失敗：%1$s</string>
     <string name="error_gpu_offload">GPU 卸載無法使用：%1$s</string>
     <string name="error_distributed_load">分散式模型載入失敗：%1$s</string>
+    <string name="chat_edit_question">編輯問題</string>
+    <string name="chat_regenerate">重新產生</string>
+    <string name="chat_branch_notice">新建本機對話將使用此問題之前的歷史。原對話和後續回答會保留。</string>
+    <string name="chat_branch_create">建立分支</string>
+    <string name="chat_branch_title">分支 · %1$s</string>
+    <string name="chat_branch_invalid">無法從此訊息建立分支，請選擇已儲存的問題或對應回答。</string>
+    <string name="chat_prompt_limit">問題須包含 1–16,000 個字元。</string>
+    <string name="chat_storage_limit">此對話已達本機儲存上限。請建立新對話或從較早的訊息分支，既有歷史會保留。</string>
+    <string name="chat_history_invalid">無法讀取已儲存的對話，原始記錄未被覆寫。請建立新對話。</string>
+    <string name="chat_save_failed">無法儲存已完成的對話。原記錄保持不變，請複製回答或重試問題。</string>
+    <string name="chat_draft_recovered">問題已恢復至輸入框，未完成的回答不會加入後續上下文。</string>
+    <string name="chat_stream_incomplete">回應串流未收到完成訊號即結束。</string>
+    <string name="chat_reply_limit">回答超出安全顯示上限。請複製部分回答或提出較短的問題。</string>
+    <string name="chat_empty_answer">未收到文字回答。</string>
+    <string name="chat_context_note">本機推論使用最近完成的對話，較早的記錄仍儲存在對話中。</string>
 </resources>

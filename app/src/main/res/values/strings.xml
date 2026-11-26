@@ -621,4 +621,19 @@
     <string name="error_ollama_tags">Ollama tag lookup failed: %1$s</string>
     <string name="error_gpu_offload">GPU offload unavailable: %1$s</string>
     <string name="error_distributed_load">Distributed model loading failed: %1$s</string>
+    <string name="chat_edit_question">Edit question</string>
+    <string name="chat_regenerate">Regenerate</string>
+    <string name="chat_branch_notice">A new local conversation will use the history before this question. The original conversation and later answers are kept.</string>
+    <string name="chat_branch_create">Create branch</string>
+    <string name="chat_branch_title">Branch · %1$s</string>
+    <string name="chat_branch_invalid">This message cannot be branched. Open a saved user question or an answer paired with one.</string>
+    <string name="chat_prompt_limit">The question must contain 1–16,000 characters.</string>
+    <string name="chat_storage_limit">This conversation reached its local storage limit. Start a new chat or branch from an earlier message; existing history is kept.</string>
+    <string name="chat_history_invalid">The saved conversation could not be read. It has not been overwritten. Start a new chat to continue.</string>
+    <string name="chat_save_failed">The completed turn could not be saved. Your original conversation is unchanged; copy the answer or retry the question.</string>
+    <string name="chat_draft_recovered">The question is restored to the input box. Incomplete answers are not added to future context.</string>
+    <string name="chat_stream_incomplete">The response stream ended without a completion signal.</string>
+    <string name="chat_reply_limit">The response exceeded the safe display limit. Copy the partial answer or ask a shorter question.</string>
+    <string name="chat_empty_answer">No text answer was received.</string>
+    <string name="chat_context_note">Local context uses recent complete turns; older saved messages remain in the conversation.</string>
 </resources>

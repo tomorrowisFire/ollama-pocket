@@ -621,4 +621,19 @@
     <string name="error_ollama_tags">Ollama タグ取得失敗: %1$s</string>
     <string name="error_gpu_offload">GPU オフロード不可: %1$s</string>
     <string name="error_distributed_load">分散モデル読み込み失敗: %1$s</string>
+    <string name="chat_edit_question">質問を編集</string>
+    <string name="chat_regenerate">再生成</string>
+    <string name="chat_branch_notice">この質問以前の履歴で新しいローカル会話を作成します。元の会話と後続の回答は保持されます。</string>
+    <string name="chat_branch_create">分岐を作成</string>
+    <string name="chat_branch_title">分岐 · %1$s</string>
+    <string name="chat_branch_invalid">このメッセージは分岐できません。保存済みの質問か、それに対応する回答を選択してください。</string>
+    <string name="chat_prompt_limit">質問は1〜16,000文字で入力してください。</string>
+    <string name="chat_storage_limit">この会話は保存上限に達しました。新規会話か以前のメッセージから分岐してください。既存の履歴は保持されます。</string>
+    <string name="chat_history_invalid">保存済み会話を読み込めません。元のデータは上書きしていません。新規会話を開始してください。</string>
+    <string name="chat_save_failed">完了した会話を保存できません。元の履歴は変更していません。回答をコピーするか、質問を再試行してください。</string>
+    <string name="chat_draft_recovered">質問を入力欄に復元しました。未完了の回答は以後の文脈に含めません。</string>
+    <string name="chat_stream_incomplete">完了信号なしで応答ストリームが終了しました。</string>
+    <string name="chat_reply_limit">応答が安全な表示上限を超えました。部分回答をコピーするか、短い質問にしてください。</string>
+    <string name="chat_empty_answer">テキスト回答を受信できませんでした。</string>
+    <string name="chat_context_note">ローカル推論には直近の完了した会話を使用し、以前の履歴は保存済み会話に残ります。</string>
 </resources>

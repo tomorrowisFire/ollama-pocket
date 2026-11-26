@@ -621,4 +621,19 @@
     <string name="error_ollama_tags">Ollama 태그 조회 실패: %1$s</string>
     <string name="error_gpu_offload">GPU 오프로드 불가: %1$s</string>
     <string name="error_distributed_load">분산 모델 로딩 실패: %1$s</string>
+    <string name="chat_edit_question">질문 수정</string>
+    <string name="chat_regenerate">답변 재생성</string>
+    <string name="chat_branch_notice">이 질문 이전의 대화를 사용해 새 로컬 대화를 만듭니다. 원래 대화와 이후 답변은 그대로 보존합니다.</string>
+    <string name="chat_branch_create">분기 생성</string>
+    <string name="chat_branch_title">분기 · %1$s</string>
+    <string name="chat_branch_invalid">이 메시지에서 분기할 수 없습니다. 저장된 질문 또는 질문과 짝을 이루는 답변을 선택하세요.</string>
+    <string name="chat_prompt_limit">질문은 1~16,000자 이내로 입력하세요.</string>
+    <string name="chat_storage_limit">이 대화의 저장 한도에 도달했습니다. 새 대화를 시작하거나 이전 메시지에서 분기하세요. 기존 기록은 보존합니다.</string>
+    <string name="chat_history_invalid">저장된 대화를 읽지 못했습니다. 원본은 덮어쓰지 않았습니다. 새 대화를 시작하세요.</string>
+    <string name="chat_save_failed">완료된 대화를 저장하지 못했습니다. 원래 기록은 유지했습니다. 답변을 복사하거나 질문을 다시 시도하세요.</string>
+    <string name="chat_draft_recovered">질문을 입력창에 복구했습니다. 미완료 답변은 이후 대화 문맥에 포함하지 않습니다.</string>
+    <string name="chat_stream_incomplete">완료 신호 없이 응답 스트림이 종료됐습니다.</string>
+    <string name="chat_reply_limit">응답이 안전 표시 한도를 초과했습니다. 부분 답변을 복사하거나 더 짧게 질문하세요.</string>
+    <string name="chat_empty_answer">텍스트 답변을 받지 못했습니다.</string>
+    <string name="chat_context_note">로컬 추론에는 최근 완료된 대화를 사용하며 이전 기록은 저장된 대화에 남습니다.</string>
 </resources>

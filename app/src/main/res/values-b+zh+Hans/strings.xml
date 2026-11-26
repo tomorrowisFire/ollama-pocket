@@ -621,4 +621,19 @@
     <string name="error_ollama_tags">Ollama 标签查询失败：%1$s</string>
     <string name="error_gpu_offload">GPU 卸载不可用：%1$s</string>
     <string name="error_distributed_load">分布式模型加载失败：%1$s</string>
+    <string name="chat_edit_question">编辑问题</string>
+    <string name="chat_regenerate">重新生成</string>
+    <string name="chat_branch_notice">新建本地对话将使用此问题之前的历史。原对话和后续回答会保留。</string>
+    <string name="chat_branch_create">创建分支</string>
+    <string name="chat_branch_title">分支 · %1$s</string>
+    <string name="chat_branch_invalid">无法从此消息创建分支，请选择已保存的问题或对应回答。</string>
+    <string name="chat_prompt_limit">问题须包含 1–16,000 个字符。</string>
+    <string name="chat_storage_limit">此对话已达到本地存储上限。请新建对话或从较早的消息分支，已有历史会保留。</string>
+    <string name="chat_history_invalid">无法读取已保存的对话，原始记录未被覆盖。请新建对话。</string>
+    <string name="chat_save_failed">无法保存已完成的对话。原记录保持不变，请复制回答或重试问题。</string>
+    <string name="chat_draft_recovered">问题已恢复至输入框，未完成的回答不会加入后续上下文。</string>
+    <string name="chat_stream_incomplete">响应流未收到完成信号便结束。</string>
+    <string name="chat_reply_limit">回答超出安全显示上限。请复制部分回答或提出较短的问题。</string>
+    <string name="chat_empty_answer">未收到文本回答。</string>
+    <string name="chat_context_note">本地推理使用最近完成的对话，较早的记录仍保存在对话中。</string>
 </resources>

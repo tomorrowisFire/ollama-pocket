@@ -201,6 +201,8 @@ public final class MainActivity extends Activity {
     private volatile boolean chatBusy, pullBusy, chatCancelled, pullCancelled;
     private volatile boolean serverPollBusy;
     private JSONArray history = new JSONArray();
+    private boolean historyReadable=true;
+    private String pendingLocalPrompt="";
     private String currentModel = "";
     private final List<String> knownModels = new ArrayList<>();
     private boolean ignoreSelection;
@@ -350,8 +352,8 @@ public final class MainActivity extends Activity {
         loadHistory();
         renderHistory();
         showTab(state==null?0:state.getInt("activeTab",0));
-        if(state!=null&&chatInput!=null)
-            chatInput.setText(state.getString("draftMessage",""));
+        if(state!=null&&chatInput!=null&&historyKey().equals(state.getString("draftScope","")))
+            chatInput.setText(state.getString("draftMessage",chatInput.getText().toString()));
         startServer();
         ui.postDelayed(this::refreshModels, 2000);
         if (!getPreferences(MODE_PRIVATE).getBoolean("welcome_v2_seen", false)) {
@@ -364,7 +366,10 @@ public final class MainActivity extends Activity {
     @Override protected void onSaveInstanceState(Bundle out) {
         super.onSaveInstanceState(out);
         out.putInt("activeTab",activeTab);
-        if(chatInput!=null)out.putString("draftMessage",chatInput.getText().toString());
+        if(chatInput!=null){
+            out.putString("draftScope",historyKey());
+            out.putString("draftMessage",chatBusy?pendingLocalPrompt:chatInput.getText().toString());
+        }
     }
     @Override protected void onResume() {
         super.onResume();
@@ -384,6 +389,7 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onPause() {
         foreground=false;
+        saveLocalDraft();
         if(cloudPanel!=null)cloudPanel.pause();
         if(voice!=null)voice.cancel();
         lastPauseElapsed = android.os.SystemClock.elapsedRealtime();
@@ -393,6 +399,8 @@ public final class MainActivity extends Activity {
         super.onPause();
     }
     @Override protected void onDestroy() {
+        saveLocalDraft();
+        chatCancelled=true;
         if(navigationDrawer!=null&&navigationDrawer.isShowing())navigationDrawer.dismiss();
         if (chatConnection != null) chatConnection.disconnect();
         if (pullConnection != null) pullConnection.disconnect();
@@ -753,6 +761,7 @@ public final class MainActivity extends Activity {
                 String model = knownModels.get(position);
                 if (model.equals(currentModel)) return;
                 if (chatBusy) { toast(getString(R.string.model_wait)); return; }
+                saveLocalDraft();
                 currentModel = model;
                 getPreferences(MODE_PRIVATE).edit().putString("model", model).apply();
                 loadHistory(); renderHistory();
@@ -1473,7 +1482,8 @@ public final class MainActivity extends Activity {
         };
         modelChooser.setAdapter(adapter);
         int idx=names.indexOf(currentModel);
-        if(!names.isEmpty()&&idx<0){
+        if(!names.isEmpty()&&idx<0&&!chatBusy){
+            saveLocalDraft();
             currentModel=names.get(0);
             getPreferences(MODE_PRIVATE).edit().putString("model",currentModel).apply();
             loadHistory();renderHistory();idx=0;
@@ -2350,7 +2360,8 @@ public final class MainActivity extends Activity {
     }
 
     private void selectModel(String name) {
-        if(!knownModels.contains(name))return;
+        if(chatBusy||!knownModels.contains(name))return;
+        saveLocalDraft();
         currentModel=name;
         getPreferences(MODE_PRIVATE).edit().putString("model",name).apply();
         ignoreSelection=true;
@@ -2472,19 +2483,38 @@ public final class MainActivity extends Activity {
     private String currentSessionId() {
         String id = getPreferences(MODE_PRIVATE).getString(sessionKey(), "");
         if (id.isEmpty()) {
-            id = Long.toString(System.currentTimeMillis());
+            id = freshSessionId();
             getPreferences(MODE_PRIVATE).edit().putString(sessionKey(), id).apply();
         }
         return id;
     }
     private String listKey() { return "chat_list_" + currentModel; }
     private String historyKey() { return "chat_v4_" + currentModel + "_" + currentSessionId(); }
+    private String freshSessionId(){
+        long id=System.currentTimeMillis();
+        android.content.SharedPreferences prefs=getPreferences(MODE_PRIVATE);
+        while(prefs.contains("chat_v4_"+currentModel+"_"+id)||Long.toString(id).equals(prefs.getString(sessionKey(),"")))id++;
+        return Long.toString(id);
+    }
+    private String draftKey(String scope){return "chat_draft_v1_"+scope;}
+    private void saveLocalDraft(){
+        if(guestOnly||chatInput==null||currentModel.isEmpty())return;
+        String text=chatBusy?pendingLocalPrompt:chatInput.getText().toString();
+        if(text.length()>LocalChatTurns.MAX_PROMPT)return;
+        android.content.SharedPreferences.Editor edit=getPreferences(MODE_PRIVATE).edit();
+        if(text.isEmpty())edit.remove(draftKey(historyKey()));else edit.putString(draftKey(historyKey()),text);
+        edit.apply();
+    }
     private void newChat() {
         if(cloudMode){if(cloudPanel!=null)cloudPanel.newChat();return;}
         if (chatBusy) { toast(getString(R.string.new_chat_busy)); return; }
         if(voice!=null)voice.cancel();
-        getPreferences(MODE_PRIVATE).edit().putString(sessionKey(), Long.toString(System.currentTimeMillis())).apply();
-        history = new JSONArray();
+        saveLocalDraft();
+        String id=freshSessionId();
+        getPreferences(MODE_PRIVATE).edit().putString(sessionKey(),id)
+            .putString("chat_v4_"+currentModel+"_"+id,"[]").apply();
+        history=new JSONArray();historyReadable=true;
+        if(chatInput!=null)chatInput.setText("");
         renderHistory();
         showTab(0);
     }
@@ -2546,6 +2576,7 @@ public final class MainActivity extends Activity {
             return;
         }
         if(cloudMode)returnToLocal();
+        saveLocalDraft();
         if(!entry.model.equals(currentModel))selectModel(entry.model);
         getPreferences(MODE_PRIVATE).edit()
             .putString("active_chat_"+entry.model,entry.id).apply();
@@ -2725,7 +2756,7 @@ public final class MainActivity extends Activity {
             if (title.length() > 38) title = title.substring(0, 38) + "…";
             JSONArray newer = new JSONArray();
             newer.put(new JSONObject().put("id", id).put("title", title));
-            for (int i = 0; i < Math.min(39, sessions.length()); i++) newer.put(sessions.getJSONObject(i));
+            for (int i = 0; i < sessions.length(); i++) newer.put(sessions.get(i));
             getPreferences(MODE_PRIVATE).edit().putString(listKey(), newer.toString()).apply();
             refreshTabletRail();
         } catch (Exception ignored) { }
@@ -2742,25 +2773,109 @@ public final class MainActivity extends Activity {
                 } catch (Exception ignored) { }
             }
         }
+        historyReadable=true;
         try { history = new JSONArray(getPreferences(MODE_PRIVATE).getString(historyKey(), "[]")); }
-        catch (Exception ignored) { history = new JSONArray(); }
-    }
-    private void storeHistory() {
-        if (history.length() > 32) {
-            JSONArray trimmed = new JSONArray();
-            for (int i = history.length() - 32; i < history.length(); i++) trimmed.put(history.opt(i));
-            history = trimmed;
+        catch (Exception ignored) { history = new JSONArray();historyReadable=false; }
+        if(chatInput!=null){
+            try{chatInput.setText(getPreferences(MODE_PRIVATE).getString(draftKey(historyKey()),""));}
+            catch(Exception ignored){chatInput.setText("");}
         }
-        getPreferences(MODE_PRIVATE).edit().putString(historyKey(), history.toString()).apply();
     }
-    private void addHistory(String role, String content) {
-        if ("user".equals(role) && history.length() == 0) ensureSessionListed(content);
-        try { history.put(new JSONObject().put("role", role).put("content", content)); storeHistory(); }
-        catch (Exception ignored) { }
+    private static List<LocalChatTurns.Message> localMessages(JSONArray raw){
+        List<LocalChatTurns.Message> out=new ArrayList<>();
+        for(int i=0;i<raw.length();i++){
+            JSONObject item=raw.optJSONObject(i);
+            out.add(item==null?null:new LocalChatTurns.Message(item.optString("role",""),item.optString("content","")));
+        }
+        return out;
     }
-    private void renderHistory() {
+    private static JSONArray modelContext(JSONArray source,String prompt)throws Exception{
+        JSONArray request=new JSONArray();
+        for(LocalChatTurns.Message item:LocalChatTurns.request(localMessages(source),prompt))
+            request.put(new JSONObject().put("role",item.role).put("content",item.content));
+        return request;
+    }
+    private static String shortTitle(String prompt){
+        String title=prompt.replace('\n',' ').trim();
+        return title.length()>38?title.substring(0,38)+"…":title;
+    }
+    private JSONArray indexWith(String id,String title)throws Exception{
+        JSONArray previous=new JSONArray(getPreferences(MODE_PRIVATE).getString(listKey(),"[]"));
+        for(int i=0;i<previous.length();i++){
+            JSONObject row=previous.optJSONObject(i);
+            if(row!=null&&id.equals(row.optString("id")))return previous;
+        }
+        JSONArray next=new JSONArray();
+        next.put(new JSONObject().put("id",id).put("title",title));
+        for(int i=0;i<previous.length();i++)next.put(previous.get(i));
+        return next;
+    }
+    private void completeLocalTurn(String scope,String session,String original,String prompt,String answer)throws Exception{
+        if(!historyReadable||!scope.equals(historyKey())||!original.equals(history.toString()))throw new IllegalStateException("Chat scope changed");
+        if(!LocalChatTurns.validReply(answer))throw new IllegalArgumentException("Invalid response");
+        JSONArray next=new JSONArray(original);
+        next.put(new JSONObject().put("role","user").put("content",prompt));
+        next.put(new JSONObject().put("role","assistant").put("content",answer));
+        String encoded=next.toString();
+        if(!LocalChatTurns.storageFits(next.length(),encoded.length()))throw new IllegalStateException("Chat storage limit");
+        JSONArray index=indexWith(session,shortTitle(prompt));
+        // One editor publishes the complete pair and index together; no provisional prompt in history.
+        getPreferences(MODE_PRIVATE).edit().putString(scope,encoded)
+            .putString(listKey(),index.toString()).remove(draftKey(scope)).apply();
+        history=next;
+        refreshTabletRail();
+    }
+    private void branchMessage(int selected,boolean edit){
+        if(guestOnly||cloudMode||isUiBusy()||!historyReadable)return;
+        final String scope=historyKey(),original=history.toString();
+        final LocalChatTurns.Branch plan;
+        try{plan=LocalChatTurns.branch(localMessages(history),selected);}
+        catch(Exception e){toast(getString(R.string.chat_branch_invalid));return;}
+        final EditText question;
+        AlertDialog.Builder builder=new AlertDialog.Builder(this).setTitle(edit?R.string.chat_edit_question:R.string.chat_regenerate);
+        if(edit){
+            LinearLayout form=column();form.setPadding(dp(18),dp(8),dp(18),dp(8));
+            margin(text(getString(R.string.chat_branch_notice),13,MUTED,false),form,0,8);
+            question=edit(getString(R.string.message_hint),plan.prompt,true);
+            question.setMinLines(3);question.setMaxLines(7);margin(question,form,0,4);
+            builder.setView(form);
+        }else{question=null;builder.setMessage(R.string.chat_branch_notice);}
+        AlertDialog dialog=builder.setNegativeButton(R.string.cancel,null)
+            .setPositiveButton(R.string.chat_branch_create,null).create();
+        dialog.show();
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
+            if(isUiBusy()||cloudMode||!scope.equals(historyKey())||!original.equals(history.toString())){
+                dialog.dismiss();return;
+            }
+            String prompt=question==null?plan.prompt:question.getText().toString().trim();
+            if(!LocalChatTurns.validPrompt(prompt)){toast(getString(R.string.chat_prompt_limit));return;}
+            try{
+                JSONArray prefix=new JSONArray();
+                JSONArray source=new JSONArray(original);
+                for(int i=0;i<plan.prefixLength;i++)prefix.put(source.get(i));
+                if(!LocalChatTurns.storageFits(prefix.length()+2,prefix.toString().length()+prompt.length())){
+                    toast(getString(R.string.chat_storage_limit));return;
+                }
+                saveLocalDraft();
+                String id=freshSessionId(),target="chat_v4_"+currentModel+"_"+id;
+                JSONArray index=indexWith(id,getString(R.string.chat_branch_title,shortTitle(prompt)));
+                getPreferences(MODE_PRIVATE).edit().putString(target,prefix.toString())
+                    .putString(listKey(),index.toString()).putString(sessionKey(),id)
+                    .putString(draftKey(target),prompt).apply();
+                history=prefix;historyReadable=true;chatInput.setText(prompt);
+                dialog.dismiss();renderHistory();showTab(0);sendChat();
+            }catch(Exception e){toast(getString(R.string.chat_save_failed));}
+        });
+    }
+    private void renderHistory(){renderHistory(true);}
+    private void renderHistory(boolean follow) {
         if (messages == null) return;
+        int oldY=messageScroll==null?0:messageScroll.getScrollY();
         messages.removeAllViews();
+        if(!historyReadable){
+            margin(text(getString(R.string.chat_history_invalid),14,WHITE,false),messages,8,8);
+            return;
+        }
         if (history.length() == 0) {
             margin(text(getString(R.string.welcome), 26, WHITE, true), messages, 45, 9);
             margin(text(getString(R.string.welcome_sub),
@@ -2778,13 +2893,15 @@ public final class MainActivity extends Activity {
         }
         for (int i = 0; i < history.length(); i++) {
             JSONObject item = history.optJSONObject(i);
-            if (item != null) bubble(item.optString("role"), item.optString("content"));
+            if(item!=null)bubble(item.optString("role"),item.optString("content"),false,i);
         }
-        scrollBottom();
+        if(follow)scrollBottom();
+        else if(messageScroll!=null)messageScroll.post(()->messageScroll.scrollTo(0,oldY));
         refreshTabletRail();
     }
-    private TextView bubble(String role,String content){return bubble(role,content,false);}
-    private TextView bubble(String role,String content,boolean pending) {
+    private TextView bubble(String role,String content){return bubble(role,content,false,-1);}
+    private TextView bubble(String role,String content,boolean pending){return bubble(role,content,pending,-1);}
+    private TextView bubble(String role,String content,boolean pending,int index) {
         boolean user="user".equals(role);
         TextView t=text(user?content:"",15,WHITE,false);
         t.setTextIsSelectable(true);t.setLineSpacing(dp(3),1f);
@@ -2796,6 +2913,11 @@ public final class MainActivity extends Activity {
             t.setMaxWidth(chatBubbleMaxWidth());
             t.setBackground(bg(BUBBLE,17));
             wrapper.addView(t,lp(-2,-2));
+            if(index>=0){
+                Button revise=button(getString(R.string.chat_edit_question),false);
+                revise.setMinimumHeight(dp(48));wrapper.addView(revise,lp(-2,-2));
+                revise.setOnClickListener(v->branchMessage(index,true));
+            }
         }else{
             t.setBackgroundColor(BG);
             wrapper.addView(t,lp(-1,-2));
@@ -2817,6 +2939,11 @@ public final class MainActivity extends Activity {
                 voice.cancel();voice.speak(ChatMarkup.parse((String)raw).text);
             });
             wrapper.addView(actions,lp(-1,-2));
+            if(index>=0&&"assistant".equals(role)){
+                Button regenerate=button(getString(R.string.chat_regenerate),false);
+                regenerate.setMinimumHeight(dp(48));wrapper.addView(regenerate,lp(-2,-2));
+                regenerate.setOnClickListener(v->branchMessage(index,false));
+            }
             actions.setVisibility(pending?View.GONE:View.VISIBLE);
             if(pending)t.setText(getString(R.string.app_name)+"\n"+content);
             else showAssistant(t,content,"",true);
@@ -2840,6 +2967,7 @@ public final class MainActivity extends Activity {
     private void scrollBottom() { if(messageScroll!=null)messageScroll.post(()->messageScroll.fullScroll(View.FOCUS_DOWN)); }
     private void setChatBusy(boolean busy) {
         chatBusy = busy;
+        if(chatInput!=null)chatInput.setEnabled(!busy);
         sendButton.setEnabled(!busy);sendButton.setVisibility(busy?View.GONE:View.VISIBLE);
         stopChatButton.setEnabled(busy);stopChatButton.setVisibility(busy?View.VISIBLE:View.GONE);
         if(cloudShortcut!=null)cloudShortcut.setEnabled(!busy);
@@ -2847,31 +2975,30 @@ public final class MainActivity extends Activity {
         if(voiceButton!=null)voiceButton.setEnabled(!busy);
     }
     private void sendChat() {
-        String prompt = chatInput.getText().toString().trim();
-        if (prompt.isEmpty()) return;
-        if (currentModel.isEmpty() || knownModels.isEmpty()) { toast(getString(R.string.need_model)); showTab(1); return; }
-        if (chatBusy || benchmarkBusy) {
-            if(benchmarkBusy)toast(getString(R.string.benchmark_wait));
-            return;
+        String prompt=chatInput.getText().toString().trim();
+        if(prompt.isEmpty())return;
+        if(!LocalChatTurns.validPrompt(prompt)){toast(getString(R.string.chat_prompt_limit));return;}
+        if(!historyReadable){toast(getString(R.string.chat_history_invalid));return;}
+        if(currentModel.isEmpty()||!knownModels.contains(currentModel)){toast(getString(R.string.need_model));showTab(1);return;}
+        if(isUiBusy()){toast(getString(benchmarkBusy?R.string.benchmark_wait:R.string.busy));return;}
+        final String modelAtStart=currentModel,sessionAtStart=currentSessionId(),scopeAtStart=historyKey(),original=history.toString();
+        if(!LocalChatTurns.storageFits(history.length()+2,original.length()+prompt.length())){
+            toast(getString(R.string.chat_storage_limit));return;
         }
-        final boolean speakThisTurn=speakNextAnswer;
-        speakNextAnswer=false;
-        if(voice!=null)voice.cancel();
-        // Clear the input first, then append to the selected model's history.
-        chatInput.setText("");
-        ((InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE))
-            .hideSoftInputFromWindow(chatInput.getWindowToken(), 0);
-        if(history.length()==0)messages.removeAllViews(); // Remove empty-state cards on first send.
-        addHistory("user", prompt);
-        bubble("user", prompt);
-        TextView assistant = bubble("assistant", getString(R.string.thinking),true);
-        lastStreamUi=0;
-        setChatBusy(true); chatCancelled = false;
-        scrollBottom();
-        final String modelAtStart = currentModel;
         final JSONArray requestHistory;
-        try { requestHistory = new JSONArray(history.toString()); }
-        catch (Exception ex) { setChatBusy(false); return; }
+        try{requestHistory=modelContext(history,prompt);}catch(Exception e){toast(getString(R.string.chat_history_invalid));return;}
+        final boolean speakThisTurn=speakNextAnswer;speakNextAnswer=false;
+        if(voice!=null)voice.cancel();
+        pendingLocalPrompt=prompt;
+        getPreferences(MODE_PRIVATE).edit().putString(draftKey(scopeAtStart),prompt).apply();
+        chatInput.setText("");
+        ((InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(chatInput.getWindowToken(),0);
+        renderHistory();
+        if(history.length()==0)messages.removeAllViews();
+        bubble("user",prompt);
+        TextView assistant=bubble("assistant",getString(R.string.thinking),true);
+        lastStreamUi=0;
+        chatCancelled=false;setChatBusy(true);scrollBottom();
         io.execute(() -> {
             final StringBuilder answer = new StringBuilder();
             String error = null;
@@ -2881,14 +3008,11 @@ public final class MainActivity extends Activity {
                     ui.post(() -> activeEngineLabel.setText(getString(R.string.engine_rpc_load)));
                     if (!DistributedRunner.ensure(getApplicationContext(), modelAtStart, reason))
                         throw new java.io.IOException(getString(R.string.coop_error_fallback,UiText.error(this,reason.toString())));
-                    if (chatCancelled) {
-                        ui.post(() -> { showAssistant(assistant,getString(R.string.stopped),"",false); setChatBusy(false); });
-                        return;
-                    }
+                    checkChatCancelled();
                     HttpURLConnection connection = OllamaHttp.newCooperativeChatConnection();
-                    chatConnection = connection;
+                    publishChatConnection(connection);
                     ui.post(() -> activeEngineLabel.setText(getString(R.string.engine_rpc_test)));
-                    OllamaHttp.streamGpu(connection, OllamaHttp.gpuChatBody(modelAtStart, requestHistory),
+                    OllamaHttp.streamGpuChat(connection, OllamaHttp.gpuChatBody(modelAtStart, requestHistory),
                         item -> appendAnswer(item, answer, assistant));
                 } else {
                 String choice = computePreference();
@@ -2906,10 +3030,7 @@ public final class MainActivity extends Activity {
                     } catch (Exception ignored) { }
                     gpu = GpuRunner.ensure(getApplicationContext(), modelAtStart, fallback);
                 }
-                if (chatCancelled) {
-                    ui.post(() -> { showAssistant(assistant,getString(R.string.stopped),"",false); setChatBusy(false); });
-                    return;
-                }
+                checkChatCancelled();
                 final boolean verifiedGpu = gpu;
                 final String failedReason = fallback.toString();
                 ui.post(() -> activeEngineLabel.setText(verifiedGpu ?
@@ -2918,49 +3039,79 @@ public final class MainActivity extends Activity {
                 if (gpu) {
                     try {
                         HttpURLConnection connection = OllamaHttp.newGpuChatConnection();
-                        chatConnection = connection;
-                        OllamaHttp.streamGpu(connection, OllamaHttp.gpuChatBody(modelAtStart, requestHistory),
+                        publishChatConnection(connection);
+                        OllamaHttp.streamGpuChat(connection, OllamaHttp.gpuChatBody(modelAtStart, requestHistory),
                             item -> appendAnswer(item, answer, assistant));
                     } catch (Exception gpuError) {
-                        if (answer.length() > 0) throw gpuError; // never duplicate partial responses
+                        if(chatCancelled||Thread.currentThread().isInterrupted()||answer.length()>0)throw gpuError; // never duplicate a partial/cancelled response
                         ui.post(() -> activeEngineLabel.setText(getString(R.string.engine_cpu_fallback)));
                         HttpURLConnection connection = OllamaHttp.newChatConnection();
-                        chatConnection = connection;
-                        OllamaHttp.stream(connection, OllamaHttp.chatBody(modelAtStart, requestHistory),
+                        publishChatConnection(connection);
+                        OllamaHttp.streamChat(connection, OllamaHttp.chatBody(modelAtStart, requestHistory),
                             item -> appendAnswer(item, answer, assistant));
                     }
                 } else {
                     HttpURLConnection connection = OllamaHttp.newChatConnection();
-                    chatConnection = connection;
-                    OllamaHttp.stream(connection, OllamaHttp.chatBody(modelAtStart, requestHistory),
+                    publishChatConnection(connection);
+                    OllamaHttp.streamChat(connection, OllamaHttp.chatBody(modelAtStart, requestHistory),
                         item -> appendAnswer(item, answer, assistant));
                 }
                 }
-            } catch (Exception ex) { error = ex.getMessage(); }
+                checkChatCancelled();
+                if(!LocalChatTurns.validReply(answer.toString()))throw new java.io.IOException("CHAT_EMPTY_ANSWER");
+            } catch (Exception ex) { error=ex.getMessage()==null?ex.getClass().getSimpleName():ex.getMessage(); }
             finally { chatConnection = null; }
-            String finalError = error, finalAnswer = answer.toString();
-            ui.post(() -> {
+            String finalError=error,finalAnswer=answer.toString();
+            ui.post(()->{
                 if(isFinishing()||isDestroyed())return;
                 boolean follow=followsLatest();
-                if (!finalAnswer.isEmpty()) {
-                    showAssistant(assistant,finalAnswer,chatCancelled?"\n\n"+getString(R.string.generation_cancelled):finalError!=null?"\n\n"+getString(R.string.error_label)+UiText.error(this,finalError):"",true);
-                    // Keep incomplete responses visible but out of next turn's request context.
-                    if (!chatCancelled && finalError == null && modelAtStart.equals(currentModel))
-                        addHistory("assistant", finalAnswer);
-                } else {
-                    showAssistant(assistant,chatCancelled?getString(R.string.stopped):getString(R.string.error_label)+UiText.error(this,finalError),"",false);
+                boolean sameScope=modelAtStart.equals(currentModel)&&scopeAtStart.equals(historyKey());
+                boolean saved=false;String problem=finalError;
+                if(sameScope&&!chatCancelled&&problem==null){
+                    try{completeLocalTurn(scopeAtStart,sessionAtStart,original,prompt,finalAnswer);saved=true;}
+                    catch(Exception e){problem="CHAT_SAVE_FAILED";}
                 }
-                setChatBusy(false);
-                if(speakThisTurn&&foreground&&!isDestroyed()&&!chatCancelled&&finalError==null&&!finalAnswer.isEmpty()&&voice!=null)voice.speak(finalAnswer);
-                if(follow)scrollBottom();
+                pendingLocalPrompt="";setChatBusy(false);
+                if(saved){
+                    renderHistory(follow);
+                    if(speakThisTurn&&foreground&&voice!=null)voice.speak(finalAnswer);
+                }else if(sameScope){
+                    chatInput.setText(prompt);
+                    String notice=chatCancelled?getString(R.string.generation_cancelled):localChatError(problem);
+                    String suffix="\n\n"+getString(R.string.chat_draft_recovered);
+                    if(!finalAnswer.isEmpty())showAssistant(assistant,finalAnswer,"\n\n"+notice+suffix,true);
+                    else showAssistant(assistant,notice,suffix,false);
+                    if(follow)scrollBottom();
+                }else{
+                    // Original draft remains stored under its captured scope.
+                    renderHistory(follow);
+                }
             });
         });
     }
-    private void appendAnswer(JSONObject item, StringBuilder answer, TextView assistant) {
+    private String localChatError(String error){
+        if("CHAT_STREAM_INCOMPLETE".equals(error))return getString(R.string.chat_stream_incomplete);
+        if("CHAT_REPLY_LIMIT".equals(error))return getString(R.string.chat_reply_limit);
+        if("CHAT_EMPTY_ANSWER".equals(error))return getString(R.string.chat_empty_answer);
+        if("CHAT_SAVE_FAILED".equals(error))return getString(R.string.chat_save_failed);
+        return getString(R.string.error_label)+UiText.error(this,error);
+    }
+    private void checkChatCancelled()throws java.io.InterruptedIOException{
+        if(chatCancelled||Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("CHAT_CANCELLED");
+    }
+    private void publishChatConnection(HttpURLConnection connection)throws Exception{
+        chatConnection=connection;
+        if(chatCancelled||Thread.currentThread().isInterrupted()){
+            connection.disconnect();throw new java.io.InterruptedIOException("CHAT_CANCELLED");
+        }
+    }
+    private void appendAnswer(JSONObject item,StringBuilder answer,TextView assistant)throws Exception{
+        checkChatCancelled();
         JSONObject message = item.optJSONObject("message");
         if (message == null) return;
         String part = message.optString("content", "");
         if (part.isEmpty()) return;
+        if((long)answer.length()+part.length()>LocalChatTurns.MAX_REPLY)throw new java.io.IOException("CHAT_REPLY_LIMIT");
         answer.append(part);
         long now=android.os.SystemClock.elapsedRealtime();
         if(lastStreamUi!=0&&now-lastStreamUi<80)return;
