@@ -12,7 +12,7 @@ on:
       - '.github/workflows/build-coop-apk.yml'
       - 'settings.gradle'
       - 'scripts/build_rpc_cpu.sh'
-      - 'app/src/main/java/com/ollamapocket/app/Coop*.java'
+      - 'app/src/main/java/**'
       - 'app/src/main/java/com/ollamapocket/app/DistributedRunner.java'
       - 'app/src/main/java/com/ollamapocket/app/SecureRpcTransport.java'
       - 'app/src/main/AndroidManifest.xml'
