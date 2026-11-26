@@ -1417,6 +1417,9 @@ public final class MainActivity extends Activity {
         suitabilitySummary.setPadding(dp(14),dp(13),dp(14),dp(13));
         suitabilitySummary.setBackground(bg(CARD,14));
         margin(suitabilitySummary,content,0,10);
+        Button resourceAdvisor=button(getString(R.string.resource_title),false);
+        margin(resourceAdvisor,content,0,10);
+        resourceAdvisor.setOnClickListener(v->showResourceAdvice());
         computeSummary=text(computeReport.description(this),12,MUTED,false);
         computeSummary.setPadding(dp(14),dp(12),dp(14),dp(12));
         computeSummary.setBackground(bg(CARD,14));
@@ -1531,6 +1534,76 @@ public final class MainActivity extends Activity {
             none.setPadding(dp(14),dp(14),dp(14),dp(14));
             none.setBackground(bg(CARD,14));margin(none,nodeRows,0,5);
         }
+    }
+
+    private void showResourceAdvice(){
+        if(!foreground||isUiBusy()){toast(getString(R.string.busy));return;}
+        final DeviceProfiler.Profile sampled;
+        final ComputeProfiler.Report compute;
+        try{sampled=DeviceProfiler.scan(this);compute=ComputeProfiler.scan(this);}
+        catch(RuntimeException unavailable){toast(getString(R.string.metric_unavailable));return;}
+        final long total=ModelResourceAdvice.sampledMiB(sampled.ramGb);
+        final long available=ModelResourceAdvice.sampledMiB(sampled.availableRamGb);
+        final String selected=currentModel==null?"":currentModel;
+        final boolean installed=knownModels.contains(selected);
+        final long weight=installed?modelBytes.getOrDefault(selected,0L):0L;
+        int thermal=-1;
+        if(Build.VERSION.SDK_INT>=29)try{
+            android.os.PowerManager pm=(android.os.PowerManager)getSystemService(POWER_SERVICE);
+            if(pm!=null)thermal=pm.getCurrentThermalStatus();
+        }catch(RuntimeException ignored){}
+        final ModelResourceAdvice.Result estimate=ModelResourceAdvice.assess(sampled.arm64,
+            ModelResourceAdvice.sampledRisk(thermal,sampled.lowMemory),total,available,weight);
+        String quant=installed?modelQuantization.get(selected):null;
+        StringBuilder report=new StringBuilder(getString(R.string.resource_snapshot));
+        report.append("\n\n").append(getString(R.string.resource_model,selected.isEmpty()?getString(R.string.unknown):selected,
+            quant==null||quant.isEmpty()?getString(R.string.unknown):filterDisplay(quant)));
+        report.append("\n").append(getString(R.string.resource_ram,total,available));
+        if(estimate.weightMiB>0)report.append("\n").append(getString(R.string.resource_estimate,estimate.weightMiB,estimate.requiredMiB));
+        else report.append("\n").append(getString(R.string.advisor_memory_unknown));
+        int state;
+        switch(estimate.state){
+            case UNSUPPORTED:state=R.string.advisor_arm;break;
+            case THERMAL:state=R.string.resource_hot;break;
+            case LOW_MEMORY:state=R.string.resource_low;break;
+            case SHORTFALL:state=R.string.resource_shortfall;break;
+            case FIT_ESTIMATE:state=R.string.resource_fit;break;
+            default:state=R.string.resource_unknown;
+        }
+        report.append("\n").append(getString(state));
+        if(estimate.state==ModelResourceAdvice.State.SHORTFALL){
+            String alternative=ModelResourceAdvice.alternative(estimate,selected,knownModels,modelBytes);
+            if(alternative==null)report.append("\n").append(getString(R.string.resource_no_alternative));
+            else{
+                String altQuant=modelQuantization.get(alternative);
+                ModelResourceAdvice.Result alt=ModelResourceAdvice.assess(sampled.arm64,InferenceSafetyPolicy.Reason.NONE,
+                    total,available,modelBytes.getOrDefault(alternative,0L));
+                report.append("\n").append(getString(R.string.resource_alternative,alternative,
+                    altQuant==null||altQuant.isEmpty()?getString(R.string.unknown):filterDisplay(altQuant),alt.weightMiB));
+            }
+        }
+        final String preference=computePreference();
+        report.append("\n\n").append(getString(R.string.resource_preference,getString(
+            "cpu".equals(preference)?R.string.compute_cpu:"gpu".equals(preference)?R.string.compute_gpu_try:R.string.compute_auto)));
+        BenchmarkProfile profile=installed?recentBenchmark(selected):null;
+        boolean gpu=compute.gpuCompute&&GpuRunner.packaged(this);
+        ModelResourceAdvice.Route route=ModelResourceAdvice.route(estimate,gpu,profile);
+        switch(route){
+            case CPU_CANDIDATE:report.append("\n").append(getString(R.string.resource_cpu_candidate));break;
+            case HISTORICAL_CPU:
+            case HISTORICAL_GPU:
+                report.append("\n").append(getString(R.string.resource_history_choice,
+                    route==ModelResourceAdvice.Route.HISTORICAL_CPU?"CPU":"GPU"));break;
+            case MEASURE_FIRST:report.append("\n").append(getString(R.string.resource_measure_first));break;
+            default:report.append("\n").append(getString(R.string.resource_no_route));
+        }
+        if(profile!=null&&profile.cpu!=null&&profile.gpu!=null)
+            report.append("\n").append(getString(R.string.resource_history_rates,localeDecimal(profile.cpu.decode),localeDecimal(profile.gpu.decode)));
+        CoopSession session=CoopSession.get(this);
+        int peers="host".equals(session.role())?session.readyNodes().size():0;
+        report.append("\n").append(getString(R.string.resource_rpc,peers));
+        new AlertDialog.Builder(this).setTitle(R.string.resource_title).setMessage(report.toString())
+            .setPositiveButton(R.string.close,null).show();
     }
 
     private void beginHardwareSelfTest() {

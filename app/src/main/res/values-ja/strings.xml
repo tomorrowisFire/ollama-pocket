@@ -1086,4 +1086,23 @@
     <string name="knowledge_generate">ローカル回答を生成</string>
     <string name="knowledge_citation_notice">AI 回答: 引用 ID は抜粋が提供されたことだけを示します。主張、事実、OCR の正確さは証明しません。</string>
     <string name="knowledge_citation_ids">一致する引用 ID: %1$s · 不明な ID: %2$s</string>
+    <string name="resource_title">推論アドバイザー</string>
+    <string name="resource_snapshot">読み取り専用のスナップショットです。現在のRAMとキャッシュ済みのインストール情報を表示します。推論・ダウンロード・設定変更は行いません。推定値は読み込みや品質を保証しません。</string>
+    <string name="resource_model">選択タグ：%1$s · 量子化：%2$s</string>
+    <string name="resource_ram">RAMの測定値：合計 %1$d MiB / 利用可能 %2$d MiB</string>
+    <string name="resource_estimate">重み %1$d MiB、推定必要量 %2$d MiB に加えて 512 MiB の余裕（概算）。</string>
+    <string name="resource_hot">中断推奨：現在、熱に関する警告があります。</string>
+    <string name="resource_low">中断推奨：現在、メモリ不足の警告があります。</string>
+    <string name="resource_shortfall">推定メモリ余裕が不足しています。小さいインストール済みモデルやメモリの解放を検討してください。</string>
+    <string name="resource_fit">概算では容量条件を満たします。実際の読み込み・コンテキスト・オフロード・安定性は未検証です。</string>
+    <string name="resource_unknown">モデル容量またはRAM・安全情報が不明なため推奨できません。</string>
+    <string name="resource_alternative">同じカタロググループの小さいインストール済みタグ：%1$s · %2$s · %3$d MiB（容量基準、品質ではありません）。</string>
+    <string name="resource_no_alternative">同じグループ内に推定条件を満たす小さいインストール済みタグは確認できません。</string>
+    <string name="resource_preference">設定済みのローカル推論方式：%1$s</string>
+    <string name="resource_cpu_candidate">CPUが候補です。Vulkan対応またはGPUランナーが確認できません。実際の推論は未検証です。</string>
+    <string name="resource_history_choice">過去の比較結果では %1$s が候補です。キャッシュ済みのモデル識別情報に基づくため、変更前に現在の動作を確認してください。</string>
+    <string name="resource_measure_first">条件を満たす最近の安定したCPU/GPU比較がありません。適切な状況で既存のベンチマークを別途実行してください。</string>
+    <string name="resource_no_route">現在の推定条件ではローカルエンジンを推奨しません。</string>
+    <string name="resource_history_rates">過去の報告生成速度：CPU %1$s / GPU %2$s tok/s（現在の性能ではありません）。</string>
+    <string name="resource_rpc">RPC：現在のホストセッションで準備済みノード %1$d 台。容量とオフロードは未確認で、RPC推奨や接続変更は行いません。</string>
 </resources>

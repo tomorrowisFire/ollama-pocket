@@ -1086,4 +1086,23 @@
     <string name="knowledge_generate">生成本地回答</string>
     <string name="knowledge_citation_notice">AI 回答：引用 ID 仅表示已提供摘录，不证明主张、事实或 OCR 的准确性。</string>
     <string name="knowledge_citation_ids">已知引用 ID：%1$s · 未知 ID：%2$s</string>
+    <string name="resource_title">推理建议</string>
+    <string name="resource_snapshot">只读快照：当前采样的内存及缓存的已安装模型信息。不执行推理、下载或更改设置。估算不保证加载成功或质量。</string>
+    <string name="resource_model">所选标签：%1$s · 量化：%2$s</string>
+    <string name="resource_ram">内存采样：总计 %1$d MiB / 可用 %2$d MiB</string>
+    <string name="resource_estimate">权重 %1$d MiB；预计需要 %2$d MiB，另留 512 MiB 余量（粗略估算）。</string>
+    <string name="resource_hot">建议暂停：当前有过热警告。</string>
+    <string name="resource_low">建议暂停：当前内存不足。</string>
+    <string name="resource_shortfall">预计内存余量不足。考虑较小的已安装版本或释放内存。</string>
+    <string name="resource_fit">粗略容量估算满足条件。实际加载、上下文、卸载和稳定性尚未验证。</string>
+    <string name="resource_unknown">模型大小或内存、安全信息未知；不提供建议。</string>
+    <string name="resource_alternative">同一目录组中较小的已安装标签：%1$s · %2$s · %3$d MiB（仅按大小，不代表质量）。</string>
+    <string name="resource_no_alternative">同组中没有已知符合估算条件的较小已安装标签。</string>
+    <string name="resource_preference">已配置的本地偏好：%1$s</string>
+    <string name="resource_cpu_candidate">CPU 是候选方案；未检测到 Vulkan 支持或 GPU 引擎。实际推理尚未验证。</string>
+    <string name="resource_history_choice">历史对比建议 %1$s。仅基于缓存的模型身份；更改模式前请验证当前行为。</string>
+    <string name="resource_measure_first">没有符合条件的近期稳定 CPU/GPU 对比。适当时单独运行现有基准测试。</string>
+    <string name="resource_no_route">当前估算条件下不推荐本地引擎。</string>
+    <string name="resource_history_rates">历史报告的生成速度：CPU %1$s / GPU %2$s tok/s；并非当前性能。</string>
+    <string name="resource_rpc">RPC：当前主机会话中有 %1$d 个就绪节点。未检查容量和卸载；不推荐 RPC，也不更改连接。</string>
 </resources>

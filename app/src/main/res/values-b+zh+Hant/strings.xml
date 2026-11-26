@@ -1086,4 +1086,23 @@
     <string name="knowledge_generate">產生本機回答</string>
     <string name="knowledge_citation_notice">AI 回答：引用 ID 僅表示已提供摘錄，不證明主張、事實或 OCR 的準確性。</string>
     <string name="knowledge_citation_ids">已知引用 ID：%1$s · 未知 ID：%2$s</string>
+    <string name="resource_title">推論建議</string>
+    <string name="resource_snapshot">唯讀快照：目前取樣的記憶體與快取的已安裝模型資訊。不執行推論、下載或變更設定。估算不保證載入成功或品質。</string>
+    <string name="resource_model">所選標籤：%1$s · 量化：%2$s</string>
+    <string name="resource_ram">記憶體取樣：總計 %1$d MiB / 可用 %2$d MiB</string>
+    <string name="resource_estimate">權重 %1$d MiB；預估需要 %2$d MiB，另留 512 MiB 餘裕（粗略估算）。</string>
+    <string name="resource_hot">建議暫停：目前有過熱警告。</string>
+    <string name="resource_low">建議暫停：目前記憶體不足。</string>
+    <string name="resource_shortfall">預估記憶體餘裕不足。考慮較小的已安裝版本或釋放記憶體。</string>
+    <string name="resource_fit">粗略容量估算符合條件。實際載入、上下文、卸載與穩定性尚未驗證。</string>
+    <string name="resource_unknown">模型大小或記憶體、安全資訊未知；不提供建議。</string>
+    <string name="resource_alternative">同一目錄群組中較小的已安裝標籤：%1$s · %2$s · %3$d MiB（僅按大小，不代表品質）。</string>
+    <string name="resource_no_alternative">同群組中沒有已知符合估算條件的較小已安裝標籤。</string>
+    <string name="resource_preference">已設定的本機偏好：%1$s</string>
+    <string name="resource_cpu_candidate">CPU 是候選方案；未偵測到 Vulkan 支援或 GPU 引擎。實際推論尚未驗證。</string>
+    <string name="resource_history_choice">歷史比較建議 %1$s。僅基於快取的模型身分；變更模式前請驗證目前行為。</string>
+    <string name="resource_measure_first">沒有符合條件的近期穩定 CPU/GPU 比較。適當時另行執行既有基準測試。</string>
+    <string name="resource_no_route">目前估算條件下不建議本機引擎。</string>
+    <string name="resource_history_rates">歷史回報的生成速度：CPU %1$s / GPU %2$s tok/s；並非目前效能。</string>
+    <string name="resource_rpc">RPC：目前主機工作階段有 %1$d 個就緒節點。未檢查容量與卸載；不建議 RPC，也不變更連線。</string>
 </resources>

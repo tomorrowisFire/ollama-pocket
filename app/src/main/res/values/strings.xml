@@ -1086,4 +1086,23 @@
     <string name="knowledge_generate">Generate local answer</string>
     <string name="knowledge_citation_notice">AI answer: citation IDs indicate only that an excerpt was supplied. They do not prove a claim, factual accuracy, or OCR accuracy.</string>
     <string name="knowledge_citation_ids">Known citation IDs: %1$s · Unknown IDs: %2$s</string>
+    <string name="resource_title">Inference advisor</string>
+    <string name="resource_snapshot">Read-only snapshot: sampled RAM and cached installed model metadata. No inference, download, or settings change. Estimates are not a guarantee of loading or quality.</string>
+    <string name="resource_model">Selected tag: %1$s · Quantization: %2$s</string>
+    <string name="resource_ram">Sampled RAM: %1$d MiB total / %2$d MiB available</string>
+    <string name="resource_estimate">Weights %1$d MiB; estimated need %2$d MiB plus 512 MiB headroom (rough only).</string>
+    <string name="resource_hot">Pause: current thermal warning.</string>
+    <string name="resource_low">Pause: current low-memory warning.</string>
+    <string name="resource_shortfall">Estimated headroom insufficient. Consider a smaller installed variant or free memory.</string>
+    <string name="resource_fit">Rough capacity estimate fits. Actual loading, context, offload and stability remain unverified.</string>
+    <string name="resource_unknown">Model size or RAM/safety telemetry is unknown; no recommendation.</string>
+    <string name="resource_alternative">Smaller installed tag in the same catalog group: %1$s · %2$s · %3$d MiB (size, not quality).</string>
+    <string name="resource_no_alternative">No known smaller fitting installed tag in the same group.</string>
+    <string name="resource_preference">Configured local preference: %1$s</string>
+    <string name="resource_cpu_candidate">CPU is a candidate; Vulkan support or packaged GPU runner is missing. Actual inference is not verified.</string>
+    <string name="resource_history_choice">Historical comparison suggests %1$s. Cached model identity only; verify current behavior before changing mode.</string>
+    <string name="resource_measure_first">No eligible recent stable CPU/GPU comparison. Run the existing benchmark separately when appropriate.</string>
+    <string name="resource_no_route">No local engine recommendation under this estimate.</string>
+    <string name="resource_history_rates">Past reported decode rates: CPU %1$s / GPU %2$s tok/s; not current performance.</string>
+    <string name="resource_rpc">RPC: %1$d ready peer(s) in current host session. Capacity and offload not checked; no RPC recommendation or connection change.</string>
 </resources>

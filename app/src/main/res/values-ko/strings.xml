@@ -1086,4 +1086,23 @@
     <string name="knowledge_generate">로컬 답변 생성</string>
     <string name="knowledge_citation_notice">AI 답변: 인용 ID는 발췌문 제공 여부만 나타냅니다. 주장이나 사실·OCR 정확성을 검증하지 않습니다.</string>
     <string name="knowledge_citation_ids">일치 인용 ID: %1$s · 미확인 ID: %2$s</string>
+    <string name="resource_title">추론 추천 분석</string>
+    <string name="resource_snapshot">읽기 전용 현황: 현재 샘플링한 RAM과 캐시된 설치 모델 정보입니다. 추론·다운로드·설정 변경 없이 확인합니다. 추정치는 로딩 및 품질을 보장하지 않습니다.</string>
+    <string name="resource_model">선택 태그: %1$s · 양자화: %2$s</string>
+    <string name="resource_ram">샘플링 RAM: 총 %1$d MiB / 가용 %2$d MiB</string>
+    <string name="resource_estimate">가중치 %1$d MiB, 예상 필요량 %2$d MiB 및 추가 여유 512 MiB(개략 추정).</string>
+    <string name="resource_hot">대기 권장: 현재 과열 경고 상태입니다.</string>
+    <string name="resource_low">대기 권장: 현재 저메모리 경고 상태입니다.</string>
+    <string name="resource_shortfall">예상 여유 RAM이 부족합니다. 더 작은 설치 모델을 검토하거나 메모리를 확보하세요.</string>
+    <string name="resource_fit">개략 용량 추정 조건을 충족합니다. 실제 로딩·문맥·오프로딩·안정성은 미검증입니다.</string>
+    <string name="resource_unknown">모델 용량 또는 RAM·안전 정보가 불확실하여 추천할 수 없습니다.</string>
+    <string name="resource_alternative">동일 카탈로그 그룹의 더 작은 설치 태그: %1$s · %2$s · %3$d MiB(용량 기준, 품질 아님).</string>
+    <string name="resource_no_alternative">동일 그룹에서 추정 조건을 충족하는 더 작은 설치 태그가 없습니다.</string>
+    <string name="resource_preference">설정된 로컬 추론 방식: %1$s</string>
+    <string name="resource_cpu_candidate">CPU가 후보입니다. Vulkan 지원 또는 GPU 엔진이 확인되지 않았습니다. 실제 추론은 미검증입니다.</string>
+    <string name="resource_history_choice">이전 비교 실측은 %1$s를 추천합니다. 캐시된 모델 식별 기준이며 설정 변경 전 현재 동작을 검증하세요.</string>
+    <string name="resource_measure_first">조건을 충족하는 최근 CPU/GPU 비교 실측이 없습니다. 적절할 때 기존 벤치마크를 별도로 실행하세요.</string>
+    <string name="resource_no_route">현재 추정 조건에서는 로컬 엔진을 추천하지 않습니다.</string>
+    <string name="resource_history_rates">이전 보고된 생성 속도: CPU %1$s / GPU %2$s tok/s(현재 성능 아님).</string>
+    <string name="resource_rpc">RPC: 현재 호스트 세션 준비 노드 %1$d대. 용량·오프로딩은 미확인이며 RPC 추천이나 연결 변경은 하지 않습니다.</string>
 </resources>
