@@ -50,6 +50,9 @@ on:
       - 'app/src/main/java/com/ollamapocket/app/BenchmarkStats.java'
       - 'app/src/main/res/**'
       - 'app/build.gradle'
+      - 'build.gradle'
+      - 'scripts/release_audit.py'
+      - 'tests/test_release_audit.py'
 
 jobs:
   secure-relay-unit-test:
@@ -168,7 +171,7 @@ jobs:
           echo "ANDROID_HOME=$sdk" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$sdk" >> "$GITHUB_ENV"
           yes | "$sdk/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
-          "$sdk/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.2.12479018'
+          "$sdk/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-36' 'build-tools;35.0.0' 'ndk;27.2.12479018'
       - name: Fetch pinned CPU/Vulkan base APK
         uses: actions/download-artifact@v4
         with:
@@ -199,7 +202,7 @@ jobs:
           bash scripts/build_rpc_cpu.sh
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.9'
+          gradle-version: '8.13'
       - name: Provision stable signing key (when repository secrets are configured)
         shell: bash
         env:
@@ -375,3 +378,41 @@ jobs:
           path: dist/*.apk
           if-no-files-found: error
           retention-days: 30
+
+      - name: Audit release candidate prerequisites and complete native payload
+        run: python3 -m unittest discover -s tests -p test_release_audit.py
+      - name: Build unsigned QA bundle (sample ad ID, not for Play submission)
+        env:
+          AI_POCKET_KEYSTORE_FILE: ''
+          AI_POCKET_KEYSTORE_PASSWORD: ''
+          ADMOB_APP_ID: ''
+        run: gradle --no-daemon :app:bundleRelease -PONHAND_UNSIGNED_QA=true
+      - name: Audit all packaged ARM64 native ELF segments and stored APK alignment
+        shell: bash
+        run: |
+          set +e
+          mkdir -p release-audit
+          python3 scripts/release_audit.py app/build/outputs/apk/debug/app-debug.apk --report release-audit/apk-16k.json
+          apk_result=$?
+          python3 scripts/release_audit.py app/build/outputs/bundle/release/app-release.aab --report release-audit/aab-16k.json
+          aab_result=$?
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/zipalign" -c -P 16 -v 4 app/build/outputs/apk/debug/app-debug.apk > release-audit/zipalign.txt 2>&1
+          zip_result=$?
+          printf 'APK=%s AAB=%s ZIPALIGN=%s\n' "$apk_result" "$aab_result" "$zip_result" | tee release-audit/status.txt
+          test "$apk_result" = 0 && test "$aab_result" = 0 && test "$zip_result" = 0
+      - name: Upload 16 KB audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OnHand-Release-Compatibility-Audit
+          path: release-audit/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Upload unsigned QA-only app bundle
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OnHand-QA-UNSIGNED-NOT-FOR-PLAY
+          path: app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 14

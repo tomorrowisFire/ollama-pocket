@@ -203,13 +203,17 @@ public final class MainActivity extends Activity {
     private AutomationUi automationUi;
     private TextView diagnosticStatus, performanceHudView;
     private volatile PerformanceHud.Sample lastHud;
+    private volatile boolean hudPollBusy;
     private final Runnable hudPoll=new Runnable() {
         @Override public void run() {
+            if(!foreground||isFinishing()||isDestroyed())return;
+            if(hudPollBusy||(!showHud&&activeTab!=3)){ui.postDelayed(this,2500);return;}
+            hudPollBusy=true;
             io.execute(()->{
                 try{
                     PerformanceHud.Sample reading=PerformanceHud.sample(getApplicationContext());
                     ui.post(()->{
-                        if(isFinishing()||isDestroyed())return;
+                        if(!foreground||isFinishing()||isDestroyed())return;
                         lastHud=reading;
                         if(performanceHudView!=null){
                             String identity=deviceProfile==null?getString(R.string.hud_check):getString(R.string.hud_identity,deviceProfile.device,deviceProfile.cores);
@@ -220,10 +224,10 @@ public final class MainActivity extends Activity {
                     });
                 }catch(Exception e){
                     ui.post(()->{
-                        if(performanceHudView!=null&&!isFinishing())
+                        if(foreground&&performanceHudView!=null&&!isFinishing()&&!isDestroyed())
                             performanceHudView.setText(getString(R.string.hud_retry));
                     });
-                }
+                }finally{hudPollBusy=false;}
             });
             ui.postDelayed(this,2500);
         }
@@ -252,7 +256,7 @@ public final class MainActivity extends Activity {
         @Override public void run() {
             serverStatus.setText(OllamaForegroundService.isRunning() ?
                 getString(R.string.server_running) : getString(R.string.server_wait));
-            logText.setText(OllamaForegroundService.logs() + "\n--- GPU Vulkan ---\n" + GpuRunner.logs());
+            if(activeTab==2)logText.setText(OllamaForegroundService.logs() + "\n--- GPU Vulkan ---\n" + GpuRunner.logs());
             if (!serverPollBusy) {
                 serverPollBusy = true;
                 io.execute(() -> {
@@ -426,6 +430,7 @@ public final class MainActivity extends Activity {
         super.onResume();
         foreground=true;
         if(guestOnly)return;
+        if(ads!=null){ads.resume();if(getPreferences(MODE_PRIVATE).getBoolean("welcome_v2_seen",false))ads.prepareConsent();}
         if(cloudMode&&cloudPanel!=null)cloudPanel.resume();
         ui.post(poll);
         ui.post(hudPoll);
@@ -441,6 +446,7 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onPause() {
         foreground=false;
+        if(ads!=null)ads.pause();
         if(automationUi!=null)automationUi.pause();
         if(localTransferDialog!=null){localTransferDialog.dismiss();localTransferDialog=null;}
         saveLocalDraft();

@@ -38,7 +38,7 @@ jobs:
       - name: Install Android platform + NDK
         run: |
           yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.2.12479018'
+          sdkmanager 'platforms;android-36' 'build-tools;35.0.0' 'ndk;27.2.12479018'
           cmake --version
           ninja --version
 
@@ -109,7 +109,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.9'
+          gradle-version: '8.13'
 
       - name: Include upstream open-source license notices
         shell: bash

@@ -4,6 +4,8 @@ plugins {
 
 def publisherAdMobAppId = (findProperty('ADMOB_APP_ID') ?: System.getenv('ADMOB_APP_ID') ?: '').toString()
 def sampleAdMobAppId = 'ca-app-pub-3940256099942544~3347511713'
+// Explicit unsigned QA bundle only; never activate live ad requests.
+def unsignedQa = (findProperty('ONHAND_UNSIGNED_QA') ?: 'false').toString() == 'true'
 // Optional durable signing identity provided ONLY through Actions secrets / environment.
 // Never commit keystores or passwords to this public repository.
 def localStore = System.getenv('AI_POCKET_KEYSTORE_FILE') ?: ''
@@ -12,12 +14,12 @@ def stableSigning = localStore && localPassword && file(localStore).isFile()
 
 android {
     namespace 'com.ollamapocket.app'
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         applicationId 'io.github.tomorrowisfire.aiinpocket'
         minSdk 26
-        targetSdk 35
+        targetSdk 36
         versionCode 25
         versionName '0.12.0-dev'
         ndk { abiFilters 'arm64-v8a' }
@@ -49,7 +51,7 @@ android {
         }
         release {
             minifyEnabled false
-            manifestPlaceholders = [admobAppId: publisherAdMobAppId ?: sampleAdMobAppId]
+            manifestPlaceholders = [admobAppId: unsignedQa ? sampleAdMobAppId : (publisherAdMobAppId ?: sampleAdMobAppId)]
         }
     }
 
@@ -94,6 +96,10 @@ preBuild.dependsOn checkComputeProbe
 // Production requires the publisher's AdMob app ID (with ~), not an ad unit ID (with /).
 tasks.register('verifyReleaseAdMobId') {
     doLast {
+        if (unsignedQa) {
+            logger.lifecycle('Unsigned QA bundle only: sample AdMob application ID, production ads locked')
+            return
+        }
         if (!(publisherAdMobAppId ==~ /ca-app-pub-[0-9]{16}~[0-9]{10}/)) {
             throw new GradleException('Release build requires ADMOB_APP_ID=ca-app-pub-<publisher>~<app>')
         }

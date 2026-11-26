@@ -57,6 +57,10 @@ public final class AdSupport {
     private boolean sdkInitStarted;
     private boolean adsInitialized;
     private boolean disposed;
+    private boolean foreground;
+    private boolean consentFlowActive;
+    private boolean privacyShowing;
+    private int adGeneration;
 
     public AdSupport(Activity activity) {
         this.activity = activity;
@@ -107,26 +111,26 @@ public final class AdSupport {
     public void prepareConsent() {
         if (disposed || consentRequestStarted || !isEnabled()) return;
         consentRequestStarted = true;
+        consentFlowActive = true;
         ConsentRequestParameters params = new ConsentRequestParameters.Builder().build();
         consent.requestConsentInfoUpdate(activity, params,
             () -> {
                 if (disposed) return;
                 UserMessagingPlatform.loadAndShowConsentFormIfRequired(activity, formError -> {
+                    consentFlowActive=false;
                     if (!disposed) maybeLoadAfterConsent();
                 });
-                // Cached previous consent can be eligible while forms are being checked.
-                if (consent.canRequestAds()) maybeLoadAfterConsent();
             },
-            requestError -> { if (!disposed) maybeLoadAfterConsent(); });
+            requestError -> { consentFlowActive=false; if (!disposed) maybeLoadAfterConsent(); });
     }
 
     private void maybeLoadAfterConsent() {
+        if(disposed||consentFlowActive||privacyShowing)return;
         if (!consent.canRequestAds()) {
-            for (FrameLayout parent : new ArrayList<>(requested))
-                status(parent, activity.getString(R.string.ad_consent_required));
+            clearLoadedAds(R.string.ad_consent_required);
             return;
         }
-        if (!isEnabled())return;
+        if (!isEnabled()||!foreground)return;
         if (!adsInitialized) {
             if(!sdkInitStarted){
                 sdkInitStarted=true;
@@ -143,7 +147,7 @@ public final class AdSupport {
     }
 
     private void load(FrameLayout parent) {
-        if (disposed || !isEnabled() || !adsInitialized || !consent.canRequestAds()
+        if (disposed || !foreground || consentFlowActive || privacyShowing || !isEnabled() || !adsInitialized || !consent.canRequestAds()
                 || !placements.containsKey(parent) || !requested.contains(parent) || live.containsKey(parent)) return;
         // Preserve standard 320dp banner; adapt only narrow slots instead of clipping the ad.
         if (parent.getWindowToken() == null) return;
@@ -177,28 +181,31 @@ public final class AdSupport {
 
     /** Preload a closeable app-open ad for a later foreground entry; never interrupt onboarding. */
     private void preloadAppOpen() {
-        if (disposed || !isEnabled() || !consent.canRequestAds() || appOpenLoading) return;
+        if (disposed || !foreground || consentFlowActive || privacyShowing || !adsInitialized || !isEnabled() || !consent.canRequestAds() || appOpenLoading) return;
         long now = android.os.SystemClock.elapsedRealtime();
         if (appOpenAd != null && now - appOpenLoadedTime < APP_OPEN_TTL) return;
         appOpenAd = null;
         appOpenLoading = true;
+        final int generation=adGeneration;
         AppOpenAd.load(activity, BuildConfig.DEBUG ? DEMO_APP_OPEN : LIVE_APP_OPEN,
             new AdRequest.Builder().build(), new AppOpenAd.AppOpenAdLoadCallback() {
                 @Override public void onAdLoaded(AppOpenAd ad) {
-                    if (disposed) return;
+                    if (disposed||generation!=adGeneration) return;
+                    appOpenLoading=false;
+                    if(!isEnabled()||!consent.canRequestAds()||privacyShowing)return;
                     appOpenAd = ad;
                     appOpenLoadedTime = android.os.SystemClock.elapsedRealtime();
                     appOpenLoading = false;
                 }
                 @Override public void onAdFailedToLoad(LoadAdError error) {
-                    appOpenLoading = false;
+                    if(generation==adGeneration)appOpenLoading = false;
                 }
             });
     }
 
     /** Called only when returning to the app after a meaningful absence. */
     public void showAppOpenIfReady() {
-        if (disposed || !isEnabled() || !consent.canRequestAds() || appOpenShowing) return;
+        if (disposed || !foreground || consentFlowActive || privacyShowing || !isEnabled() || !consent.canRequestAds() || appOpenShowing || activity.isFinishing() || activity.isDestroyed()) return;
         for(FrameLayout parent:requested){
             if(PLACEMENT_ONBOARDING.equals(placements.get(parent)) || (live.containsKey(parent)&&parent.isShown()))return;
         }
@@ -222,14 +229,19 @@ public final class AdSupport {
             }
         });
         lastAppOpenShownTime = now;
-        ad.show(activity);
+        try{ad.show(activity);}catch(RuntimeException e){appOpenShowing=false;}
     }
 
     public void showPrivacyChoices() {
+        if(disposed||consentFlowActive||privacyShowing)return;
+        if(!BuildConfig.DEBUG){new AlertDialog.Builder(activity).setTitle(R.string.privacy_settings).setMessage(R.string.ad_off).setPositiveButton(R.string.close,null).show();return;}
         if (consent.getPrivacyOptionsRequirementStatus()
                 == ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED) {
+            privacyShowing=true;
+            clearLoadedAds(R.string.ad_consent_check);
             UserMessagingPlatform.showPrivacyOptionsForm(activity, error -> {
-                if (consent.canRequestAds()) maybeLoadAfterConsent();
+                privacyShowing=false;
+                if (!disposed) maybeLoadAfterConsent();
             });
         } else {
             new AlertDialog.Builder(activity)
@@ -244,12 +256,23 @@ public final class AdSupport {
 
     private void disable() {
         prefs.edit().putBoolean("enabled", false).apply();
-        appOpenAd = null;
+        clearLoadedAds(R.string.ad_off);
+    }
+
+    private void clearLoadedAds(int message){
+        adGeneration++;appOpenLoading=false;appOpenAd=null;
         for (FrameLayout parent : new ArrayList<>(requested)) {
             AdView view = live.remove(parent);
             if (view != null) view.destroy();
-            status(parent, activity.getString(R.string.ad_off));
+            status(parent, activity.getString(message));
         }
+    }
+    public void pause(){foreground=false;for(AdView view:new ArrayList<>(live.values()))view.pause();}
+    public void resume(){
+        if(disposed)return;foreground=true;
+        if(!isEnabled()){clearLoadedAds(R.string.ad_off);return;}
+        if(!consentFlowActive&&!privacyShowing&&consent.canRequestAds())for(AdView view:new ArrayList<>(live.values()))view.resume();
+        if(consentRequestStarted)maybeLoadAfterConsent();
     }
 
     private void enable() {
@@ -269,7 +292,7 @@ public final class AdSupport {
     }
 
     public void destroy() {
-        disposed = true;
+        disposed = true;foreground=false;adGeneration++;appOpenLoading=false;
         for(Map.Entry<FrameLayout,View.OnLayoutChangeListener> e:layoutListeners.entrySet())
             e.getKey().removeOnLayoutChangeListener(e.getValue());
         layoutListeners.clear();

@@ -35,7 +35,7 @@ jobs:
           echo "ANDROID_HOME=$sdk" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$sdk" >> "$GITHUB_ENV"
           yes | "$sdk/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
-          "$sdk/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.2.12479018'
+          "$sdk/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-36' 'build-tools;35.0.0' 'ndk;27.2.12479018'
       - name: Reuse already-compiled trusted CPU Android APK
         uses: actions/download-artifact@v4
         with:
@@ -71,7 +71,7 @@ jobs:
           bash scripts/build_vulkan_gpu.sh
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.9'
+          gradle-version: '8.13'
       - name: Build APK including CPU Ollama + Vulkan llama.cpp
         run: gradle --no-daemon :app:assembleDebug
       - name: Verify all CPU/GPU modules are embedded
