@@ -39,6 +39,7 @@ final class DocumentBatchReport {
                 throw new IllegalArgumentException("Stop reason");
         }else if(stopReason!=null)throw new IllegalArgumentException("Unexpected stop reason");
         List<DocumentBatchPolicy.Note> notes=new ArrayList<>();
+        int recordedRequests=result.groupsDone+(success?1:0);
         for(int i=0;i<result.notes.size();i++){
             DocumentBatchPolicy.Note note=result.notes.get(i);
             // Only the actual unit instance from this immutable plan is accepted.
@@ -46,7 +47,13 @@ final class DocumentBatchReport {
                 note.text.trim().isEmpty()||note.text.length()>DocumentBatchPolicy.NOTE_CHARS)
                 throw new IllegalArgumentException("Invalid completed prefix");
             notes.add(note);
+            if(!note.unit.text.trim().isEmpty())recordedRequests++;
         }
+        // A committed note/group/final synthesis must have a corresponding dispatched
+        // request (except whitespace-only ledger entries). An interrupted request may
+        // be counted without a completed record. A successful run has no failed retry.
+        if(requests<recordedRequests||(success&&requests!=recordedRequests))
+            throw new IllegalArgumentException("Inconsistent request count");
         this.plan=plan;this.result=result;this.model=model;this.stopReason=stopReason;
         this.requests=requests;this.elapsedMillis=elapsedMillis;
         completed=Collections.unmodifiableList(notes);

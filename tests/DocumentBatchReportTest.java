@@ -13,9 +13,13 @@ public final class DocumentBatchReportTest {
         DocumentBatchPolicy.Source pdf=new DocumentBatchPolicy.Source("日本語.pdf","PDF-EXTRACTED",DocumentBatchPolicy.Kind.PDF,true,40,12,10);
         DocumentBatchPolicy.Plan plan=new DocumentBatchPolicy.Plan("Compare \"values\" 中文😀",List.of(text,pdf));
         ok(plan.units.size()==3);
-        String generated="note \"quoted\"\n한글 😀 \u0000";
+        // The analysis policy trims outer whitespace/control characters. The export
+        // must preserve the recorded note, including internal control characters.
+        String generated="note \"quoted\"\n한글 😀 \u0000 inside";
+        String rawGenerated="  "+generated+" \u0000";
+        ok(DocumentBatchPolicy.checked(rawGenerated,DocumentBatchPolicy.NOTE_CHARS).equals(generated));
         DocumentBatchPolicy.Result full=DocumentBatchPolicy.analyze(plan,(prompt,chars,tokens)->
-            prompt.contains("BEGIN SOURCE")?generated:prompt.contains("final analysis")?"Summary [D1-S1, D2-S1] [D9-S1]":"summary",
+            prompt.contains("BEGIN SOURCE")?rawGenerated:prompt.contains("final analysis")?"Summary [D1-S1, D2-S1] [D9-S1]":"summary",
             ()->false,x->{});
         ok(full.status==DocumentBatchPolicy.Status.COMPLETED);
         DocumentBatchReport report=new DocumentBatchReport(plan,full,"model:test",null,5,1234);
@@ -49,11 +53,16 @@ public final class DocumentBatchReportTest {
         ok(pj.getJSONArray("sources").getJSONObject(0).getInt("completed_utf16")==1400&&pj.getJSONArray("sources").getJSONObject(1).getInt("completed_utf16")==0);
         ok(pj.getJSONArray("known_citation_ids").length()==0&&pj.getJSONArray("unknown_citation_ids").length()==0);
         DocumentBatchPolicy.Result failed=new DocumentBatchPolicy.Result(DocumentBatchPolicy.Status.FAILED,full.notes,1,"",true);
+        rejects(()->new DocumentBatchReport(plan,failed,"m",null,3,200));
         JSONObject fj=new JSONObject(new DocumentBatchReport(plan,failed,"m",null,5,200).json());
         ok(fj.getString("status").equals("FAILED")&&fj.getBoolean("context_limited")&&fj.isNull("synthesis"));
         rejects(()->new DocumentBatchReport(plan,stopped,"m",null,1,0));
         rejects(()->new DocumentBatchReport(plan,full,"m","USER",5,0));
         rejects(()->new DocumentBatchReport(plan,full,"m",null,49,0));
+        rejects(()->new DocumentBatchReport(plan,full,"m",null,4,0));
+        rejects(()->new DocumentBatchReport(plan,full,"m",null,6,0));
+        rejects(()->new DocumentBatchReport(plan,stopped,"m","USER",0,0));
+        ok(new DocumentBatchReport(plan,stopped,"m","USER",1,0).requests==1);
         rejects(()->new DocumentBatchReport(plan,full,"m",null,5,-1));
         rejects(()->new DocumentBatchReport(plan,full,"",null,5,0));
         rejects(()->new DocumentBatchReport(plan,new DocumentBatchPolicy.Result(DocumentBatchPolicy.Status.COMPLETED,List.of(first),0,"fake"),"m",null,1,0));
@@ -70,6 +79,8 @@ public final class DocumentBatchReportTest {
         DocumentBatchPolicy.Result wr=DocumentBatchPolicy.analyze(ws,(prompt,chars,tokens)->"ok [D1-S1] [D1-S2]",()->false,x->{});
         DocumentBatchReport w=new DocumentBatchReport(ws,wr,"m",null,3,10);
         ok(w.lookup("D1-S1")!=null&&!w.hasExtractedEvidence(w.lookup("D1-S1"))&&w.extracted(w.lookup("D1-S1")).equals(" ".repeat(1400)));
+        ok(w.requests==3); // whitespace-only record does not consume a map request
+        rejects(()->new DocumentBatchReport(ws,wr,"m",null,2,10));
         JSONObject wj=new JSONObject(w.json());
         ok(wj.getJSONArray("notes").getJSONObject(0).getString("record_kind").equals("WHITESPACE_ONLY")&&wj.getJSONArray("notes").getJSONObject(0).isNull("note"));
         ok(w.citations.unknown.equals(List.of("D1-S1"))&&w.citations.valid.equals(List.of("D1-S2")));
