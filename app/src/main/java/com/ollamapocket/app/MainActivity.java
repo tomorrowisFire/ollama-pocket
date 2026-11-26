@@ -87,6 +87,20 @@ public final class MainActivity extends Activity {
     private boolean guestOnly, foreground, speakNextAnswer;
     private OnHandsVoice voice;
     private Button voiceButton, cloudShortcut, exportConversation;
+    private TextView voiceStateView;
+    private final Runnable voiceStatePoll=new Runnable(){public void run(){
+        if(!foreground||isFinishing()||isDestroyed())return;
+        refreshVoiceState();ui.postDelayed(this,250);
+    }};
+    private void refreshVoiceState(){
+        if(voiceStateView==null||voiceButton==null)return;
+        boolean active=voice!=null&&(voice.continuous()||voice.listening()||voice.speaking());
+        int label=!active?0:chatBusy?R.string.thinking:voice.listening()?R.string.listening:voice.speaking()?R.string.voice_turn:R.string.voice;
+        voiceStateView.setVisibility(active?View.VISIBLE:View.GONE);
+        if(active){String next=getString(label);if(!next.contentEquals(voiceStateView.getText()))voiceStateView.setText(next);}
+        voiceButton.setContentDescription(getString(active?R.string.stop:R.string.voice));
+        voiceButton.setEnabled(!chatBusy||active);
+    }
     private final ExecutorService chatSearchIo=Executors.newSingleThreadExecutor();
     private java.util.concurrent.Future<?> chatSearchTask;
     private long chatSearchSerial;
@@ -403,6 +417,7 @@ public final class MainActivity extends Activity {
         if(cloudMode&&cloudPanel!=null)cloudPanel.resume();
         ui.post(poll);
         ui.post(hudPoll);
+        ui.removeCallbacks(voiceStatePoll);ui.post(voiceStatePoll);
         ui.removeCallbacks(sunsetThemePoll);
         ui.post(sunsetThemePoll);
         long now = android.os.SystemClock.elapsedRealtime();
@@ -421,6 +436,7 @@ public final class MainActivity extends Activity {
         lastPauseElapsed = android.os.SystemClock.elapsedRealtime();
         ui.removeCallbacks(poll);
         ui.removeCallbacks(hudPoll);
+        ui.removeCallbacks(voiceStatePoll);
         ui.removeCallbacks(sunsetThemePoll);
         super.onPause();
     }
@@ -812,6 +828,7 @@ public final class MainActivity extends Activity {
                 String model = knownModels.get(position);
                 if (model.equals(currentModel)) return;
                 if (chatBusy||attachmentReading) { toast(getString(R.string.model_wait)); return; }
+                if(voice!=null)voice.cancel();
                 saveLocalDraft();
                 currentModel = model;
                 getPreferences(MODE_PRIVATE).edit().putString("model", model).apply();
@@ -846,6 +863,10 @@ public final class MainActivity extends Activity {
         stopChatButton = button("■", false);
         stopChatButton.setContentDescription(getString(R.string.stop));
         rowItem(composer, stopChatButton, 0, 0);
+        voiceStateView=text("",12,MUTED,false);
+        voiceStateView.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        voiceStateView.setVisibility(View.GONE);
+        margin(voiceStateView,localChatContent,4,0);
         margin(composer, localChatContent, 8, 2);
         stopChatButton.setEnabled(false);stopChatButton.setVisibility(View.GONE);
         sendButton.setMinWidth(dp(48));sendButton.setMinimumWidth(dp(48));
