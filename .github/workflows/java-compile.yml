@@ -10,6 +10,7 @@ on:
       - '.github/workflows/java-compile.yml'
       - 'app/src/main/res/**'
       - 'tests/ChatMarkupTest.java'
+      - 'tests/CloudPolicyTest.java'
 
 jobs:
   compile:
@@ -29,6 +30,11 @@ jobs:
           mkdir -p /tmp/chat-markup-tests
           javac -d /tmp/chat-markup-tests app/src/main/java/com/ollamapocket/app/ChatMarkup.java tests/ChatMarkupTest.java
           java -cp /tmp/chat-markup-tests com.ollamapocket.app.ChatMarkupTest
+      - name: Test cloud scope and authenticated encryption (pure Java)
+        run: |
+          mkdir -p /tmp/cloud-tests
+          javac -d /tmp/cloud-tests app/src/main/java/com/ollamapocket/app/CloudHistory.java app/src/main/java/com/ollamapocket/app/CloudKeyCipher.java tests/CloudPolicyTest.java
+          java -cp /tmp/cloud-tests com.ollamapocket.app.CloudPolicyTest
       - name: Android SDK
         shell: bash
         run: |

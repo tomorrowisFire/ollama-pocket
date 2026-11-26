@@ -146,4 +146,21 @@
     <string name="drawer_close">关闭菜单</string>
     <string name="ad_label">广告</string>
     <string name="ad_test">测试广告</string>
+    <string name="cloud_config">云端设置</string>
+    <string name="cloud_return">本地对话</string>
+    <string name="cloud_provider_model">选择服务商和模型</string>
+    <string name="cloud_context_notice">仅将此云端对话发送给所选服务商，不发送本地对话。可能产生 API 费用。云端对话仅在应用关闭前保存在内存中。</string>
+    <string name="cloud_key_remember">在此设备上加密保存密钥</string>
+    <string name="cloud_key_load">使用已保存的密钥</string>
+    <string name="cloud_key_delete">删除已保存的密钥</string>
+    <string name="cloud_key_deleted">已删除保存的密钥</string>
+    <string name="cloud_key_missing">此服务商没有保存的密钥</string>
+    <string name="cloud_key_error">无法访问加密密钥。请检查设备安全状态或重新输入密钥。</string>
+    <string name="cloud_key_needed">请在云端设置中输入或加载 API 密钥</string>
+    <string name="cloud_send_context">将此云端对话发送到 %1$s？将发送包括新问题在内的 %2$d 条消息。可能产生 API 费用。</string>
+    <string name="cloud_reset">清除此云端对话？本地对话不受影响。</string>
+    <string name="cloud_history_limit">为限制内存和费用，仅保留和发送最近完成的对话。</string>
+    <string name="cloud_cancel_cost">请求已取消。服务商仍可能对已发送的请求收费。</string>
+    <string name="cloud_session_limit">云端会话过多。重新启动应用可清空内存会话。</string>
+    <string name="cloud_key_clear_confirm">删除此服务商加密保存的 API 密钥？</string>
 </resources>

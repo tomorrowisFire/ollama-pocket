@@ -146,4 +146,21 @@
     <string name="drawer_close">メニューを閉じる</string>
     <string name="ad_label">広告</string>
     <string name="ad_test">テスト広告</string>
+    <string name="cloud_config">クラウド設定</string>
+    <string name="cloud_return">ローカルチャット</string>
+    <string name="cloud_provider_model">提供元とモデルを選択</string>
+    <string name="cloud_context_notice">選択した提供元にはこのクラウド会話のみ送信します。ローカル履歴は送信しません。API 料金が発生する場合があり、クラウド履歴はアプリ終了までメモリに保持されます。</string>
+    <string name="cloud_key_remember">この端末に API キーを暗号化して保存</string>
+    <string name="cloud_key_load">保存済みキーを使う</string>
+    <string name="cloud_key_delete">保存済みキーを削除</string>
+    <string name="cloud_key_deleted">保存済みキーを削除しました</string>
+    <string name="cloud_key_missing">この提供元の保存済みキーはありません</string>
+    <string name="cloud_key_error">暗号化キーにアクセスできません。端末のセキュリティ設定を確認するか、キーを入力し直してください。</string>
+    <string name="cloud_key_needed">クラウド設定で API キーを入力または読み込んでください</string>
+    <string name="cloud_send_context">%1$s にこのクラウド会話を送信しますか？新しい質問を含む %2$d 件のメッセージを送信します。API 料金が発生する場合があります。</string>
+    <string name="cloud_reset">このクラウド会話を消去しますか？ローカル会話には影響しません。</string>
+    <string name="cloud_history_limit">メモリと費用を抑えるため、最近の完了した会話のみ保持・送信します。</string>
+    <string name="cloud_cancel_cost">リクエストを取り消しました。送信済みのリクエストには料金が発生する場合があります。</string>
+    <string name="cloud_session_limit">クラウドセッションが多すぎます。アプリを再起動してメモリ内の会話を消去してください。</string>
+    <string name="cloud_key_clear_confirm">この提供元の暗号化保存済み API キーを削除しますか？</string>
 </resources>

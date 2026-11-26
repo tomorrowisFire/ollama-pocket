@@ -146,4 +146,21 @@
     <string name="drawer_close">사이드바 닫기</string>
     <string name="ad_label">광고</string>
     <string name="ad_test">테스트 광고</string>
+    <string name="cloud_config">클라우드 설정</string>
+    <string name="cloud_return">로컬 채팅</string>
+    <string name="cloud_provider_model">제공사 및 모델 선택</string>
+    <string name="cloud_context_notice">선택한 제공사에는 이 클라우드 대화만 전송합니다. 로컬 대화는 전송하지 않습니다. API 비용이 발생할 수 있으며 클라우드 대화는 앱 종료 전까지 메모리에 보관됩니다.</string>
+    <string name="cloud_key_remember">이 기기에 API 키 암호화 저장</string>
+    <string name="cloud_key_load">저장된 키 사용</string>
+    <string name="cloud_key_delete">저장된 키 삭제</string>
+    <string name="cloud_key_deleted">저장된 키 삭제 완료</string>
+    <string name="cloud_key_missing">해당 제공사의 저장된 키가 없습니다</string>
+    <string name="cloud_key_error">암호화된 키에 접근하지 못했습니다. 기기 보안 상태를 확인하거나 키를 다시 입력하세요.</string>
+    <string name="cloud_key_needed">클라우드 설정에서 API 키를 입력하거나 불러오세요</string>
+    <string name="cloud_send_context">%1$s에 이 클라우드 대화를 전송할까요? 새 질문을 포함한 메시지 %2$d개가 전송됩니다. API 비용이 발생할 수 있습니다.</string>
+    <string name="cloud_reset">이 클라우드 대화를 지울까요? 로컬 대화에는 영향이 없습니다.</string>
+    <string name="cloud_history_limit">메모리와 비용을 제한하기 위해 최근 완료된 대화만 보관·전송합니다.</string>
+    <string name="cloud_cancel_cost">요청을 취소했습니다. 이미 전송된 요청은 제공사에서 과금할 수 있습니다.</string>
+    <string name="cloud_session_limit">클라우드 세션이 너무 많습니다. 앱을 다시 시작하면 메모리 세션이 초기화됩니다.</string>
+    <string name="cloud_key_clear_confirm">이 제공사의 저장된 API 키를 삭제할까요?</string>
 </resources>

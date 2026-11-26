@@ -146,4 +146,21 @@
     <string name="drawer_close">Close menu</string>
     <string name="ad_label">Advertisement</string>
     <string name="ad_test">Test advertisement</string>
+    <string name="cloud_config">Cloud settings</string>
+    <string name="cloud_return">Local chat</string>
+    <string name="cloud_provider_model">Choose provider and model</string>
+    <string name="cloud_context_notice">Only this cloud conversation is sent to the selected provider. Local chat history is never sent. API charges may apply. Cloud conversations are kept in memory until the app closes.</string>
+    <string name="cloud_key_remember">Save key encrypted on this device</string>
+    <string name="cloud_key_load">Use saved key</string>
+    <string name="cloud_key_delete">Delete saved key</string>
+    <string name="cloud_key_deleted">Saved key removed</string>
+    <string name="cloud_key_missing">No saved key for this provider</string>
+    <string name="cloud_key_error">Could not access the encrypted key. Check device security or enter the key again.</string>
+    <string name="cloud_key_needed">Enter or load an API key in Cloud settings</string>
+    <string name="cloud_send_context">Send this cloud conversation to %1$s? %2$d message(s), including the new question, will be sent. API fees may apply.</string>
+    <string name="cloud_reset">Clear this cloud conversation? Local conversations are not affected.</string>
+    <string name="cloud_history_limit">Only recent complete turns are kept and sent to limit memory and cost.</string>
+    <string name="cloud_cancel_cost">Request cancelled. The provider may still charge for a request already sent.</string>
+    <string name="cloud_session_limit">Too many cloud sessions. Restart the app to clear in-memory sessions.</string>
+    <string name="cloud_key_clear_confirm">Delete this provider\'s encrypted saved API key?</string>
 </resources>

@@ -8,7 +8,7 @@ import javax.net.ssl.HttpsURLConnection;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-/** Fixed HTTPS endpoints; no redirects, automatic retries, local history or key persistence. */
+/** Fixed HTTPS endpoints; no redirects, automatic retries or local history. */
 final class CloudApi {
     enum Provider {
         OPENAI("OpenAI","https://api.openai.com/v1/responses",0),
@@ -21,12 +21,25 @@ final class CloudApi {
         Provider(String title,String url,int protocol){this.title=title;this.url=url;this.protocol=protocol;}
     }
     static JSONObject request(Provider provider,String model,String text) throws Exception {
+        return request(provider,model,java.util.Collections.singletonList(new CloudHistory.Message("user",text)));
+    }
+    static JSONObject request(Provider provider,String model,java.util.List<CloudHistory.Message> messages) throws Exception {
+        if(messages==null||messages.isEmpty()||messages.size()>25||!"user".equals(messages.get(messages.size()-1).role))
+            throw new IllegalArgumentException("Invalid cloud context");
+        JSONArray input=new JSONArray();int chars=0;
+        for(int i=0;i<messages.size();i++){
+            CloudHistory.Message m=messages.get(i);
+            if(!(i%2==0?"user":"assistant").equals(m.role)||m.content==null||m.content.trim().isEmpty())
+                throw new IllegalArgumentException("Invalid cloud message");
+            chars+=m.content.length();if(chars>CloudHistory.MAX_CONTEXT)throw new IllegalArgumentException("Context limit");
+            input.put(new JSONObject().put("role",m.role).put("content",m.content));
+        }
         JSONObject body=new JSONObject().put("model",model);
         if(provider.protocol==0){
-            body.put("input",new JSONArray().put(new JSONObject().put("role","user").put("content",text)));
+            body.put("input",input);
             body.put("max_output_tokens",2048).put("store",false);
         }else{
-            body.put("messages",new JSONArray().put(new JSONObject().put("role","user").put("content",text)));
+            body.put("messages",input);
             body.put("max_tokens",2048).put("stream",false);
         }
         return body;
@@ -56,7 +69,7 @@ final class CloudApi {
             JSONObject message=choice==null?null:choice.optJSONObject("message");
             if(message!=null&&!message.isNull("content"))out.append(message.optString("content",""));
         }
-        if(out.toString().trim().isEmpty())throw new java.io.IOException("No text response");
+        if(out.toString().trim().isEmpty()||out.length()>CloudHistory.MAX_REPLY)throw new java.io.IOException("Invalid text response");
         return out.toString();
     }
     static HttpsURLConnection connection(Provider provider,String key) throws Exception {
@@ -72,7 +85,10 @@ final class CloudApi {
         return c;
     }
     static String execute(Provider provider,HttpsURLConnection c,String model,String text) throws Exception {
-        byte[] payload=request(provider,model,text).toString().getBytes(StandardCharsets.UTF_8);
+        return execute(provider,c,model,java.util.Collections.singletonList(new CloudHistory.Message("user",text)));
+    }
+    static String execute(Provider provider,HttpsURLConnection c,String model,java.util.List<CloudHistory.Message> messages) throws Exception {
+        byte[] payload=request(provider,model,messages).toString().getBytes(StandardCharsets.UTF_8);
         c.setFixedLengthStreamingMode(payload.length);
         try(java.io.OutputStream stream=c.getOutputStream()){stream.write(payload);}
         int status=c.getResponseCode();

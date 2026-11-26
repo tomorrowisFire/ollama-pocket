@@ -1,0 +1,7 @@
+# v0.13-B — onboarding preservation and cloud separation
+
+User requirement: retain first-run onboarding banner permanently at original placement and publisher unit. Keep test-only development advertising; no live activation. Layout guard preserves fixed 320dp if it fits and uses a test adaptive banner only in narrower supported slots. Wait for SDK initialization; don't block user navigation on ads. App-open stays excluded over onboarding, visible banners and cloud mode.
+
+Added embedded cloud panel with explicit per-request provider/model approval, isolated bounded multi-turn context per provider/model, in-memory cloud histories (not persisted, no local-history access), key storage opt-in via AES-GCM and Android Keystore with provider-authenticated scope and explicit load/delete. No keys in logs or saved view state. Pending requests cancelled on leaving cloud, key cleared from session memory on pause, no redirect or retries. Legacy CloudChatActivity remains available but is no longer reached from main entry. The cloud panel is separate from local history; not automatic fallback. Provider endpoint code is retained; actual six-provider request/device tests remain NOT_RUN. Keystore on device, data transfer and screenshot/privacy controls need practical verification. No real key requested or used, no ad live requests. API35 remains for isolated candidate; release readiness not certified.
+
+Resources: 164 keys across five language sets. Pure Java cloud-history and cipher tests added to CI. No native inference source changes.

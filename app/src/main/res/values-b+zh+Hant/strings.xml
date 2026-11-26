@@ -146,4 +146,21 @@
     <string name="drawer_close">關閉選單</string>
     <string name="ad_label">廣告</string>
     <string name="ad_test">測試廣告</string>
+    <string name="cloud_config">雲端設定</string>
+    <string name="cloud_return">本機對話</string>
+    <string name="cloud_provider_model">選擇服務商與模型</string>
+    <string name="cloud_context_notice">僅將此雲端對話傳送至所選服務商，不傳送本機對話。可能產生 API 費用。雲端對話僅在應用程式關閉前保留於記憶體。</string>
+    <string name="cloud_key_remember">在此裝置上加密儲存金鑰</string>
+    <string name="cloud_key_load">使用已儲存的金鑰</string>
+    <string name="cloud_key_delete">刪除已儲存的金鑰</string>
+    <string name="cloud_key_deleted">已刪除儲存的金鑰</string>
+    <string name="cloud_key_missing">此服務商沒有儲存的金鑰</string>
+    <string name="cloud_key_error">無法存取加密金鑰。請檢查裝置安全狀態或重新輸入金鑰。</string>
+    <string name="cloud_key_needed">請在雲端設定中輸入或載入 API 金鑰</string>
+    <string name="cloud_send_context">將此雲端對話傳送至 %1$s？將傳送包含新問題的 %2$d 則訊息。可能產生 API 費用。</string>
+    <string name="cloud_reset">清除此雲端對話？本機對話不受影響。</string>
+    <string name="cloud_history_limit">為限制記憶體及費用，僅保留與傳送最近完成的對話。</string>
+    <string name="cloud_cancel_cost">請求已取消。服務商仍可能對已傳送的請求收費。</string>
+    <string name="cloud_session_limit">雲端工作階段過多。重新啟動應用程式可清除記憶體工作階段。</string>
+    <string name="cloud_key_clear_confirm">刪除此服務商加密儲存的 API 金鑰？</string>
 </resources>

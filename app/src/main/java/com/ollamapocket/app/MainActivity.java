@@ -76,6 +76,9 @@ public final class MainActivity extends Activity {
     private boolean guestOnly, foreground, speakNextAnswer;
     private OnHandsVoice voice;
     private Button voiceButton, cloudShortcut;
+    private LinearLayout localChatContent;
+    private CloudChatPanel cloudPanel;
+    private boolean cloudMode;
     private long lastStreamUi;
     @Override protected void attachBaseContext(Context base) {
         super.attachBaseContext(OnHandsLocale.wrap(base));
@@ -361,6 +364,7 @@ public final class MainActivity extends Activity {
         super.onResume();
         foreground=true;
         if(guestOnly)return;
+        if(cloudMode&&cloudPanel!=null)cloudPanel.resume();
         ui.post(poll);
         ui.post(hudPoll);
         ui.removeCallbacks(sunsetThemePoll);
@@ -368,12 +372,13 @@ public final class MainActivity extends Activity {
         long now = android.os.SystemClock.elapsedRealtime();
         if (lastPauseElapsed > 0 && now - lastPauseElapsed > 120_000
                 && getPreferences(MODE_PRIVATE).getBoolean("welcome_v2_seen", false)
-                && !pullBusy && !chatBusy && !benchmarkBusy && (voice==null||(!voice.listening()&&!voice.speaking()))) {
+                && !cloudMode && !pullBusy && !chatBusy && !benchmarkBusy && (voice==null||(!voice.listening()&&!voice.speaking()))) {
             ads.showAppOpenIfReady();
         }
     }
     @Override protected void onPause() {
         foreground=false;
+        if(cloudPanel!=null)cloudPanel.pause();
         if(voice!=null)voice.cancel();
         lastPauseElapsed = android.os.SystemClock.elapsedRealtime();
         ui.removeCallbacks(poll);
@@ -391,6 +396,7 @@ public final class MainActivity extends Activity {
         if(onlineSearchTask!=null)onlineSearchTask.cancel(true);
         if(onlineHfTask!=null)onlineHfTask.cancel(true);
         io.shutdownNow();
+        if(cloudPanel!=null)cloudPanel.destroy();
         if(voice!=null)voice.close();
         if(ads!=null)ads.destroy();
         super.onDestroy();
@@ -431,8 +437,27 @@ public final class MainActivity extends Activity {
     }
     private void openCloud(){
         if(isUiBusy()||guestOnly){toast(getString(R.string.busy));return;}
+        if(cloudMode)return;
         if(voice!=null)voice.cancel();
-        startActivity(new Intent(this,CloudChatActivity.class));
+        if(cloudPanel==null){
+            cloudPanel=new CloudChatPanel(this,this::returnToLocal);
+            chatPage.addView(cloudPanel,new LinearLayout.LayoutParams(-1,0,1));
+        }
+        cloudMode=true;
+        localChatContent.setVisibility(View.GONE);cloudPanel.setVisibility(View.VISIBLE);
+        cloudPanel.activate();showTab(0);
+    }
+    private void returnToLocal(){
+        if(!cloudMode)return;
+        cloudMode=false;
+        if(cloudPanel!=null){cloudPanel.pause();cloudPanel.setVisibility(View.GONE);}
+        if(localChatContent!=null)localChatContent.setVisibility(View.VISIBLE);
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        if(activeTab==0&&topPageSubtitle!=null)topPageSubtitle.setText(getString(R.string.chat)+"  ·  "+getString(R.string.local));
+    }
+    @Override public void onBackPressed(){
+        if(cloudMode){returnToLocal();return;}
+        super.onBackPressed();
     }
     private void openVoice(){
         if(isUiBusy()||guestOnly)return;
@@ -573,6 +598,8 @@ public final class MainActivity extends Activity {
 
     private void createChatPage() {
         chatPage = column();
+        localChatContent=column();
+        chatPage.addView(localChatContent,new LinearLayout.LayoutParams(-1,0,1));
         LinearLayout modelRow = row();
         TextView modelLabel = text(getString(R.string.model_label), 12, MUTED, false);
         rowItem(modelRow, modelLabel, 0, 12);
@@ -583,9 +610,9 @@ public final class MainActivity extends Activity {
         cloudShortcut.setContentDescription(getString(R.string.cloud));
         rowItem(modelRow,cloudShortcut,0,0);
         cloudShortcut.setOnClickListener(v->openCloud());
-        margin(modelRow, chatPage, 2, 7);
+        margin(modelRow, localChatContent, 2, 7);
         activeEngineLabel = text(getString(R.string.engine_idle), 11, MUTED, false);
-        margin(activeEngineLabel, chatPage, 0, 7);
+        margin(activeEngineLabel, localChatContent, 0, 7);
         modelChooser.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onNothingSelected(AdapterView<?> parent) { }
             @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -603,7 +630,7 @@ public final class MainActivity extends Activity {
         messages = column(); messages.setPadding(dp(4), dp(18), dp(4), dp(12));
         messageScroll.addView(messages);
         LinearLayout.LayoutParams scrollParam = new LinearLayout.LayoutParams(-1, 0, 1);
-        chatPage.addView(messageScroll, scrollParam);
+        localChatContent.addView(messageScroll, scrollParam);
         LinearLayout composer = row();
         composer.setPadding(dp(8), dp(7), dp(8), dp(7));
         composer.setBackground(bg(CARD, 22));
@@ -623,7 +650,7 @@ public final class MainActivity extends Activity {
         stopChatButton = button("■", false);
         stopChatButton.setContentDescription(getString(R.string.stop));
         rowItem(composer, stopChatButton, 0, 0);
-        margin(composer, chatPage, 8, 2);
+        margin(composer, localChatContent, 8, 2);
         stopChatButton.setEnabled(false);stopChatButton.setVisibility(View.GONE);
         sendButton.setMinWidth(dp(48));sendButton.setMinimumWidth(dp(48));
         stopChatButton.setMinWidth(dp(48));stopChatButton.setMinimumWidth(dp(48));
@@ -631,7 +658,7 @@ public final class MainActivity extends Activity {
         sendButton.setOnClickListener(v -> sendChat());
         stopChatButton.setOnClickListener(v -> stopChat());
         margin(text(getString(R.string.disclaimer),
-            10, MUTED, false), chatPage, 0, 0);
+            10, MUTED, false), localChatContent, 0, 0);
     }
 
     private void createModelPage() {
@@ -896,7 +923,7 @@ public final class MainActivity extends Activity {
 
     private boolean isUiBusy(){
         return chatBusy||pullBusy||diagnosticBusy||benchmarkBusy
-               ||HuggingFaceCatalog.isDownloading();
+               ||(cloudPanel!=null&&cloudPanel.isBusy())||HuggingFaceCatalog.isDownloading();
     }
 
     private void applySetting(String key,String value){
@@ -1154,6 +1181,7 @@ public final class MainActivity extends Activity {
 
     private void showTab(int index) {
         int target=Math.max(0,Math.min(3,index));
+        if(target!=0&&cloudMode)returnToLocal();
         LinearLayout[] screens={chatPage,modelPage,serverPage,diagnosticPage};
         boolean alreadyShowing=screens[target].getVisibility()==View.VISIBLE;
         activeTab=target;
@@ -1183,7 +1211,7 @@ public final class MainActivity extends Activity {
         if(topPageTitle!=null)topPageTitle.setText("On Hands AI");
         if(topPageSubtitle!=null){
             int[] subtitles={R.string.chat,R.string.models,R.string.settings,R.string.devices};
-            topPageSubtitle.setText(getString(subtitles[activeTab])+"  ·  "+getString(R.string.local));
+            topPageSubtitle.setText(getString(subtitles[activeTab])+"  ·  "+getString(cloudMode?R.string.cloud_short:R.string.local));
         }
         if(activeTab==1)loadRecommendedVariants(false);
         if(activeTab==3)refreshDiagnosticViews();
@@ -2308,6 +2336,7 @@ public final class MainActivity extends Activity {
     private String listKey() { return "chat_list_" + currentModel; }
     private String historyKey() { return "chat_v4_" + currentModel + "_" + currentSessionId(); }
     private void newChat() {
+        if(cloudMode){if(cloudPanel!=null)cloudPanel.newChat();return;}
         if (chatBusy) { toast(getString(R.string.new_chat_busy)); return; }
         if(voice!=null)voice.cancel();
         getPreferences(MODE_PRIVATE).edit().putString(sessionKey(), Long.toString(System.currentTimeMillis())).apply();
@@ -2362,7 +2391,7 @@ public final class MainActivity extends Activity {
     }
 
     private void openSavedConversation(DrawerChat entry,Dialog drawer){
-        if(chatBusy||benchmarkBusy||diagnosticBusy){
+        if(chatBusy||benchmarkBusy||diagnosticBusy||(cloudPanel!=null&&cloudPanel.isBusy())){
             toast("진행 중인 응답이나 검사를 마친 뒤 대화를 바꾸세요");
             return;
         }
@@ -2372,6 +2401,7 @@ public final class MainActivity extends Activity {
             showTab(1);
             return;
         }
+        if(cloudMode)returnToLocal();
         if(!entry.model.equals(currentModel))selectModel(entry.model);
         getPreferences(MODE_PRIVATE).edit()
             .putString("active_chat_"+entry.model,entry.id).apply();
@@ -2390,7 +2420,7 @@ public final class MainActivity extends Activity {
                !entry.title.toLowerCase(Locale.ROOT).contains(search) &&
                !entry.model.toLowerCase(Locale.ROOT).contains(search))continue;
             if(count++>=120)break;
-            boolean active=entry.model.equals(currentModel)
+            boolean active=!cloudMode&&entry.model.equals(currentModel)
                 &&entry.id.equals(getPreferences(MODE_PRIVATE)
                     .getString("active_chat_"+entry.model,""));
             TextView item=drawerRow(entry.title,"",active);

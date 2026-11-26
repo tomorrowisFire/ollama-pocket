@@ -31,6 +31,7 @@ import java.util.Map;
 public final class AdSupport {
     // Official Google demo IDs do not produce publisher revenue.
     private static final String DEMO_BANNER = "ca-app-pub-3940256099942544/6300978111";
+    private static final String DEMO_ADAPTIVE_BANNER = "ca-app-pub-3940256099942544/9214589741";
     private static final String DEMO_APP_OPEN = "ca-app-pub-3940256099942544/9257395921";
     // Publisher-supplied AdMob ad-unit IDs; active only in configured release builds.
     private static final String LIVE_APP_OPEN = "ca-app-pub-4763897710237099/8245753612";
@@ -53,6 +54,7 @@ public final class AdSupport {
     private static final long APP_OPEN_COOLDOWN = 4L * 60 * 60 * 1000;
     private final ArrayList<FrameLayout> requested = new ArrayList<>();
     private boolean consentRequestStarted;
+    private boolean sdkInitStarted;
     private boolean adsInitialized;
     private boolean disposed;
 
@@ -124,9 +126,17 @@ public final class AdSupport {
                 status(parent, "광고 개인정보 선택 또는 네트워크 확인 필요");
             return;
         }
+        if (!isEnabled())return;
         if (!adsInitialized) {
-            adsInitialized = true;
-            MobileAds.initialize(activity, state -> { });
+            if(!sdkInitStarted){
+                sdkInitStarted=true;
+                MobileAds.initialize(activity, state -> activity.runOnUiThread(()->{
+                    if(disposed)return;
+                    adsInitialized=true;
+                    maybeLoadAfterConsent();
+                }));
+            }
+            return;
         }
         for (FrameLayout parent : new ArrayList<>(requested)) load(parent);
         preloadAppOpen();
@@ -135,13 +145,18 @@ public final class AdSupport {
     private void load(FrameLayout parent) {
         if (disposed || !isEnabled() || !adsInitialized || !consent.canRequestAds()
                 || !placements.containsKey(parent) || !requested.contains(parent) || live.containsKey(parent)) return;
-        // A layout event will retry when attached and measured. Never spin on an unattached view,
-        // and do not display a fixed-width 320dp banner in a slot too narrow to contain it.
-        if (parent.getWindowToken() == null || parent.getWidth() < toDp(320)) return;
+        // Preserve standard 320dp banner; adapt only narrow slots instead of clipping the ad.
+        if (parent.getWindowToken() == null) return;
+        int widthDp=(int)((parent.getWidth()-parent.getPaddingLeft()-parent.getPaddingRight())/
+            activity.getResources().getDisplayMetrics().density);
+        if(widthDp<200)return;
+        boolean adaptive=widthDp<320;
+        AdSize size=adaptive?AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(activity,widthDp):AdSize.BANNER;
+        if(size==null||size.getWidth()<=0||size.getWidth()>widthDp||size.getHeight()<=0)return;
         AdView banner = new AdView(activity);
-        banner.setAdSize(AdSize.BANNER);
+        banner.setAdSize(size);
         String placement = placements.get(parent);
-        String adUnitId = BuildConfig.DEBUG ? DEMO_BANNER :
+        String adUnitId = BuildConfig.DEBUG ? (adaptive?DEMO_ADAPTIVE_BANNER:DEMO_BANNER) :
             (PLACEMENT_ONBOARDING.equals(placement) ? LIVE_ONBOARDING_BANNER : LIVE_DOWNLOAD_BANNER);
         banner.setAdUnitId(adUnitId);
         banner.setAdListener(new AdListener() {
