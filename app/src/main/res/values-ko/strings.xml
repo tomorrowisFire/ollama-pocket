@@ -740,4 +740,6 @@
     <string name="cloud_estimated_cost">예상 비용(USD): %1$s</string>
     <string name="cloud_input_rate">입력 100만 토큰당 USD</string>
     <string name="cloud_output_rate">출력 100만 토큰당 USD</string>
+    <string name="cloud_pc_address">PC 주소 (사설 IPv4:포트)</string>
+    <string name="cloud_pc_notice">암호화되지 않은 LAN 연결입니다. 신뢰하는 사설 네트워크에서만 사용하세요. 메시지가 노출되거나 변경될 수 있습니다.</string>
 </resources>
