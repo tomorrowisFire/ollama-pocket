@@ -95,6 +95,7 @@ public final class MainActivity extends Activity {
     private Boolean composerStacked;
     private boolean keyboardVisible,compactChatHeight;
     private int rootHeightDp,starterColumns;
+    private boolean starterNeedsModel;
     private LinearLayout starterPanel;
     private Button latestButton;
     private TextView draftBudgetView;
@@ -107,8 +108,18 @@ public final class MainActivity extends Activity {
     private String voiceReviewScope="";
     private final Runnable voiceStatePoll=new Runnable(){public void run(){
         if(!foreground||isFinishing()||isDestroyed())return;
-        refreshVoiceState();ui.postDelayed(this,250);
+        refreshVoiceState();refreshWorkspaceControls();ui.postDelayed(this,250);
     }};
+    private void refreshWorkspaceControls(){
+        if(chatInput==null||sendButton==null)return;
+        boolean busy=isUiBusy();
+        if(!chatBusy)sendButton.setEnabled(!busy&&ChatWorkspacePolicy.canSend(chatInput.getText().toString(),LocalChatTurns.MAX_PROMPT));
+        if(modelChooser!=null)modelChooser.setEnabled(!busy&&!knownModels.isEmpty());
+        if(attachFileButton!=null)attachFileButton.setEnabled(!busy);
+        if(chatActionsButton!=null)chatActionsButton.setEnabled(!busy);
+        if(cloudShortcut!=null)cloudShortcut.setEnabled(!busy);
+        if(newChatShortcut!=null)newChatShortcut.setEnabled(!busy);
+    }
     private void refreshVoiceState(){
         if(voiceStateView==null||voiceButton==null)return;
         boolean active=voice!=null&&(voice.continuous()||voice.listening()||voice.speaking());
@@ -293,7 +304,7 @@ public final class MainActivity extends Activity {
         @Override public void run() {
             serverStatus.setText(OllamaForegroundService.isRunning() ?
                 getString(R.string.server_running) : getString(R.string.server_wait));
-            if(activeTab==2)logText.setText(OllamaForegroundService.logs() + "\n--- GPU Vulkan ---\n" + GpuRunner.logs());
+            if(activeTab==3&&logText!=null)logText.setText(OllamaForegroundService.logs() + "\n--- GPU Vulkan ---\n" + GpuRunner.logs());
             if (!serverPollBusy) {
                 serverPollBusy = true;
                 io.execute(() -> {
@@ -1508,7 +1519,7 @@ public final class MainActivity extends Activity {
     }
 
     private void beginHardwareSelfTest() {
-        if (AutomationUi.busy() || diagnosticBusy || chatBusy || pullBusy || benchmarkBusy) {
+        if (isUiBusy()) {
             toast(getString(R.string.busy)); return;
         }
         if (currentModel == null || currentModel.isEmpty() || knownModels.isEmpty()) {
@@ -1517,14 +1528,17 @@ public final class MainActivity extends Activity {
         if (!OllamaForegroundService.isRunning()) {
             toast(getString(R.string.test_need_server)); return;
         }
+        final String reviewedModel=currentModel;
         new AlertDialog.Builder(this)
             .setTitle(getString(R.string.verify_inference))
-            .setMessage(getString(R.string.hardware_confirm,currentModel))
+            .setMessage(getString(R.string.hardware_confirm,reviewedModel))
             .setNegativeButton(getString(R.string.cancel), null)
             .setPositiveButton(getString(R.string.test_start), (d,which) -> {
+                if(!foreground||isUiBusy()||!reviewedModel.equals(currentModel)||!knownModels.contains(reviewedModel)||!OllamaForegroundService.isRunning()){toast(getString(R.string.busy));return;}
+                if(voice!=null)voice.cancel();
                 diagnosticBusy = true;
                 diagnosticStatus.setText(getString(R.string.test_running));
-                final String model = currentModel;
+                final String model = reviewedModel;
                 io.execute(() -> {
                     String computed;
                     try {
@@ -1572,7 +1586,7 @@ public final class MainActivity extends Activity {
             .setSingleChoiceItems(options,
                 "cpu".equals(computePreference()) ? 1 : "gpu".equals(computePreference()) ? 2 : 0,
                 (dialog, which) -> {
-                    if (chatBusy) { toast(getString(R.string.model_wait)); return; }
+                    if (isUiBusy()) { toast(getString(R.string.model_wait)); return; }
                     if (which == 3) {
                         toast(getString(R.string.compute_npu_error)); return;
                     }
@@ -1788,7 +1802,7 @@ public final class MainActivity extends Activity {
         populateModelFilters();
         animateNextTileUpdate=true;
         renderInstalledModels();
-        if(activeTab==0&&history.length()==0&&!isUiBusy()&&historyReadable)renderHistory(false);
+        if(activeTab==0&&history.length()==0&&!isUiBusy()&&historyReadable&&(starterPanel==null||starterNeedsModel!=knownModels.isEmpty()))renderHistory(false);
         if(activeTab==3)refreshDiagnosticViews();
     }
 
@@ -2645,7 +2659,7 @@ public final class MainActivity extends Activity {
         new AlertDialog.Builder(this)
             .setTitle(getString(R.string.model_picker))
             .setItems(entries,(dialog,index)->{
-                if(chatBusy||benchmarkBusy||diagnosticBusy){
+                if(isUiBusy()){
                     toast(getString(R.string.busy));return;
                 }
                 selectModel(entries[index]);
@@ -2655,7 +2669,7 @@ public final class MainActivity extends Activity {
     }
 
     private void selectModel(String name) {
-        if(AutomationUi.busy()||chatBusy||attachmentReading||!knownModels.contains(name))return;
+        if(isUiBusy()||!knownModels.contains(name))return;
         saveLocalDraft();
         currentModel=name;
         getPreferences(MODE_PRIVATE).edit().putString("model",name).apply();
@@ -2671,7 +2685,7 @@ public final class MainActivity extends Activity {
         if (model.isEmpty() || !model.matches("[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,119}")) {
             toast(getString(R.string.model_tag_invalid)); return;
         }
-        if (AutomationUi.busy() || pullBusy || benchmarkBusy || HuggingFaceCatalog.isDownloading()) {
+        if (isUiBusy()) {
             toast(getString(R.string.busy));return;
         }
         long featuredBytes=modelBytes.getOrDefault(model,0L);
@@ -2699,7 +2713,7 @@ public final class MainActivity extends Activity {
     }
 
     private void beginDownload(String model) {
-        if (pullBusy) return;
+        if(isUiBusy()){toast(getString(R.string.busy));return;}
         if (!OllamaForegroundService.isRunning()) {
             toast(getString(R.string.download_server_wait));
             startServer(); return;
@@ -2886,7 +2900,7 @@ public final class MainActivity extends Activity {
     }
 
     private void openSavedConversation(DrawerChat entry,Dialog drawer){
-        if(attachmentReading||chatBusy||benchmarkBusy||diagnosticBusy||(cloudPanel!=null&&cloudPanel.isBusy())){
+        if(isUiBusy()){
             toast(getString(R.string.busy));
             return;
         }
@@ -2899,16 +2913,23 @@ public final class MainActivity extends Activity {
         if(cloudMode)returnToLocal();
         saveLocalDraft();
         if(!entry.model.equals(currentModel))selectModel(entry.model);
+        if(!entry.model.equals(currentModel))return;
         getPreferences(MODE_PRIVATE).edit()
             .putString("active_chat_"+entry.model,entry.id).apply();
-        loadHistory();renderHistory();
+        loadHistory();renderHistory(entry.matchIndex<0);
         if(drawer!=null)drawer.dismiss();
         showTab(0);
         if(entry.matchIndex>=0&&messages!=null&&messageScroll!=null){
             View hit=messages.findViewWithTag("chat-message-"+entry.matchIndex);
-            if(hit!=null)hit.post(()->{
-                if(hit.getParent()==messages)messageScroll.scrollTo(0,hit.getTop());
-            });
+            if(hit!=null){
+                followWanted=false;final long revision=++scrollRevision;
+                hit.post(()->{
+                    if(revision!=scrollRevision||hit.getParent()!=messages||isFinishing()||isDestroyed())return;
+                    programmaticScroll=true;
+                    try{messageScroll.scrollTo(0,hit.getTop());}finally{programmaticScroll=false;}
+                    refreshLatestButton();
+                });
+            }
         }
     }
 
@@ -3318,6 +3339,7 @@ public final class MainActivity extends Activity {
             return;
         }
         if(history.length()==0){
+            starterNeedsModel=knownModels.isEmpty();
             margin(text(getString(R.string.welcome),24,WHITE,true),messages,18,6);
             margin(text(getString(R.string.welcome_sub),13,MUTED,false),messages,0,12);
             if(knownModels.isEmpty()){
@@ -3443,7 +3465,7 @@ public final class MainActivity extends Activity {
         draftBudgetView.setVisibility(show?View.VISIBLE:View.GONE);
         if(show){draftBudgetView.setText(getString(R.string.workspace_draft_budget,Integer.toString(chars),Integer.toString(max)));
             draftBudgetView.setTextColor(chars>max?DANGER:MUTED);}
-        if(sendButton!=null&&!chatBusy)sendButton.setEnabled(!attachmentReading&&ChatWorkspacePolicy.canSend(chatInput.getText().toString(),max));
+        if(sendButton!=null&&!chatBusy)sendButton.setEnabled(!isUiBusy()&&ChatWorkspacePolicy.canSend(chatInput.getText().toString(),max));
     }
     private void refreshChatHeader(){
         if(topPageSubtitle==null||activeTab!=0||cloudMode)return;
@@ -3725,7 +3747,7 @@ public final class MainActivity extends Activity {
         if(lastStreamUi!=0&&now-lastStreamUi<80)return;
         lastStreamUi=now;
         String display=answer.toString();
-        ui.post(()->{if(isFinishing()||isDestroyed())return;boolean follow=followWanted||followsLatest();assistant.setText(getString(R.string.app_name)+"\n"+display);if(follow)scrollBottom();else refreshLatestButton();});
+        ui.post(()->{if(isFinishing()||isDestroyed())return;boolean follow=followWanted;assistant.setText(getString(R.string.app_name)+"\n"+display);if(follow)scrollBottom();else refreshLatestButton();});
     }
     private void stopChat() {
         chatCancelled = true;
@@ -3936,7 +3958,7 @@ public final class MainActivity extends Activity {
                 if(isFinishing()||isDestroyed()||serial!=attachmentSerial)return;
                 attachmentReading=false;
                 if(attachFileButton!=null)attachFileButton.setEnabled(!chatBusy);
-                if(sendButton!=null)sendButton.setEnabled(!chatBusy);
+                updateDraftBudget();
                 if(cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope)||activeTab!=0){toast(getString(R.string.attachment_scope_changed));return;}
                 if(preview==null){toast(getString(fail));return;}
                 showAttachmentPreview(scope,preview);
