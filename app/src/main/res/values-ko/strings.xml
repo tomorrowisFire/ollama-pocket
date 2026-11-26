@@ -988,4 +988,9 @@
     <string name="conference_current">현재 결과물</string>
     <string name="conference_evidence_notice">검증 조건 일치와 모델의 수락은 독립 검증·사실 검증·품질 검증을 의미하지 않습니다. 회의 기록은 임시로 유지되므로 공유 전 확인하세요.</string>
     <string name="conference_copy">회의 기록 복사</string>
+    <string name="conference_capacity_check">역할별 용량 확인</string>
+    <string name="conference_capacity_summary">예상 전달 용량: 기획 %1$s · 결과물 %2$s · 검수 의견 %3$s. 제작 출력 한도: %4$s토큰.</string>
+    <string name="conference_capacity_estimate">직렬화된 텍스트의 보수적 추정값이며 실제 모델 토큰 수는 아닙니다. 긴 다국어 텍스트는 사용 가능 길이가 줄어들 수 있습니다. 내용을 임의로 자르지 않습니다.</string>
+    <string name="conference_capacity_impossible">설정한 조건이 회의실 결과물 한도를 충족할 수 없습니다. 시작 전에 조건을 수정하세요.</string>
+    <string name="conference_capacity_insufficient">예상 컨텍스트에 모든 역할과 보완 작업을 안전하게 수용할 수 없습니다. 시작 전에 목표나 조건을 줄이세요.</string>
 </resources>

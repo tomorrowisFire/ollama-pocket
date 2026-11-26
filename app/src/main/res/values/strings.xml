@@ -988,4 +988,9 @@
     <string name="conference_current">Current artifact</string>
     <string name="conference_evidence_notice">A configured condition match and model recommendation are not independent, factual or quality verification. The transcript is temporary; review before sharing.</string>
     <string name="conference_copy">Copy conference transcript</string>
+    <string name="conference_capacity_check">Check role capacity</string>
+    <string name="conference_capacity_summary">Estimated handoff allowances: plan %1$s · artifact %2$s · issues %3$s. Producer output cap: %4$s tokens.</string>
+    <string name="conference_capacity_estimate">These are conservative serialized-text estimates, not exact model token counts. Long multilingual text may have a shorter usable limit. Nothing is silently truncated.</string>
+    <string name="conference_capacity_impossible">The configured condition cannot fit the conference artifact limits. Revise it before starting.</string>
+    <string name="conference_capacity_insufficient">The estimated context cannot safely accommodate all roles and one correction. Shorten the goal or condition before starting.</string>
 </resources>

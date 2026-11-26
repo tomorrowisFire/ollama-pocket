@@ -71,7 +71,9 @@ final class LocalConferenceRunner {
     private ConferencePolicy.Reply generate(String model,ConferencePolicy.Call call)throws Exception{
         check();
         JSONObject body=OllamaHttp.chatBody(model,new JSONArray().put(new JSONObject().put("role","user").put("content",call.prompt)));
-        body.getJSONObject("options").put("num_predict",ConferencePolicy.MAX_TOKENS);
+        if(call.maxTokens<256||call.maxTokens>ConferencePolicy.MAX_TOKENS||
+            !DocumentBatchPolicy.fits(call.prompt,call.maxTokens))throw new IOException("Conference context limit");
+        body.getJSONObject("options").put("num_predict",call.maxTokens);
         HttpURLConnection c=OllamaHttp.newChatConnection();connection=c;
         try{
             long remaining=Math.max(1,deadline-SystemClock.elapsedRealtime());
@@ -99,7 +101,7 @@ final class LocalConferenceRunner {
                     if(raw!=null&&raw!=JSONObject.NULL){
                         if(!(raw instanceof Number))throw new IOException("Invalid token count");
                         double n=((Number)raw).doubleValue();
-                        if(!Double.isFinite(n)||n<0||n!=Math.floor(n)||n>ConferencePolicy.MAX_TOKENS)
+                        if(!Double.isFinite(n)||n<0||n!=Math.floor(n)||n>call.maxTokens)
                             throw new IOException("Conference token limit");
                     }
                 }

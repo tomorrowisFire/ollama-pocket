@@ -988,4 +988,9 @@
     <string name="conference_current">当前成果</string>
     <string name="conference_evidence_notice">条件匹配与模型接受不代表独立、事实或质量验证。会议记录为临时数据，分享前请审核。</string>
     <string name="conference_copy">复制会议记录</string>
+    <string name="conference_capacity_check">检查角色容量</string>
+    <string name="conference_capacity_summary">预计传递容量：规划 %1$s · 成果 %2$s · 审查意见 %3$s。制作输出上限：%4$s个令牌。</string>
+    <string name="conference_capacity_estimate">这是序列化文本的保守估计，并非模型的实际令牌数。较长的多语言文本可用长度可能缩短。不会擅自截断内容。</string>
+    <string name="conference_capacity_impossible">设定条件无法满足会议室成果上限。请在开始前修改条件。</string>
+    <string name="conference_capacity_insufficient">预计上下文无法安全容纳所有角色及一次修订。请在开始前缩短目标或条件。</string>
 </resources>

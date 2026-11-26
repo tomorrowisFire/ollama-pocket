@@ -31,7 +31,7 @@ public final class ConferencePolicyTest {
     }
     private static JSONObject data(ConferencePolicy.Call call)throws Exception{
         int offset=call.prompt.indexOf("\nDATA:\n");
-        ok(offset>=0&&DocumentBatchPolicy.fits(call.prompt,ConferencePolicy.MAX_TOKENS));
+        ok(offset>=0&&DocumentBatchPolicy.fits(call.prompt,call.maxTokens));
         return new JSONObject(call.prompt.substring(offset+7));
     }
     private static void state(ConferencePolicy.Result r,ConferencePolicy.Status status,int calls,int turns){
@@ -125,7 +125,10 @@ public final class ConferencePolicyTest {
             p,artifact("{\"x\":3.0}"),yes,artifact("{\"x\":3.0}"),yes);
         state(wrongNumber,ConferencePolicy.Status.BLOCKED,5,5);
         ConferencePolicy.Result context=new Fixture().run(req("한".repeat(240),WorkflowPolicy.Gate.EXACT,"OK"),p,artifact("한".repeat(600)));
-        state(context,ConferencePolicy.Status.FAILED,2,2);ok(context.cause==ConferencePolicy.Cause.CONTEXT);
+        // The old F4A fixture failed only after committing an artifact too large for review.
+        // F4B1 must reject it before committing, preserve the planner turn, and never call the reviewer.
+        state(context,ConferencePolicy.Status.FAILED,2,1);ok(context.cause==ConferencePolicy.Cause.INVALID_REPLY);
+        ok(context.artifact==null&&context.recommendation==null);
         AtomicInteger calls=new AtomicInteger();AtomicBoolean stopped=new AtomicBoolean(true);
         ConferencePolicy.Result cancelled=ConferencePolicy.run(exact,c->{calls.incrementAndGet();return p;},stopped::get,x->{});
         state(cancelled,ConferencePolicy.Status.STOPPED,0,0);ok(calls.get()==0);

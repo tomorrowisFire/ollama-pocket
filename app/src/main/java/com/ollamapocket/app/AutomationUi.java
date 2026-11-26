@@ -102,6 +102,7 @@ final class AutomationUi {
             case BLOCKED:return s(R.string.conference_blocked);
             case STOPPED:return s(R.string.conference_stopped);
             case FAILED:
+                if(result.cause==ConferencePolicy.Cause.IMPOSSIBLE_CONDITION)return s(R.string.conference_capacity_impossible);
                 if(result.cause==ConferencePolicy.Cause.CONTEXT)return s(R.string.conference_context);
                 if(result.cause==ConferencePolicy.Cause.INVALID_REPLY)return s(R.string.conference_invalid_reply);
                 return s(R.string.conference_failed);
@@ -115,12 +116,19 @@ final class AutomationUi {
         if(sample==null)return s(R.string.conference_pending);
         return sample==WorkflowPolicy.Sample.MATCH?s(R.string.conference_match):s(R.string.conference_mismatch);
     }
+    private String conferenceCapacity(ConferencePolicy.Capacity cap){
+        if(!cap.ready())return s(cap.cause==ConferencePolicy.Cause.IMPOSSIBLE_CONDITION?
+            R.string.conference_capacity_impossible:R.string.conference_capacity_insufficient);
+        return owner.getString(R.string.conference_capacity_summary,Integer.toString(cap.plan),Integer.toString(cap.artifact),
+            Integer.toString(cap.issues),Integer.toString(cap.producerTokens))+"\n"+s(R.string.conference_capacity_estimate);
+    }
     private String conferenceReport(ConferencePolicy.Request request,ConferencePolicy.Result result){
         StringBuilder out=new StringBuilder(conferenceState(result));
         out.append("\n").append(owner.getString(R.string.conference_calls,Integer.toString(result.attempts),Integer.toString(ConferencePolicy.MAX_CALLS)))
             .append("\n").append(s(R.string.model_label)).append(": ").append(request.model)
             .append("\n").append(s(R.string.conference_goal)).append(": ").append(request.goal)
             .append("\n").append(gateLabel(request.condition.gate)).append(": ").append(request.condition.required)
+            .append("\n").append(conferenceCapacity(ConferencePolicy.capacity(request)))
             .append("\n").append(s(R.string.conference_evidence_notice));
         if(result.artifact!=null){
             out.append("\n\n").append(s(R.string.conference_current)).append("\n").append(result.artifact)
@@ -164,27 +172,51 @@ final class AutomationUi {
             if(i<0||i>=gates.length)throw new IllegalArgumentException("Condition");
             return new ConferencePolicy.Request(goal.getText().toString(),model,language,gates[i],required.getText().toString());
         };
+        TextView capacityStatus=output(panel);capacityStatus.setTextIsSelectable(false);
+        capacityStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         TextView status=output(panel);status.setTextIsSelectable(false);
         status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
-        final Button[] controls=new Button[3];
+        final Button[] controls=new Button[4];
         final ConferencePolicy.Result[] latest={null};
         final ConferencePolicy.Request[] executed={null};
         final boolean[] stopRequested={false};
         Runnable enabled=()->{
             boolean idle=!busy();
             goal.setEnabled(idle);picker.setEnabled(idle);required.setEnabled(idle);
-            controls[0].setEnabled(idle);
+            controls[0].setEnabled(idle);controls[3].setEnabled(idle);
             controls[1].setEnabled(!idle&&conference!=null&&!stopRequested[0]);
             controls[2].setEnabled(idle&&latest[0]!=null&&latest[0].status!=ConferencePolicy.Status.RUNNING&&!latest[0].turns.isEmpty());
         };
+        android.text.TextWatcher resetCapacity=new android.text.TextWatcher(){
+            public void beforeTextChanged(CharSequence text,int start,int count,int after){}
+            public void onTextChanged(CharSequence text,int start,int before,int count){capacityStatus.setText("");}
+            public void afterTextChanged(android.text.Editable text){}
+        };
+        goal.addTextChangedListener(resetCapacity);required.addTextChangedListener(resetCapacity);
+        picker.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
+            public void onItemSelected(AdapterView<?> parent,View view,int position,long id){
+                capacityStatus.setText("");
+                if(position>=0&&position<gates.length)required.setHint(gateHint(gates[position]));
+            }
+            public void onNothingSelected(AdapterView<?> parent){capacityStatus.setText("");}
+        });
+        controls[3]=button(panel,R.string.conference_capacity_check,()->{
+            if(!valid(token)||busy())return;
+            try{capacityStatus.setText(conferenceCapacity(ConferencePolicy.capacity(capture.get())));}
+            catch(IllegalArgumentException e){capacityStatus.setText(R.string.auto_invalid_plan);}
+        });
         controls[0]=button(panel,R.string.conference_start,()->{
             if(!valid(token)||busy())return;
             final ConferencePolicy.Request request;
             try{request=capture.get();}catch(IllegalArgumentException e){toast(R.string.auto_invalid_plan);return;}
+            ConferencePolicy.Capacity cap=ConferencePolicy.capacity(request);
+            capacityStatus.setText(conferenceCapacity(cap));
+            if(!cap.ready())return;
             if(!OllamaForegroundService.isRunning()){toast(R.string.test_need_server);return;}
             if(!"off".equals(CoopSession.get(owner).role())){toast(R.string.guest_stop_first);return;}
             confirm(s(R.string.conference_start),s(R.string.conference_notice)+"\n\n"+s(R.string.model_label)+": "+request.model+
-                "\n"+request.goal+"\n"+gateLabel(request.condition.gate)+": "+request.condition.required,()->{
+                "\n"+request.goal+"\n"+gateLabel(request.condition.gate)+": "+request.condition.required+
+                "\n\n"+conferenceCapacity(cap),()->{
                 if(!valid(token)||busy())return;
                 try{if(!request.same(capture.get())){toast(R.string.auto_preview_first);return;}}
                 catch(IllegalArgumentException e){toast(R.string.auto_invalid_plan);return;}

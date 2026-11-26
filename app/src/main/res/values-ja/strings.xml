@@ -988,4 +988,9 @@
     <string name="conference_current">現在の成果物</string>
     <string name="conference_evidence_notice">条件の一致やモデルの承認は、独立した検証、事実確認、品質検証ではありません。会議記録は一時的です。共有前に確認してください。</string>
     <string name="conference_copy">会議記録をコピー</string>
+    <string name="conference_capacity_check">役割別容量を確認</string>
+    <string name="conference_capacity_summary">推定引き継ぎ容量：企画 %1$s · 成果物 %2$s · 指摘 %3$s。制作出力上限：%4$sトークン。</string>
+    <string name="conference_capacity_estimate">直列化テキストの保守的な推定値であり、実際のモデルトークン数ではありません。長い多言語テキストでは使用可能な長さが短くなる場合があります。内容を無断で切り捨てません。</string>
+    <string name="conference_capacity_impossible">設定条件は会議室の成果物上限に収まりません。開始前に条件を変更してください。</string>
+    <string name="conference_capacity_insufficient">推定コンテキスト内に全役割と修正作業を安全に収容できません。開始前に目標や条件を短くしてください。</string>
 </resources>

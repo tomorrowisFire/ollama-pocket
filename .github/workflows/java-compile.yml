@@ -54,6 +54,7 @@ on:
       - 'tests/WorkflowGoalPlannerTest.java'
       - 'tests/WorkflowReadinessTest.java'
       - 'tests/ConferencePolicyTest.java'
+      - 'tests/ConferenceCapacityTest.java'
       - 'tests/BenchmarkProfileTest.java'
       - 'tests/PrivacyPolicyTest.java'
       - 'tests/RpcSocketRegistryTest.java'
@@ -235,8 +236,9 @@ jobs:
           java -cp /tmp/workflow-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.WorkflowReadinessTest
       - name: Test bounded AI conference role orchestration
         run: |
-          javac -cp /tmp/workflow-tests:/tmp/attachment-tests:/tmp/cloud-stream-tests/json.jar -d /tmp/workflow-tests app/src/main/java/com/ollamapocket/app/ConferencePolicy.java tests/ConferencePolicyTest.java
+          javac -cp /tmp/workflow-tests:/tmp/attachment-tests:/tmp/cloud-stream-tests/json.jar -d /tmp/workflow-tests app/src/main/java/com/ollamapocket/app/ConferencePolicy.java tests/ConferencePolicyTest.java tests/ConferenceCapacityTest.java
           java -cp /tmp/workflow-tests:/tmp/attachment-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.ConferencePolicyTest
+          java -cp /tmp/workflow-tests:/tmp/attachment-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.ConferenceCapacityTest
       - name: Audit direct Hangul UI literals
         run: python3 tests/locale_ui_audit.py
       - name: Verify OnHand AI brand and locale resource parity

@@ -988,4 +988,9 @@
     <string name="conference_current">目前成果</string>
     <string name="conference_evidence_notice">條件相符與模型接受不代表獨立、事實或品質驗證。會議記錄為暫時資料，分享前請審閱。</string>
     <string name="conference_copy">複製會議記錄</string>
+    <string name="conference_capacity_check">檢查角色容量</string>
+    <string name="conference_capacity_summary">預估傳遞容量：規劃 %1$s · 成果 %2$s · 審查意見 %3$s。製作輸出上限：%4$s個權杖。</string>
+    <string name="conference_capacity_estimate">這是序列化文字的保守估計，並非模型的實際權杖數。較長的多語言文字可用長度可能縮短。不會擅自截斷內容。</string>
+    <string name="conference_capacity_impossible">設定條件無法符合會議室成果上限。請在開始前修改條件。</string>
+    <string name="conference_capacity_insufficient">預估上下文無法安全容納所有角色及一次修訂。請在開始前縮短目標或條件。</string>
 </resources>
