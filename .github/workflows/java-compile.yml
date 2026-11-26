@@ -29,6 +29,7 @@ on:
       - 'tests/DocumentWindowTest.java'
       - 'tests/VoiceQueuePolicyTest.java'
       - 'tests/CloudUsageLedgerTest.java'
+      - 'tests/CloudStreamTest.java'
 
 jobs:
   compile:
@@ -131,6 +132,12 @@ jobs:
           mkdir -p /tmp/cloud-usage-tests
           javac -d /tmp/cloud-usage-tests app/src/main/java/com/ollamapocket/app/CloudUsageLedger.java tests/CloudUsageLedgerTest.java
           java -cp /tmp/cloud-usage-tests com.ollamapocket.app.CloudUsageLedgerTest
+      - name: Test offline SSE protocol fixtures
+        run: |
+          mkdir -p /tmp/cloud-stream-tests
+          curl --fail --silent --show-error --location --max-time 60 https://repo.maven.apache.org/maven2/org/json/json/20240303/json-20240303.jar -o /tmp/cloud-stream-tests/json.jar
+          javac -cp /tmp/cloud-stream-tests/json.jar -d /tmp/cloud-stream-tests app/src/main/java/com/ollamapocket/app/CloudApi.java app/src/main/java/com/ollamapocket/app/CloudHistory.java tests/CloudStreamTest.java
+          java -cp /tmp/cloud-stream-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.CloudStreamTest
       - name: Audit direct Hangul UI literals
         run: python3 tests/locale_ui_audit.py
       - name: Verify OnHand AI brand and locale resource parity
