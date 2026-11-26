@@ -105,6 +105,9 @@ public final class DistributedRunner {
         return ensure(context,model,reason,()->false);
     }
     public static boolean ensure(Context context,String model,StringBuilder reason,java.util.function.BooleanSupplier cancelled){
+        return ensure(context,model,reason,cancelled,null);
+    }
+    public static boolean ensure(Context context,String model,StringBuilder reason,java.util.function.BooleanSupplier cancelled,String approvedEndpoints){
         if(cancelled.getAsBoolean()||Thread.currentThread().isInterrupted())return false;
         CoopSession coop=CoopSession.get(context);
         InferenceSafetyPolicy.Reason risk=InferenceSafety.check(context);
@@ -127,7 +130,7 @@ public final class DistributedRunner {
             String current=coop.connectedRpcEndpoints();
             for(String endpoint:rpcEndpointSet.split(","))
                 if(!(","+current+",").contains(","+endpoint+","))stillConnected=false;
-            if(stillConnected&&!cancelled.getAsBoolean())return true;
+            if(stillConnected&&!cancelled.getAsBoolean()&&(approvedEndpoints==null||InferenceSafetyPolicy.hasEndpoints(rpcEndpointSet,approvedEndpoints)))return true;
         }
         final long startup;
         synchronized(DistributedRunner.class){stop();startup=generation;}
@@ -145,7 +148,8 @@ public final class DistributedRunner {
                   .append('\n').append(locale.getString(R.string.rpc_plan_retry));
             return false;
         }
-        if(selection.endpoints.isEmpty() || budget.tensorSplit.isEmpty() || selection.endpoints.split(",").length!=budget.selectedIndices.size()){
+        if(selection.endpoints.isEmpty() || budget.tensorSplit.isEmpty() || selection.endpoints.split(",").length!=budget.selectedIndices.size() ||
+                (approvedEndpoints!=null&&!InferenceSafetyPolicy.hasEndpoints(selection.endpoints,approvedEndpoints))){
             reason.append("RAM 조건을 만족하는 RPC 노드가 없습니다");return false;
         }
         log("RAM admission: "+budget.summary().replace('\n',' '));
@@ -175,7 +179,8 @@ public final class DistributedRunner {
             final Process current;
             synchronized(DistributedRunner.class){
                 if(startup!=generation||cancelled.getAsBoolean()||InferenceSafety.blocked(context))return false;
-                if(!InferenceSafetyPolicy.hasEndpoints(selection.endpoints,coop.connectedRpcEndpoints()))return false;
+                if(!InferenceSafetyPolicy.hasEndpoints(selection.endpoints,coop.connectedRpcEndpoints())||
+                        (approvedEndpoints!=null&&!InferenceSafetyPolicy.hasEndpoints(selection.endpoints,approvedEndpoints)))return false;
                 current=pb.start();process=current;activeModel=model;rpcEndpointSet=selection.endpoints;
             }
             new Thread(()->{

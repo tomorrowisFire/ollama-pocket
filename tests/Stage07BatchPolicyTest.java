@@ -22,6 +22,8 @@ public final class Stage07BatchPolicyTest {
         ok(!InferenceSafetyPolicy.hasEndpoints("a,b","a,bb"));
         ok(!InferenceSafetyPolicy.hasEndpoints("a,","a"));
         ok(!InferenceSafetyPolicy.hasEndpoints("","a"));
+        ok(InferenceSafetyPolicy.hasEndpoints("127.0.0.1:10002","127.0.0.1:10001,127.0.0.1:10002"));
+        ok(!InferenceSafetyPolicy.hasEndpoints("127.0.0.1:10003","127.0.0.1:10001,127.0.0.1:10002"));
         ok(InferenceSafetyPolicy.mayFallback(false,false,0,InferenceSafetyPolicy.Reason.NONE));
         ok(!InferenceSafetyPolicy.mayFallback(true,false,0,InferenceSafetyPolicy.Reason.NONE));
         ok(!InferenceSafetyPolicy.mayFallback(false,true,0,InferenceSafetyPolicy.Reason.NONE));

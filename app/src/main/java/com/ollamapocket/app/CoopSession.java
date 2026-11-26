@@ -276,15 +276,38 @@ public final class CoopSession {
     }
     public String rpcEndpoints() { return rpcEndpointsFor(readyNodes()); }
     // Loaded model allocations reduce free RAM. Check live peer health separately from admission.
-    public String connectedRpcEndpoints(){
+    private List<Node> connectedNodes(){
         long now=SystemClock.elapsedRealtime();List<Node> live=new ArrayList<>();
         for(Node n:nodes.values())if(now-n.lastSeen<NODE_TIMEOUT_MS&&n.relay!=null&&n.workerOk&&InferenceSafetyPolicy.peerSafe(n.thermalStatus))live.add(n);
         Collections.sort(live,(a,b)->a.id.compareTo(b.id));
-        return rpcEndpointsFor(live);
+        return live;
+    }
+    public String connectedRpcEndpoints(){return rpcEndpointsFor(connectedNodes());}
+    /** Immutable, session-bound candidate roster, not stored or sent to a provider. */
+    public static final class ApprovalRoster {
+        final String key,endpoints,display;
+        ApprovalRoster(String key,String endpoints,String display){this.key=key;this.endpoints=endpoints;this.display=display;}
+        boolean available(){return !key.isEmpty()&&!endpoints.isEmpty();}
+    }
+    public ApprovalRoster approvalRoster(){
+        String session=sessionId;
+        if(!"host".equals(role)||session.isEmpty())return new ApprovalRoster("","","");
+        List<String> identities=new ArrayList<>(),ports=new ArrayList<>(),labels=new ArrayList<>();
+        for(Node n:connectedNodes()){
+            RpcRelay relay=n.relay;
+            if(relay==null)continue;
+            int port=relay.localPort();
+            if(port<=0)continue;
+            identities.add(n.id+"|"+relay.approvalId+"|"+n.ip+"|"+n.port+"|"+port);
+            ports.add("127.0.0.1:"+port);
+            labels.add(n.name+" · "+n.ip+":"+n.port);
+        }
+        if(!"host".equals(role)||!session.equals(sessionId)||ports.isEmpty())return new ApprovalRoster("","","");
+        return new ApprovalRoster(session+";"+String.join(";",identities),String.join(",",ports),String.join("\n",labels));
     }
     public String rpcEndpointsFor(List<Node> selected) {
         List<String> ports=new ArrayList<>();
-        for(Node n:selected) if(n.relay!=null) ports.add("127.0.0.1:"+n.relay.localPort());
+        for(Node n:selected){RpcRelay relay=n.relay;if(relay!=null){int port=relay.localPort();if(port>0)ports.add("127.0.0.1:"+port);}}
         return String.join(",",ports);
     }
     public long localSafeRamMiB() { return safeRamMiB(); }
@@ -659,7 +682,15 @@ public final class CoopSession {
         private final String remoteIp;
         private final int remotePort;
         private final byte[] key;
+        private final String approvalId=randomId(12);
+        private final java.util.Set<Socket> activeSockets=new java.util.HashSet<>();
+        private boolean closed;
         private ServerSocket localListener;
+        private synchronized boolean track(Socket socket){
+            if(closed){try{socket.close();}catch(Exception ignored){}return false;}
+            activeSockets.add(socket);return true;
+        }
+        private synchronized void untrack(Socket socket){activeSockets.remove(socket);}
         RpcRelay(String ip,int port,byte[] secret){remoteIp=ip;remotePort=port;key=secret.clone();}
         void start() throws Exception {
             localListener=new ServerSocket(0,4,InetAddress.getByName("127.0.0.1"));
@@ -668,19 +699,28 @@ public final class CoopSession {
                 while(!l.isClosed() && "host".equals(role)){
                     try{
                         Socket local=l.accept();
-                        threads.execute(()->{
-                            try(Socket origin=local;Socket remote=new Socket()){
-                                remote.connect(new java.net.InetSocketAddress(remoteIp,remotePort),4000);
-                                SecureRpcTransport.Channel c=SecureRpcTransport.connect(remote,key);
+                        if(!track(local))continue;
+                        try{threads.execute(()->{
+                            Socket remote=new Socket();
+                            try(Socket origin=local;Socket outbound=remote){
+                                if(!track(outbound))return;
+                                outbound.connect(new java.net.InetSocketAddress(remoteIp,remotePort),4000);
+                                SecureRpcTransport.Channel c=SecureRpcTransport.connect(outbound,key);
                                 try(c){bridge(origin,c);}
                             }catch(Exception e){Log.w(TAG,"Node RPC relay failed",e);}
-                        });
+                            finally{untrack(local);untrack(remote);}
+                        });}catch(RuntimeException e){untrack(local);try{local.close();}catch(Exception ignored){}throw e;}
                     }catch(IOException e){if(!l.isClosed())Log.w(TAG,"Local relay failed",e);}
                 }
             });
         }
-        int localPort(){return localListener==null?0:localListener.getLocalPort();}
-        @Override public void close(){try{if(localListener!=null)localListener.close();}catch(Exception ignored){}}
+        synchronized int localPort(){return closed||localListener==null||localListener.isClosed()?0:localListener.getLocalPort();}
+        @Override public synchronized void close(){
+            closed=true;
+            try{if(localListener!=null)localListener.close();}catch(Exception ignored){}
+            for(Socket socket:activeSockets)try{socket.close();}catch(Exception ignored){}
+            activeSockets.clear();
+        }
     }
 
     public synchronized void stop(){

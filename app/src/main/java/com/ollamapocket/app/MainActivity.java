@@ -231,10 +231,12 @@ public final class MainActivity extends Activity {
     private volatile boolean chatBusy, pullBusy, chatCancelled, pullCancelled;
     private volatile InferenceSafetyPolicy.Reason chatSafetyReason=InferenceSafetyPolicy.Reason.NONE;
     private String chatComputeRoute="";
+    private String chatApprovedRosterKey="";
     private final Runnable inferenceWatch=new Runnable(){public void run(){
         if(!chatBusy||chatCancelled||isDestroyed()||isFinishing())return;
         InferenceSafetyPolicy.Reason risk=InferenceSafety.check(getApplicationContext());
-        if(risk==InferenceSafetyPolicy.Reason.NONE&&"cooperative".equals(chatComputeRoute)&&!DistributedRunner.peersAvailable(getApplicationContext()))risk=InferenceSafetyPolicy.Reason.PEER_LOST;
+        if(risk==InferenceSafetyPolicy.Reason.NONE&&"cooperative".equals(chatComputeRoute)&&
+            (!DistributedRunner.peersAvailable(getApplicationContext())||!chatApprovedRosterKey.equals(CoopSession.get(getApplicationContext()).approvalRoster().key)))risk=InferenceSafetyPolicy.Reason.PEER_LOST;
         if(risk!=InferenceSafetyPolicy.Reason.NONE){chatSafetyReason=risk;stopChat();GpuRunner.stop();DistributedRunner.stop();return;}
         ui.postDelayed(this,2000);
     }};
@@ -3225,7 +3227,7 @@ public final class MainActivity extends Activity {
         if(exportConversation!=null)exportConversation.setEnabled(!busy&&historyReadable&&history.length()>0);
     }
     private void sendChat(){sendChat(null);}
-    private void confirmCooperativeTransfer(String fingerprint,JSONArray requestHistory,boolean speak){
+    private void confirmCooperativeTransfer(String fingerprint,JSONArray requestHistory,boolean speak,CoopSession.ApprovalRoster roster){
         if(!foreground||isFinishing()||isDestroyed()||cloudMode)return;
         if(localTransferDialog!=null&&localTransferDialog.isShowing())return;
         String preview;
@@ -3233,7 +3235,7 @@ public final class MainActivity extends Activity {
             getString(R.string.chat_export_assistant),getString(R.string.chat_export_other));}
         catch(Exception e){toast(getString(R.string.transfer_review_failed));return;}
         ScrollView scroll=new ScrollView(this);LinearLayout panel=column();panel.setPadding(dp(16),dp(10),dp(16),dp(10));scroll.addView(panel);
-        margin(text(getString(R.string.transfer_coop_notice),13,WHITE,false),panel,0,10);
+        margin(text(getString(R.string.transfer_coop_notice)+"\n\n"+roster.display,13,WHITE,false),panel,0,10);
         TextView payload=text(preview,13,WHITE,false);payload.setAutoLinkMask(0);payload.setTextIsSelectable(false);payload.setSaveEnabled(false);
         panel.addView(payload,lp(-1,-2));
         AlertDialog dialog=new AlertDialog.Builder(this).setTitle(R.string.transfer_review).setView(scroll)
@@ -3265,12 +3267,12 @@ public final class MainActivity extends Activity {
         if(startupRisk!=InferenceSafetyPolicy.Reason.NONE){toast(getString(InferenceSafety.label(startupRisk)));return;}
         final String computeAtStart=computePreference();
         final boolean speakThisTurn=speakNextAnswer;speakNextAnswer=false;
-        if("cooperative".equals(computeAtStart)||approvedTransfer!=null){
-            String fingerprint=TransferReview.fingerprint(scopeAtStart,modelAtStart,computeAtStart,requestHistory.toString());
-            if(approvedTransfer==null){confirmCooperativeTransfer(fingerprint,requestHistory,speakThisTurn);return;}
-            if(!"cooperative".equals(computeAtStart)||!fingerprint.equals(approvedTransfer)){
-                toast(getString(R.string.transfer_changed));return;
-            }
+        final CoopSession.ApprovalRoster approvedRoster="cooperative".equals(computeAtStart)?CoopSession.get(getApplicationContext()).approvalRoster():null;
+        if(approvedRoster!=null||approvedTransfer!=null){
+            if(approvedRoster==null||!approvedRoster.available()){toast(getString(R.string.session_no_nodes));return;}
+            String fingerprint=TransferReview.fingerprint(scopeAtStart,modelAtStart,computeAtStart+"|"+approvedRoster.key,requestHistory.toString());
+            if(approvedTransfer==null){confirmCooperativeTransfer(fingerprint,requestHistory,speakThisTurn,approvedRoster);return;}
+            if(!fingerprint.equals(approvedTransfer)){toast(getString(R.string.transfer_changed));return;}
         }
         final boolean continueVoice=speakThisTurn&&voice!=null&&voice.continuous();
         if(voice!=null&&!continueVoice)voice.cancel();
@@ -3285,7 +3287,7 @@ public final class MainActivity extends Activity {
         bubble("user",prompt);
         TextView assistant=bubble("assistant",getString(R.string.thinking),true);
         lastStreamUi=0;
-        chatSafetyReason=InferenceSafetyPolicy.Reason.NONE;chatComputeRoute=computeAtStart;
+        chatSafetyReason=InferenceSafetyPolicy.Reason.NONE;chatComputeRoute=computeAtStart;chatApprovedRosterKey=approvedRoster==null?"":approvedRoster.key;
         chatCancelled=false;setChatBusy(true);scrollBottom();
         io.execute(() -> {
             final StringBuilder answer = new StringBuilder();
@@ -3296,9 +3298,11 @@ public final class MainActivity extends Activity {
                 if ("cooperative".equals(computeAtStart)) {
                     StringBuilder reason = new StringBuilder();
                     ui.post(() -> activeEngineLabel.setText(getString(R.string.engine_rpc_load)));
-                    if (!DistributedRunner.ensure(getApplicationContext(), modelAtStart, reason,()->chatCancelled))
-                        throw new java.io.IOException(getString(R.string.coop_error_fallback,UiText.error(this,reason.toString())));
+                    java.util.function.BooleanSupplier invalid=()->chatCancelled||approvedRoster==null||!approvedRoster.key.equals(CoopSession.get(getApplicationContext()).approvalRoster().key);
+                    if (!DistributedRunner.ensure(getApplicationContext(), modelAtStart, reason,invalid,approvedRoster.endpoints))
+                        throw new java.io.IOException(invalid.getAsBoolean()?getString(R.string.transfer_changed):getString(R.string.coop_error_fallback,UiText.error(this,reason.toString())));
                     checkChatCancelled();
+                    if(invalid.getAsBoolean()){DistributedRunner.stop();throw new java.io.IOException(getString(R.string.transfer_changed));}
                     HttpURLConnection connection = OllamaHttp.newCooperativeChatConnection();
                     publishChatConnection(connection);
                     ui.post(() -> activeEngineLabel.setText(getString(R.string.engine_rpc_test)));
