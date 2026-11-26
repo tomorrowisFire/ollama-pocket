@@ -20,6 +20,37 @@ final class CloudApi {
         final String title,url;final int protocol;
         Provider(String title,String url,int protocol){this.title=title;this.url=url;this.protocol=protocol;}
     }
+    static final class HttpFailure extends java.io.IOException {
+        final int status;
+        HttpFailure(int status){super("HTTP "+status);this.status=status;}
+    }
+    static String catalogUrl(Provider p){
+        switch(p){
+            case OPENAI:return "https://api.openai.com/v1/models";
+            case GEMINI:return "https://generativelanguage.googleapis.com/v1beta/openai/models";
+            case CLAUDE:return "https://api.anthropic.com/v1/models";
+            case XAI:return "https://api.x.ai/v1/models";
+            case DEEPSEEK:return "https://api.deepseek.com/models";
+            case OPENROUTER:return "https://openrouter.ai/api/v1/models";
+            default:throw new IllegalArgumentException();
+        }
+    }
+    static HttpsURLConnection catalogConnection(Provider p,String key)throws Exception{
+        return open(p,key,catalogUrl(p),false);
+    }
+    static java.util.List<String> catalog(HttpsURLConnection c)throws Exception{
+        int status=c.getResponseCode();
+        if(status<200||status>=300)throw new HttpFailure(status);
+        JSONObject json=readJson(c);JSONArray rows=json.optJSONArray("data");
+        java.util.TreeSet<String> ids=new java.util.TreeSet<>();
+        if(rows!=null)for(int i=0;i<Math.min(rows.length(),5000);i++){
+            JSONObject item=rows.optJSONObject(i);if(item==null)continue;
+            String id=item.optString("id","");
+            if(!id.isEmpty()&&id.length()<=200&&!id.matches(".*[\\p{Cntrl}].*"))ids.add(id);
+        }
+        if(ids.isEmpty())throw new java.io.IOException("Empty catalog");
+        return new java.util.ArrayList<>(ids);
+    }
     static final class Reply {
         final String text; final long inputTokens, outputTokens;
         Reply(String text,long input,long output){this.text=text;inputTokens=input;outputTokens=output;}
@@ -89,11 +120,14 @@ final class CloudApi {
         return out.toString();
     }
     static HttpsURLConnection connection(Provider provider,String key) throws Exception {
+        return open(provider,key,provider.url,true);
+    }
+    private static HttpsURLConnection open(Provider provider,String key,String url,boolean post)throws Exception{
         if(key.isEmpty()||key.indexOf('\r')>=0||key.indexOf('\n')>=0||key.length()>4096)throw new IllegalArgumentException("Invalid key");
-        HttpsURLConnection c=(HttpsURLConnection)new URL(provider.url).openConnection();
+        HttpsURLConnection c=(HttpsURLConnection)new URL(url).openConnection();
         c.setInstanceFollowRedirects(false);
         c.setConnectTimeout(20000);c.setReadTimeout(180000);
-        c.setRequestMethod("POST");c.setDoOutput(true);c.setUseCaches(false);
+        c.setRequestMethod(post?"POST":"GET");c.setDoOutput(post);c.setUseCaches(false);
         c.setRequestProperty("Content-Type","application/json");
         c.setRequestProperty("Accept","application/json");
         if(provider.protocol==2){c.setRequestProperty("x-api-key",key);c.setRequestProperty("anthropic-version","2023-06-01");}
@@ -111,14 +145,17 @@ final class CloudApi {
         c.setFixedLengthStreamingMode(payload.length);
         try(java.io.OutputStream stream=c.getOutputStream()){stream.write(payload);}
         int status=c.getResponseCode();
-        if(status<200||status>=300)throw new java.io.IOException("HTTP "+status); // Never expose response bodies containing secrets.
+        if(status<200||status>=300)throw new HttpFailure(status); // Never expose response bodies containing secrets.
+        return parseReply(provider,readJson(c));
+    }
+    private static JSONObject readJson(HttpsURLConnection c)throws Exception{
         try(InputStream stream=c.getInputStream();ByteArrayOutputStream buffer=new ByteArrayOutputStream()){
             byte[] b=new byte[8192];int n;
             while((n=stream.read(b))!=-1){
                 if(buffer.size()+n>2_000_000)throw new java.io.IOException("Response limit");
                 buffer.write(b,0,n);
             }
-            return parseReply(provider,new JSONObject(buffer.toString("UTF-8")));
+            return new JSONObject(buffer.toString("UTF-8"));
         }
     }
 }
