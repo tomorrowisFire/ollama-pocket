@@ -113,6 +113,24 @@ public final class DocumentBatchPolicyTest {
         ok(cited.valid.equals(List.of("D1-S1","D3-S8"))&&cited.unknown.equals(List.of("D9-S1")));
         ok(DocumentBatchPolicy.citations("no brackets D1-S1",extended.notes).valid.isEmpty());
         ok(DocumentBatchPolicy.citations("[D1-S1]",List.of()).unknown.equals(List.of("D1-S1")));
+        // Long CJK notes require smaller reduction groups; retain all original notes.
+        DocumentBatchPolicy.Plan adaptive=plan("a".repeat(5596));
+        ok(adaptive.units.size()==4&&adaptive.maxTotal()==8&&expanded.maxTotal()==48);
+        calls.set(0);progress.set(0);
+        DocumentBatchPolicy.Result reduced=DocumentBatchPolicy.analyze(adaptive,(prompt,chars,tokens)->{
+            int call=calls.incrementAndGet();ok(DocumentBatchPolicy.fits(prompt,tokens));
+            if(call<=4)return "한".repeat(350);
+            if(call<=6){ok(prompt.contains("generated notes"));return "요약 [D1-S"+(call==5?1:3)+"]";}
+            return "final [D1-S1] [D1-S3]";
+        },()->false,progress::set);
+        ok(reduced.status==DocumentBatchPolicy.Status.COMPLETED&&reduced.notes.size()==4&&reduced.groupsDone==2);
+        ok(calls.get()==7&&progress.get()==7&&!reduced.contextLimited);
+        calls.set(0);
+        DocumentBatchPolicy.Result noFit=DocumentBatchPolicy.analyze(adaptive,(prompt,chars,tokens)->{
+            calls.incrementAndGet();return "漢".repeat(420);
+        },()->false,x->{});
+        ok(noFit.status==DocumentBatchPolicy.Status.FAILED&&noFit.contextLimited&&noFit.notes.size()==4&&noFit.synthesis.isEmpty());
+        ok(calls.get()==4);
         AttachmentText.Prefix prefix=AttachmentText.readPrefix("a.txt",new ByteArrayInputStream(source.getBytes(StandardCharsets.UTF_8)),AttachmentText.Encoding.UNICODE,1400);
         ok(prefix.partial&&prefix.text.length()==1399&&prefix.text.equals(source.substring(0,1399)));
         AttachmentText.Prefix whole=AttachmentText.readPrefix("a.txt",new ByteArrayInputStream("한글 문서".getBytes(StandardCharsets.UTF_8)),AttachmentText.Encoding.UNICODE,100);

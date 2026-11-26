@@ -881,7 +881,7 @@
     <string name="batch_scope">포함된 추출 텍스트: UTF-16 %1$s자 · %2$s</string>
     <string name="batch_partial">부분 추출 / 누락 또는 한도 확인</string>
     <string name="batch_extracted">추출된 범위만 해당</string>
-    <string name="batch_run_notice">CPU 전용 분석을 시작할까요? 최대 24개 구간과 9회 종합 요청, 20분 제한을 적용합니다. 선택한 모델만 사용하며 대화 기록과 협력·클라우드 추론은 포함하지 않습니다. 모델이 정보를 누락하거나 잘못 읽을 수 있으며 사실 검증은 수행하지 않습니다. 화면을 닫거나 앱을 벗어나면 실행을 중단하고 임시 결과를 폐기합니다. 보관하려면 보고서를 직접 복사하세요.</string>
+    <string name="batch_run_notice">CPU 전용 분석을 시작할까요? 최대 24개 구간과 24회 종합 요청, 20분 제한을 적용합니다. 선택한 모델만 사용하며 대화 기록과 협력·클라우드 추론은 포함하지 않습니다. 모델이 정보를 누락하거나 잘못 읽을 수 있으며 사실 검증은 수행하지 않습니다. 화면을 닫거나 앱을 벗어나면 실행을 중단하고 임시 결과를 폐기합니다. 보관하려면 보고서를 직접 복사하세요.</string>
     <string name="batch_progress">분석 진행: %1$s / %2$s</string>
     <string name="batch_completed">선택한 추출 구간 분석 및 종합 생성 완료.</string>
     <string name="batch_failed">분석이 끝나지 않았습니다. 완료된 구간 기록만 표시하며 최종 종합은 생성하지 않았습니다.</string>
@@ -924,4 +924,5 @@
     <string name="batch_citation_check">출처 ID 형식 검사만 수행(사실 근거 미검증)</string>
     <string name="batch_citation_missing">종합 결과에 인식 가능한 괄호형 출처 ID 없음</string>
     <string name="batch_citation_unknown">존재하지 않는 출처 ID(해당 인용에 의존하지 마세요)</string>
+    <string name="batch_context_limit">추정 입력 한도로 남은 요약을 누락 없이 합칠 수 없습니다. 이전 구간별 기록은 유지되며 최종 종합은 생성되지 않았습니다.</string>
 </resources>

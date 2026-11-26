@@ -881,7 +881,7 @@
     <string name="batch_scope">含まれる抽出テキスト：UTF-16 %1$s単位 · %2$s</string>
     <string name="batch_partial">部分抽出／欠落または上限あり</string>
     <string name="batch_extracted">抽出された範囲のみ</string>
-    <string name="batch_run_notice">CPU専用分析を開始しますか？最大24区間と9回の統合要求、20分の制限があります。選択モデルのみを使用し、会話履歴、協調・クラウド推論は含みません。情報の欠落や誤読があり得ます。事実検証は行いません。画面を閉じるかアプリを離れると停止し、一時結果を破棄します。保存には明示的にレポートをコピーしてください。</string>
+    <string name="batch_run_notice">CPU専用分析を開始しますか？最大24区間と24回の統合要求、20分の制限があります。選択モデルのみを使用し、会話履歴、協調・クラウド推論は含みません。情報の欠落や誤読があり得ます。事実検証は行いません。画面を閉じるかアプリを離れると停止し、一時結果を破棄します。保存には明示的にレポートをコピーしてください。</string>
     <string name="batch_progress">分析進捗：%1$s / %2$s</string>
     <string name="batch_completed">選択した抽出区間の分析と統合生成が完了しました。</string>
     <string name="batch_failed">分析が完了しませんでした。完了した区間の記録のみを表示し、最終統合は生成していません。</string>
@@ -924,4 +924,5 @@
     <string name="batch_citation_check">出典IDの確認のみ。内容の根拠は未検証</string>
     <string name="batch_citation_missing">統合結果に認識可能な角括弧付き出典IDなし</string>
     <string name="batch_citation_unknown">存在しない出典ID（参照しないでください）</string>
+    <string name="batch_context_limit">推定入力上限により残りの要約を欠落なく統合できません。既存の区間記録を保持し、最終統合は生成していません。</string>
 </resources>

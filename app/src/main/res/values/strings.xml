@@ -881,7 +881,7 @@
     <string name="batch_scope">Included extracted text: %1$s UTF-16 units · %2$s</string>
     <string name="batch_partial">Partial / omissions or limit detected</string>
     <string name="batch_extracted">Extracted scope only</string>
-    <string name="batch_run_notice">Start CPU-only analysis? Up to 24 excerpts and 9 synthesis requests, with a 20-minute limit. It uses the selected model and excludes conversation history and cooperative/cloud processing. The model can omit or misread information; no factual verification is performed. Closing this screen or leaving the app stops the run and discards its temporary results. Copy the report explicitly to retain it.</string>
+    <string name="batch_run_notice">Start CPU-only analysis? Up to 24 excerpts and 24 synthesis requests, with a 20-minute limit. It uses the selected model and excludes conversation history and cooperative/cloud processing. The model can omit or misread information; no factual verification is performed. Closing this screen or leaving the app stops the run and discards its temporary results. Copy the report explicitly to retain it.</string>
     <string name="batch_progress">Analysis progress: %1$s / %2$s</string>
     <string name="batch_completed">All selected excerpts processed; synthesis generated.</string>
     <string name="batch_failed">Analysis did not finish. Completed excerpt notes remain below; no final synthesis is claimed.</string>
@@ -924,4 +924,5 @@
     <string name="batch_citation_check">Source ID check only; factual support is not verified</string>
     <string name="batch_citation_missing">No recognized bracketed source IDs in synthesis</string>
     <string name="batch_citation_unknown">Unknown source IDs; do not rely on these references</string>
+    <string name="batch_context_limit">The estimated context is too small to combine the remaining summaries without discarding text. Earlier notes are retained; no final synthesis was generated.</string>
 </resources>

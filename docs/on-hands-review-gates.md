@@ -5,6 +5,14 @@ Each improvement stage must be followed by ten independent-perspective *simulate
 
 Baseline: v0.12.0 dev commit d5431da0e17ca25c3dcb7a3d9f85f28e6405aae7. Prior mock panel scores A–J: 61,58,72,64,69,60,76,54,62,67; mean 64.3/100. Baseline is a heuristic, not a measured product KPI. Java compile run 45752880517 succeeded, existing RPC/security/unit checks succeeded in run 45752880580, native APK/device tests incomplete at time of record.
 
+## Three-role development conference (Stage 12-B onward)
+Before implementation and after verification, record distinct proposals from:
+- A — product/UX director: user tasks, discoverability, accessibility and language quality.
+- B — engineering lead: architecture, implementation, memory/performance and compatibility.
+- C — QA/security lead: adversarial review, reproducible tests, regressions and release risk. Can veto unsupported PASS, release or score changes.
+
+Each role writes its assessment before the joint decision. Record disagreements, final decision, implementation owner, exact baseline/commit, test results and unresolved blockers. Review the highest-risk changes again after CI. Do not count this internal conference as the separate ten-perspective evaluation. Use truly independent agents only if an execution environment actually supports them and provides evidence; otherwise explicitly label the role-based discussion as one assistant's simulated conference. Preserve the existing review and release gates; no vote overrides missing evidence, user-mandated ads, production lock, data integrity or separate release approval.
+
 ## Fixed reviewer perspectives
 A daily assistant, B documents and file analysis, C coding, D automation/tools, E cloud/API, F voice/accessibility, G local/distributed inference, H UX/visual polish, I localization/global usability, J security/privacy.
 

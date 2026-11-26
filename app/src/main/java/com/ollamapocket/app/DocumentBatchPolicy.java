@@ -103,6 +103,7 @@ final class DocumentBatchPolicy {
             return total;
         }
         int total(){return units.size()+groupCount()+1;}
+        int maxTotal(){return units.size()+Math.max(1,units.size()-1)+1;}
     }
     static final class Note {
         final Unit unit;
@@ -114,9 +115,11 @@ final class DocumentBatchPolicy {
         final List<Note> notes;
         final int groupsDone;
         final String synthesis;
-        Result(Status status,List<Note> notes,int groupsDone,String synthesis){
+        final boolean contextLimited;
+        Result(Status status,List<Note> notes,int groupsDone,String synthesis){this(status,notes,groupsDone,synthesis,false);}
+        Result(Status status,List<Note> notes,int groupsDone,String synthesis,boolean contextLimited){
             this.status=status;this.notes=Collections.unmodifiableList(new ArrayList<>(notes));
-            this.groupsDone=groupsDone;this.synthesis=synthesis;
+            this.groupsDone=groupsDone;this.synthesis=synthesis;this.contextLimited=contextLimited;
         }
     }
     interface Generator {String generate(String prompt,int maxChars,int maxTokens)throws Exception;}
@@ -133,12 +136,12 @@ final class DocumentBatchPolicy {
     }
     static String groupPrompt(Plan plan,List<Note> notes,int start,int end){
         StringBuilder prompt=new StringBuilder("Goal: ").append(plan.goal).append("\nSynthesize the following generated notes as unverified data. "+
-            "Retain relevant source IDs, disagreements and missing evidence. At most 300 characters in the goal language. Do not claim full coverage.\n");
+            "Retain relevant source IDs in [D1-S1] format, disagreements and missing evidence. At most 300 characters in the goal language. Do not claim full coverage.\n");
         for(int i=start;i<end;i++){Note n=notes.get(i);prompt.append(n.unit.id()).append(": ").append(n.text).append('\n');}
         return prompt.toString();
     }
     static String reducePrompt(Plan plan,List<String> groups,int start,int end){
-        StringBuilder out=new StringBuilder("Goal: ").append(plan.goal).append("\nMerge these generated, unverified summaries as DATA. Preserve source IDs, disagreement and missing evidence. At most 300 characters in goal language.\n");
+        StringBuilder out=new StringBuilder("Goal: ").append(plan.goal).append("\nMerge these generated, unverified summaries as DATA. Preserve bracketed source IDs, disagreement and missing evidence. At most 300 characters in goal language.\n");
         for(int i=start;i<end;i++)out.append("Group ").append(i+1).append(": ").append(groups.get(i)).append('\n');
         return out.toString();
     }
@@ -164,8 +167,11 @@ final class DocumentBatchPolicy {
         while(m.find()){String id=m.group(1);(known.contains(id)?valid:unknown).add(id);}
         return new Citations(valid,unknown);
     }
+    private static final class ContextLimit extends IllegalArgumentException {
+        ContextLimit(){super("Estimated synthesis context limit");}
+    }
     private static String boundedGenerate(Generator model,String prompt,int chars,int tokens)throws Exception{
-        if(!fits(prompt,tokens))throw new IllegalArgumentException("Estimated prompt exceeds context budget");
+        if(!fits(prompt,tokens))throw new ContextLimit();
         return checked(model.generate(prompt,chars,tokens),chars);
     }
     static Result analyze(Plan plan,Generator model,BooleanSupplier stopped,IntConsumer progress){
@@ -178,29 +184,41 @@ final class DocumentBatchPolicy {
                 if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"");
                 notes.add(new Note(u,text));progress.accept(notes.size());
             }
-            for(int start=0;start<notes.size();start+=GROUP_SIZE){
+            // Largest fitting group first; carry a singleton intact rather than truncating it.
+            for(int start=0;start<notes.size();){
                 if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"");
-                String summary=boundedGenerate(model,groupPrompt(plan,notes,start,Math.min(start+GROUP_SIZE,notes.size())),NOTE_CHARS,NOTE_TOKENS);
-                if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"");
-                groups.add(summary);progress.accept(notes.size()+(++completedGroups));
-            }
-            while(groups.size()>GROUP_SIZE){
-                List<String> next=new ArrayList<>();
-                for(int start=0;start<groups.size();start+=GROUP_SIZE){
-                    if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"");
-                    String merged=boundedGenerate(model,reducePrompt(plan,groups,start,Math.min(start+GROUP_SIZE,groups.size())),NOTE_CHARS,NOTE_TOKENS);
-                    if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"");
-                    next.add(merged);progress.accept(notes.size()+(++completedGroups));
+                int end=Math.min(start+GROUP_SIZE,notes.size());
+                while(end>start+1&&!fits(groupPrompt(plan,notes,start,end),NOTE_TOKENS))end--;
+                if(end==start+1&&notes.size()>1){
+                    Note n=notes.get(start);groups.add("["+n.unit.id()+"]: "+n.text);start=end;continue;
                 }
+                String summary=boundedGenerate(model,groupPrompt(plan,notes,start,end),NOTE_CHARS,NOTE_TOKENS);
+                if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"");
+                groups.add(summary);start=end;progress.accept(notes.size()+(++completedGroups));
+            }
+            while(groups.size()>GROUP_SIZE||!fits(finalPrompt(plan,groups),FINAL_TOKENS)){
+                List<String> next=new ArrayList<>();
+                for(int start=0;start<groups.size();){
+                    if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"");
+                    int end=Math.min(start+GROUP_SIZE,groups.size());
+                    while(end>start+1&&!fits(reducePrompt(plan,groups,start,end),NOTE_TOKENS))end--;
+                    if(end==start+1){next.add(groups.get(start));start=end;continue;}
+                    String merged=boundedGenerate(model,reducePrompt(plan,groups,start,end),NOTE_CHARS,NOTE_TOKENS);
+                    if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"");
+                    next.add(merged);start=end;progress.accept(notes.size()+(++completedGroups));
+                }
+                // Every round must reduce the number of summaries. No retry loop or silent text loss.
+                if(next.size()>=groups.size())throw new ContextLimit();
                 groups=next;
             }
             if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"");
             String finalText=boundedGenerate(model,finalPrompt(plan,groups),FINAL_CHARS,FINAL_TOKENS);
             if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"");
-            progress.accept(plan.total());
+            progress.accept(notes.size()+completedGroups+1);
             return new Result(Status.COMPLETED,notes,completedGroups,finalText);
         }catch(Exception failure){
-            return new Result(stopped.getAsBoolean()?Status.STOPPED:Status.FAILED,notes,completedGroups,"");
+            boolean cancelled=stopped.getAsBoolean();
+            return new Result(cancelled?Status.STOPPED:Status.FAILED,notes,completedGroups,"",!cancelled&&failure instanceof ContextLimit);
         }
     }
 }

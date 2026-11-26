@@ -240,16 +240,18 @@ final class DocumentBatchUi {
             if(busy()||!eligible.getAsBoolean()||!reviewed.equals(goal.getText().toString()))return;
             if(!OllamaForegroundService.isRunning()){toast(R.string.test_need_server);return;}
             if(!"off".equals(CoopSession.get(owner).role())){toast(R.string.guest_stop_first);return;}
-            result=null;analyzed=null;output.setText(coverage(sources)+"\n\n"+plannedCoverage(plan));status.setText(R.string.thinking);progress.setMax(plan.total());progress.setProgress(0);
+            result=null;analyzed=null;output.setText(coverage(sources)+"\n\n"+plannedCoverage(plan));status.setText(R.string.thinking);progress.setMax(plan.maxTotal());progress.setProgress(0);
             final DocumentBatchRunner active=new DocumentBatchRunner(owner,model);runner=active;
             work(()->active.run(plan,done->owner.runOnUiThread(()->{
                 if(visible()&&!cancelRequested){
-                    progress.setProgress(done);status.setText(owner.getString(R.string.batch_progress,Integer.toString(done),Integer.toString(plan.total())));
+                    progress.setProgress(done);status.setText(owner.getString(R.string.batch_progress,Integer.toString(done),"≤"+plan.maxTotal()));
                 }
             })),finished->{
                 runner=null;analyzed=plan;result=finished;
                 status.setText(finished.status==DocumentBatchPolicy.Status.COMPLETED?R.string.batch_completed:
-                    finished.status==DocumentBatchPolicy.Status.STOPPED?stopLabel(active.reason()):R.string.batch_failed);
+                    finished.status==DocumentBatchPolicy.Status.STOPPED?stopLabel(active.reason()):
+                    finished.contextLimited?R.string.batch_context_limit:R.string.batch_failed);
+                if(finished.status==DocumentBatchPolicy.Status.COMPLETED)progress.setProgress(progress.getMax());
                 output.setText(report(plan,finished));
             },error->{runner=null;status.setText(R.string.batch_failed);});
         });
@@ -277,7 +279,10 @@ final class DocumentBatchUi {
                 b.append("\n").append(n.unit.id()).append(" · ").append(plan.sources.get(n.unit.source).name)
                     .append(" [").append(n.unit.start+1).append("–").append(n.unit.end).append("]");
             if(!refs.unknown.isEmpty())b.append('\n').append(s(R.string.batch_citation_unknown)).append(": ").append(String.join(", ",refs.unknown));
-        }else b.append("\n\n").append(s(R.string.batch_no_synthesis));
+        }else{
+            b.append("\n\n").append(s(R.string.batch_no_synthesis));
+            if(result.contextLimited)b.append('\n').append(s(R.string.batch_context_limit));
+        }
         b.append("\n\n").append(s(R.string.batch_unit_notes));
         for(DocumentBatchPolicy.Note note:result.notes)b.append("\n\n").append(note.unit.id())
             .append(" [").append(note.unit.start+1).append("–").append(note.unit.end).append("]\n").append(note.text);

@@ -881,7 +881,7 @@
     <string name="batch_scope">已包含的擷取文字：UTF-16 %1$s個單位 · %2$s</string>
     <string name="batch_partial">部分擷取／存在遺漏或上限</string>
     <string name="batch_extracted">僅限擷取範圍</string>
-    <string name="batch_run_notice">開始僅CPU的分析？最多24個片段和9次綜合請求，限時20分鐘。僅使用所選模型，不包含對話歷史、協作或雲端推論。模型可能遺漏或誤讀資訊，不執行事實查核。關閉介面或離開應用程式將停止執行並捨棄暫存結果。保留報告須主動複製。</string>
+    <string name="batch_run_notice">開始僅CPU的分析？最多24個片段和24次綜合請求，限時20分鐘。僅使用所選模型，不包含對話歷史、協作或雲端推論。模型可能遺漏或誤讀資訊，不執行事實查核。關閉介面或離開應用程式將停止執行並捨棄暫存結果。保留報告須主動複製。</string>
     <string name="batch_progress">分析進度：%1$s / %2$s</string>
     <string name="batch_completed">已完成所選擷取片段的分析與綜合生成。</string>
     <string name="batch_failed">分析未完成。僅顯示已完成片段的記錄，不生成最終綜合。</string>
@@ -924,4 +924,5 @@
     <string name="batch_citation_check">僅檢查來源ID，未核實事實依據</string>
     <string name="batch_citation_missing">綜合結果沒有可辨識的方括號來源ID</string>
     <string name="batch_citation_unknown">未知來源ID，請勿依賴這些引用</string>
+    <string name="batch_context_limit">估計輸入上限不足，無法在不捨棄內容的情況下合併剩餘摘要。已保留先前的片段記錄，未產生最終綜合結果。</string>
 </resources>
