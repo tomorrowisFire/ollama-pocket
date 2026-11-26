@@ -105,6 +105,7 @@ final class WorkspaceReadAloud {
                 if(dialog.getWindow()!=null)dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
                 dialog.show();
                 if(dialog.getWindow()!=null)dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+                WorkbenchWindow.fit(owner,dialog);
                 start.setOnClickListener(v->begin());
                 pause.setOnClickListener(v->{if(visible()&&speech!=null&&speech.canPausePlayback()){
                     speech.togglePlaybackPause();poll();

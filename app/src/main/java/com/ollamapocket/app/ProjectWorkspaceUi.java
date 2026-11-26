@@ -62,7 +62,7 @@ final class ProjectWorkspaceUi {
         scroll=new ScrollView(owner);scroll.setFillViewport(true);scroll.setSaveEnabled(false);scroll.addView(body);
         dialog=new AlertDialog.Builder(owner).setTitle(R.string.project_workspace).setView(scroll).setCancelable(false).create();
         dialog.setOnDismissListener(d->{if(dialog==d)pause();});
-        secure(dialog);dialog.show();secure(dialog);reload();
+        secure(dialog);dialog.show();secure(dialog);WorkbenchWindow.fit(owner,dialog);reload();
     }
     void pause(){
         reading.cancel();dictation.cancel();

@@ -160,7 +160,7 @@ final class DocumentBatchUi {
         ScrollView scroll=new ScrollView(owner);scroll.addView(panel);
         AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.batch_title).setView(scroll)
             .setNegativeButton(R.string.close,null).setNeutralButton(R.string.stop,null).setPositiveButton(R.string.batch_start,null).create();
-        dialog=d;d.setOnDismissListener(x->{if(dialog==d)pause();});d.show();secure(d);
+        dialog=d;d.setOnDismissListener(x->{if(dialog==d)pause();});d.show();secure(d);WorkbenchWindow.fit(owner,d);
         d.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v->{
             if(busy()&&!cancelRequested){stop();status.setText(R.string.auto_pause_requested);enabled();}
         });
@@ -259,7 +259,7 @@ final class DocumentBatchUi {
         }
         ScrollView scroll=new ScrollView(owner);scroll.addView(panel);
         AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.batch_preview).setView(scroll).setPositiveButton(R.string.close,null).create();
-        confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;});d.show();secure(d);
+        confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;});d.show();secure(d);WorkbenchWindow.fit(owner,d);
     }
     private DocumentBatchReport snapshot(){
         return new DocumentBatchReport(analyzed,result,model,reportStopReason,reportRequests,reportElapsedMillis);
@@ -313,7 +313,7 @@ final class DocumentBatchUi {
         update.run();
         ScrollView scroll=new ScrollView(owner);scroll.addView(panel);
         AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.batch_inspect_excerpt).setView(scroll).setPositiveButton(R.string.close,null).create();
-        confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;});d.show();secure(d);
+        confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;});d.show();secure(d);WorkbenchWindow.fit(owner,d);
     }
     private void start(){
         if(!visible()||busy()||sources==null||!eligible.getAsBoolean())return;

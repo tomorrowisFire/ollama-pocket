@@ -70,6 +70,9 @@ final class CloudChatPanel extends LinearLayout {
     private final ScrollView scroll;
     private final EditText prompt;
     private final Button send,stop,settings,conversations;
+    private final LinearLayout header,composer,composerActions;
+    private final Button back;
+    private Boolean stackedHeader,stackedComposer,compactHeight;
     private volatile HttpURLConnection connection;
     private volatile int serial;
     private volatile boolean closed;
@@ -103,15 +106,17 @@ final class CloudChatPanel extends LinearLayout {
         profilePrefs=activity.getSharedPreferences("onhand_cloud_profiles_v1",Context.MODE_PRIVATE);restoreProfiles();
         setOrientation(VERTICAL);
         setPadding(dp(6),dp(4),dp(6),dp(6));
-        LinearLayout header=new LinearLayout(owner);
+        header=new LinearLayout(owner);
         header.setOrientation(HORIZONTAL);
-        Button back=button(R.string.cloud_return),configure=button(R.string.api_manager_title);
+        back=button(R.string.cloud_return);
+        Button configure=button(R.string.api_manager_title);
         settings=configure;
-        header.addView(back,new LayoutParams(0,dp(48),1f));
-        header.addView(configure,new LayoutParams(0,dp(48),1f));
+        header.addView(back,new LayoutParams(0,-2,1f));
+        header.addView(configure,new LayoutParams(0,-2,1f));
         addView(header,new LayoutParams(-1,-2));
         back.setOnClickListener(v->local.run());configure.setOnClickListener(v->showApiManager());
         endpoint=new TextView(owner);endpoint.setTextSize(16);endpoint.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        endpoint.setSaveEnabled(false);
         addView(endpoint,new LayoutParams(-1,-2));
         usageSummary=new TextView(owner);usageSummary.setTextSize(12);addView(usageSummary,new LayoutParams(-1,-2));
         conversations=button(R.string.cloud_conversations);
@@ -125,17 +130,52 @@ final class CloudChatPanel extends LinearLayout {
         addView(scroll,new LayoutParams(-1,0,1f));
         status=new TextView(owner);status.setTextSize(12);status.setPadding(0,dp(3),0,dp(3));
         addView(status,new LayoutParams(-1,-2));
-        LinearLayout composer=new LinearLayout(owner);composer.setOrientation(HORIZONTAL);
+        composer=new LinearLayout(owner);composer.setOrientation(HORIZONTAL);
         composer.setGravity(android.view.Gravity.CENTER_VERTICAL);
         prompt=input(R.string.message_hint,InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE,CloudHistory.MAX_PROMPT);
-        prompt.setMinLines(1);prompt.setMaxLines(4);prompt.setSaveEnabled(false);
+        prompt.setMinLines(1);prompt.setMaxLines(4);prompt.setMinimumHeight(dp(48));prompt.setSaveEnabled(false);
+        prompt.setContentDescription(getResources().getString(R.string.message_hint));
         composer.addView(prompt,new LayoutParams(0,-2,1f));
         send=button(R.string.send);stop=button(R.string.stop);
-        composer.addView(send,new LayoutParams(-2,dp(48)));
-        composer.addView(stop,new LayoutParams(-2,dp(48)));
+        composerActions=new LinearLayout(owner);composerActions.setOrientation(HORIZONTAL);
+        composerActions.addView(send,new LayoutParams(-2,-2));composerActions.addView(stop,new LayoutParams(-2,-2));
+        composer.addView(composerActions,new LayoutParams(-2,-2));
         addView(composer,new LayoutParams(-1,-2));
         send.setOnClickListener(v->prepareSend());stop.setOnClickListener(v->cancel());
         setBusy(false);render();
+        addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
+            if(r-l!=or-ol||b-t!=ob-ot)applyResponsiveLayout();
+        });
+        post(this::applyResponsiveLayout);
+    }
+    private void applyResponsiveLayout(){
+        if(closed||getWidth()<=0)return;
+        float density=getResources().getDisplayMetrics().density,scale=getResources().getConfiguration().fontScale;
+        int full=(int)(getWidth()/density);
+        int max=dp(WorkbenchLayoutPolicy.cloudContentDp(full));
+        int side=dp(6)+Math.max(0,(getWidth()-max)/2);
+        if(getPaddingLeft()!=side||getPaddingRight()!=side)setPadding(side,dp(4),side,dp(6));
+        int width=(int)(Math.max(0,getWidth()-side*2)/density),height=(int)(getHeight()/density);
+        boolean hs=WorkbenchLayoutPolicy.cloudHeaderStacked(width,scale);
+        if(stackedHeader==null||stackedHeader!=hs){
+            stackedHeader=hs;header.setOrientation(hs?VERTICAL:HORIZONTAL);
+            back.setLayoutParams(hs?new LayoutParams(-1,-2):new LayoutParams(0,-2,1f));
+            settings.setLayoutParams(hs?new LayoutParams(-1,-2):new LayoutParams(0,-2,1f));
+        }
+        boolean cs=WorkbenchLayoutPolicy.cloudComposerStacked(width,scale);
+        if(stackedComposer==null||stackedComposer!=cs){
+            stackedComposer=cs;composer.setOrientation(cs?VERTICAL:HORIZONTAL);
+            prompt.setLayoutParams(cs?new LayoutParams(-1,-2):new LayoutParams(0,-2,1f));
+            composerActions.setLayoutParams(new LayoutParams(cs?-1:-2,-2));
+            send.setLayoutParams(cs?new LayoutParams(0,-2,1f):new LayoutParams(-2,-2));
+            stop.setLayoutParams(cs?new LayoutParams(0,-2,1f):new LayoutParams(-2,-2));
+        }
+        boolean compact=WorkbenchLayoutPolicy.compactCloudHeight(height,scale);
+        if(compactHeight==null||compactHeight!=compact){
+            compactHeight=compact;
+            prompt.setMaxLines(compact?2:4);
+            usageSummary.setVisibility(compact?GONE:VISIBLE);
+        }
     }
     private int dp(int v){return Math.round(v*getResources().getDisplayMetrics().density);}
     private Button button(int label){Button b=new Button(owner);b.setText(label);b.setAllCaps(false);b.setMinHeight(dp(48));return b;}
@@ -355,7 +395,7 @@ final class CloudChatPanel extends LinearLayout {
             LinearLayout.LayoutParams divider=new LinearLayout.LayoutParams(-1,dp(1));
             divider.topMargin=dp(8);list.addView(separator,divider);
         }
-        showAction(dialog);
+        showAction(dialog);WorkbenchWindow.fit(owner,dialog);
     }
     private void configure(){configure(provider);}
     private void configure(CloudApi.Provider initial){
@@ -459,6 +499,7 @@ final class CloudChatPanel extends LinearLayout {
         });
         dialog.show();
         if(dialog.getWindow()!=null)dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        WorkbenchWindow.fit(owner,dialog);
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
             if(!active||closed||busy){dialog.dismiss();return;}
             CloudApi.Provider selected=values[pick.getSelectedItemPosition()];

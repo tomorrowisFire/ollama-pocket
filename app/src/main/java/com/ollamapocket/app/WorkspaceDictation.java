@@ -103,6 +103,7 @@ final class WorkspaceDictation {
             try{
                 dialog.show();
                 if(dialog.getWindow()!=null)dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+                WorkbenchWindow.fit(owner,dialog);
                 dialog.getButton(DialogInterface.BUTTON_POSITIVE).setEnabled(false);
                 dialog.getButton(DialogInterface.BUTTON_NEUTRAL).setEnabled(false);
                 dialog.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(v->apply());

@@ -1180,4 +1180,14 @@
     <string name="workspace_read_complete">음성 엔진이 모든 텍스트 구간의 재생 완료를 확인했습니다.</string>
     <string name="workspace_read_stopped">읽기가 중단되었습니다. 자동 재생하지 않습니다.</string>
     <string name="workspace_read_answer">근거 기반 답변 및 인용 상태</string>
+    <string name="workbench_title">AI 작업공간</string>
+    <string name="workbench_intro">작업공간 또는 채팅 도구를 선택하세요. 직접 변경하지 않는 한 현재 초안과 모델을 유지합니다.</string>
+    <string name="workbench_work_group">프로젝트 및 로컬 AI 업무</string>
+    <string name="workbench_chat_group">채팅 및 추론 관리</string>
+    <string name="workbench_project_detail">메모·산출물·버전·연결된 대화를 관리합니다.</string>
+    <string name="workbench_knowledge_detail">개인 자료를 검색하고 근거가 연결된 답변을 검토합니다.</string>
+    <string name="workbench_automation_detail">로컬 자동화를 구성하고 AI 회의 결과를 검토합니다.</string>
+    <string name="workbench_api_detail">클라우드·PC 채팅을 열고 제공자별 설정을 관리합니다.</string>
+    <string name="workbench_export_detail">현재 로컬 대화를 검토하고 내보냅니다.</string>
+    <string name="workbench_compute_detail">추론 엔진 및 연산 설정을 확인합니다.</string>
 </resources>

@@ -1104,17 +1104,50 @@ public final class MainActivity extends Activity {
     }
 
     private void showChatActions(){
-        if(guestOnly||cloudMode||isUiBusy()){toast(getString(R.string.busy));return;}
-        String[] labels={getString(R.string.cloud_short),getString(R.string.auto_title),getString(R.string.chat_export),getString(R.string.compute_select),getString(R.string.project_workspace),getString(R.string.knowledge_workspace)};
-        new AlertDialog.Builder(this).setTitle(R.string.chat_actions).setItems(labels,(d,w)->{
-            if(isUiBusy()||guestOnly||cloudMode||!foreground)return;
-            if(w==0)openCloud();
-            else if(w==1)openLocalAutomation();
-            else if(w==2)chooseChatExport();
-            else if(w==3)showComputeChoiceDialog();
-            else if(w==4)openProjectWorkspace();
-            else openKnowledgeWorkspace();
-        }).setNegativeButton(R.string.close,null).show();
+        if(guestOnly||cloudMode||isUiBusy()||!foreground||activeTab!=0){toast(getString(R.string.busy));return;}
+        LinearLayout body=column();body.setPadding(dp(16),dp(8),dp(16),dp(16));
+        ScrollView scroll=new ScrollView(this);scroll.setSaveEnabled(false);scroll.addView(body);
+        margin(text(getString(R.string.workbench_intro),13,MUTED,false),body,0,12);
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle(R.string.workbench_title).setView(scroll)
+            .setNegativeButton(R.string.close,null).create();
+        Runnable[] actions={this::openProjectWorkspace,this::openKnowledgeWorkspace,this::openLocalAutomation,
+            this::openCloud,this::chooseChatExport,this::showComputeChoiceDialog};
+        int[] titles={R.string.project_workspace,R.string.knowledge_workspace,R.string.auto_title,
+            R.string.api_manager_title,R.string.chat_export,R.string.compute_select};
+        int[] details={R.string.workbench_project_detail,R.string.workbench_knowledge_detail,R.string.workbench_automation_detail,
+            R.string.workbench_api_detail,R.string.workbench_export_detail,R.string.workbench_compute_detail};
+        int[] groups={R.string.workbench_work_group,R.string.workbench_chat_group};
+        for(int g=0;g<groups.length;g++){
+            TextView section=text(getString(groups[g]),16,WHITE,true);
+            if(Build.VERSION.SDK_INT>=28)section.setAccessibilityHeading(true);
+            margin(section,body,g==0?0:16,8);
+            WorkbenchGrid tiles=new WorkbenchGrid(this,uiTextScale);
+            for(int i=g*3;i<g*3+3;i++){
+                final int index=i;
+                tiles.addView(workbenchCard(getString(titles[i]),getString(details[i]),()->{
+                    if(!dialog.isShowing()||isFinishing()||isDestroyed()||!foreground||activeTab!=0||isUiBusy()||guestOnly||cloudMode)return;
+                    dialog.dismiss();actions[index].run();
+                }));
+            }
+            body.addView(tiles,lp(-1,-2));
+        }
+        dialog.show();WorkbenchWindow.fit(this,dialog);
+    }
+    private View workbenchCard(String title,String detail,Runnable action){
+        LinearLayout card=column();card.setPadding(dp(14),dp(13),dp(14),dp(13));card.setMinimumHeight(dp(84));
+        GradientDrawable surface=bg(CARD,14);surface.setStroke(dp(1),borderTone());
+        card.setBackground(surface);card.setClickable(true);card.setFocusable(true);AdaptiveAnswerActions.feedback(card,14);
+        TextView heading=text(title,15,WHITE,true),caption=text(detail,13,MUTED,false);
+        heading.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        caption.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        card.addView(heading,lp(-1,-2));margin(caption,card,4,0);
+        card.setContentDescription(title+" · "+detail);
+        card.setAccessibilityDelegate(new View.AccessibilityDelegate(){
+            @Override public void onInitializeAccessibilityNodeInfo(View host,android.view.accessibility.AccessibilityNodeInfo info){
+                super.onInitializeAccessibilityNodeInfo(host,info);info.setClassName(Button.class.getName());
+            }
+        });
+        card.setOnClickListener(v->action.run());return card;
     }
 
     private void createModelPage() {

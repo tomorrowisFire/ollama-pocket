@@ -1180,4 +1180,14 @@
     <string name="workspace_read_complete">All text chunks acknowledged by the speech engine.</string>
     <string name="workspace_read_stopped">Reading stopped. No automatic restart.</string>
     <string name="workspace_read_answer">Evidence-aware answer and citation status</string>
+    <string name="workbench_title">AI workbench</string>
+    <string name="workbench_intro">Choose a workspace or chat tool. Your current draft and model stay as they are unless you explicitly change them.</string>
+    <string name="workbench_work_group">Projects and local AI work</string>
+    <string name="workbench_chat_group">Chat and inference settings</string>
+    <string name="workbench_project_detail">Manage notes, artifacts, versions and linked chats.</string>
+    <string name="workbench_knowledge_detail">Search private sources and review evidence-linked answers.</string>
+    <string name="workbench_automation_detail">Build local workflows and review AI conference reports.</string>
+    <string name="workbench_api_detail">Open cloud/PC chat and manage explicit provider settings.</string>
+    <string name="workbench_export_detail">Review and export the current local conversation.</string>
+    <string name="workbench_compute_detail">Review available inference engines and compute preferences.</string>
 </resources>

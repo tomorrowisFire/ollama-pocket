@@ -57,7 +57,7 @@ final class AutomationUi {
         ScrollView scroll=new ScrollView(owner);scroll.addView(l);
         AlertDialog d=new AlertDialog.Builder(owner).setTitle(title).setView(scroll)
             .setNegativeButton(R.string.close,null).create();
-        dialog=d;d.setOnDismissListener(x->{if(dialog==d){dialog=null;pause();}});d.show();secure(d);
+        dialog=d;d.setOnDismissListener(x->{if(dialog==d){dialog=null;pause();}});d.show();secure(d);WorkbenchWindow.fit(owner,d);
     }
     void pause(){
         reading.cancel();dictation.cancel();
@@ -652,7 +652,7 @@ final class AutomationUi {
             if(confirmation==d)confirmation=null;
             updateParent.run();
         });
-        d.show();secure(d);
+        d.show();secure(d);WorkbenchWindow.fit(owner,d);
         d.getButton(DialogInterface.BUTTON_POSITIVE).setEnabled(false);
         d.getButton(DialogInterface.BUTTON_NEUTRAL).setEnabled(false);
         d.getButton(DialogInterface.BUTTON_NEUTRAL).setOnClickListener(v->{

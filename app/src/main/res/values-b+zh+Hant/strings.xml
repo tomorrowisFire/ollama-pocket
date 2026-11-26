@@ -1180,4 +1180,14 @@
     <string name="workspace_read_complete">語音引擎已確認全部文字片段完成。</string>
     <string name="workspace_read_stopped">朗讀已停止。不會自動重新播放。</string>
     <string name="workspace_read_answer">含證據的回答及引用狀態</string>
+    <string name="workbench_title">AI 工作台</string>
+    <string name="workbench_intro">選擇工作區或聊天工具。除非主動變更，否則保留目前草稿與模型。</string>
+    <string name="workbench_work_group">專案與本機 AI 工作</string>
+    <string name="workbench_chat_group">聊天與推論管理</string>
+    <string name="workbench_project_detail">管理筆記、成果、版本與連結對話。</string>
+    <string name="workbench_knowledge_detail">搜尋私人資料並檢視連結證據的回答。</string>
+    <string name="workbench_automation_detail">建立本機工作流程並檢視 AI 會議報告。</string>
+    <string name="workbench_api_detail">開啟雲端或電腦聊天並管理提供者設定。</string>
+    <string name="workbench_export_detail">檢查並匯出目前本機對話。</string>
+    <string name="workbench_compute_detail">檢視可用推論引擎與運算設定。</string>
 </resources>

@@ -1180,4 +1180,14 @@
     <string name="workspace_read_complete">音声エンジンがすべてのテキスト区間の完了を通知しました。</string>
     <string name="workspace_read_stopped">読み上げを停止しました。自動再開はしません。</string>
     <string name="workspace_read_answer">根拠付き回答と引用状態</string>
+    <string name="workbench_title">AI ワークベンチ</string>
+    <string name="workbench_intro">ワークスペースまたはチャットツールを選択します。明示的に変更しない限り現在の下書きとモデルは保持されます。</string>
+    <string name="workbench_work_group">プロジェクトとローカルAI作業</string>
+    <string name="workbench_chat_group">チャットと推論管理</string>
+    <string name="workbench_project_detail">メモ、成果物、バージョン、関連チャットを管理します。</string>
+    <string name="workbench_knowledge_detail">非公開資料を検索し、根拠付きの回答を確認します。</string>
+    <string name="workbench_automation_detail">ローカルワークフローを作成し、AI会議レポートを確認します。</string>
+    <string name="workbench_api_detail">クラウド・PCチャットを開き、提供元の設定を管理します。</string>
+    <string name="workbench_export_detail">現在のローカル会話を確認してエクスポートします。</string>
+    <string name="workbench_compute_detail">利用可能な推論エンジンと計算設定を確認します。</string>
 </resources>

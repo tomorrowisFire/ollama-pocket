@@ -48,7 +48,7 @@ final class KnowledgeWorkspaceUi {
         body=new LinearLayout(owner);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(16),dp(8),dp(16),dp(16));
         scroll=new ScrollView(owner);scroll.setFillViewport(true);scroll.setSaveEnabled(false);scroll.addView(body);
         dialog=new AlertDialog.Builder(owner).setTitle(R.string.knowledge_workspace).setView(scroll).setCancelable(false).create();
-        dialog.setOnDismissListener(d->{if(dialog==d)pause();});secure(dialog);dialog.show();secure(dialog);reload(imported);
+        dialog.setOnDismissListener(d->{if(dialog==d)pause();});secure(dialog);dialog.show();secure(dialog);WorkbenchWindow.fit(owner,dialog);reload(imported);
     }
     void pause(){
         reading.cancel();dictation.cancel();
