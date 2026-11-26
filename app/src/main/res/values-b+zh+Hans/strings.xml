@@ -740,4 +740,6 @@
     <string name="cloud_estimated_cost">预估费用（USD）：%1$s</string>
     <string name="cloud_input_rate">每百万输入令牌 USD</string>
     <string name="cloud_output_rate">每百万输出令牌 USD</string>
+    <string name="cloud_pc_address">PC 地址（私有 IPv4:端口）</string>
+    <string name="cloud_pc_notice">未加密的局域网连接。仅在可信私有网络使用；消息可能被读取或篡改。</string>
 </resources>
