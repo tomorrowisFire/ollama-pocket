@@ -643,4 +643,19 @@
     <string name="chat_table_block">Table</string>
     <string name="chat_math_block">Formula · Simple display</string>
     <string name="chat_math_raw">Formula · Original notation</string>
+    <string name="chat_search_content">Search titles and messages</string>
+    <string name="chat_search_working">Searching local conversations…</string>
+    <string name="chat_search_limited">Showing up to 120 results. Refine the search to find more.</string>
+    <string name="chat_search_partial">Some oversized or unreadable conversations could not be searched. Results may be incomplete.</string>
+    <string name="chat_export">Export</string>
+    <string name="chat_export_notice">Export only this saved local conversation. Drafts and incomplete answers are excluded. A storage provider you choose may synchronize the exported file.</string>
+    <string name="chat_export_empty">There are no saved messages to export.</string>
+    <string name="chat_export_large">This conversation is too large to export safely. No data was deleted.</string>
+    <string name="chat_export_changed">The saved conversation changed or the export request expired. Export again.</string>
+    <string name="chat_export_done">Conversation exported</string>
+    <string name="chat_export_failed">Export failed. The destination may contain an incomplete file. Original history is unchanged.</string>
+    <string name="chat_export_unavailable">No compatible document picker is available.</string>
+    <string name="chat_export_user">User</string>
+    <string name="chat_export_assistant">Assistant</string>
+    <string name="chat_export_other">Other saved message</string>
 </resources>

@@ -643,4 +643,19 @@
     <string name="chat_table_block">表格</string>
     <string name="chat_math_block">公式 · 简易显示</string>
     <string name="chat_math_raw">公式 · 原始记法</string>
+    <string name="chat_search_content">搜索标题与消息</string>
+    <string name="chat_search_working">正在搜索本地对话…</string>
+    <string name="chat_search_limited">最多显示 120 条结果，请缩小搜索范围。</string>
+    <string name="chat_search_partial">部分过大或无法读取的对话无法搜索，结果可能不完整。</string>
+    <string name="chat_export">导出</string>
+    <string name="chat_export_notice">仅导出此已保存的本地对话，不含草稿和未完成回答。所选存储服务可能同步导出文件。</string>
+    <string name="chat_export_empty">没有可导出的已保存消息。</string>
+    <string name="chat_export_large">对话超出安全导出大小限制，未删除任何数据。</string>
+    <string name="chat_export_changed">已保存对话发生变化或导出请求已过期，请重新导出。</string>
+    <string name="chat_export_done">对话已导出</string>
+    <string name="chat_export_failed">导出失败，目标位置可能有不完整文件。原始历史未更改。</string>
+    <string name="chat_export_unavailable">没有可用的文档保存选择器。</string>
+    <string name="chat_export_user">用户</string>
+    <string name="chat_export_assistant">助手</string>
+    <string name="chat_export_other">其他已保存消息</string>
 </resources>

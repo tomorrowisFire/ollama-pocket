@@ -73,9 +73,15 @@ import java.util.concurrent.Executors;
 public final class MainActivity extends Activity {
     private static final int PICK_GGUF = 701;
     private static final int VOICE_PERMISSION = 702;
+    private static final int EXPORT_CHAT = 703;
     private boolean guestOnly, foreground, speakNextAnswer;
     private OnHandsVoice voice;
-    private Button voiceButton, cloudShortcut;
+    private Button voiceButton, cloudShortcut, exportConversation;
+    private final ExecutorService chatSearchIo=Executors.newSingleThreadExecutor();
+    private java.util.concurrent.Future<?> chatSearchTask;
+    private long chatSearchSerial;
+    private String exportScope="",exportDigest="",exportModel="";
+    private boolean exportJson;
     private LinearLayout localChatContent;
     private CloudChatPanel cloudPanel;
     private boolean cloudMode;
@@ -352,6 +358,12 @@ public final class MainActivity extends Activity {
         loadHistory();
         renderHistory();
         showTab(state==null?0:state.getInt("activeTab",0));
+        if(state!=null){
+            exportScope=state.getString("exportScope","");
+            exportDigest=state.getString("exportDigest","");
+            exportModel=state.getString("exportModel","");
+            exportJson=state.getBoolean("exportJson",false);
+        }
         // Draft recovery uses the current per-conversation preference only.
         // A saved Bundle from before a completed turn must not resurrect its prompt.
         startServer();
@@ -366,6 +378,8 @@ public final class MainActivity extends Activity {
     @Override protected void onSaveInstanceState(Bundle out) {
         super.onSaveInstanceState(out);
         out.putInt("activeTab",activeTab);
+        out.putString("exportScope",exportScope);out.putString("exportDigest",exportDigest);
+        out.putString("exportModel",exportModel);out.putBoolean("exportJson",exportJson);
         saveLocalDraft();
     }
     @Override protected void onResume() {
@@ -406,6 +420,9 @@ public final class MainActivity extends Activity {
         if(onlineSearchRunnable!=null)ui.removeCallbacks(onlineSearchRunnable);
         if(onlineSearchTask!=null)onlineSearchTask.cancel(true);
         if(onlineHfTask!=null)onlineHfTask.cancel(true);
+        chatSearchSerial++;
+        if(chatSearchTask!=null)chatSearchTask.cancel(true);
+        chatSearchIo.shutdownNow();
         io.shutdownNow();
         if(cloudPanel!=null)cloudPanel.destroy();
         if(voice!=null)voice.close();
@@ -687,7 +704,8 @@ public final class MainActivity extends Activity {
             });
         }
         margin(text(getString(R.string.workspace_local_history),12,MUTED,true),rail,14,5);
-        tabletSearch=edit(getString(R.string.search_chats),"",false);
+        tabletSearch=edit(getString(R.string.chat_search_content),"",false);
+        tabletSearch.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(LocalChatLibrary.MAX_QUERY)});
         tabletSearch.setSingleLine(true);tabletSearch.setMinHeight(dp(48));margin(tabletSearch,rail,0,7);
         tabletChats=column();margin(tabletChats,rail,0,4);
         tabletSearch.addTextChangedListener(new TextWatcher(){
@@ -750,7 +768,14 @@ public final class MainActivity extends Activity {
         cloudShortcut.setOnClickListener(v->openCloud());
         margin(modelRow, localChatContent, 2, 7);
         activeEngineLabel = text(getString(R.string.engine_idle), 11, MUTED, false);
-        margin(activeEngineLabel, localChatContent, 0, 7);
+        LinearLayout chatTools=row();
+        rowItem(chatTools,activeEngineLabel,1,5);
+        exportConversation=button(getString(R.string.chat_export),false);
+        exportConversation.setMinimumHeight(dp(48));
+        exportConversation.setEnabled(false);
+        exportConversation.setOnClickListener(v->chooseChatExport());
+        rowItem(chatTools,exportConversation,0,0);
+        margin(chatTools,localChatContent,0,7);
         modelChooser.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onNothingSelected(AdapterView<?> parent) { }
             @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -2538,10 +2563,12 @@ public final class MainActivity extends Activity {
         showTab(0);
     }
     private static final class DrawerChat {
-        final String model, id, title;
+        final String model,id,title,excerpt;
+        final int matchIndex;
         final long created;
-        DrawerChat(String model,String id,String title) {
-            this.model=model;this.id=id;this.title=title;
+        DrawerChat(String model,String id,String title){this(model,id,title,"",-1);}
+        DrawerChat(String model,String id,String title,String excerpt,int matchIndex) {
+            this.model=model;this.id=id;this.title=title;this.excerpt=excerpt;this.matchIndex=matchIndex;
             long timestamp=0;
             try {timestamp=Long.parseLong(id);}catch(Exception ignored){}
             created=timestamp;
@@ -2602,34 +2629,89 @@ public final class MainActivity extends Activity {
         loadHistory();renderHistory();
         if(drawer!=null)drawer.dismiss();
         showTab(0);
+        if(entry.matchIndex>=0&&messages!=null&&messageScroll!=null){
+            View hit=messages.findViewWithTag("chat-message-"+entry.matchIndex);
+            if(hit!=null)hit.post(()->{
+                if(hit.getParent()==messages)messageScroll.scrollTo(0,hit.getTop());
+            });
+        }
     }
 
-    private void renderDrawerChats(LinearLayout list,Dialog drawer,
-                                   List<DrawerChat> conversations,String query){
+    private void renderDrawerChats(LinearLayout list,Dialog drawer,List<DrawerChat> conversations,String query){
+        final long serial=++chatSearchSerial;
+        if(chatSearchTask!=null){chatSearchTask.cancel(true);chatSearchTask=null;}
+        String search=LocalChatLibrary.query(query);
+        if(search.isEmpty()){
+            renderDrawerChatItems(list,drawer,conversations,true,conversations.size()>LocalChatLibrary.MAX_RESULTS,false);
+            return;
+        }
         list.removeAllViews();
-        String search=query==null?"":query.toLowerCase(Locale.ROOT).trim();
+        margin(text(getString(R.string.chat_search_working),13,MUTED,false),list,5,5);
+        android.content.SharedPreferences prefs=getPreferences(MODE_PRIVATE);
+        ui.postDelayed(()->{
+            if(isFinishing()||isDestroyed()||serial!=chatSearchSerial||(drawer!=null&&!drawer.isShowing()))return;
+            chatSearchTask=chatSearchIo.submit(()->{
+                List<DrawerChat> found=new ArrayList<>();long total=0;boolean incomplete=false,limited=false;
+                for(DrawerChat entry:conversations){
+                    if(Thread.currentThread().isInterrupted())return;
+                    DrawerChat hit=null;
+                    if(LocalChatLibrary.matches(entry.title,search)||LocalChatLibrary.matches(entry.model,search))hit=entry;
+                    else{
+                        try{
+                            String raw=prefs.getString("chat_v4_"+entry.model+"_"+entry.id,"[]");
+                            if(raw.length()>LocalChatLibrary.MAX_SEARCH_CONVERSATION||
+                               total+raw.length()>LocalChatLibrary.MAX_SEARCH_TOTAL){incomplete=true;continue;}
+                            total+=raw.length();
+                            JSONArray saved=new JSONArray(raw);
+                            for(int i=0;i<saved.length();i++){
+                                if(Thread.currentThread().isInterrupted())return;
+                                JSONObject item=saved.optJSONObject(i);if(item==null)continue;
+                                String content=item.optString("content","");
+                                if(LocalChatLibrary.matches(content,search)){
+                                    hit=new DrawerChat(entry.model,entry.id,entry.title,LocalChatLibrary.excerpt(content,search),i);break;
+                                }
+                            }
+                        }catch(Exception e){incomplete=true;}
+                    }
+                    if(hit!=null){
+                        if(found.size()==LocalChatLibrary.MAX_RESULTS){limited=true;break;}
+                        found.add(hit);
+                    }
+                }
+                final boolean partial=incomplete,capped=limited;
+                ui.post(()->{
+                    if(isFinishing()||isDestroyed()||serial!=chatSearchSerial||
+                        (drawer!=null&&!drawer.isShowing())||(drawer==null&&currentRailDp<=0))return;
+                    renderDrawerChatItems(list,drawer,found,false,capped,partial);
+                });
+            });
+        },180);
+    }
+    private void renderDrawerChatItems(LinearLayout list,Dialog drawer,List<DrawerChat> conversations,boolean emptyQuery,boolean limited,boolean incomplete){
+        list.removeAllViews();
         int count=0;
         for(DrawerChat entry:conversations){
-            if(!search.isEmpty() &&
-               !entry.title.toLowerCase(Locale.ROOT).contains(search) &&
-               !entry.model.toLowerCase(Locale.ROOT).contains(search))continue;
-            if(count++>=120)break;
-            boolean active=!cloudMode&&entry.model.equals(currentModel)
-                &&entry.id.equals(getPreferences(MODE_PRIVATE)
-                    .getString("active_chat_"+entry.model,""));
+            if(count>=LocalChatLibrary.MAX_RESULTS)break;
+            count++;
+            boolean active=!cloudMode&&entry.model.equals(currentModel)&&entry.id.equals(
+                getPreferences(MODE_PRIVATE).getString("active_chat_"+entry.model,""));
             TextView item=drawerRow(entry.title,"",active);
-            item.setContentDescription(getString(R.string.workspace_chat_model,entry.title,entry.model));
+            if(!entry.excerpt.isEmpty()){
+                item.setSingleLine(false);item.setMaxLines(3);
+                item.setText(entry.title+"\n"+entry.excerpt);
+            }
+            item.setContentDescription(getString(R.string.workspace_chat_model,entry.title,entry.model)+
+                (entry.excerpt.isEmpty()?"":". "+entry.excerpt));
             item.setSelected(active);item.setFocusable(true);item.setClickable(true);item.setMinHeight(dp(48));
-            LinearLayout.LayoutParams p=lp(-1,-2);
-            p.bottomMargin=dp(3);
-            list.addView(item,p);
+            LinearLayout.LayoutParams p=lp(-1,-2);p.bottomMargin=dp(3);list.addView(item,p);
             item.setOnClickListener(v->openSavedConversation(entry,drawer));
         }
         if(count==0){
-            TextView empty=text(getString(search.isEmpty()?R.string.workspace_no_history:R.string.workspace_no_results),13,MUTED,false);
-            empty.setPadding(dp(13),dp(19),dp(10),dp(12));
-            list.addView(empty,lp(-1,-2));
+            TextView empty=text(getString(emptyQuery?R.string.workspace_no_history:R.string.workspace_no_results),13,MUTED,false);
+            empty.setPadding(dp(13),dp(19),dp(10),dp(12));list.addView(empty,lp(-1,-2));
         }
+        if(limited)margin(text(getString(R.string.chat_search_limited),11,MUTED,false),list,6,5);
+        if(incomplete)margin(text(getString(R.string.chat_search_partial),11,MUTED,false),list,5,5);
     }
 
     private TextView drawerNavigationItem(String title){
@@ -2699,7 +2781,8 @@ public final class MainActivity extends Activity {
             newChat();
         });
 
-        EditText search=edit(getString(R.string.search_chats),"",false);
+        EditText search=edit(getString(R.string.chat_search_content),"",false);
+        search.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(LocalChatLibrary.MAX_QUERY)});
         search.setSingleLine(true);
         search.setMinHeight(dp(44));
         margin(search,shell,0,9);
@@ -2740,6 +2823,8 @@ public final class MainActivity extends Activity {
 
         drawer.setContentView(shell);
         drawer.setOnDismissListener(d->{
+            chatSearchSerial++;
+            if(chatSearchTask!=null)chatSearchTask.cancel(true);
             if(navigationDrawer==drawer)navigationDrawer=null;
         });
         Window window=drawer.getWindow();
@@ -2892,6 +2977,7 @@ public final class MainActivity extends Activity {
     private void renderHistory(){renderHistory(true);}
     private void renderHistory(boolean follow) {
         if (messages == null) return;
+        if(exportConversation!=null)exportConversation.setEnabled(historyReadable&&!chatBusy&&history.length()>0);
         int oldY=messageScroll==null?0:messageScroll.getScrollY();
         messages.removeAllViews();
         if(!historyReadable){
@@ -2930,6 +3016,7 @@ public final class MainActivity extends Activity {
         t.setPadding(dp(12),dp(12),dp(12),dp(12));
         t.setAutoLinkMask(0);
         LinearLayout wrapper=column();
+        if(index>=0)wrapper.setTag("chat-message-"+index);
         wrapper.setGravity(user?Gravity.RIGHT:Gravity.LEFT);
         if(user){
             t.setMaxWidth(chatBubbleMaxWidth());
@@ -3008,6 +3095,7 @@ public final class MainActivity extends Activity {
         if(cloudShortcut!=null)cloudShortcut.setEnabled(!busy);
         modelChooser.setEnabled(!busy && !knownModels.isEmpty());
         if(voiceButton!=null)voiceButton.setEnabled(!busy);
+        if(exportConversation!=null)exportConversation.setEnabled(!busy&&historyReadable&&history.length()>0);
     }
     private void sendChat() {
         String prompt=chatInput.getText().toString().trim();
@@ -3162,8 +3250,66 @@ public final class MainActivity extends Activity {
         if (c != null) c.disconnect();
     }
 
+    private void clearExportRequest(){exportScope="";exportDigest="";exportModel="";exportJson=false;}
+    private void chooseChatExport(){
+        if(isUiBusy()||cloudMode||guestOnly||!ownsLoadedScope()||!historyReadable)return;
+        if(history.length()==0){toast(getString(R.string.chat_export_empty));return;}
+        new AlertDialog.Builder(this).setTitle(R.string.chat_export).setMessage(R.string.chat_export_notice)
+            .setNegativeButton(R.string.cancel,null).setNeutralButton("JSON",(d,w)->beginChatExport(true))
+            .setPositiveButton("Markdown",(d,w)->beginChatExport(false)).show();
+    }
+    private void beginChatExport(boolean json){
+        if(isUiBusy()||cloudMode||!ownsLoadedScope()||!historyReadable||history.length()==0)return;
+        try{
+            String raw=getPreferences(MODE_PRIVATE).getString(loadedHistoryScope,"");
+            if(raw.length()>LocalChatLibrary.MAX_EXPORT){toast(getString(R.string.chat_export_large));return;}
+            if(raw.isEmpty()||!new JSONArray(raw).toString().equals(history.toString())){
+                toast(getString(R.string.chat_export_changed));return;
+            }
+            exportScope=loadedHistoryScope;exportDigest=LocalChatLibrary.digest(raw);exportModel=currentModel;exportJson=json;
+            Intent picker=new Intent(Intent.ACTION_CREATE_DOCUMENT);
+            picker.addCategory(Intent.CATEGORY_OPENABLE);
+            picker.setType(json?"application/json":"text/markdown");
+            picker.putExtra(Intent.EXTRA_TITLE,"OnHand-AI-"+System.currentTimeMillis()+(json?".json":".md"));
+            startActivityForResult(picker,EXPORT_CHAT);
+        }catch(Exception e){clearExportRequest();toast(getString(R.string.chat_export_unavailable));}
+    }
+    private void finishChatExport(int result,Intent data){
+        String scope=exportScope,hash=exportDigest,model=exportModel;boolean json=exportJson;
+        clearExportRequest();
+        if(result!=RESULT_OK||data==null||data.getData()==null)return;
+        if(guestOnly||scope.isEmpty()||model.isEmpty()||!scope.startsWith("chat_v4_"+model+"_")||hash.length()!=64){
+            toast(getString(R.string.chat_export_changed));return;
+        }
+        Uri destination=data.getData();
+        android.content.SharedPreferences prefs=getPreferences(MODE_PRIVATE);
+        final String user=getString(R.string.chat_export_user),assistant=getString(R.string.chat_export_assistant),other=getString(R.string.chat_export_other);
+        io.execute(()->{
+            int message=R.string.chat_export_failed;
+            try{
+                String raw=prefs.getString(scope,"");
+                if(raw.length()>LocalChatLibrary.MAX_EXPORT)message=R.string.chat_export_large;
+                else if(raw.isEmpty()||!LocalChatLibrary.digest(raw).equals(hash))message=R.string.chat_export_changed;
+                else{
+                    JSONArray snapshot=new JSONArray(raw);
+                    String content=json?raw:LocalChatLibrary.markdown(model,localMessages(snapshot),user,assistant,other);
+                    if(content.length()>LocalChatLibrary.MAX_EXPORT)message=R.string.chat_export_large;
+                    else{
+                        try(java.io.OutputStream out=getContentResolver().openOutputStream(destination,"wt")){
+                            if(out==null)throw new java.io.IOException("Document output unavailable");
+                            out.write(content.getBytes(StandardCharsets.UTF_8));out.flush();
+                        }
+                        message=R.string.chat_export_done;
+                    }
+                }
+            }catch(Exception ignored){}
+            final int state=message;
+            ui.post(()->{if(!isFinishing()&&!isDestroyed())toast(getString(state));});
+        });
+    }
     @Override protected void onActivityResult(int code, int result, Intent data) {
         super.onActivityResult(code, result, data);
+        if(code==EXPORT_CHAT){finishChatExport(result,data);return;}
         if (code != PICK_GGUF || result != RESULT_OK || data == null || data.getData() == null) return;
         Uri uri = data.getData();
         String displayName = "model.gguf";

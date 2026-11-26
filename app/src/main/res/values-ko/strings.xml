@@ -643,4 +643,19 @@
     <string name="chat_table_block">표</string>
     <string name="chat_math_block">수식 · 간단 표시</string>
     <string name="chat_math_raw">수식 · 원문 표기</string>
+    <string name="chat_search_content">제목·대화 본문 검색</string>
+    <string name="chat_search_working">로컬 대화 검색 중…</string>
+    <string name="chat_search_limited">최대 120개 결과를 표시합니다. 검색어를 구체화하세요.</string>
+    <string name="chat_search_partial">용량이 크거나 읽을 수 없는 일부 대화를 검색하지 못했습니다. 결과가 불완전할 수 있습니다.</string>
+    <string name="chat_export">내보내기</string>
+    <string name="chat_export_notice">이 로컬 저장 대화만 내보냅니다. 초안과 미완료 답변은 제외합니다. 선택한 저장 서비스에서 파일을 동기화할 수 있습니다.</string>
+    <string name="chat_export_empty">내보낼 저장 메시지가 없습니다.</string>
+    <string name="chat_export_large">안전한 내보내기 용량 한도를 초과했습니다. 데이터는 삭제하지 않았습니다.</string>
+    <string name="chat_export_changed">저장 대화가 변경됐거나 내보내기 요청이 만료됐습니다. 다시 내보내세요.</string>
+    <string name="chat_export_done">대화 내보내기 완료</string>
+    <string name="chat_export_failed">내보내기에 실패했습니다. 저장 위치에 불완전한 파일이 남을 수 있습니다. 원래 대화는 변경하지 않았습니다.</string>
+    <string name="chat_export_unavailable">사용 가능한 문서 저장 선택기가 없습니다.</string>
+    <string name="chat_export_user">사용자</string>
+    <string name="chat_export_assistant">AI 답변</string>
+    <string name="chat_export_other">기타 저장 메시지</string>
 </resources>

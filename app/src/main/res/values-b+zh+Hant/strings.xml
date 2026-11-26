@@ -643,4 +643,19 @@
     <string name="chat_table_block">表格</string>
     <string name="chat_math_block">公式 · 簡易顯示</string>
     <string name="chat_math_raw">公式 · 原始記法</string>
+    <string name="chat_search_content">搜尋標題與訊息</string>
+    <string name="chat_search_working">正在搜尋本機對話…</string>
+    <string name="chat_search_limited">最多顯示 120 項結果，請縮小搜尋範圍。</string>
+    <string name="chat_search_partial">部分過大或無法讀取的對話無法搜尋，結果可能不完整。</string>
+    <string name="chat_export">匯出</string>
+    <string name="chat_export_notice">僅匯出此已儲存的本機對話，不含草稿和未完成回應。選擇的儲存服務可能同步匯出檔案。</string>
+    <string name="chat_export_empty">沒有可匯出的已儲存訊息。</string>
+    <string name="chat_export_large">對話超出安全匯出大小限制，未刪除任何資料。</string>
+    <string name="chat_export_changed">已儲存對話變更或匯出要求已逾期，請重新匯出。</string>
+    <string name="chat_export_done">對話已匯出</string>
+    <string name="chat_export_failed">匯出失敗，目的地可能有不完整檔案。原始歷史未變更。</string>
+    <string name="chat_export_unavailable">沒有可用的文件儲存選擇器。</string>
+    <string name="chat_export_user">使用者</string>
+    <string name="chat_export_assistant">助理</string>
+    <string name="chat_export_other">其他已儲存訊息</string>
 </resources>

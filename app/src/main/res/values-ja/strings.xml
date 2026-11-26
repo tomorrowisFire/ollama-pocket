@@ -643,4 +643,19 @@
     <string name="chat_table_block">表</string>
     <string name="chat_math_block">数式 · 簡易表示</string>
     <string name="chat_math_raw">数式 · 原文表記</string>
+    <string name="chat_search_content">タイトル・本文を検索</string>
+    <string name="chat_search_working">ローカル会話を検索中…</string>
+    <string name="chat_search_limited">最大120件を表示します。検索条件を絞ってください。</string>
+    <string name="chat_search_partial">大容量または読み込み不能な一部の会話を検索できません。結果は不完全な場合があります。</string>
+    <string name="chat_export">エクスポート</string>
+    <string name="chat_export_notice">この保存済みローカル会話のみを書き出します。下書き・未完了の応答は含みません。選択した保存先がファイルを同期する場合があります。</string>
+    <string name="chat_export_empty">書き出す保存済みメッセージがありません。</string>
+    <string name="chat_export_large">安全な書き出し容量上限を超えました。データは削除していません。</string>
+    <string name="chat_export_changed">保存済み会話が変更されたか、書き出し要求が失効しました。再度実行してください。</string>
+    <string name="chat_export_done">会話を書き出しました</string>
+    <string name="chat_export_failed">書き出しに失敗しました。保存先に不完全なファイルが残る場合があります。元の履歴は変更していません。</string>
+    <string name="chat_export_unavailable">利用可能なドキュメント保存画面がありません。</string>
+    <string name="chat_export_user">ユーザー</string>
+    <string name="chat_export_assistant">アシスタント</string>
+    <string name="chat_export_other">その他の保存済みメッセージ</string>
 </resources>

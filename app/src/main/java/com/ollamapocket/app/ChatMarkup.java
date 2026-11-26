@@ -29,6 +29,7 @@ final class ChatMarkup {
         List<Span> spans=new ArrayList<>();
         if(source.length()>LIMIT)return new Result(source,spans);
         String[] lines=source.replace("\r\n","\n").split("\n",-1);
+        for(String line:lines)if(line.length()>4000)return new Result(source,spans);
         StringBuilder out=new StringBuilder();
         for(int i=0;i<lines.length;i++){
             String line=lines[i];
