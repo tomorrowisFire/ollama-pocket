@@ -95,6 +95,8 @@ public final class GpuRunner {
 
     /** Called on a worker thread. Returns true only after verified GPU offload. */
     public static boolean ensure(Context context, String model, StringBuilder reason) {
+        InferenceSafetyPolicy.Reason risk=InferenceSafety.check(context);
+        if(risk!=InferenceSafetyPolicy.Reason.NONE){reason.append(OnHandsLocale.wrap(context).getString(InferenceSafety.label(risk)));return false;}
         if (!packaged(context)) {
             reason.append("GPU 추론 실행 파일이 포함되지 않았습니다"); return false;
         }
@@ -118,6 +120,7 @@ public final class GpuRunner {
             Process current;
             int myGeneration;
             synchronized (GpuRunner.class) {
+                if(InferenceSafety.blocked(context))throw new java.io.IOException("Unsafe inference resources");
                 process = pb.start();
                 activeModel = model;
                 offloadConfirmed = false;
@@ -136,6 +139,7 @@ public final class GpuRunner {
             long end = SystemClock.elapsedRealtime() + 35000;
             while (SystemClock.elapsedRealtime() < end) {
                 if (process != current || !current.isAlive()) break;
+                if(InferenceSafety.blocked(context)){reason.append("Unsafe inference resources");synchronized(GpuRunner.class){if(process==current)stopLocked();}return false;}
                 if (healthy() && offloadConfirmed) return true;
                 Thread.sleep(500);
             }
