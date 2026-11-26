@@ -1,0 +1,13 @@
+# 12-F3A — frozen goal-to-plan AI draft KPI
+Baseline app 10e8ffc9e35c999eb9bae6c2ee15409567c87fdf; process d3c1869808f97cc91fbbcfb4cad68ef7a03d62fa. Physical tests only at FINAL. Single assistant simulates A/B/C.
+A Product: goal input, explicit Generate action, visible model/local-only scope, review/edit/apply draft, separate existing Start confirmation. Preserve original draft on generation failure/cancel.
+B Engineering: one bounded local CPU request, no tools, no cloud, no saved checkpoint until existing Start. 400 UTF-16 goal, 2–4 proposed text-only steps, 600 UTF-16 generated instruction per step, strict JSON object with only steps array; each row exact prompt and fields string; 1–6 strict field specifications. Include normalized original goal in each compiled step, use existing WorkflowPlanEditor and JSON_FIELDS gate; reject extra/duplicate fields, malformed/truncated/oversized responses, controls and invalid specs. Existing 2048 context, <=512 generated tokens, <=4000 output UTF-16, 120-second monotonic deadline; one attempt per explicit Generate, no automatic retry or model routing. Preserve runtime limits and existing storage format.
+C QA: never apply generated text automatically, no external tool or data transmission, no permissions or persistence changes. Cancel/close/background terminates request via connection disconnect, original draft unchanged until explicit apply, stale results cannot overwrite edited goal/draft. Local safety/coop/server checks and watchdog; do not claim factual or semantic quality from schema match. Generated instructions are untrusted draft text.
+| KPI | Required non-device gate |
+|---|---|
+| F3A-1 | Exact commit Java, native APK/QA AAB, 16 KiB, existing ad/locale/regression checks pass |
+| F3A-2 | All deterministic planner fixtures pass: goal bound/language, strict shape/duplicates/type, 2–4 steps, gate validity, exact goal inclusion, invalid fields, unknown action keys, control/truncation/oversize rejection, compiled plan replay through existing parser |
+| F3A-3 | Source wiring confirms one explicitly initiated loopback CPU call; bounded stream and deadline, no retry, cancel/foreground guard, no runner/checkpoint creation from planner, reviewed current goal and original draft required for apply |
+| F3A-4 | Five locale labels, three-role source review and ten-perspective provisional assessment; no known open P0/P1 scoped source defect |
+| F3A-5 | Actual goal-to-plan relevance, device latency/cancel/UX and complete automatic execution NOT_RUN / DEFERRED_TO_FINAL |
+F3B retains the previous sample validator, budget/resume checks. All earlier thresholds, no actual performance or scoring promises, final 22 gates and review targets unchanged.
