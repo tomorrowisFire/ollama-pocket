@@ -1077,4 +1077,13 @@
     <string name="knowledge_range">保存資料内のUTF-16位置 %1$d–%2$d（両端含む）</string>
     <string name="knowledge_open_source">資料全体を表示</string>
     <string name="knowledge_input_limit">入力上限を超えたため、この変更は反映されませんでした。</string>
+    <string name="knowledge_ask">知識資料で質問</string>
+    <string name="knowledge_question">質問</string>
+    <string name="knowledge_answer_notice">確認した抜粋だけを使い、ローカル CPU に一度だけ要求します。文字列一致検索です。クラウドや協力端末への転送、会話や資料の自動保存はありません。資料は信頼されていないデータであり、モデルに影響する場合があります。</string>
+    <string name="knowledge_no_evidence">適合する根拠がありません。別のキーワードか短い質問を試してください。</string>
+    <string name="knowledge_evidence_count">確認資料: %1$d 件 / 一致資料 %2$d 件（最大 %3$d 件）。</string>
+    <string name="knowledge_exact_prompt">確認する実際の要求全文</string>
+    <string name="knowledge_generate">ローカル回答を生成</string>
+    <string name="knowledge_citation_notice">AI 回答: 引用 ID は抜粋が提供されたことだけを示します。主張、事実、OCR の正確さは証明しません。</string>
+    <string name="knowledge_citation_ids">一致する引用 ID: %1$s · 不明な ID: %2$s</string>
 </resources>

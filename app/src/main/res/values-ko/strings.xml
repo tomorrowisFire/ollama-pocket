@@ -1077,4 +1077,13 @@
     <string name="knowledge_range">자료 내 UTF-16 위치 %1$d–%2$d(양 끝 포함)</string>
     <string name="knowledge_open_source">자료 전체 보기</string>
     <string name="knowledge_input_limit">입력 한도를 초과해 이번 입력은 반영되지 않았습니다.</string>
+    <string name="knowledge_ask">지식 자료로 질문</string>
+    <string name="knowledge_question">질문</string>
+    <string name="knowledge_answer_notice">검토한 발췌문만 사용하여 로컬 CPU 요청을 한 번 실행합니다. 키워드 일치 검색이며 클라우드·협력 기기 전송 및 대화·자료 자동 저장은 없습니다. 자료는 신뢰되지 않은 데이터이며 모델에 영향을 줄 수 있습니다.</string>
+    <string name="knowledge_no_evidence">요청에 맞는 근거가 없습니다. 다른 키워드나 짧은 질문을 사용하세요.</string>
+    <string name="knowledge_evidence_count">검토 자료: %1$d개 / 일치 자료 %2$d개(최대 %3$d개).</string>
+    <string name="knowledge_exact_prompt">검토할 실제 요청 전문</string>
+    <string name="knowledge_generate">로컬 답변 생성</string>
+    <string name="knowledge_citation_notice">AI 답변: 인용 ID는 발췌문 제공 여부만 나타냅니다. 주장이나 사실·OCR 정확성을 검증하지 않습니다.</string>
+    <string name="knowledge_citation_ids">일치 인용 ID: %1$s · 미확인 ID: %2$s</string>
 </resources>

@@ -18,7 +18,9 @@ import java.util.function.Consumer;
 final class KnowledgeWorkspaceUi {
     private static final AtomicBoolean MODAL=new AtomicBoolean(),WORK=new AtomicBoolean();
     private final Activity owner;
-    private final BooleanSupplier eligible;
+    private final BooleanSupplier eligible,answerEligible;
+    private final String answerModel;
+    private volatile DocumentBatchRunner answerRunner;
     private final ProjectWorkspacePolicy.Session session=new ProjectWorkspacePolicy.Session();
     private boolean ownsModal;
     private AlertDialog dialog,confirmation;
@@ -26,7 +28,10 @@ final class KnowledgeWorkspaceUi {
     private ScrollView scroll;
     private TextView notice;
     private ProjectTransactions.Snapshot<KnowledgeLibrary.State> snapshot;
-    KnowledgeWorkspaceUi(Activity owner,BooleanSupplier eligible){this.owner=owner;this.eligible=eligible;}
+    KnowledgeWorkspaceUi(Activity owner,BooleanSupplier eligible){this(owner,eligible,"",()->false);}
+    KnowledgeWorkspaceUi(Activity owner,BooleanSupplier eligible,String model,BooleanSupplier answerEligible){
+        this.owner=owner;this.eligible=eligible;this.answerModel=model;this.answerEligible=answerEligible;
+    }
     static boolean busy(){return MODAL.get()||WORK.get();}
     private boolean valid(long token){return session.valid(token)&&eligible.getAsBoolean()&&!owner.isFinishing()&&!owner.isDestroyed();}
     private String s(int id,Object... args){return owner.getString(id,args);}
@@ -45,6 +50,7 @@ final class KnowledgeWorkspaceUi {
     }
     void pause(){
         session.close();
+        DocumentBatchRunner active=answerRunner;answerRunner=null;if(active!=null)active.cancel();
         if(confirmation!=null){AlertDialog d=confirmation;confirmation=null;d.dismiss();}
         if(dialog!=null){AlertDialog d=dialog;dialog=null;d.dismiss();}
         snapshot=null;body=null;scroll=null;notice=null;
@@ -169,6 +175,7 @@ final class KnowledgeWorkspaceUi {
         label(s(R.string.knowledge_notice),false);
         button(s(R.string.knowledge_add),state.sources.size()<KnowledgeLibrary.MAX_SOURCES,()->editor("",""));
         button(s(R.string.knowledge_search),!state.sources.isEmpty(),()->searchEditor(""));
+        if(!answerModel.isEmpty())button(s(R.string.knowledge_ask),!state.sources.isEmpty()&&answerEligible.getAsBoolean(),()->answerEditor("",""));
         if(state.sources.isEmpty())label(s(R.string.knowledge_empty),false);
         for(KnowledgeLibrary.Source source:state.sources)button(source.title+" · "+source.id,true,()->showSource(source,this::root));
         button(R.string.project_reload,this::reload);button(R.string.close,this::pause);
@@ -212,6 +219,66 @@ final class KnowledgeWorkspaceUi {
             work(()->KnowledgeLibrary.search(state,exact),hits->showHits(state,exact,hits),error->status(R.string.project_invalid));
         });
         button(R.string.project_back,this::root);button(R.string.close,this::pause);
+    }
+    private void answerEditor(String previousQuery,String previousQuestion){
+        reset();label(s(R.string.knowledge_answer_notice),false);label(s(R.string.model_label)+": "+answerModel,false);
+        EditText query=field(R.string.knowledge_query,previousQuery,KnowledgeLibrary.MAX_QUERY,false);
+        EditText question=field(R.string.knowledge_question,previousQuestion,KnowledgeAnswerPolicy.MAX_QUESTION,true);
+        button(R.string.knowledge_review,()->{
+            if(!answerEligible.getAsBoolean()){status(R.string.busy);return;}
+            final String q=query.getText().toString(),goal=question.getText().toString();
+            final KnowledgeLibrary.State state=snapshot.value;
+            work(()->KnowledgeAnswerPolicy.plan(state,q,goal),plan->{
+                if(plan.excerpts.isEmpty()){status(R.string.knowledge_no_evidence);return;}
+                answerReview(plan);
+            },error->status(R.string.project_invalid));
+        });
+        button(R.string.project_back,this::root);button(R.string.close,this::pause);
+    }
+    private void evidence(KnowledgeAnswerPolicy.Plan plan){
+        label(s(R.string.knowledge_evidence_count,plan.excerpts.size(),plan.matchingSources,KnowledgeAnswerPolicy.MAX_SOURCES),false);
+        for(KnowledgeAnswerPolicy.Excerpt e:plan.excerpts){
+            label("["+e.marker+"] "+e.title,true);label(s(R.string.knowledge_id,e.sourceId),true);
+            label(s(R.string.knowledge_range,e.start,e.end),false);showOrigin(e.origin);label(e.text,true);
+        }
+    }
+    private void answerReview(KnowledgeAnswerPolicy.Plan plan){
+        reset();label(s(R.string.knowledge_answer_notice),false);label(s(R.string.model_label)+": "+answerModel,false);
+        evidence(plan);label(s(R.string.knowledge_exact_prompt),false);label(plan.prompt,true);
+        button(R.string.knowledge_generate,()->runAnswer(plan));
+        button(R.string.project_back,()->answerEditor(plan.query,plan.question));button(R.string.close,this::pause);
+    }
+    private void runAnswer(KnowledgeAnswerPolicy.Plan plan){
+        if(!answerEligible.getAsBoolean()){status(R.string.busy);return;}
+        if(!OllamaForegroundService.isRunning()){status(R.string.test_need_server);return;}
+        if(!"off".equals(CoopSession.get(owner).role())){status(R.string.guest_stop_first);return;}
+        reset();label(s(R.string.knowledge_answer_notice),false);
+        final DocumentBatchRunner active=new DocumentBatchRunner(owner,answerModel);answerRunner=active;
+        long token=session.token();
+        Button stop=new Button(owner);stop.setText(R.string.stop);stop.setAllCaps(false);stop.setMinHeight(dp(48));
+        stop.setOnClickListener(v->{if(valid(token)&&answerRunner==active){active.cancel();stop.setEnabled(false);status(R.string.auto_pause_requested);}});
+        body.addView(stop,new LinearLayout.LayoutParams(-1,-2));
+        work(()->{
+            if(!plan.stillAvailable(new KnowledgeStore(owner).read().value))
+                throw new ProjectTransactions.TransactionFailure(ProjectTransactions.Failure.STALE,null);
+            return active.runKnowledge(plan);
+        },answer->{
+            answerRunner=null;
+            if(active.reason()!=DocumentBatchRunner.Stop.NONE||!answerEligible.getAsBoolean()){answerReview(plan);status(R.string.batch_stopped);return;}
+            answerResult(plan,answer);
+        },error->{
+            answerRunner=null;
+            if(error instanceof ProjectTransactions.TransactionFailure){blocked(R.string.project_stale);return;}
+            answerReview(plan);status(active.reason()==DocumentBatchRunner.Stop.NONE?R.string.batch_failed:R.string.batch_stopped);
+        });
+        if(WORK.get())stop.setEnabled(true);
+    }
+    private void answerResult(KnowledgeAnswerPolicy.Plan plan,KnowledgeAnswerPolicy.Answer answer){
+        reset();label(s(R.string.knowledge_citation_notice),false);label(s(R.string.model_label)+": "+answerModel,false);
+        label(answer.text,true);
+        label(s(R.string.knowledge_citation_ids,answer.known.isEmpty()?"—":String.join(", ",answer.known),
+            answer.unknown.isEmpty()?"—":String.join(", ",answer.unknown)),false);
+        evidence(plan);button(R.string.project_back,()->answerEditor(plan.query,plan.question));button(R.string.close,this::pause);
     }
     private void showHits(KnowledgeLibrary.State state,String query,List<KnowledgeLibrary.Hit> hits){
         reset();label(s(R.string.knowledge_search_notice),false);label(s(R.string.knowledge_hits,hits.size(),KnowledgeLibrary.MAX_HITS),false);

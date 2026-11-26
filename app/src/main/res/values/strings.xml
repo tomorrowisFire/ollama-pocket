@@ -1077,4 +1077,13 @@
     <string name="knowledge_range">Snapshot UTF-16 positions %1$d–%2$d (inclusive)</string>
     <string name="knowledge_open_source">View full snapshot</string>
     <string name="knowledge_input_limit">Edit exceeds the input limit. No part of this edit was accepted.</string>
+    <string name="knowledge_ask">Ask using knowledge</string>
+    <string name="knowledge_question">Question</string>
+    <string name="knowledge_answer_notice">One local CPU request using only the reviewed excerpts. Literal keyword retrieval, no cloud or peer transfer, no automatic chat or library save. Source text is untrusted and may influence the model.</string>
+    <string name="knowledge_no_evidence">No matching evidence fits the request. Try a different keyword or a shorter question.</string>
+    <string name="knowledge_evidence_count">Reviewed sources: %1$d of %2$d matching sources (maximum %3$d).</string>
+    <string name="knowledge_exact_prompt">Exact request text to review</string>
+    <string name="knowledge_generate">Generate local answer</string>
+    <string name="knowledge_citation_notice">AI answer: citation IDs indicate only that an excerpt was supplied. They do not prove a claim, factual accuracy, or OCR accuracy.</string>
+    <string name="knowledge_citation_ids">Known citation IDs: %1$s · Unknown IDs: %2$s</string>
 </resources>

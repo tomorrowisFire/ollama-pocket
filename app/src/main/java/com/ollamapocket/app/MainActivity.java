@@ -3520,7 +3520,10 @@ public final class MainActivity extends Activity {
     private void openKnowledgeWorkspace(){
         if(!foreground||guestOnly||cloudMode||isUiBusy()||activeTab!=0){toast(getString(R.string.busy));return;}
         if(voice!=null)voice.cancel();
-        if(knowledgeWorkspaceUi==null)knowledgeWorkspaceUi=new KnowledgeWorkspaceUi(this,()->foreground&&!guestOnly&&!cloudMode&&activeTab==0);
+        final String model=currentModel,scope=loadedHistoryScope;
+        knowledgeWorkspaceUi=new KnowledgeWorkspaceUi(this,()->foreground&&!guestOnly&&!cloudMode&&activeTab==0,model,
+            ()->foreground&&!guestOnly&&!cloudMode&&activeTab==0&&!model.isEmpty()&&model.equals(currentModel)&&knownModels.contains(model)
+                &&ownsLoadedScope()&&scope.equals(loadedHistoryScope));
         knowledgeWorkspaceUi.open();
     }
     private void openProjectWorkspace(){

@@ -1077,4 +1077,13 @@
     <string name="knowledge_range">资料UTF-16位置 %1$d–%2$d（含两端）</string>
     <string name="knowledge_open_source">查看完整资料</string>
     <string name="knowledge_input_limit">超过输入限制，本次编辑未被接受。</string>
+    <string name="knowledge_ask">基于知识资料提问</string>
+    <string name="knowledge_question">问题</string>
+    <string name="knowledge_answer_notice">仅使用已核对的摘录执行一次本地 CPU 请求。按字面关键词检索，不传输到云端或协作设备，不自动保存聊天或资料。资料属于不可信数据，可能影响模型。</string>
+    <string name="knowledge_no_evidence">没有符合请求的证据。请尝试其他关键词或更短的问题。</string>
+    <string name="knowledge_evidence_count">已核对资料：%1$d 个 / 匹配 %2$d 个（最多 %3$d 个）。</string>
+    <string name="knowledge_exact_prompt">核对实际请求全文</string>
+    <string name="knowledge_generate">生成本地回答</string>
+    <string name="knowledge_citation_notice">AI 回答：引用 ID 仅表示已提供摘录，不证明主张、事实或 OCR 的准确性。</string>
+    <string name="knowledge_citation_ids">已知引用 ID：%1$s · 未知 ID：%2$s</string>
 </resources>

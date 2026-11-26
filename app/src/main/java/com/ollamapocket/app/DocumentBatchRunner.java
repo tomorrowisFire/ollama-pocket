@@ -59,6 +59,28 @@ final class DocumentBatchRunner {
             }catch(Exception ignored){}
         }
     }
+    /** One reviewed knowledge request. Same CPU-only transport, resource guards and terminal checks. */
+    KnowledgeAnswerPolicy.Answer runKnowledge(KnowledgeAnswerPolicy.Plan plan)throws Exception{
+        if(plan.excerpts.isEmpty()||!DocumentBatchPolicy.fits(plan.prompt,KnowledgeAnswerPolicy.TOKENS))
+            throw new IllegalArgumentException("No fitting evidence");
+        long started=SystemClock.elapsedRealtime();deadline=started+KnowledgeAnswerPolicy.MAX_MILLIS;
+        ScheduledExecutorService watch=Executors.newSingleThreadScheduledExecutor(r->{Thread t=new Thread(r,"knowledge-answer-safety");t.setDaemon(true);return t;});
+        try{
+            if(stopped())throw new IOException("Knowledge stopped");
+            GpuRunner.stop();DistributedRunner.stop();
+            watch.scheduleAtFixedRate(this::stopped,0,1,TimeUnit.SECONDS);
+            String answer=generate(plan.prompt,KnowledgeAnswerPolicy.MAX_ANSWER,KnowledgeAnswerPolicy.TOKENS);
+            if(stopped()||requests!=1)throw new IOException("Knowledge incomplete");
+            return KnowledgeAnswerPolicy.answer(plan,answer);
+        }finally{
+            watch.shutdownNow();
+            HttpURLConnection c=connection;if(c!=null)c.disconnect();connection=null;
+            elapsedMillis=Math.max(0,SystemClock.elapsedRealtime()-started);
+            if(reason==Stop.THERMAL||reason==Stop.MEMORY)try{
+                OllamaHttp.post("/api/generate",new JSONObject().put("model",model).put("keep_alive",0).put("stream",false),"POST");
+            }catch(Exception ignored){}
+        }
+    }
     private int planRequestCeiling(){return DocumentBatchPolicy.MAX_UNITS*2;}
     private String generate(String prompt,int maxChars,int maxTokens)throws Exception{
         if(stopped())throw new IOException("Batch stopped");
