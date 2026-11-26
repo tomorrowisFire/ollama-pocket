@@ -729,4 +729,15 @@
     <string name="transfer_cloud_notice">The following message content is selected for this provider request. It may include pasted document excerpts or earlier conversation. Review before sending; provider-specific request metadata is not shown.</string>
     <string name="transfer_changed">Request context or inference mode changed. Review and confirm again.</string>
     <string name="transfer_review_failed">Unable to display the complete request context safely. No request was sent.</string>
+    <string name="cloud_fetch_models">Fetch models</string>
+    <string name="cloud_fetch_notice">Fetch model IDs from the selected provider using your API key. No chat content is sent.</string>
+    <string name="cloud_usage">Input tokens: %1$s · Output tokens: %2$s</string>
+    <string name="cloud_usage_unknown">Usage unavailable</string>
+    <string name="cloud_rate_limit">Rate limit reached. Try again later.</string>
+    <string name="cloud_auth_error">Authentication or permission denied. Check your API key.</string>
+    <string name="cloud_provider_error">Provider temporarily unavailable.</string>
+    <string name="cloud_timeout">Request timed out.</string>
+    <string name="cloud_estimated_cost">Estimated cost (USD): %1$s</string>
+    <string name="cloud_input_rate">Input USD per million tokens</string>
+    <string name="cloud_output_rate">Output USD per million tokens</string>
 </resources>
