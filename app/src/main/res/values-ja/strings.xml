@@ -1039,4 +1039,10 @@
     <string name="project_report_no_projects">先にワークスペースでプロジェクトを作成してください。</string>
     <string name="project_report_append">レポートを新バージョンとして追加</string>
     <string name="project_report_too_large">レポートが32,000文字（UTF-16）を超えています。既存のエクスポートを利用してください。保存されていません。</string>
+    <string name="project_context_review">ローカルチャット用に確認</string>
+    <string name="project_context_notice">挿入後のローカル下書き全体を確認してください。スナップショットをコピーするだけで送信しません。既存の下書きは維持されます。プロジェクトを削除してもコピーはローカルチャットに残る場合があります。</string>
+    <string name="project_context_insert">ローカル下書きに挿入</string>
+    <string name="project_context_limit">内容が空か、下書きの上限を超えています。挿入していません。</string>
+    <string name="project_context_changed">ローカルチャットまたは下書きが変わりました。挿入していません。</string>
+    <string name="project_context_added">ローカル下書きに追加しました。未送信です。</string>
 </resources>

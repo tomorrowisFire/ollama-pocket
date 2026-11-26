@@ -1039,4 +1039,10 @@
     <string name="project_report_no_projects">请先在工作区创建项目。</string>
     <string name="project_report_append">将报告追加为新版本</string>
     <string name="project_report_too_large">报告超过32,000个UTF-16字符。请使用现有导出功能；未保存。</string>
+    <string name="project_context_review">预览用于本地对话</string>
+    <string name="project_context_notice">请检查完整的本地草稿。仅复制快照，不发送消息。保留现有草稿。即使删除项目，副本也可能保留在本地对话存储中。</string>
+    <string name="project_context_insert">插入本地草稿</string>
+    <string name="project_context_limit">来源为空或超出本地草稿限制。未插入。</string>
+    <string name="project_context_changed">本地对话或草稿已更改。未插入。</string>
+    <string name="project_context_added">已添加到本地草稿，尚未发送。</string>
 </resources>

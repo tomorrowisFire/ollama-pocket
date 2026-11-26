@@ -3514,7 +3514,21 @@ public final class MainActivity extends Activity {
         if(!foreground||guestOnly||cloudMode||isUiBusy()||activeTab!=0){toast(getString(R.string.busy));return;}
         if(voice!=null)voice.cancel();
         if(projectWorkspaceUi==null)projectWorkspaceUi=new ProjectWorkspaceUi(this,()->foreground&&!guestOnly&&!cloudMode&&activeTab==0);
-        projectWorkspaceUi.open();
+        if(chatInput==null||currentModel.isEmpty()||!historyReadable||!ownsLoadedScope()){
+            projectWorkspaceUi.open();return;
+        }
+        final String scope=loadedHistoryScope,session=currentSessionId(),original=history.toString(),draft=chatInput.getText().toString();
+        projectWorkspaceUi.openContext(chosen->chosen.appendTo(draft),reviewed->{
+            if(!foreground||guestOnly||cloudMode||isUiBusy()||activeTab!=0||chatInput==null||!historyReadable||!ownsLoadedScope()||
+                !ProjectContext.sameDestination(scope,session,original,draft,loadedHistoryScope,currentSessionId(),history.toString(),chatInput.getText().toString())){
+                toast(getString(R.string.project_context_changed));return;
+            }
+            try{
+                if(!originalStillStored(scope,original)){toast(getString(R.string.project_context_changed));return;}
+            }catch(Exception e){toast(getString(R.string.project_context_changed));return;}
+            chatInput.setText(reviewed);chatInput.setSelection(reviewed.length());saveLocalDraft();updateDraftBudget();
+            toast(getString(R.string.project_context_added));
+        });
     }
     private void openLocalAutomation(){
         if(!foreground||guestOnly||cloudMode||isUiBusy()||activeTab!=0){toast(getString(R.string.busy));return;}

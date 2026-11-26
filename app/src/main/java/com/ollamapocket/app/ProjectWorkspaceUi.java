@@ -13,6 +13,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /** Foreground-only private workspace. Exact reviewed snapshot, explicit writes, no inference. */
 final class ProjectWorkspaceUi {
@@ -31,18 +32,22 @@ final class ProjectWorkspaceUi {
     private boolean ownsModal,reloadRequired,reportSaved;
     private ProjectReportHandoff report;
     private String reportTitle;
+    private Function<ProjectContext,String> contextPreview;
+    private Consumer<String> contextApply;
     ProjectWorkspaceUi(Activity owner,BooleanSupplier eligible){this.owner=owner;this.eligible=eligible;}
     static boolean busy(){return MODAL.get()||WORK.get();}
     private boolean valid(long token){return session.valid(token)&&eligible.getAsBoolean()&&!owner.isFinishing()&&!owner.isDestroyed();}
     private String s(int id,Object... args){return owner.getString(id,args);}
     private int dp(int n){return Math.round(n*owner.getResources().getDisplayMetrics().density);}
     private void secure(AlertDialog d){if(d.getWindow()!=null)d.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);}
-    void open(){openInternal(null,null);}
-    void openReport(ProjectReportHandoff handoff,String title){openInternal(handoff,title);}
-    private void openInternal(ProjectReportHandoff handoff,String title){
+    void open(){openInternal(null,null,null,null);}
+    void openContext(Function<ProjectContext,String> preview,Consumer<String> apply){openInternal(null,null,preview,apply);}
+    void openReport(ProjectReportHandoff handoff,String title){openInternal(handoff,title,null,null);}
+    private void openInternal(ProjectReportHandoff handoff,String title,Function<ProjectContext,String> preview,Consumer<String> apply){
         if(!eligible.getAsBoolean()||WORK.get()||!MODAL.compareAndSet(false,true)){
             Toast.makeText(owner,R.string.busy,Toast.LENGTH_SHORT).show();return;
         }
+        contextPreview=preview;contextApply=apply;
         ownsModal=true;report=handoff;reportTitle=title;reportSaved=false;session.open();selection=ProjectWorkspacePolicy.Selection.root();
         body=new LinearLayout(owner);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(16),dp(8),dp(16),dp(16));
         scroll=new ScrollView(owner);scroll.setFillViewport(true);scroll.setSaveEnabled(false);scroll.addView(body);
@@ -55,7 +60,7 @@ final class ProjectWorkspaceUi {
         if(confirmation!=null){AlertDialog d=confirmation;confirmation=null;d.dismiss();}
         if(dialog!=null){AlertDialog d=dialog;dialog=null;d.dismiss();}
         titleField=null;textField=null;oldTitle="";oldText="";snapshot=null;body=null;scroll=null;notice=null;reloadRequired=false;
-        report=null;reportTitle=null;reportSaved=false;
+        report=null;reportTitle=null;reportSaved=false;contextPreview=null;contextApply=null;
         if(ownsModal){ownsModal=false;MODAL.set(false);}
         // An explicitly dispatched write can finish; WORK stays held until callback.
     }
@@ -171,6 +176,7 @@ final class ProjectWorkspaceUi {
             ProjectLibrary.Project p=state.project(pid);label(p.title,true);
             if(aid==null){
                 label(s(R.string.project_instructions),false);label(p.instructions,true);
+                contextButton(state,p.id,null,0);
                 button(R.string.project_edit,()->projectEditor(p));
                 button(s(R.string.project_new_artifact),p.artifacts.size()<ProjectLibrary.MAX_ARTIFACTS,()->artifactEditor(p,null,false));
                 if(p.artifacts.isEmpty())label(s(R.string.project_empty_artifacts),false);
@@ -182,13 +188,13 @@ final class ProjectWorkspaceUi {
                 ProjectLibrary.Artifact a=p.artifact(aid);label(a.title,true);
                 if(selection.ordinal>0){
                     final int ordinal=selection.ordinal;
-                    version(a.version(ordinal));label(s(R.string.project_restore_note),false);
+                    version(a.version(ordinal));contextButton(state,p.id,a.id,ordinal);label(s(R.string.project_restore_note),false);
                     button(s(R.string.project_restore),ProjectWorkspacePolicy.canRestore(a,ordinal),
                         ()->confirm(R.string.project_restore,R.string.project_restore_message,
                             ()->save(st->ProjectLibrary.restoreArtifact(st,pid,aid,ordinal,ProjectWorkspacePolicy.savedAt(a,System.currentTimeMillis())),
                                 new ProjectWorkspacePolicy.Selection(pid,aid,0))));
                 }else{
-                    version(a.current());
+                    version(a.current());contextButton(state,p.id,a.id,a.current().ordinal);
                     button(R.string.project_rename,()->artifactEditor(p,a,true));
                     button(s(R.string.project_new_version),ProjectWorkspacePolicy.canAppend(a),()->artifactEditor(p,a,false));
                     if(!ProjectWorkspacePolicy.canAppend(a))label(s(R.string.project_version_limit),false);
@@ -200,6 +206,27 @@ final class ProjectWorkspaceUi {
             }
         }
         nav();
+    }
+    private void contextButton(ProjectLibrary.State state,String pid,String aid,int ordinal){
+        if(contextPreview==null||contextApply==null)return;
+        ProjectContext chosen=ProjectContext.select(state,pid,aid,ordinal);
+        button(s(R.string.project_context_review),!chosen.content.trim().isEmpty(),()->reviewContext(chosen));
+    }
+    private void reviewContext(ProjectContext chosen){
+        final String preview;
+        try{preview=contextPreview.apply(chosen);}
+        catch(IllegalArgumentException e){status(R.string.project_context_limit);return;}
+        reset();
+        label(s(R.string.project_context_notice),false);
+        label(preview,false);
+        button(R.string.project_context_insert,()->confirm(R.string.project_context_insert,R.string.project_context_notice,
+            ()->work(()->chosen.stillAvailable(new ProjectStore(owner).read().value),available->{
+                if(!available){status(R.string.project_stale);return;}
+                final Consumer<String> apply=contextApply;
+                pause();
+                if(apply!=null)apply.accept(preview);
+            },error->status(R.string.project_unreadable))));
+        button(R.string.project_back,this::render);button(R.string.close,this::pause);
     }
     private void renderReport(ProjectLibrary.State state,String pid){
         if(reportSaved){button(R.string.close,this::pause);return;}

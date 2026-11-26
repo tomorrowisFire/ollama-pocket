@@ -1039,4 +1039,10 @@
     <string name="project_report_no_projects">먼저 작업공간에서 프로젝트를 만드세요.</string>
     <string name="project_report_append">보고서를 새 버전으로 추가</string>
     <string name="project_report_too_large">보고서가 32,000자(UTF-16)를 초과합니다. 기존 내보내기를 이용하세요. 저장되지 않았습니다.</string>
+    <string name="project_context_review">로컬 대화에 넣기 전 검토</string>
+    <string name="project_context_notice">완성될 로컬 초안 전체를 검토하세요. 선택한 스냅샷만 복사하며 메시지를 전송하지 않습니다. 기존 초안은 유지됩니다. 프로젝트를 삭제해도 복사본은 로컬 대화 저장소에 남을 수 있습니다.</string>
+    <string name="project_context_insert">로컬 초안에 삽입</string>
+    <string name="project_context_limit">내용이 비어 있거나 로컬 초안 한도를 초과합니다. 삽입하지 않았습니다.</string>
+    <string name="project_context_changed">로컬 대화 또는 초안이 변경되었습니다. 삽입하지 않았습니다.</string>
+    <string name="project_context_added">로컬 초안에 추가했습니다. 전송하지 않았습니다.</string>
 </resources>

@@ -1039,4 +1039,10 @@
     <string name="project_report_no_projects">Create a project in the workspace first.</string>
     <string name="project_report_append">Append report as version</string>
     <string name="project_report_too_large">Report exceeds 32,000 UTF-16 characters. Use the existing export; nothing was saved.</string>
+    <string name="project_context_review">Review for local chat</string>
+    <string name="project_context_notice">Review the entire resulting local draft. This copies a snapshot; no message is sent. Existing draft text is kept. The copy may remain in local chat storage even if the project is deleted.</string>
+    <string name="project_context_insert">Insert into local draft</string>
+    <string name="project_context_limit">Source is empty or exceeds the local draft limit. Nothing was inserted.</string>
+    <string name="project_context_changed">Local chat or draft changed. Nothing was inserted.</string>
+    <string name="project_context_added">Added to local draft. Not sent.</string>
 </resources>

@@ -6,6 +6,7 @@ on:
     paths:
       - 'app/src/main/java/**'
       - 'tests/ProjectReportHandoffTest.java'
+      - 'tests/ProjectContextTest.java'
       - 'app/src/main/AndroidManifest.xml'
       - 'app/build.gradle'
       - 'build.gradle'
@@ -254,6 +255,10 @@ jobs:
         run: |
           javac -cp /tmp/project-tests:/tmp/workflow-tests:/tmp/attachment-tests:/tmp/cloud-stream-tests/json.jar -d /tmp/project-tests app/src/main/java/com/ollamapocket/app/ProjectReportHandoff.java tests/ProjectReportHandoffTest.java
           java -cp /tmp/project-tests:/tmp/workflow-tests:/tmp/attachment-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.ProjectReportHandoffTest
+      - name: Test reviewed project context insertion policy
+        run: |
+          javac -cp /tmp/project-tests:/tmp/cloud-stream-tests/json.jar -d /tmp/project-tests app/src/main/java/com/ollamapocket/app/LocalChatTurns.java app/src/main/java/com/ollamapocket/app/ProjectContext.java tests/ProjectContextTest.java
+          java -cp /tmp/project-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.ProjectContextTest
       - name: Audit direct Hangul UI literals
         run: python3 tests/locale_ui_audit.py
       - name: Verify OnHand AI brand and locale resource parity

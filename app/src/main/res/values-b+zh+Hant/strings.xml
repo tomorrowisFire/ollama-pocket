@@ -1039,4 +1039,10 @@
     <string name="project_report_no_projects">請先在工作區建立專案。</string>
     <string name="project_report_append">將報告附加為新版本</string>
     <string name="project_report_too_large">報告超過32,000個UTF-16字元。請使用既有匯出功能；未儲存。</string>
+    <string name="project_context_review">預覽用於本機對話</string>
+    <string name="project_context_notice">請檢查完整的本機草稿。僅複製快照，不傳送訊息。保留現有草稿。即使刪除專案，副本也可能保留在本機對話儲存中。</string>
+    <string name="project_context_insert">插入本機草稿</string>
+    <string name="project_context_limit">來源為空或超出本機草稿限制。未插入。</string>
+    <string name="project_context_changed">本機對話或草稿已變更。未插入。</string>
+    <string name="project_context_added">已加入本機草稿，尚未傳送。</string>
 </resources>
