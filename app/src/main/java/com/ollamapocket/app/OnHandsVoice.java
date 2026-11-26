@@ -19,16 +19,20 @@ final class OnHandsVoice {
     private final Activity a;
     private SpeechRecognizer recognizer;
     private TextToSpeech tts;
-    private boolean ready, closed;
+    private boolean ready, initialized, closed;
+    private String pendingSpeech;
     private int generation;
     OnHandsVoice(Activity a) {
         this.a=a;
         tts=new TextToSpeech(a.getApplicationContext(), status->a.runOnUiThread(()->{
-            if(!closed)ready=status==TextToSpeech.SUCCESS;
+            if(closed)return;
+            initialized=true;ready=status==TextToSpeech.SUCCESS;
+            String queued=pendingSpeech;pendingSpeech=null;
+            if(queued!=null){if(ready)speak(queued);else toast(R.string.tts_unavailable);}
         }));
     }
     boolean listening(){return recognizer!=null;}
-    boolean speaking(){return tts!=null && tts.isSpeaking();}
+    boolean speaking(){return pendingSpeech!=null || (tts!=null && tts.isSpeaking());}
     private void toast(int id){if(!closed)Toast.makeText(a,id,Toast.LENGTH_SHORT).show();}
     void listen(Result cb) {
         cancel();
@@ -64,7 +68,9 @@ final class OnHandsVoice {
         }catch(RuntimeException e){cancel();toast(R.string.voice_unavailable);}
     }
     void speak(String text){
-        if(closed||!ready||tts==null||text==null||text.isEmpty()){toast(R.string.tts_unavailable);return;}
+        if(closed||text==null||text.isEmpty())return;
+        if(!initialized){pendingSpeech=text;return;}
+        if(!ready||tts==null){toast(R.string.tts_unavailable);return;}
         Locale target=OnHandsLocale.speechLocale(a);
         Voice selected=null;
         try {
@@ -87,7 +93,7 @@ final class OnHandsVoice {
         }catch(RuntimeException e){toast(R.string.tts_unavailable);}
     }
     void cancel(){
-        generation++;
+        generation++;pendingSpeech=null;
         SpeechRecognizer old=recognizer;recognizer=null;
         if(old!=null){try{old.cancel();}catch(RuntimeException ignored){}try{old.destroy();}catch(RuntimeException ignored){}}
         if(tts!=null)tts.stop();

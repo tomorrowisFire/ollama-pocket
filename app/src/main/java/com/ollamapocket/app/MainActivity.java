@@ -1179,6 +1179,7 @@ public final class MainActivity extends Activity {
             incoming.setAlpha(1f);
             incoming.setTranslationX(0f);
         }
+        if(activeTab!=0&&voice!=null)voice.cancel();
         if(topPageTitle!=null)topPageTitle.setText("On Hands AI");
         if(topPageSubtitle!=null){
             int[] subtitles={R.string.chat,R.string.models,R.string.settings,R.string.devices};

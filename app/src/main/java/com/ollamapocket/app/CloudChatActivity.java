@@ -72,7 +72,7 @@ public final class CloudChatActivity extends Activity {
                 result=CloudApi.execute(p,c,id,q);
             }catch(Exception ignored){}finally{if(c!=null)c.disconnect();if(connection==c)connection=null;}
             final String output=result;
-            runOnUiThread(()->{if(closed||request!=serial)return;busy(false);if(output==null)answer.setText(R.string.cloud_fail);else answer.setText(ChatPresentation.format("",output,"",0xffdddddd));});
+            runOnUiThread(()->{if(closed||request!=serial)return;busy(false);if(output==null)answer.setText(R.string.cloud_fail);else answer.setText(ChatPresentation.format("",output,"",0x33808080));});
         });
     }
     private void cancel(){
