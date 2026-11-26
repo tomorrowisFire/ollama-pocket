@@ -74,6 +74,11 @@ public final class MainActivity extends Activity {
     private static final int PICK_GGUF = 701;
     private static final int VOICE_PERMISSION = 702;
     private static final int EXPORT_CHAT = 703;
+    private static final int PICK_ATTACHMENT = 704;
+    private String attachmentScope="";
+    private long attachmentSerial;
+    private boolean attachmentReading;
+    private Button attachFileButton;
     private boolean guestOnly, foreground, speakNextAnswer;
     private OnHandsVoice voice;
     private Button voiceButton, cloudShortcut, exportConversation;
@@ -359,6 +364,7 @@ public final class MainActivity extends Activity {
         renderHistory();
         showTab(state==null?0:state.getInt("activeTab",0));
         if(state!=null){
+            attachmentScope=state.getString("attachmentScope","");
             exportScope=state.getString("exportScope","");
             exportDigest=state.getString("exportDigest","");
             exportModel=state.getString("exportModel","");
@@ -378,6 +384,7 @@ public final class MainActivity extends Activity {
     @Override protected void onSaveInstanceState(Bundle out) {
         super.onSaveInstanceState(out);
         out.putInt("activeTab",activeTab);
+        out.putString("attachmentScope",attachmentScope);
         out.putString("exportScope",exportScope);out.putString("exportDigest",exportDigest);
         out.putString("exportModel",exportModel);out.putBoolean("exportJson",exportJson);
         saveLocalDraft();
@@ -420,7 +427,7 @@ public final class MainActivity extends Activity {
         if(onlineSearchRunnable!=null)ui.removeCallbacks(onlineSearchRunnable);
         if(onlineSearchTask!=null)onlineSearchTask.cancel(true);
         if(onlineHfTask!=null)onlineHfTask.cancel(true);
-        chatSearchSerial++;
+        chatSearchSerial++;attachmentSerial++;
         if(chatSearchTask!=null)chatSearchTask.cancel(true);
         chatSearchIo.shutdownNow();
         io.shutdownNow();
@@ -770,6 +777,10 @@ public final class MainActivity extends Activity {
         activeEngineLabel = text(getString(R.string.engine_idle), 11, MUTED, false);
         LinearLayout chatTools=row();
         rowItem(chatTools,activeEngineLabel,1,5);
+        attachFileButton=button("+",false);
+        attachFileButton.setContentDescription(getString(R.string.attachment_pick));
+        attachFileButton.setMinWidth(dp(48));attachFileButton.setMinimumWidth(dp(48));attachFileButton.setMinimumHeight(dp(48));
+        attachFileButton.setOnClickListener(v->pickChatAttachment());rowItem(chatTools,attachFileButton,0,3);
         exportConversation=button(getString(R.string.chat_export),false);
         exportConversation.setMinimumHeight(dp(48));
         exportConversation.setEnabled(false);
@@ -782,7 +793,7 @@ public final class MainActivity extends Activity {
                 if (ignoreSelection || knownModels.isEmpty() || position >= knownModels.size()) return;
                 String model = knownModels.get(position);
                 if (model.equals(currentModel)) return;
-                if (chatBusy) { toast(getString(R.string.model_wait)); return; }
+                if (chatBusy||attachmentReading) { toast(getString(R.string.model_wait)); return; }
                 saveLocalDraft();
                 currentModel = model;
                 getPreferences(MODE_PRIVATE).edit().putString("model", model).apply();
@@ -1094,7 +1105,7 @@ public final class MainActivity extends Activity {
     }
 
     private boolean isUiBusy(){
-        return chatBusy||pullBusy||diagnosticBusy||benchmarkBusy
+        return attachmentReading||chatBusy||pullBusy||diagnosticBusy||benchmarkBusy
                ||(cloudPanel!=null&&cloudPanel.isBusy())||HuggingFaceCatalog.isDownloading();
     }
 
@@ -1504,7 +1515,7 @@ public final class MainActivity extends Activity {
         };
         modelChooser.setAdapter(adapter);
         int idx=names.indexOf(currentModel);
-        if(!names.isEmpty()&&idx<0&&!chatBusy){
+        if(!names.isEmpty()&&idx<0&&!chatBusy&&!attachmentReading){
             saveLocalDraft();
             currentModel=names.get(0);
             getPreferences(MODE_PRIVATE).edit().putString("model",currentModel).apply();
@@ -2382,7 +2393,7 @@ public final class MainActivity extends Activity {
     }
 
     private void selectModel(String name) {
-        if(chatBusy||!knownModels.contains(name))return;
+        if(chatBusy||attachmentReading||!knownModels.contains(name))return;
         saveLocalDraft();
         currentModel=name;
         getPreferences(MODE_PRIVATE).edit().putString("model",name).apply();
@@ -2550,7 +2561,7 @@ public final class MainActivity extends Activity {
     }
     private void newChat() {
         if(cloudMode){if(cloudPanel!=null)cloudPanel.newChat();return;}
-        if (chatBusy) { toast(getString(R.string.new_chat_busy)); return; }
+        if (chatBusy||attachmentReading) { toast(getString(R.string.new_chat_busy)); return; }
         if(voice!=null)voice.cancel();
         saveLocalDraft();
         String id=freshSessionId();
@@ -2613,7 +2624,7 @@ public final class MainActivity extends Activity {
     }
 
     private void openSavedConversation(DrawerChat entry,Dialog drawer){
-        if(chatBusy||benchmarkBusy||diagnosticBusy||(cloudPanel!=null&&cloudPanel.isBusy())){
+        if(attachmentReading||chatBusy||benchmarkBusy||diagnosticBusy||(cloudPanel!=null&&cloudPanel.isBusy())){
             toast(getString(R.string.busy));
             return;
         }
@@ -3152,6 +3163,7 @@ public final class MainActivity extends Activity {
         if(cloudShortcut!=null)cloudShortcut.setEnabled(!busy);
         modelChooser.setEnabled(!busy && !knownModels.isEmpty());
         if(voiceButton!=null)voiceButton.setEnabled(!busy);
+        if(attachFileButton!=null)attachFileButton.setEnabled(!busy&&!attachmentReading);
         if(exportConversation!=null)exportConversation.setEnabled(!busy&&historyReadable&&history.length()>0);
     }
     private void sendChat() {
@@ -3307,6 +3319,89 @@ public final class MainActivity extends Activity {
         if (c != null) c.disconnect();
     }
 
+    private void pickChatAttachment(){
+        if(guestOnly||cloudMode||isUiBusy()||!historyReadable||!ownsLoadedScope()){toast(getString(R.string.busy));return;}
+        if(currentModel.isEmpty()){toast(getString(R.string.need_model));return;}
+        final String scope=loadedHistoryScope;
+        new AlertDialog.Builder(this).setTitle(R.string.attachment_pick).setMessage(R.string.attachment_formats)
+            .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,(d,w)->{
+                if(isUiBusy()||cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
+                attachmentScope=scope;
+                try{
+                    Intent picker=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                    picker.addCategory(Intent.CATEGORY_OPENABLE);picker.setType("*/*");
+                    picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    picker.putExtra(Intent.EXTRA_MIME_TYPES,new String[]{"text/*","application/json","application/octet-stream"});
+                    startActivityForResult(picker,PICK_ATTACHMENT);
+                }catch(Exception e){attachmentScope="";toast(getString(R.string.chat_export_unavailable));}
+            }).show();
+    }
+    private void finishChatAttachment(int result,Intent data){
+        String scope=attachmentScope;attachmentScope="";
+        if(result!=RESULT_OK||data==null||data.getData()==null)return;
+        Uri uri=data.getData();
+        if(guestOnly||cloudMode||isUiBusy()||!ownsLoadedScope()||!scope.equals(loadedHistoryScope)||!"content".equals(uri.getScheme())){
+            toast(getString(R.string.attachment_scope_changed));return;
+        }
+        attachmentReading=true;long serial=++attachmentSerial;
+        if(attachFileButton!=null)attachFileButton.setEnabled(false);
+        if(sendButton!=null)sendButton.setEnabled(false);
+        toast(getString(R.string.attachment_reading));
+        io.execute(()->{
+            AttachmentText.Result extracted=null;int error=R.string.attachment_invalid;
+            try{
+                String name=null;long bytes=-1;
+                try(Cursor cursor=getContentResolver().query(uri,new String[]{OpenableColumns.DISPLAY_NAME,OpenableColumns.SIZE},null,null,null)){
+                    if(cursor!=null&&cursor.moveToFirst()){
+                        int ni=cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME),si=cursor.getColumnIndex(OpenableColumns.SIZE);
+                        if(ni>=0)name=cursor.getString(ni);
+                        if(si>=0&&!cursor.isNull(si))bytes=cursor.getLong(si);
+                    }
+                }
+                if(bytes>AttachmentText.MAX_BYTES)throw new AttachmentText.Failure(AttachmentText.Problem.TOO_LARGE);
+                try(InputStream in=getContentResolver().openInputStream(uri)){extracted=AttachmentText.read(name,in);}
+            }catch(AttachmentText.Failure e){
+                error=e.problem==AttachmentText.Problem.UNSUPPORTED?R.string.attachment_unsupported:
+                    e.problem==AttachmentText.Problem.TOO_LARGE?R.string.attachment_too_large:
+                    e.problem==AttachmentText.Problem.EMPTY?R.string.attachment_empty:R.string.attachment_invalid;
+            }catch(Exception ignored){}
+            final AttachmentText.Result preview=extracted;final int fail=error;
+            ui.post(()->{
+                if(isFinishing()||isDestroyed()||serial!=attachmentSerial)return;
+                attachmentReading=false;
+                if(attachFileButton!=null)attachFileButton.setEnabled(!chatBusy);
+                if(sendButton!=null)sendButton.setEnabled(!chatBusy);
+                if(cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope)||activeTab!=0){toast(getString(R.string.attachment_scope_changed));return;}
+                if(preview==null){toast(getString(fail));return;}
+                showAttachmentPreview(scope,preview);
+            });
+        });
+    }
+    private void showAttachmentPreview(String scope,AttachmentText.Result preview){
+        ScrollView scroll=new ScrollView(this);
+        LinearLayout panel=column();panel.setPadding(dp(16),dp(8),dp(16),dp(8));scroll.addView(panel);
+        margin(text(preview.name,15,WHITE,true),panel,0,6);
+        margin(text(getString(R.string.attachment_notice),12,WHITE,false),panel,0,6);
+        margin(text(getString(R.string.attachment_rpc_notice),12,MUTED,false),panel,0,6);
+        if(preview.partial)margin(text(getString(R.string.attachment_partial),12,MUTED,true),panel,0,6);
+        EditText excerpt=edit(getString(R.string.attachment_preview),preview.text,true);
+        excerpt.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(AttachmentText.MAX_EXCERPT)});
+        excerpt.setMinLines(4);excerpt.setMaxLines(10);excerpt.setSaveEnabled(false);panel.addView(excerpt,lp(-1,-2));
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle(R.string.attachment_preview).setView(scroll)
+            .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.attachment_insert,null).create();
+        dialog.show();
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
+            if(isUiBusy()||cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope)||activeTab!=0){
+                dialog.dismiss();toast(getString(R.string.attachment_scope_changed));return;
+            }
+            try{
+                String combined=AttachmentText.include(chatInput.getText().toString(),preview.name,excerpt.getText().toString());
+                chatInput.setText(combined);chatInput.setSelection(combined.length());saveLocalDraft();
+                dialog.dismiss();toast(getString(R.string.attachment_added));
+            }catch(IllegalArgumentException e){toast(getString(R.string.attachment_context_limit));}
+        });
+    }
+
     private void clearExportRequest(){exportScope="";exportDigest="";exportModel="";exportJson=false;}
     private void chooseChatExport(){
         if(isUiBusy()||cloudMode||guestOnly||!ownsLoadedScope()||!historyReadable)return;
@@ -3366,6 +3461,7 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onActivityResult(int code, int result, Intent data) {
         super.onActivityResult(code, result, data);
+        if(code==PICK_ATTACHMENT){finishChatAttachment(result,data);return;}
         if(code==EXPORT_CHAT){finishChatExport(result,data);return;}
         if (code != PICK_GGUF || result != RESULT_OK || data == null || data.getData() == null) return;
         Uri uri = data.getData();

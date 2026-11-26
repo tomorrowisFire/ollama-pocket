@@ -677,4 +677,19 @@
     <string name="chat_title_invalid">请输入 1–80 个字符的标题。</string>
     <string name="chat_manage_failed">无法更新对话列表，已保存消息未更改。</string>
     <string name="chat_manage_done">对话已更新</string>
+    <string name="attachment_pick">附加文本文件</string>
+    <string name="attachment_formats">请选择 TXT、MD、CSV、TSV、JSON 或 LOG（UTF-8 或带 BOM 的 UTF-16）。Office、PDF 和图像提取另行开发。</string>
+    <string name="attachment_reading">正在提取文件文本…</string>
+    <string name="attachment_preview">预览提取文本</string>
+    <string name="attachment_notice">加入本地问题前请检查或编辑摘录。摘录将成为草稿及已保存问题的一部分，可能用于后续本地上下文。不保存原文件。文档服务可能通过网络获取文件。</string>
+    <string name="attachment_partial">仅显示开头最多 6,000 字符，不代表完整文件。</string>
+    <string name="attachment_insert">将摘录添加到问题</string>
+    <string name="attachment_added">已添加摘录，发送前可在本地输入框编辑或删除。</string>
+    <string name="attachment_unsupported">不支持的文件格式。</string>
+    <string name="attachment_too_large">文件超出 1 MiB 文本大小限制。</string>
+    <string name="attachment_invalid">无法读取文本，文件可能为二进制、已损坏或使用不支持的编码。</string>
+    <string name="attachment_empty">未找到可读文本。</string>
+    <string name="attachment_context_limit">请缩短摘录或问题。模型令牌上限可能小于字符限制。</string>
+    <string name="attachment_scope_changed">对话已变化，请重新选择文件。</string>
+    <string name="attachment_rpc_notice">添加摘录不会发送数据。之后选择协作推理时，可信访客设备可能参与处理。</string>
 </resources>
