@@ -268,13 +268,20 @@ public final class CoopSession {
         long now=SystemClock.elapsedRealtime();
         List<Node> out=new ArrayList<>();
         for (Node n:nodes.values())
-            if(now-n.lastSeen<NODE_TIMEOUT_MS && n.relay!=null && n.workerOk && n.safeRamMiB>0)
+            if(now-n.lastSeen<NODE_TIMEOUT_MS && n.relay!=null && n.workerOk && n.safeRamMiB>0 && InferenceSafetyPolicy.peerSafe(n.thermalStatus))
                 out.add(n);
         // Stable node order is essential for remote --tensor-split ratios.
         Collections.sort(out,(a,b)->a.id.compareTo(b.id));
         return out;
     }
     public String rpcEndpoints() { return rpcEndpointsFor(readyNodes()); }
+    // Loaded model allocations reduce free RAM. Check live peer health separately from admission.
+    public String connectedRpcEndpoints(){
+        long now=SystemClock.elapsedRealtime();List<Node> live=new ArrayList<>();
+        for(Node n:nodes.values())if(now-n.lastSeen<NODE_TIMEOUT_MS&&n.relay!=null&&n.workerOk&&InferenceSafetyPolicy.peerSafe(n.thermalStatus))live.add(n);
+        Collections.sort(live,(a,b)->a.id.compareTo(b.id));
+        return rpcEndpointsFor(live);
+    }
     public String rpcEndpointsFor(List<Node> selected) {
         List<String> ports=new ArrayList<>();
         for(Node n:selected) if(n.relay!=null) ports.add("127.0.0.1:"+n.relay.localPort());
@@ -520,6 +527,8 @@ public final class CoopSession {
         this.guestId=randomId(14);this.startedAt=SystemClock.elapsedRealtime();this.workerDigest=digest();
         this.lastError="";this.role="guest";
         try {
+            InferenceSafetyPolicy.Reason risk=InferenceSafety.check(app);
+            if(risk!=InferenceSafetyPolicy.Reason.NONE)throw new IOException(OnHandsLocale.wrap(app).getString(InferenceSafety.label(risk)));
             startWorker();
             String localAddress=localIPv4();
             if(localAddress.isEmpty())throw new IOException("동일 Wi-Fi의 기기 IPv4 주소가 필요합니다");
@@ -534,12 +543,8 @@ public final class CoopSession {
                 while("guest".equals(role)) {
                     try {Thread.sleep(10000);}catch(InterruptedException e){return;}
                     if(SystemClock.elapsedRealtime()-startedAt>SESSION_MS){stop();return;}
-                    if(Build.VERSION.SDK_INT>=29){
-                        PowerManager pm=(PowerManager)app.getSystemService(Context.POWER_SERVICE);
-                        if(pm!=null && pm.getCurrentThermalStatus()>=PowerManager.THERMAL_STATUS_SEVERE){
-                            setError("기기 과열로 협력 노드를 종료합니다");stop();return;
-                        }
-                    }
+                    InferenceSafetyPolicy.Reason risk=InferenceSafety.check(app);
+                    if(risk!=InferenceSafetyPolicy.Reason.NONE){stop();setError(OnHandsLocale.wrap(app).getString(InferenceSafety.label(risk)));return;}
                     try{exchange("ping",guestPort);}catch(Exception e){lastError="호스트 연결 확인 실패: "+e.getMessage();}
                 }
             });
