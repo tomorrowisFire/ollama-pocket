@@ -932,4 +932,10 @@
     <string name="auto_gate_jsonvalues_help">期待する文字列・整数・数値・真偽値をJSONオブジェクトで入力してください（1～12項目）。余分・不足・null・入れ子の項目は失敗します。整数と小数・指数表記は異なる型です。指定値の一致のみを確認し、事実の検証は行いません。</string>
     <string name="voice_finish_speaking">話し終える</string>
     <string name="voice_invalid_transcript">音声認識結果が空、長すぎる、または無効な文字を含んでいます。既存の下書きは変更されていません。</string>
+    <string name="chat_copy_spreadsheet">表計算用にコピー</string>
+    <string name="chat_spreadsheet_copied">タブ区切りでコピーしました。数式風のセルには接頭文字が付く場合があります。貼り付け後に自動書式を確認してください。</string>
+    <string name="chat_spreadsheet_limit">表が上限を超えたか無効です。原文をコピーしてください。</string>
+    <string name="chat_wrap_code">コードを折り返す</string>
+    <string name="chat_unwrap_code">コードを横スクロール</string>
+    <string name="chat_block_copy_failed">コピーできませんでした。</string>
 </resources>

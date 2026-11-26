@@ -29,14 +29,26 @@ final class ChatRichView {
         int pad=dp(c,9);t.setPadding(pad,pad,pad,pad);
         return t;
     }
-    private static void copy(Context c,String value){
+    private static void copy(Context c,String value){copy(c,value,R.string.copied);}
+    private static void copy(Context c,String value,int notice){
         ClipboardManager cm=(ClipboardManager)c.getSystemService(Context.CLIPBOARD_SERVICE);
         if(cm!=null){
-            cm.setPrimaryClip(SensitiveClipboard.text(c.getString(R.string.app_name),value));
-            Toast.makeText(c,R.string.copied,Toast.LENGTH_SHORT).show();
-        }
+            try{
+                cm.setPrimaryClip(SensitiveClipboard.text(c.getString(R.string.app_name),value));
+                Toast.makeText(c,notice,Toast.LENGTH_SHORT).show();
+            }catch(RuntimeException e){Toast.makeText(c,R.string.chat_block_copy_failed,Toast.LENGTH_SHORT).show();}
+        }else Toast.makeText(c,R.string.chat_block_copy_failed,Toast.LENGTH_SHORT).show();
+    }
+    private static Button action(Context c,int title,float scale,Runnable onClick){
+        Button b=new Button(c);b.setText(title);b.setAllCaps(false);b.setMinHeight(dp(c,48));
+        b.setMinimumHeight(dp(c,48));b.setTextSize(13*scale);b.setSingleLine(false);b.setEllipsize(null);
+        if(onClick!=null)b.setOnClickListener(v->onClick.run());
+        return b;
     }
     private static void section(Context c,LinearLayout root,String title,int button,String original,View content,int ink,int surface,float scale){
+        section(c,root,title,button,original,content,ink,surface,scale,null);
+    }
+    private static void section(Context c,LinearLayout root,String title,int button,String original,View content,int ink,int surface,float scale,Button extra){
         LinearLayout card=column(c);
         GradientDrawable frame=new GradientDrawable();frame.setColor(surface);frame.setCornerRadius(dp(c,12));
         card.setBackground(frame);card.setPadding(dp(c,4),dp(c,2),dp(c,4),dp(c,4));
@@ -44,9 +56,8 @@ final class ChatRichView {
         TextView heading=label(c,title,ink,12*scale,false);heading.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
         heading.setTextIsSelectable(false);
         header.addView(heading,new LinearLayout.LayoutParams(-2,-2));
-        Button b=new Button(c);b.setText(button);b.setAllCaps(false);b.setMinHeight(dp(c,48));
-        b.setMinimumHeight(dp(c,48));b.setTextSize(13*scale);b.setOnClickListener(v->copy(c,original));
-        header.addView(b,new LinearLayout.LayoutParams(-2,-2));
+        header.addView(action(c,button,scale,()->copy(c,original)),new LinearLayout.LayoutParams(-2,-2));
+        if(extra!=null)header.addView(extra,new LinearLayout.LayoutParams(-2,-2));
         card.addView(header,new LinearLayout.LayoutParams(-1,-2));
         card.addView(content,new LinearLayout.LayoutParams(-1,-2));
         LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.bottomMargin=dp(c,8);
@@ -71,8 +82,27 @@ final class ChatRichView {
             }else if(b.kind==ChatBlocks.Kind.CODE){
                 TextView code=label(c,b.body,ink,14*scale,true);
                 code.setHorizontallyScrolling(true);
+                LinearLayout holder=column(c);
+                HorizontalScrollView scrolling=horizontal(c,code);
+                holder.addView(scrolling,new LinearLayout.LayoutParams(-1,-2));
+                Button wrap=action(c,R.string.chat_wrap_code,scale,null);
+                final boolean[] wrapped={false};
+                wrap.setOnClickListener(v->{
+                    if(!wrapped[0]){
+                        scrolling.removeView(code);holder.removeView(scrolling);
+                        code.setHorizontallyScrolling(false);
+                        holder.addView(code,new LinearLayout.LayoutParams(-1,-2));
+                    }else{
+                        holder.removeView(code);code.setHorizontallyScrolling(true);
+                        scrolling.addView(code,new android.widget.FrameLayout.LayoutParams(-2,-2));
+                        holder.addView(scrolling,new LinearLayout.LayoutParams(-1,-2));
+                        scrolling.scrollTo(0,0);
+                    }
+                    wrapped[0]=!wrapped[0];
+                    wrap.setText(wrapped[0]?R.string.chat_unwrap_code:R.string.chat_wrap_code);
+                });
                 section(c,root,c.getString(R.string.chat_code_block)+(b.language.isEmpty()?"":" · "+b.language),
-                    R.string.chat_copy_code,b.body,horizontal(c,code),ink,surface,scale);
+                    R.string.chat_copy_code,b.body,holder,ink,surface,scale,wrap);
             }else if(b.kind==ChatBlocks.Kind.TABLE){
                 TableLayout table=new TableLayout(c);
                 int count=b.rows.get(0).size();int[] widths=new int[count];
@@ -91,8 +121,12 @@ final class ChatRichView {
                     }
                     table.addView(row,new TableLayout.LayoutParams(-2,-2));
                 }
+                Button spreadsheet=action(c,R.string.chat_copy_spreadsheet,scale,()->{
+                    try{copy(c,ChatBlocks.spreadsheetTsv(b),R.string.chat_spreadsheet_copied);}
+                    catch(IllegalArgumentException e){Toast.makeText(c,R.string.chat_spreadsheet_limit,Toast.LENGTH_SHORT).show();}
+                });
                 section(c,root,c.getString(R.string.chat_table_block),R.string.chat_copy_table,b.raw,
-                    horizontal(c,table),ink,surface,scale);
+                    horizontal(c,table),ink,surface,scale,spreadsheet);
             }else{
                 String formula=SimpleFormula.display(b.body);
                 boolean converted=!b.body.equals(formula);

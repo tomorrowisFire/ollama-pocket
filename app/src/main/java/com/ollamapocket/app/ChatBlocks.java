@@ -77,6 +77,7 @@ final class ChatBlocks {
             if(blocks.size()>MAX_BLOCKS)return Collections.singletonList(text(source));
         }
         if(plainStart<source.length())blocks.add(text(source.substring(plainStart)));
+        if(blocks.size()>MAX_BLOCKS)return Collections.singletonList(text(source));
         if(blocks.isEmpty())blocks.add(text(source));
         return Collections.unmodifiableList(blocks);
     }
@@ -96,6 +97,65 @@ final class ChatBlocks {
             }else cell.append(c);
         }
         out.add(cell.toString().trim());return Collections.unmodifiableList(out);
+    }
+    /** Explicit derived paste format, not raw Markdown or a typed spreadsheet.
+     * Escape control separators and neutralize formula-like/quote-led text conservatively.
+     * Destination spreadsheet typing and interpretation remain application dependent. */
+    private static final Pattern SIMPLE_NUMBER=Pattern.compile("[+-]?[0-9]+(?:\\.[0-9]+)?");
+    static String spreadsheetTsv(Block table){
+        if(table==null||table.kind!=Kind.TABLE||table.rows==null||table.rows.isEmpty())
+            throw new IllegalArgumentException("Table required");
+        List<String> first=table.rows.get(0);
+        if(first==null)throw new IllegalArgumentException("Table shape");
+        int columns=first.size();
+        if(columns<2||columns>MAX_COLUMNS||(long)table.rows.size()*columns>MAX_CELLS)
+            throw new IllegalArgumentException("Table bounds");
+        StringBuilder out=new StringBuilder();
+        for(int i=0;i<table.rows.size();i++){
+            List<String> row=table.rows.get(i);
+            if(row==null||row.size()!=columns)throw new IllegalArgumentException("Table shape");
+            if(i>0)out.append('\n');
+            for(int j=0;j<columns;j++){
+                if(j>0)out.append('\t');
+                appendSpreadsheetCell(out,row.get(j));
+                if(out.length()>MAX_SOURCE)throw new IllegalArgumentException("TSV limit");
+            }
+        }
+        return out.toString();
+    }
+    private static boolean separatorOrControl(int cp){
+        return Character.isISOControl(cp)||cp==0x2028||cp==0x2029||
+            (Character.getType(cp)==Character.FORMAT&&cp!=0x200C&&cp!=0x200D)||
+            (cp>=0xD800&&cp<=0xDFFF);
+    }
+    private static boolean formulaPrefix(int cp){
+        return cp=='='||cp=='+'||cp=='-'||cp=='@'||cp=='"'||cp=='\''||
+            cp==0xFF1D||cp==0xFF0B||cp==0xFF0D||cp==0xFF20||cp==0xFF02||cp==0xFF07||cp==0x2212;
+    }
+    private static void appendSpreadsheetCell(StringBuilder out,String value){
+        if(value==null||value.length()>MAX_LINE)throw new IllegalArgumentException("Cell limit");
+        int first=-1;
+        for(int i=0;i<value.length();){
+            int cp=value.codePointAt(i);i+=Character.charCount(cp);
+            if(Character.isWhitespace(cp)||Character.isSpaceChar(cp)||separatorOrControl(cp)||
+                Character.getType(cp)==Character.FORMAT)continue;
+            first=cp;break;
+        }
+        // A plain signed decimal contains no references, functions or operators beyond its sign.
+        if(first>=0&&formulaPrefix(first)&&!SIMPLE_NUMBER.matcher(value).matches())out.append('\'');
+        for(int i=0;i<value.length();){
+            int cp=value.codePointAt(i);i+=Character.charCount(cp);
+            if(cp=='\t')out.append("\\t");
+            else if(cp=='\r')out.append("\\r");
+            else if(cp=='\n')out.append("\\n");
+            else if(separatorOrControl(cp)){
+                // Visible escapes avoid adding an actual field or record separator.
+                if(cp<=0xFFFF){
+                    out.append("\\u");
+                    for(int shift=12;shift>=0;shift-=4)out.append(Character.forDigit((cp>>>shift)&15,16));
+                }else out.append("\\u{").append(Integer.toHexString(cp)).append('}');
+            }else out.appendCodePoint(cp);
+        }
     }
     static boolean hasSpecial(List<Block> blocks){for(Block b:blocks)if(b.kind!=Kind.TEXT)return true;return false;}
 }

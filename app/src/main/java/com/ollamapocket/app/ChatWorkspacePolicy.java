@@ -15,7 +15,7 @@ final class ChatWorkspacePolicy {
     }
     /** Natural child widths in pixels, after font scaling. Never squeeze labels below their natural width in a row. */
     static boolean stackAnswerActions(int available,int gap,int... naturalWidths){
-        if(naturalWidths==null||naturalWidths.length<2)return false;
+        if(naturalWidths==null||naturalWidths.length==0)return false;
         long needed=(long)Math.max(0,gap)*(naturalWidths.length-1);
         for(int width:naturalWidths)needed+=Math.max(0,width);
         return needed>Math.max(0,available);

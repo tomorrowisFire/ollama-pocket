@@ -28,7 +28,11 @@ public final class ChatWorkspacePolicyTest {
         ok(ChatWorkspacePolicy.stackAnswerActions(265,6,96,110,48));
         ok(ChatWorkspacePolicy.stackAnswerActions(220,6,140,130,48));
         ok(ChatWorkspacePolicy.stackAnswerActions(300,6,160,160));
-        ok(!ChatWorkspacePolicy.stackAnswerActions(100,6,140));
+        ok(ChatWorkspacePolicy.stackAnswerActions(100,6,140));
+        ok(!ChatWorkspacePolicy.stackAnswerActions(140,6,140));
+        ok(ChatWorkspacePolicy.stackAnswerActions(139,6,140));
+        ok(ChatWorkspacePolicy.stackAnswerActions(0,6,1));
+        ok(!ChatWorkspacePolicy.stackAnswerActions(0,6,0));
         ok(!ChatWorkspacePolicy.stackAnswerActions(0,6));
         ok(ChatWorkspacePolicy.stackAnswerActions(Integer.MAX_VALUE,6,Integer.MAX_VALUE,48));
         ok(!ChatWorkspacePolicy.showDraftBudget(11999,16000));

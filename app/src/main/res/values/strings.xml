@@ -932,4 +932,10 @@
     <string name="auto_gate_jsonvalues_help">Enter a JSON object with the exact expected string, integer, number or boolean values (1–12 fields). Extra, missing, null or nested fields fail. Integer and decimal/exponent types are distinct. This verifies the specified values, not factual accuracy.</string>
     <string name="voice_finish_speaking">Finish speaking</string>
     <string name="voice_invalid_transcript">Recognition result is empty, too long, or contains invalid characters. Your draft has not been changed.</string>
+    <string name="chat_copy_spreadsheet">Copy for spreadsheet</string>
+    <string name="chat_spreadsheet_copied">Copied as tab-separated text. Formula-like cells may be prefixed; check automatic formatting after pasting.</string>
+    <string name="chat_spreadsheet_limit">Table exceeds the paste limit or is invalid. Copy the original instead.</string>
+    <string name="chat_wrap_code">Wrap code</string>
+    <string name="chat_unwrap_code">Scroll code</string>
+    <string name="chat_block_copy_failed">Copy failed.</string>
 </resources>
