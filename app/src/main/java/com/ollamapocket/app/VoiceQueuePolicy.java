@@ -13,6 +13,12 @@ final class VoiceQueuePolicy {
         if(end<text.length()&&Character.isHighSurrogate(text.charAt(end-1))&&Character.isLowSurrogate(text.charAt(end)))end--;
         return end;
     }
+    // 20ms frames at 16kHz; conservative energy gate, not semantic speech recognition.
+    static int bargeFrames(short[] frame,int count,int previous){
+        if(frame==null||count<240||count>frame.length)return 0;
+        long sum=0; for(int i=0;i<count;i++){long v=frame[i];sum+=v*v;}
+        return sum>=count*1200L*1200L?Math.min(8,Math.max(0,previous)+1):0;
+    }
     static long timeout(int length){
         return Math.min(1800000L,30000L+Math.max(0,length)*500L);
     }
