@@ -1123,4 +1123,21 @@
     <string name="rpc_advice_fit">선택 노드 구성으로 추정 용량 조건 충족. 실제 모델 로딩 및 오프로딩은 미검증입니다.</string>
     <string name="rpc_advice_limit">노드별 192 MiB를 배정 전 제외합니다. 분할 가중치는 보조 노드 간 상대값이며 호스트·보조 노드 텐서 비율이 아닙니다. 미확인·오래된 정보는 이 분석에서만 제외하며 실행·동의 정책은 그대로입니다.</string>
     <string name="rpc_advice_entry">상세 RPC 용량 및 노드 이탈 분석은 협력 세션에서 선택 모델 사전 점검을 실행하세요.</string>
+    <string name="api_manager_title">API 관리자</string>
+    <string name="api_manager_price_note">선택 모델의 요금을 직접 입력하세요. 앱 실행 중 이 기기에서 제공자별 세션 예상 비용을 집계합니다. 실제 청구액이나 강제 지출 상한이 아닙니다.</string>
+    <string name="api_manager_invalid_route">사설 LAN 주소 미입력 또는 오류</string>
+    <string name="api_manager_route">제공자: %1$s\n모델: %2$s\n전송 대상: %3$s\n연결 방식: %4$s</string>
+    <string name="api_manager_lan">사설 LAN HTTP (암호화되지 않음)</string>
+    <string name="api_manager_https">호스팅 API HTTPS</string>
+    <string name="api_review_units">입력 추정 단위: %1$d · 요청 출력 토큰 한도: %2$d</string>
+    <string name="api_review_heuristic">입력 추정치는 UTF-8 바이트와 고정 문맥 여유값을 사용하며 실제 모델 토크나이저 결과가 아닙니다. 실제 토큰 사용량과 비용은 더 높거나 낮을 수 있으며 청구액을 보장하지 않습니다.</string>
+    <string name="api_review_lan_cost">LAN 비용은 추정하지 않습니다. 수신 PC 또는 그 PC에 연결된 서비스에서 비용이 발생할 수 있으며 LAN이 무료를 의미하지는 않습니다.</string>
+    <string name="api_review_rates">사용자 입력 요금(USD / 백만 토큰): 입력 %1$s · 출력 %2$s</string>
+    <string name="api_review_cost">이번 요청 예상 비용(USD): %1$s</string>
+    <string name="api_review_spent">세션 내 확인된 예상 비용(USD): %1$s · 비용 또는 사용량 미확인 요청: %2$s건</string>
+    <string name="api_review_projected">요청 후 예상 세션 합계(USD): %1$s</string>
+    <string name="api_review_no_limit">앱 세션 예상 비용 한도 미설정.</string>
+    <string name="api_review_limit">설정된 세션 예상 비용 한도(USD): %1$s</string>
+    <string name="api_review_unknown_block">전송 차단: 예상 비용 한도가 설정된 경우 요금 및 세션 사용량이 확인되어야 합니다.</string>
+    <string name="api_review_over_block">전송 차단: 예상 세션 비용이 설정 한도를 초과하거나 이미 한도에 도달했습니다.</string>
 </resources>

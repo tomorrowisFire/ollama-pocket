@@ -1123,4 +1123,21 @@
     <string name="rpc_advice_fit">Capacity estimate fits with the selected peer set; actual loading and offload are unverified.</string>
     <string name="rpc_advice_limit">Each peer reserves 192 MiB before allocation. Split weights are relative remote weights, not a host/guest tensor percentage. Unknown or stale readings are excluded from this advisor only; execution and consent policy are unchanged.</string>
     <string name="rpc_advice_entry">For a detailed RPC capacity and node-loss estimate, open the cooperative session and run the selected-model preflight.</string>
+    <string name="api_manager_title">API manager</string>
+    <string name="api_manager_price_note">Enter your own rates for the selected model. Session estimates are tracked per provider on this device while the app is running; they are not provider billing or a hard spending cap.</string>
+    <string name="api_manager_invalid_route">Invalid or missing private LAN address</string>
+    <string name="api_manager_route">Provider: %1$s\nModel: %2$s\nDestination: %3$s\nRoute: %4$s</string>
+    <string name="api_manager_lan">Private LAN HTTP (unencrypted)</string>
+    <string name="api_manager_https">Hosted HTTPS</string>
+    <string name="api_review_units">Estimated input units: %1$d · Requested output token limit: %2$d</string>
+    <string name="api_review_heuristic">Input estimate uses UTF-8 bytes plus fixed framing allowances, not a model tokenizer. Actual token usage and fees may be higher or lower. The estimate is not a billing guarantee.</string>
+    <string name="api_review_lan_cost">LAN costs are not estimated. The receiving PC or its configured service may incur fees; LAN does not mean free.</string>
+    <string name="api_review_rates">User-entered USD / million tokens: input %1$s · output %2$s</string>
+    <string name="api_review_cost">Estimated request cost (USD): %1$s</string>
+    <string name="api_review_spent">Known session estimate (USD): %1$s · Unpriced or unknown requests: %2$s</string>
+    <string name="api_review_projected">Projected session total (USD): %1$s</string>
+    <string name="api_review_no_limit">No app session estimate limit set.</string>
+    <string name="api_review_limit">Configured session estimate limit (USD): %1$s</string>
+    <string name="api_review_unknown_block">Send blocked: an active estimate limit requires known rates and known session usage.</string>
+    <string name="api_review_over_block">Send blocked: the projected session cost exceeds the configured estimate limit, or the limit is already reached.</string>
 </resources>

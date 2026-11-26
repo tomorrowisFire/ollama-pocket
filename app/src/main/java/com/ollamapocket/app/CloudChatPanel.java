@@ -105,7 +105,7 @@ final class CloudChatPanel extends LinearLayout {
         setPadding(dp(6),dp(4),dp(6),dp(6));
         LinearLayout header=new LinearLayout(owner);
         header.setOrientation(HORIZONTAL);
-        Button back=button(R.string.cloud_return),configure=button(R.string.cloud_config);
+        Button back=button(R.string.cloud_return),configure=button(R.string.api_manager_title);
         settings=configure;
         header.addView(back,new LayoutParams(0,dp(48),1f));
         header.addView(configure,new LayoutParams(0,dp(48),1f));
@@ -298,6 +298,8 @@ final class CloudChatPanel extends LinearLayout {
         EditText address=input(R.string.cloud_pc_address,InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS,22);
         address.setText(pcAddress);fields.addView(address);
         TextView lanNotice=new TextView(owner);lanNotice.setText(R.string.cloud_pc_notice);fields.addView(lanNotice);
+        TextView routeDetails=new TextView(owner);routeDetails.setTextSize(12);routeDetails.setAutoLinkMask(0);
+        routeDetails.setSaveEnabled(false);fields.addView(routeDetails);
         Button fetch=button(R.string.cloud_fetch_models);fields.addView(fetch);
         EditText inRate=input(R.string.cloud_input_rate,InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL,20);
         EditText outRate=input(R.string.cloud_output_rate,InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL,20);
@@ -305,12 +307,28 @@ final class CloudChatPanel extends LinearLayout {
         fields.addView(inRate);fields.addView(outRate);
         EditText spending=input(R.string.cloud_budget,InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL,20);
         if(budget>=0)spending.setText(Double.toString(budget));fields.addView(spending);
+        TextView priceNotice=new TextView(owner);priceNotice.setTextSize(12);priceNotice.setText(R.string.api_manager_price_note);fields.addView(priceNotice);
         CheckBox remember=new CheckBox(owner);remember.setText(R.string.cloud_key_remember);fields.addView(remember);
         Button load=button(R.string.cloud_key_load),delete=button(R.string.cloud_key_delete);
         fields.addView(load);fields.addView(delete);
+        Runnable updateRoute=()->{
+            int index=pick.getSelectedItemPosition();
+            if(index<0||index>=values.length){routeDetails.setText(R.string.unknown);return;}
+            CloudApi.Provider selected=values[index];
+            String id=chosenModel.getText().toString().trim(),destination;
+            try{destination=CloudApi.requestTarget(selected,address.getText().toString().trim());}
+            catch(IllegalArgumentException e){destination=getResources().getString(R.string.api_manager_invalid_route);}
+            routeDetails.setText(routeText(selected,PrivacyPolicy.validModelId(id)?id:getResources().getString(R.string.unknown),destination));
+        };
+        android.text.TextWatcher routeWatcher=new android.text.TextWatcher(){
+            public void beforeTextChanged(CharSequence s,int start,int count,int after){}
+            public void onTextChanged(CharSequence s,int start,int before,int count){updateRoute.run();}
+            public void afterTextChanged(android.text.Editable e){}
+        };
+        chosenModel.addTextChangedListener(routeWatcher);address.addTextChangedListener(routeWatcher);
         Runnable updateFields=()->{boolean remote=values[pick.getSelectedItemPosition()].remote();
-            for(View v:new View[]{key,inRate,outRate,spending,remember,load,delete})v.setVisibility(remote?GONE:VISIBLE);
-            address.setVisibility(remote?VISIBLE:GONE);lanNotice.setVisibility(remote?VISIBLE:GONE);};
+            for(View v:new View[]{key,inRate,outRate,spending,priceNotice,remember,load,delete})v.setVisibility(remote?GONE:VISIBLE);
+            address.setVisibility(remote?VISIBLE:GONE);lanNotice.setVisibility(remote?VISIBLE:GONE);updateRoute.run();};
         updateFields.run();
         final int[] last={provider.ordinal()};
         pick.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
@@ -336,7 +354,7 @@ final class CloudChatPanel extends LinearLayout {
                     }catch(Exception e){toast(R.string.cloud_key_error);}
                 }).show();
         });
-        AlertDialog dialog=new AlertDialog.Builder(owner).setTitle(R.string.cloud_config).setView(sc)
+        AlertDialog dialog=new AlertDialog.Builder(owner).setTitle(R.string.api_manager_title).setView(sc)
             .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,null).create();
         keyDialog=dialog;
         dialog.setOnDismissListener(d->{key.setText("");if(keyDialog==dialog)keyDialog=null;HttpURLConnection c=catalogRequest;if(c!=null)c.disconnect();});
@@ -378,15 +396,58 @@ final class CloudChatPanel extends LinearLayout {
         stop.setEnabled(b);stop.setVisibility(b?VISIBLE:GONE);
         settings.setEnabled(!b);prompt.setEnabled(!b);conversations.setEnabled(!b&&!model.isEmpty());
     }
+    private String routeText(CloudApi.Provider p,String id,String destination){
+        return getResources().getString(R.string.api_manager_route,p.title,id,destination,
+            getResources().getString(p.remote()?R.string.api_manager_lan:R.string.api_manager_https));
+    }
+    private String amount(java.math.BigDecimal value){
+        return value==null?getResources().getString(R.string.unknown):value.stripTrailingZeros().toPlainString();
+    }
+    private String manualRate(double rate){
+        return CloudRequestAdvice.validRate(rate)?amount(java.math.BigDecimal.valueOf(rate)):getResources().getString(R.string.unknown);
+    }
+    private String requestAdviceText(CloudRequestAdvice.Estimate estimate,double ir,double or){
+        StringBuilder text=new StringBuilder(getResources().getString(R.string.api_review_units,estimate.inputUnits,estimate.outputLimit));
+        text.append("\n").append(getResources().getString(R.string.api_review_heuristic));
+        if(estimate.state==CloudRequestAdvice.State.LAN)
+            return text.append("\n").append(getResources().getString(R.string.api_review_lan_cost)).toString();
+        text.append("\n\n").append(getResources().getString(R.string.api_review_rates,manualRate(ir),manualRate(or)))
+            .append("\n").append(getResources().getString(R.string.api_review_cost,amount(estimate.requestCost)))
+            .append("\n").append(getResources().getString(R.string.api_review_spent,amount(estimate.knownSpent),
+                estimate.unpriced<0?getResources().getString(R.string.unknown):Long.toString(estimate.unpriced)))
+            .append("\n").append(getResources().getString(R.string.api_review_projected,amount(estimate.projected)))
+            .append("\n").append(estimate.limit==null?getResources().getString(R.string.api_review_no_limit):
+                getResources().getString(R.string.api_review_limit,amount(estimate.limit)));
+        if(estimate.state==CloudRequestAdvice.State.UNKNOWN_USAGE)text.append("\n\n").append(getResources().getString(R.string.api_review_unknown_block));
+        if(estimate.state==CloudRequestAdvice.State.OVER_BUDGET)text.append("\n\n").append(getResources().getString(R.string.api_review_over_block));
+        return text.toString();
+    }
+    private boolean sameEstimate(CloudRequestAdvice.Estimate a,CloudRequestAdvice.Estimate b){
+        return a.state==b.state&&a.inputUnits==b.inputUnits&&a.outputLimit==b.outputLimit&&a.unpriced==b.unpriced&&
+            java.util.Objects.equals(a.requestCost,b.requestCost)&&java.util.Objects.equals(a.knownSpent,b.knownSpent)&&
+            java.util.Objects.equals(a.projected,b.projected)&&java.util.Objects.equals(a.limit,b.limit);
+    }
+    private void showBudgetReview(String message){
+        showAction(new AlertDialog.Builder(owner).setTitle(R.string.api_manager_title).setMessage(message)
+            .setPositiveButton(R.string.close,null).create());
+    }
     private void prepareSend(){
         if(busy||!active||closed)return;
         final String q=prompt.getText().toString().trim();if(q.isEmpty())return;
         if(model.isEmpty()||(provider.remote()?pcAddress.isEmpty():token.isEmpty())){toast(R.string.cloud_key_needed);configure();return;}
-        if(!budgetAllows()){toast(R.string.cloud_budget_stop);return;}
         final CloudApi.Provider p=provider;final String id=model;final CloudHistory.Session s=session();
         final long revision=s.revision();
         final String target=p.remote()?pcAddress:token;
+        final double ir=inputRate,or=outputRate,limit=budget;
         final List<CloudHistory.Message> messages=s.request(q);
+        final String destination;
+        try{destination=CloudApi.requestTarget(p,pcAddress);}
+        catch(IllegalArgumentException e){toast(R.string.cloud_fields);return;}
+        final CloudRequestAdvice.Estimate estimate=CloudRequestAdvice.estimate(p.remote(),messages,
+            CloudApi.OUTPUT_TOKEN_LIMIT,ir,or,limit,ledger.get(usageScope(p)));
+        if(estimate.state==CloudRequestAdvice.State.INVALID){toast(R.string.transfer_review_failed);return;}
+        final String advice=routeText(p,id,destination)+"\n\n"+requestAdviceText(estimate,ir,or);
+        if(!estimate.allows()||!budgetAllows()){showBudgetReview(advice+"\n\n"+getResources().getString(R.string.cloud_budget_stop));return;}
         String preview;
         try{
             java.util.ArrayList<LocalChatTurns.Message> selected=new java.util.ArrayList<>();
@@ -395,17 +456,24 @@ final class CloudChatPanel extends LinearLayout {
                 getResources().getString(R.string.chat_export_assistant),getResources().getString(R.string.chat_export_other));
         }catch(Exception e){toast(R.string.transfer_review_failed);return;}
         ScrollView review=new ScrollView(owner);LinearLayout panel=new LinearLayout(owner);panel.setOrientation(VERTICAL);panel.setPadding(dp(16),dp(10),dp(16),dp(10));review.addView(panel);
-        TextView notice=new TextView(owner);notice.setText(getResources().getString(R.string.cloud_send_context,p.title,messages.size())+"\n\n"+getResources().getString(R.string.transfer_cloud_notice)+(p.remote()?"\n\n"+pcAddress+"\n"+getResources().getString(R.string.cloud_pc_notice):""));
+        TextView notice=new TextView(owner);notice.setText(getResources().getString(R.string.cloud_send_context,p.title,messages.size())+"\n\n"+advice+"\n\n"+getResources().getString(R.string.transfer_cloud_notice)+(p.remote()?"\n\n"+getResources().getString(R.string.cloud_pc_notice):""));
         notice.setTextSize(13);panel.addView(notice,new LinearLayout.LayoutParams(-1,-2));
         TextView content=new TextView(owner);content.setText(preview);content.setTextSize(13);content.setAutoLinkMask(0);content.setTextIsSelectable(false);content.setSaveEnabled(false);
         panel.addView(content,new LinearLayout.LayoutParams(-1,-2));
         showAction(new AlertDialog.Builder(owner).setTitle(p.title+" · "+getResources().getString(R.string.transfer_review))
             .setView(review)
             .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.send,(d,w)->{
-                if(target.isEmpty()||!target.equals(p.remote()?pcAddress:token)||!current(p,id,s,revision)||!q.equals(prompt.getText().toString().trim())){
+                if(target.isEmpty()||!target.equals(p.remote()?pcAddress:token)||!current(p,id,s,revision)||
+                    !q.equals(prompt.getText().toString().trim())||Double.compare(ir,inputRate)!=0||
+                    Double.compare(or,outputRate)!=0||Double.compare(limit,budget)!=0){
                     toast(R.string.cloud_context_changed);return;
                 }
-                if(!budgetAllows()){toast(R.string.cloud_budget_stop);return;}
+                try{if(!destination.equals(CloudApi.requestTarget(p,pcAddress))){toast(R.string.cloud_context_changed);return;}}
+                catch(IllegalArgumentException e){toast(R.string.cloud_context_changed);return;}
+                CloudRequestAdvice.Estimate fresh=CloudRequestAdvice.estimate(p.remote(),messages,
+                    CloudApi.OUTPUT_TOKEN_LIMIT,ir,or,limit,ledger.get(usageScope(p)));
+                if(!fresh.allows()||!budgetAllows()){toast(R.string.cloud_budget_stop);return;}
+                if(!sameEstimate(estimate,fresh)){toast(R.string.cloud_context_changed);return;}
                 request(p,id,target,q,s,revision,messages);
             }).create());
     }

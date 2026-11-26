@@ -10,6 +10,7 @@ import org.json.JSONObject;
 
 /** Fixed HTTPS endpoints; no redirects, automatic retries or local history. */
 final class CloudApi {
+    static final int OUTPUT_TOKEN_LIMIT=2048;
     enum Provider {
         OPENAI("OpenAI","https://api.openai.com/v1/responses",0),
         GEMINI("Google Gemini","https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",1),
@@ -46,9 +47,14 @@ final class CloudApi {
         if(port<1||port>65535||!(ip[0]==10||ip[0]==172&&ip[1]>=16&&ip[1]<=31||ip[0]==192&&ip[1]==168))throw new IllegalArgumentException("Private IPv4:port required");
         return "http://"+pair[0]+":"+port;
     }
+    /** Exact POST target for the review UI and connection; no network activity here. */
+    static String requestTarget(Provider p,String address){
+        if(p==null)throw new IllegalArgumentException("Provider required");
+        return p.remote()?remoteBase(address)+"/v1/chat/completions":p.url;
+    }
     static java.net.HttpURLConnection remoteConnection(Provider p,String address,boolean post)throws Exception{
         if(!p.remote())throw new IllegalArgumentException();
-        java.net.HttpURLConnection c=(java.net.HttpURLConnection)new URL(remoteBase(address)+(post?"/v1/chat/completions":"/v1/models")).openConnection(java.net.Proxy.NO_PROXY);
+        java.net.HttpURLConnection c=(java.net.HttpURLConnection)new URL(post?requestTarget(p,address):remoteBase(address)+"/v1/models").openConnection(java.net.Proxy.NO_PROXY);
         c.setInstanceFollowRedirects(false);c.setConnectTimeout(10000);c.setReadTimeout(180000);
         c.setRequestMethod(post?"POST":"GET");c.setDoOutput(post);c.setUseCaches(false);
         c.setRequestProperty("Content-Type","application/json");c.setRequestProperty("Accept","application/json");
@@ -104,10 +110,10 @@ final class CloudApi {
         JSONObject body=new JSONObject().put("model",model);
         if(provider.protocol==0){
             body.put("input",input);
-            body.put("max_output_tokens",2048).put("store",false);
+            body.put("max_output_tokens",OUTPUT_TOKEN_LIMIT).put("store",false);
         }else{
             body.put("messages",input);
-            body.put("max_tokens",2048).put("stream",false);
+            body.put("max_tokens",OUTPUT_TOKEN_LIMIT).put("stream",false);
         }
         return body;
     }
@@ -141,7 +147,7 @@ final class CloudApi {
     }
     static HttpsURLConnection connection(Provider provider,String key) throws Exception {
         if(provider.remote())throw new IllegalArgumentException("Remote requires explicit address");
-        return open(provider,key,provider.url,true);
+        return open(provider,key,requestTarget(provider,""),true);
     }
     private static HttpsURLConnection open(Provider provider,String key,String url,boolean post)throws Exception{
         if(provider==null||provider.remote()||!PrivacyPolicy.validApiKey(key))throw new IllegalArgumentException("Invalid key");

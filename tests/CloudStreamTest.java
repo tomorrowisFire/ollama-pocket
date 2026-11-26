@@ -15,6 +15,21 @@ public final class CloudStreamTest {
         throw new AssertionError("Unexpected successful stream");
     }
     public static void main(String[] args)throws Exception{
+        String[] targets={"https://api.openai.com/v1/responses","https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+            "https://api.anthropic.com/v1/messages","https://api.x.ai/v1/responses","https://api.deepseek.com/chat/completions",
+            "https://openrouter.ai/api/v1/chat/completions","http://192.168.1.9:1234/v1/chat/completions","http://192.168.1.9:1234/v1/chat/completions"};
+        check(CloudApi.Provider.values().length==targets.length&&CloudApi.OUTPUT_TOKEN_LIMIT==2048);
+        for(CloudApi.Provider p:CloudApi.Provider.values()){
+            check(targets[p.ordinal()].equals(CloudApi.requestTarget(p,"192.168.1.9:01234")));
+            org.json.JSONObject body=CloudApi.request(p,"model","offline");
+            check(body.getInt(p.protocol==0?"max_output_tokens":"max_tokens")==CloudApi.OUTPUT_TOKEN_LIMIT);
+            check("model".equals(body.getString("model")));
+            check(p.protocol!=0||!body.getBoolean("store"));
+        }
+        try{CloudApi.requestTarget(CloudApi.Provider.PC_OLLAMA,"8.8.8.8:1234");throw new AssertionError("Public LAN target accepted");}
+        catch(IllegalArgumentException expected){check(true);}
+        try{CloudApi.requestTarget(null,"");throw new AssertionError("Null provider accepted");}
+        catch(IllegalArgumentException expected){check(true);}
         String delta=event("{\"type\":\"response.output_text.delta\",\"delta\":\"안녕\"}");
         String end=event("{\"type\":\"response.completed\",\"response\":{\"usage\":{\"input_tokens\":7,\"output_tokens\":2}}}");
         for(CloudApi.Provider p:new CloudApi.Provider[]{CloudApi.Provider.OPENAI,CloudApi.Provider.XAI}){

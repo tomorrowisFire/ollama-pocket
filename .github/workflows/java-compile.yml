@@ -49,6 +49,7 @@ on:
       - 'tests/DocumentBatchReportTest.java'
       - 'tests/VoiceQueuePolicyTest.java'
       - 'tests/VoiceInteractionPolicyTest.java'
+      - 'tests/CloudRequestAdviceTest.java'
       - 'tests/CloudUsageLedgerTest.java'
       - 'tests/CloudStreamTest.java'
       - 'tests/InferenceSafetyPolicyTest.java'
@@ -175,6 +176,10 @@ jobs:
           mkdir -p /tmp/cloud-usage-tests
           javac -d /tmp/cloud-usage-tests app/src/main/java/com/ollamapocket/app/CloudUsageLedger.java tests/CloudUsageLedgerTest.java
           java -cp /tmp/cloud-usage-tests com.ollamapocket.app.CloudUsageLedgerTest
+      - name: Test API request review and projected session spending
+        run: |
+          javac -cp /tmp/cloud-usage-tests -d /tmp/cloud-usage-tests app/src/main/java/com/ollamapocket/app/CloudHistory.java app/src/main/java/com/ollamapocket/app/CloudRequestAdvice.java tests/CloudRequestAdviceTest.java
+          java -cp /tmp/cloud-usage-tests com.ollamapocket.app.CloudRequestAdviceTest
       - name: Test credential, PDF cache and RPC socket ownership policies
         run: |
           mkdir -p /tmp/privacy-tests

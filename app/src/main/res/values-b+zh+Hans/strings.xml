@@ -1123,4 +1123,21 @@
     <string name="rpc_advice_fit">所选节点组合满足容量估算；实际加载和卸载尚未验证。</string>
     <string name="rpc_advice_limit">每个节点分配前预留 192 MiB。分割权重仅为远程节点相对权重，不是主机与节点张量比例。未知或过期读数仅从本建议排除；执行和同意策略不变。</string>
     <string name="rpc_advice_entry">如需详细 RPC 容量与节点退出估算，请打开协作会话并运行所选模型预检。</string>
+    <string name="api_manager_title">API 管理器</string>
+    <string name="api_manager_price_note">请手动输入所选模型的费率。应用运行期间在本机按提供方统计会话估算费用，并非实际账单或硬性支出上限。</string>
+    <string name="api_manager_invalid_route">私有局域网地址无效或未填写</string>
+    <string name="api_manager_route">提供方：%1$s\n模型：%2$s\n目标地址：%3$s\n连接方式：%4$s</string>
+    <string name="api_manager_lan">私有局域网 HTTP（未加密）</string>
+    <string name="api_manager_https">托管 API HTTPS</string>
+    <string name="api_review_units">估算输入单位：%1$d · 请求输出词元上限：%2$d</string>
+    <string name="api_review_heuristic">输入估算依据 UTF-8 字节和固定封装余量，并非模型分词器结果。实际词元用量和费用可能更高或更低，估算不保证账单金额。</string>
+    <string name="api_review_lan_cost">不估算局域网费用。接收端电脑或其配置的服务可能产生费用，局域网不代表免费。</string>
+    <string name="api_review_rates">手动输入费率（美元/百万词元）：输入 %1$s · 输出 %2$s</string>
+    <string name="api_review_cost">本次请求估算费用（美元）：%1$s</string>
+    <string name="api_review_spent">已知会话估算费用（美元）：%1$s · 费用或用量未知请求：%2$s</string>
+    <string name="api_review_projected">会话预计总费用（美元）：%1$s</string>
+    <string name="api_review_no_limit">未设置应用内会话估算费用限额。</string>
+    <string name="api_review_limit">已设置的会话估算费用限额（美元）：%1$s</string>
+    <string name="api_review_unknown_block">已阻止发送：启用估算费用限额时，必须确认费率和会话用量。</string>
+    <string name="api_review_over_block">已阻止发送：预计会话费用超出设置的估算限额，或已达到限额。</string>
 </resources>

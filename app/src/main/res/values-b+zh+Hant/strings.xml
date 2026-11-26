@@ -1123,4 +1123,21 @@
     <string name="rpc_advice_fit">所選節點組合符合容量估算；實際載入和卸載尚未驗證。</string>
     <string name="rpc_advice_limit">每個節點分配前保留 192 MiB。分割權重僅為遠端節點相對權重，不是主機與節點張量比例。未知或過期讀數僅從本建議排除；執行和同意策略不變。</string>
     <string name="rpc_advice_entry">如需詳細 RPC 容量與節點退出估算，請開啟協作工作階段並執行所選模型預檢。</string>
+    <string name="api_manager_title">API 管理員</string>
+    <string name="api_manager_price_note">請手動輸入所選模型的費率。應用程式執行期間在本機依提供者統計工作階段估算費用，並非實際帳單或硬性支出上限。</string>
+    <string name="api_manager_invalid_route">私人區域網路位址無效或未填寫</string>
+    <string name="api_manager_route">提供者：%1$s\n模型：%2$s\n傳送目標：%3$s\n連線方式：%4$s</string>
+    <string name="api_manager_lan">私人區域網路 HTTP（未加密）</string>
+    <string name="api_manager_https">託管 API HTTPS</string>
+    <string name="api_review_units">估算輸入單位：%1$d · 請求輸出權杖上限：%2$d</string>
+    <string name="api_review_heuristic">輸入估算依據 UTF-8 位元組與固定封裝餘量，並非模型斷詞器結果。實際權杖用量與費用可能更高或更低，估算不保證帳單金額。</string>
+    <string name="api_review_lan_cost">不估算區域網路費用。接收端電腦或其設定的服務可能產生費用，區域網路不代表免費。</string>
+    <string name="api_review_rates">手動輸入費率（美元/百萬權杖）：輸入 %1$s · 輸出 %2$s</string>
+    <string name="api_review_cost">本次請求估算費用（美元）：%1$s</string>
+    <string name="api_review_spent">已知工作階段估算費用（美元）：%1$s · 費用或用量未知請求：%2$s</string>
+    <string name="api_review_projected">工作階段預估總費用（美元）：%1$s</string>
+    <string name="api_review_no_limit">未設定應用程式內工作階段估算費用限額。</string>
+    <string name="api_review_limit">已設定的工作階段估算費用限額（美元）：%1$s</string>
+    <string name="api_review_unknown_block">已阻止傳送：啟用估算費用限額時，必須確認費率與工作階段用量。</string>
+    <string name="api_review_over_block">已阻止傳送：預估工作階段費用超出設定的估算限額，或已達限額。</string>
 </resources>

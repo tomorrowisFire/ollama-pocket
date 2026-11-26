@@ -1123,4 +1123,21 @@
     <string name="rpc_advice_fit">選択ノード構成で推定容量条件を満たします。実際の読み込みとオフロードは未検証です。</string>
     <string name="rpc_advice_limit">各ノードは割当前に192 MiBを確保します。分割値はリモート間の相対重みであり、ホストとのテンソル比率ではありません。不明・古い情報は本分析のみ除外し、実行・同意ポリシーは変更しません。</string>
     <string name="rpc_advice_entry">詳細なRPC容量・ノード離脱の推定は、協調セッションで選択モデルの事前確認を実行してください。</string>
+    <string name="api_manager_title">API マネージャー</string>
+    <string name="api_manager_price_note">選択モデルの単価を手動で入力してください。アプリの実行中、この端末で提供元ごとのセッション概算費用を集計します。実際の請求額や強制的な支出上限ではありません。</string>
+    <string name="api_manager_invalid_route">プライベートLANアドレスが未入力または無効</string>
+    <string name="api_manager_route">提供元：%1$s\nモデル：%2$s\n送信先：%3$s\n接続方式：%4$s</string>
+    <string name="api_manager_lan">プライベートLAN HTTP（暗号化なし）</string>
+    <string name="api_manager_https">ホスト型API HTTPS</string>
+    <string name="api_review_units">入力推定単位：%1$d · リクエスト出力トークン上限：%2$d</string>
+    <string name="api_review_heuristic">入力推定にはUTF-8バイト数と固定の構造分を使用し、モデルのトークナイザーは使用しません。実際のトークン使用量と料金は上下する可能性があり、請求額を保証しません。</string>
+    <string name="api_review_lan_cost">LANの費用は推定しません。受信側PCやその接続サービスで料金が発生する可能性があります。LAN接続は無料を意味しません。</string>
+    <string name="api_review_rates">手動入力単価（USD / 100万トークン）：入力 %1$s · 出力 %2$s</string>
+    <string name="api_review_cost">今回の概算費用（USD）：%1$s</string>
+    <string name="api_review_spent">セッション既知の概算費用（USD）：%1$s · 費用または使用量不明のリクエスト：%2$s件</string>
+    <string name="api_review_projected">送信後のセッション概算合計（USD）：%1$s</string>
+    <string name="api_review_no_limit">アプリのセッション概算費用上限は未設定です。</string>
+    <string name="api_review_limit">設定済みセッション概算費用上限（USD）：%1$s</string>
+    <string name="api_review_unknown_block">送信を中止：概算費用上限の設定時は単価とセッション使用量が確認できる必要があります。</string>
+    <string name="api_review_over_block">送信を中止：セッション概算費用が設定上限を超えるか、すでに上限に達しています。</string>
 </resources>
