@@ -13,6 +13,14 @@ Before implementation and after verification, record distinct proposals from:
 
 Each role writes its assessment before the joint decision. Record disagreements, final decision, implementation owner, exact baseline/commit, test results and unresolved blockers. Review the highest-risk changes again after CI. Do not count this internal conference as the separate ten-perspective evaluation. Use truly independent agents only if an execution environment actually supports them and provides evidence; otherwise explicitly label the role-based discussion as one assistant's simulated conference. Preserve the existing review and release gates; no vote overrides missing evidence, user-mandated ads, production lock, data integrity or separate release approval.
 
+## Stage-specific KPI gate (mandatory from 12-B)
+The three-role conference must agree on numeric thresholds, test cases, denominators, device/model conditions, measurement methods and blocking failures before beginning each new stage. Record the baseline, candidate and frozen KPI specification in the stage record. For the already implemented 12-B, this policy applies prospectively to its remaining acceptance; do not claim that the targets were preregistered before earlier implementation or CI.
+- Every required KPI must PASS on the same identified application candidate, with evidence. No weighted-average substitution or majority-vote override; FAIL, BLOCKED, NOT_RUN or missing evidence blocks progression. Only measured values may establish measured KPIs. The three roles must jointly review the evidence and approve advancement, with QA/security veto for unsupported claims and open P0/P1.
+- An unmet KPI triggers targeted corrections and repeated affected/regression tests at the same stage. If device access, credentials, CI or other prerequisites are unavailable, report BLOCKED and remain at that stage. Never lower thresholds merely to obtain a pass; a materially changed scope requires a separately documented decision and user approval before re-baselining.
+- Preserve the ten-perspective review after each stage and the final all-ten >=90 target. The conference is a separate design/acceptance mechanism, not a substitute for independent evaluators, actual tests, or manual release approval.
+- Store each KPI ID, target, evidence URL/path, measured value, status, candidate commit, and three-role decision; distinguish process-only documentation commits from tested application commits. Documentation-only changes do not prove a new application build.
+- Current frozen 12-B gate and future provisional KPI agendas: [stage-12 KPI contract](on-hands-stage-12-kpi-contract.md).
+
 ## Fixed reviewer perspectives
 A daily assistant, B documents and file analysis, C coding, D automation/tools, E cloud/API, F voice/accessibility, G local/distributed inference, H UX/visual polish, I localization/global usability, J security/privacy.
 
