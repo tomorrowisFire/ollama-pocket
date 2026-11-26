@@ -504,8 +504,13 @@ public final class MainActivity extends Activity {
         super.onBackPressed();
     }
     private void openVoice(){
-        if(isUiBusy()||guestOnly)return;
-        if(voice!=null&&(voice.continuous()||voice.listening()||voice.speaking())){voice.cancel();return;}
+        if(guestOnly)return;
+        if(voice!=null&&(voice.continuous()||voice.listening()||voice.speaking())){
+            if(chatBusy){stopChat();return;}
+            if(voice.continuous()&&voice.speaking()){voice.cancel();startVoice(true);return;}
+            voice.cancel();return;
+        }
+        if(isUiBusy())return;
         if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){
             requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},VOICE_PERMISSION);
             toast(getString(R.string.voice_permission));return;
@@ -530,7 +535,7 @@ public final class MainActivity extends Activity {
         voice.listen(value->{
             if(!foreground||isFinishing()||isDestroyed()||activeTab!=0||isUiBusy()){voice.cancel();return;}
             chatInput.setText(value);chatInput.setSelection(chatInput.length());
-            if(conversational){speakNextAnswer=true;try{sendChat();}finally{speakNextAnswer=false;}if(!chatBusy)voice.cancel();}
+            if(conversational){speakNextAnswer=true;try{sendChat();}finally{speakNextAnswer=false;}if(!chatBusy&&localTransferDialog==null)voice.cancel();}
         });
     }
 
@@ -833,7 +838,7 @@ public final class MainActivity extends Activity {
         voiceButton.setMinWidth(dp(44));voiceButton.setMinimumWidth(dp(44));
         rowItem(composer,voiceButton,0,4);
         voiceButton.setOnClickListener(v->openVoice());
-        voiceButton.setOnLongClickListener(v->{if(voice!=null)voice.cancel();return true;});
+        voiceButton.setOnLongClickListener(v->{if(voice!=null){if(chatBusy&&voice.continuous())stopChat();else voice.cancel();}return true;});
         sendButton = button("↑", true);
         sendButton.setContentDescription(getString(R.string.send));
         sendButton.setTextSize(19);
@@ -3175,7 +3180,7 @@ public final class MainActivity extends Activity {
         stopChatButton.setEnabled(busy);stopChatButton.setVisibility(busy?View.VISIBLE:View.GONE);
         if(cloudShortcut!=null)cloudShortcut.setEnabled(!busy);
         modelChooser.setEnabled(!busy && !knownModels.isEmpty());
-        if(voiceButton!=null)voiceButton.setEnabled(!busy);
+        if(voiceButton!=null)voiceButton.setEnabled(!busy||(voice!=null&&voice.continuous()));
         if(attachFileButton!=null)attachFileButton.setEnabled(!busy&&!attachmentReading);
         if(exportConversation!=null)exportConversation.setEnabled(!busy&&historyReadable&&history.length()>0);
     }
@@ -3198,7 +3203,7 @@ public final class MainActivity extends Activity {
                 try{sendChat(fingerprint);}finally{speakNextAnswer=false;}
             }).create();
         localTransferDialog=dialog;
-        dialog.setOnDismissListener(d->{if(localTransferDialog==dialog)localTransferDialog=null;});
+        dialog.setOnDismissListener(d->{if(localTransferDialog==dialog)localTransferDialog=null;if(!chatBusy&&voice!=null&&voice.continuous())voice.cancel();});
         dialog.show();
         if(dialog.getWindow()!=null)dialog.getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE);
     }
@@ -3225,11 +3230,11 @@ public final class MainActivity extends Activity {
                 toast(getString(R.string.transfer_changed));return;
             }
         }
-        final boolean continueVoice=speakThisTurn&&voice!=null&&voice.continuous()&&!"cooperative".equals(computeAtStart);
+        final boolean continueVoice=speakThisTurn&&voice!=null&&voice.continuous();
         if(voice!=null&&!continueVoice)voice.cancel();
         final int voiceToken=voice==null?-1:voice.sessionToken();
         try{persistLocalDraft(scopeAtStart,sessionAtStart,prompt);}
-        catch(Exception e){toast(getString(R.string.chat_history_invalid));return;}
+        catch(Exception e){if(voice!=null)voice.cancel();toast(getString(R.string.chat_history_invalid));return;}
         pendingLocalPrompt=prompt;
         forgetLastAttachment();chatInput.setText("");
         ((InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(chatInput.getWindowToken(),0);
