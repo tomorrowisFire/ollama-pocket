@@ -34,6 +34,16 @@ public final class VoiceQueuePolicyTest {
         boolean rejected=false;
         try{VoiceQueuePolicy.chunkEnd(s,0,1);}catch(IllegalArgumentException expected){rejected=true;}
         check(rejected);
+        short[] quiet=new short[320], loud=new short[320];
+        java.util.Arrays.fill(loud,(short)1500);
+        int hits=0;
+        for(int i=0;i<7;i++){hits=VoiceQueuePolicy.bargeFrames(loud,320,hits);check(hits==i+1);}
+        check(VoiceQueuePolicy.bargeFrames(quiet,320,hits)==0);
+        check(VoiceQueuePolicy.bargeFrames(loud,320,hits)==8);
+        check(VoiceQueuePolicy.bargeFrames(loud,320,8)==8);
+        check(VoiceQueuePolicy.bargeFrames(loud,100,7)==0);
+        check(VoiceQueuePolicy.bargeFrames(null,320,7)==0);
+        check(VoiceQueuePolicy.bargeFrames(loud,321,7)==0);
         System.out.println("PASS: voice queue policy, stale callback and multilingual round-trip checks");
     }
 }
