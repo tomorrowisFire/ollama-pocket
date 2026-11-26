@@ -30,8 +30,9 @@ final class OnHandsVoice {
     private void startBarge(){
         if(!continuous||!bargeOptIn||afterSpeech==null||barge!=null)return;
         final int token=generation;
+        final String playback=utterancePrefix;
         BargeMonitor monitor=new BargeMonitor(a,()->handler.post(()->{
-            if(closed||token!=generation||barge==null||!continuous||afterSpeech==null)return;
+            if(closed||token!=generation||barge==null||!continuous||afterSpeech==null||playback==null||!playback.equals(utterancePrefix))return;
             Runnable next=afterSpeech;afterSpeech=null;utterancePrefix=null;lastUtterance=null;
             stopBarge();clearTimeout();if(tts!=null)tts.stop();resumeAfterPlayback(next);
         }));
@@ -69,7 +70,7 @@ final class OnHandsVoice {
             if(closed)return;
             initialized=true;ready=status==TextToSpeech.SUCCESS;
             if(ready)tts.setOnUtteranceProgressListener(new android.speech.tts.UtteranceProgressListener(){
-                public void onStart(String id){}
+                public void onStart(String id){a.runOnUiThread(()->{if(!closed&&id!=null&&utterancePrefix!=null&&id.startsWith(utterancePrefix))startBarge();});}
                 public void onDone(String id){a.runOnUiThread(()->finishSpeech(id,true));}
                 public void onError(String id){a.runOnUiThread(()->finishSpeech(id,false));}
                 public void onStop(String id,boolean interrupted){a.runOnUiThread(()->finishSpeech(id,false));}
@@ -142,7 +143,7 @@ final class OnHandsVoice {
                 }
                 i=end;
             }
-            if(lastUtterance!=null)startBarge();
+            // Start monitoring only when the current utterance actually begins playback.
         }catch(RuntimeException e){cancel();toast(R.string.tts_unavailable);}
     }
     void cancel(){
