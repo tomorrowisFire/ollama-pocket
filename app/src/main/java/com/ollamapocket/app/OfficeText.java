@@ -49,7 +49,7 @@ final class OfficeText {
                 if(workbook.sheets.isEmpty())throw invalid();
                 int seen=0;
                 for(SheetRef sheet:workbook.sheets){
-                    if(seen++>=MAX_SHEETS||out.partial){out.partial=true;break;}
+                    if(seen++>=MAX_SHEETS||out.text.length()>=AttachmentText.MAX_EXCERPT){out.partial=true;break;}
                     String path=relations.paths.get(sheet.id);
                     if(path==null||!parts.containsKey(path)){out.partial=true;continue;}
                     parse(parts.get(path),new Cells(out,sheet.name,shared.values));

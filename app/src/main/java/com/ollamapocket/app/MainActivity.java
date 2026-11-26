@@ -3331,7 +3331,9 @@ public final class MainActivity extends Activity {
                     Intent picker=new Intent(Intent.ACTION_OPEN_DOCUMENT);
                     picker.addCategory(Intent.CATEGORY_OPENABLE);picker.setType("*/*");
                     picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                    picker.putExtra(Intent.EXTRA_MIME_TYPES,new String[]{"text/*","application/json","application/octet-stream"});
+                    picker.putExtra(Intent.EXTRA_MIME_TYPES,new String[]{"text/*","application/json","application/octet-stream",
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
                     startActivityForResult(picker,PICK_ATTACHMENT);
                 }catch(Exception e){attachmentScope="";toast(getString(R.string.chat_export_unavailable));}
             }).show();
@@ -3358,7 +3360,7 @@ public final class MainActivity extends Activity {
                         if(si>=0&&!cursor.isNull(si))bytes=cursor.getLong(si);
                     }
                 }
-                if(bytes>AttachmentText.MAX_BYTES)throw new AttachmentText.Failure(AttachmentText.Problem.TOO_LARGE);
+                if(bytes>AttachmentText.maxBytes(name))throw new AttachmentText.Failure(AttachmentText.Problem.TOO_LARGE);
                 try(InputStream in=getContentResolver().openInputStream(uri)){extracted=AttachmentText.read(name,in);}
             }catch(AttachmentText.Failure e){
                 error=e.problem==AttachmentText.Problem.UNSUPPORTED?R.string.attachment_unsupported:
@@ -3383,6 +3385,7 @@ public final class MainActivity extends Activity {
         margin(text(preview.name,15,WHITE,true),panel,0,6);
         margin(text(getString(R.string.attachment_notice),12,WHITE,false),panel,0,6);
         margin(text(getString(R.string.attachment_rpc_notice),12,MUTED,false),panel,0,6);
+        if(preview.office)margin(text(getString(R.string.attachment_office_note),12,MUTED,false),panel,0,6);
         if(preview.partial)margin(text(getString(R.string.attachment_partial),12,MUTED,true),panel,0,6);
         EditText excerpt=edit(getString(R.string.attachment_preview),preview.text,true);
         excerpt.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(AttachmentText.MAX_EXCERPT)});

@@ -677,19 +677,20 @@
     <string name="chat_title_invalid">Enter a title of 1–80 characters.</string>
     <string name="chat_manage_failed">Could not update the conversation list. Saved messages were not changed.</string>
     <string name="chat_manage_done">Conversation updated</string>
-    <string name="attachment_pick">Attach text file</string>
-    <string name="attachment_formats">TXT, MD, CSV, TSV, JSON or LOG (UTF-8 or UTF-16 with BOM). Office, PDF and image extraction will be added separately.</string>
+    <string name="attachment_pick">Attach file</string>
+    <string name="attachment_formats">Select TXT, MD, CSV, TSV, JSON, LOG, DOCX or XLSX. Text supports UTF-8 or BOM UTF-16. PDF, images and legacy DOC/XLS are not yet supported.</string>
     <string name="attachment_reading">Extracting file text…</string>
     <string name="attachment_preview">Preview extracted text</string>
     <string name="attachment_notice">Review or edit the excerpt before adding it to the local question. It becomes part of the draft and saved question, and may be used in later local context. The original file is not stored. Your document provider may fetch files over the network.</string>
-    <string name="attachment_partial">Only the first 6,000 characters or fewer are shown; this is not the complete file.</string>
+    <string name="attachment_partial">This is a limited excerpt of up to 6,000 characters. Some content may be missing; do not treat it as the complete file.</string>
     <string name="attachment_insert">Add excerpt to question</string>
     <string name="attachment_added">Excerpt added. Edit or remove it in the local input box before sending.</string>
     <string name="attachment_unsupported">Unsupported file format.</string>
-    <string name="attachment_too_large">File exceeds the 1 MiB text limit.</string>
-    <string name="attachment_invalid">Could not read the text. File may be binary, damaged or use an unsupported encoding.</string>
+    <string name="attachment_too_large">File or expanded document exceeds the size limit (text 1 MiB, Office 8 MiB compressed, 16 MiB expanded).</string>
+    <string name="attachment_invalid">Could not extract supported text. The file may be damaged, encrypted, binary or use an unsupported format or encoding.</string>
     <string name="attachment_empty">No readable text found.</string>
     <string name="attachment_context_limit">Shorten the excerpt or question. Model token limits may be smaller than the character limit.</string>
     <string name="attachment_scope_changed">The conversation changed. Select the file again.</string>
     <string name="attachment_rpc_notice">Adding the excerpt does not send it. Cooperative inference, if selected later, may process it with trusted guest devices.</string>
+    <string name="attachment_office_note">Office preview is read-only: Word main-body paragraph references, Excel sheet names, cell references and stored values. Formulas are not recalculated; formatting, images, headers/footers and some sheets may be omitted. Do not treat cached values as current results.</string>
 </resources>

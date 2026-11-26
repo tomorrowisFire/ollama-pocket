@@ -677,19 +677,20 @@
     <string name="chat_title_invalid">1〜80文字のタイトルを入力してください。</string>
     <string name="chat_manage_failed">会話一覧を更新できませんでした。保存済みメッセージは変更していません。</string>
     <string name="chat_manage_done">会話を更新しました</string>
-    <string name="attachment_pick">テキストファイル添付</string>
-    <string name="attachment_formats">TXT・MD・CSV・TSV・JSON・LOG（UTF-8 または BOM 付き UTF-16）を選択してください。Office・PDF・画像抽出は別途開発します。</string>
+    <string name="attachment_pick">ファイル添付</string>
+    <string name="attachment_formats">TXT・MD・CSV・TSV・JSON・LOG・DOCX・XLSX を選択してください。テキストは UTF-8 または BOM 付き UTF-16 に対応します。PDF・画像・旧形式 DOC/XLS は未対応です。</string>
     <string name="attachment_reading">ファイルのテキストを抽出中…</string>
     <string name="attachment_preview">抽出テキストのプレビュー</string>
     <string name="attachment_notice">ローカル質問に追加する前に抜粋を確認・編集してください。下書きと保存済み質問の一部になり、以後のローカル文脈で使われる場合があります。元ファイルは保存しません。文書サービスがネットワークで取得する場合があります。</string>
-    <string name="attachment_partial">先頭の最大6,000文字の抜粋です。ファイル全体ではありません。</string>
+    <string name="attachment_partial">最大6,000文字の抜粋です。一部が欠ける場合があり、ファイル全体ではありません。</string>
     <string name="attachment_insert">抜粋を質問に追加</string>
     <string name="attachment_added">抜粋を追加しました。送信前にローカル入力欄で編集・削除できます。</string>
     <string name="attachment_unsupported">非対応のファイル形式です。</string>
-    <string name="attachment_too_large">ファイルが1 MiBの上限を超えています。</string>
-    <string name="attachment_invalid">テキストを読み込めません。バイナリ・破損・非対応エンコーディングの可能性があります。</string>
+    <string name="attachment_too_large">ファイルまたは展開文書が容量制限を超えています（テキスト1 MiB、Office圧縮8 MiB・展開16 MiB）。</string>
+    <string name="attachment_invalid">対応テキストを抽出できません。破損・暗号化・バイナリ・非対応形式やエンコーディングの可能性があります。</string>
     <string name="attachment_empty">読み取れるテキストがありません。</string>
     <string name="attachment_context_limit">抜粋または質問を短くしてください。モデルのトークン上限は文字数上限より小さい場合があります。</string>
     <string name="attachment_scope_changed">会話が変更されました。ファイルを再選択してください。</string>
     <string name="attachment_rpc_notice">抜粋の追加だけでは送信しません。協調推論を選択すると信頼済みゲスト端末で処理する場合があります。</string>
+    <string name="attachment_office_note">Office プレビューは読み取り専用です。Word本文の段落番号、Excelシート名・セル参照・保存値を表示します。数式は再計算せず、書式・画像・ヘッダー/フッター・一部シートは省略される場合があります。キャッシュ値を最新結果として扱わないでください。</string>
 </resources>
