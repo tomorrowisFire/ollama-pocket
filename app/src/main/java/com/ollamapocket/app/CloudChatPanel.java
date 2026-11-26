@@ -29,11 +29,35 @@ final class CloudChatPanel extends LinearLayout {
         Profile(String m,String a,double i,double o,double b){model=m;address=a;in=i;out=o;budget=b;}
     }
     private double budget=-1;
+    private final android.content.SharedPreferences profilePrefs;
+    private void restoreProfiles(){
+        for(CloudApi.Provider p:CloudApi.Provider.values())try{
+            String raw=profilePrefs.getString(p.name(),null);if(raw==null)continue;
+            org.json.JSONObject j=new org.json.JSONObject(raw);
+            String id=j.getString("model"),address=j.optString("address","");
+            if(id.trim().isEmpty()||id.length()>200||id.indexOf('\0')>=0)continue;
+            if(p.remote())CloudApi.remoteBase(address);else address="";
+            double in=rate(j.optString("in","")),out=rate(j.optString("out","")),limit=rate(j.optString("budget",""));
+            profiles.put(p,new Profile(id,address,in,out,limit));
+        }catch(Exception ignored){}
+        try{
+            CloudApi.Provider p=CloudApi.Provider.valueOf(profilePrefs.getString("selected","OPENAI"));
+            Profile saved=profiles.get(p);if(saved!=null){provider=p;model=saved.model;pcAddress=saved.address;inputRate=saved.in;outputRate=saved.out;budget=saved.budget;}
+        }catch(Exception ignored){}
+    }
+    private boolean saveProfile(CloudApi.Provider p,Profile value){
+        try{
+            org.json.JSONObject j=new org.json.JSONObject().put("model",value.model).put("address",value.address)
+                .put("in",value.in<0?"":Double.toString(value.in)).put("out",value.out<0?"":Double.toString(value.out))
+                .put("budget",value.budget<0?"":Double.toString(value.budget));
+            if(!profilePrefs.edit().putString(p.name(),j.toString()).putString("selected",p.name()).commit())return false;
+            profiles.put(p,value);return true;
+        }catch(Exception e){return false;}
+    }
     private String usageScope(CloudApi.Provider p){return scope(p);}
     private boolean budgetAllows(){
         if(provider.remote()||budget<0)return true;
-        CloudUsageLedger.Totals t=ledger.get(usageScope(provider));
-        return inputRate>=0&&outputRate>=0&&t.unpriced==0&&t.estimated<budget;
+        return ledger.allows(usageScope(provider),budget,inputRate,outputRate);
     }
     private void refreshUsage(){
         if(model.isEmpty()){usageSummary.setText("");return;}
@@ -75,6 +99,7 @@ final class CloudChatPanel extends LinearLayout {
     private double rate(String text){if(text.trim().isEmpty())return -1;double value=Double.parseDouble(text.trim());if(!Double.isFinite(value)||value<0||value>1000000)throw new IllegalArgumentException();return value;}
     CloudChatPanel(Activity activity,Runnable local){
         super(activity);owner=activity;vault=new CloudKeyVault(activity);
+        profilePrefs=activity.getSharedPreferences("onhand_cloud_profiles_v1",Context.MODE_PRIVATE);restoreProfiles();
         setOrientation(VERTICAL);
         setPadding(dp(6),dp(4),dp(6),dp(6));
         LinearLayout header=new LinearLayout(owner);
@@ -343,7 +368,8 @@ final class CloudChatPanel extends LinearLayout {
             catch(IllegalArgumentException e){toast(R.string.cloud_fields);return;}
             double ir,or,limit;try{ir=rate(inRate.getText().toString());or=rate(outRate.getText().toString());limit=rate(spending.getText().toString());}catch(RuntimeException e){toast(R.string.cloud_fields);return;}
             if(!selected.remote()&&remember.isChecked())try{vault.save(selected,apiKey);}catch(Exception e){toast(R.string.cloud_key_error);return;}
-            rememberDraft();profiles.put(selected,new Profile(id,selected.remote()?target:"",ir,or,limit));inputRate=ir;outputRate=or;budget=limit;provider=selected;model=id;pcAddress=selected.remote()?target:"";token=selected.remote()?"":apiKey;restoreDraft();status.setText("");dialog.dismiss();render();
+            if(!saveProfile(selected,new Profile(id,selected.remote()?target:"",ir,or,limit))){toast(R.string.cloud_fail);return;}
+            rememberDraft();inputRate=ir;outputRate=or;budget=limit;provider=selected;model=id;pcAddress=selected.remote()?target:"";token=selected.remote()?"":apiKey;restoreDraft();status.setText("");dialog.dismiss();render();
         });
     }
     private void setBusy(boolean b){
