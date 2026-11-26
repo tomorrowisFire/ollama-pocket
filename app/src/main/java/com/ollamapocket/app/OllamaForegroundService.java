@@ -100,7 +100,7 @@ public final class OllamaForegroundService extends Service {
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         return new Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.stat_notify_sync)
-            .setContentTitle("AI in Pocket")
+            .setContentTitle("On Hands AI")
             .setContentText("이 기기에서 로컬 LLM 서버 실행 중 · 127.0.0.1")
             .setContentIntent(pi)
             .setOngoing(true)

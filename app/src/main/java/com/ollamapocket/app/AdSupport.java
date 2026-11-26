@@ -61,7 +61,7 @@ public final class AdSupport {
         this.prefs = activity.getSharedPreferences("ad_options", Context.MODE_PRIVATE);
     }
 
-    public boolean isEnabled() { return prefs.getBoolean("enabled", true); }
+    public boolean isEnabled() { return BuildConfig.DEBUG && prefs.getBoolean("enabled", true); }
 
     private void status(FrameLayout parent, String value) {
         if (disposed || parent == null) return;

@@ -72,6 +72,13 @@ import java.util.concurrent.Executors;
 /** Native Android UI. Local inference only; optional Google demo banners use the network. */
 public final class MainActivity extends Activity {
     private static final int PICK_GGUF = 701;
+    private static final int VOICE_PERMISSION = 702;
+    private boolean guestOnly, foreground, speakNextAnswer;
+    private OnHandsVoice voice;
+    private Button voiceButton;
+    @Override protected void attachBaseContext(Context base) {
+        super.attachBaseContext(OnHandsLocale.wrap(base));
+    }
     // Palette values are mutable only during Activity creation/theme recreation.
     private static int BG = Color.rgb(14, 16, 19);
     private static int CARD = Color.rgb(21, 23, 27);
@@ -199,8 +206,8 @@ public final class MainActivity extends Activity {
                     String label;
                     try {
                         JSONObject version = OllamaHttp.get("/api/version");
-                        label = "● 로컬 연결됨 · Ollama " + version.optString("version", "");
-                    } catch (Exception ex) { label = "○ 연결 대기 / 서버 중지"; }
+                        label = "● "+getString(R.string.engine_connected)+" "+version.optString("version", "");
+                    } catch (Exception ex) { label = "○ "+getString(R.string.engine_waiting); }
                     final String value = label;
                     ui.post(() -> { miniStatus.setText(value); serverPollBusy = false; });
                 });
@@ -318,11 +325,13 @@ public final class MainActivity extends Activity {
             android.R.style.Theme_Material_Light_NoActionBar);
         super.onCreate(state);
         applyUiPreferences();
+        guestOnly=getPreferences(MODE_PRIVATE).getBoolean("guest_compute_only",false);
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
         getWindow().getDecorView().setSystemUiVisibility(
             "mono_light".equals(uiTheme)?
                 (View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR):0);
+        if(guestOnly){createGuestPage();return;}
         deviceProfile = DeviceProfiler.scan(this);
         computeReport = ComputeProfiler.scan(this);
         ads = new AdSupport(this);
@@ -349,6 +358,8 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onResume() {
         super.onResume();
+        foreground=true;
+        if(guestOnly)return;
         ui.post(poll);
         ui.post(hudPoll);
         ui.removeCallbacks(sunsetThemePoll);
@@ -356,11 +367,13 @@ public final class MainActivity extends Activity {
         long now = android.os.SystemClock.elapsedRealtime();
         if (lastPauseElapsed > 0 && now - lastPauseElapsed > 120_000
                 && getPreferences(MODE_PRIVATE).getBoolean("welcome_v2_seen", false)
-                && !pullBusy && !chatBusy) {
+                && !pullBusy && !chatBusy && !benchmarkBusy && (voice==null||(!voice.listening()&&!voice.speaking()))) {
             ads.showAppOpenIfReady();
         }
     }
     @Override protected void onPause() {
+        foreground=false;
+        if(voice!=null)voice.cancel();
         lastPauseElapsed = android.os.SystemClock.elapsedRealtime();
         ui.removeCallbacks(poll);
         ui.removeCallbacks(hudPoll);
@@ -377,8 +390,68 @@ public final class MainActivity extends Activity {
         if(onlineSearchTask!=null)onlineSearchTask.cancel(true);
         if(onlineHfTask!=null)onlineHfTask.cancel(true);
         io.shutdownNow();
-        ads.destroy();
+        if(voice!=null)voice.close();
+        if(ads!=null)ads.destroy();
         super.onDestroy();
+    }
+
+    private void enterGuestMode(){
+        if(isUiBusy()){toast(getString(R.string.busy));return;}
+        if("host".equals(CoopSession.get(this).role())){toast(getString(R.string.guest_stop_first));return;}
+        new AlertDialog.Builder(this).setTitle(R.string.guest)
+            .setMessage(R.string.guest_switch).setNegativeButton(R.string.cancel,null)
+            .setPositiveButton(R.string.ok,(d,w)->{
+                if(isUiBusy()||"host".equals(CoopSession.get(this).role()))return;
+                if(voice!=null)voice.cancel();
+                GpuRunner.stop();DistributedRunner.stop();
+                stopService(new Intent(this,OllamaForegroundService.class));
+                getPreferences(MODE_PRIVATE).edit().putBoolean("guest_compute_only",true).apply();
+                recreate();
+            }).show();
+    }
+    private void createGuestPage(){
+        // No local inference server, chat/model downloads, ad SDK initialization or model polling here.
+        LinearLayout page=column();page.setBackgroundColor(BG);page.setPadding(dp(22),dp(50),dp(22),dp(24));
+        setContentView(page);
+        margin(text(getString(R.string.app_name),27,WHITE,true),page,0,15);
+        margin(text(getString(R.string.guest),21,WHITE,true),page,0,12);
+        margin(text(getString(R.string.guest_desc),15,MUTED,false),page,0,20);
+        Button join=button(getString(R.string.guest_session),true);margin(join,page,0,10);
+        join.setOnClickListener(v->CoopUi.show(this,true));
+        Button language=button(getString(R.string.language),false);margin(language,page,0,10);
+        language.setOnClickListener(v->OnHandsLocale.choose(this));
+        Button exit=button(getString(R.string.guest_exit),false);margin(exit,page,0,10);
+        exit.setOnClickListener(v->{
+            if("guest".equals(CoopSession.get(this).role())||"host".equals(CoopSession.get(this).role())){
+                toast(getString(R.string.guest_stop_first));return;
+            }
+            getPreferences(MODE_PRIVATE).edit().putBoolean("guest_compute_only",false).apply();recreate();
+        });
+    }
+    private void openVoice(){
+        if(isUiBusy()||guestOnly)return;
+        if(voice!=null&&(voice.listening()||voice.speaking())){voice.cancel();return;}
+        if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){
+            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},VOICE_PERMISSION);
+            toast(getString(R.string.voice_permission));return;
+        }
+        new AlertDialog.Builder(this).setTitle(R.string.voice_options)
+            .setMessage(R.string.voice_notice)
+            .setNegativeButton(R.string.cancel,null)
+            .setNeutralButton(R.string.dictate,(d,w)->startVoice(false))
+            .setPositiveButton(R.string.voice_turn,(d,w)->startVoice(true)).show();
+    }
+    private void startVoice(boolean conversational){
+        if(!foreground||isUiBusy()||guestOnly)return;
+        if(conversational&&(currentModel.isEmpty()||knownModels.isEmpty())){
+            toast(getString(R.string.need_model));showTab(1);return;
+        }
+        if(voice==null)voice=new OnHandsVoice(this);
+        voice.listen(value->{
+            if(!foreground||isFinishing()||isDestroyed()||activeTab!=0||isUiBusy())return;
+            chatInput.setText(value);chatInput.setSelection(chatInput.length());
+            if(conversational){speakNextAnswer=true;sendChat();speakNextAnswer=false;}
+        });
     }
 
     private int dp(int size) { return (int)(size * getResources().getDisplayMetrics().density + 0.5f); }
@@ -447,23 +520,23 @@ public final class MainActivity extends Activity {
         // Mobile-friendly WebUI-inspired navigation; independent Android widgets and branding.
         LinearLayout header = row();
         Button menu = button("☰", false);
-        menu.setContentDescription("대화 목록과 앱 메뉴 열기");
+        menu.setContentDescription(getString(R.string.menu));
         menu.setTextSize(20);
         menu.setMinWidth(dp(46));menu.setMinimumWidth(dp(46));
         rowItem(header, menu, 0, 9);
         menu.setOnClickListener(v -> showNavigationDrawer());
         LinearLayout branding = column();
-        topPageTitle = text("AI in Pocket", 19, WHITE, true);
+        topPageTitle = text("On Hands AI", 19, WHITE, true);
         branding.addView(topPageTitle);
-        topPageSubtitle=text("대화  ·  Client for Ollama", 10, MUTED, false);
+        topPageSubtitle=text(getString(R.string.chat)+"  ·  "+getString(R.string.local), 10, MUTED, false);
         branding.addView(topPageSubtitle);
         rowItem(header, branding, 1, 5);
-        Button fresh = button("＋ 새 대화", false);
+        Button fresh = button("＋ "+getString(R.string.new_chat), false);
         rowItem(header, fresh, 0, 0);
         fresh.setOnClickListener(v -> newChat());
         header.setMinimumHeight(dp(58));
         root.addView(header, lp(-1, -2));
-        miniStatus = text("● 로컬 AI 엔진 확인 중", 11, MUTED, false);
+        miniStatus = text("● "+getString(R.string.engine_check), 11, MUTED, false);
         margin(miniStatus, root, 2, 6);
         performanceHudView=text("CPU 측정 중 · GPU 조회 중 · RAM 확인 중",11,MUTED,false);
         performanceHudView.setPadding(dp(12),dp(9),dp(12),dp(9));
@@ -495,13 +568,13 @@ public final class MainActivity extends Activity {
     private void createChatPage() {
         chatPage = column();
         LinearLayout modelRow = row();
-        TextView modelLabel = text("사용 모델", 12, MUTED, false);
+        TextView modelLabel = text(getString(R.string.model_label), 12, MUTED, false);
         rowItem(modelRow, modelLabel, 0, 12);
         modelChooser = new Spinner(this); modelChooser.setBackground(bg(FIELD, 12));
         modelChooser.setPadding(dp(12), dp(4), dp(8), dp(4));
         rowItem(modelRow, modelChooser, 1, 0);
         margin(modelRow, chatPage, 2, 7);
-        activeEngineLabel = text("실제 연산: CPU (Ollama) · 장치 선택은 설정에서 변경", 11, MUTED, false);
+        activeEngineLabel = text(getString(R.string.engine_idle), 11, MUTED, false);
         margin(activeEngineLabel, chatPage, 0, 7);
         modelChooser.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onNothingSelected(AdapterView<?> parent) { }
@@ -524,19 +597,27 @@ public final class MainActivity extends Activity {
         LinearLayout composer = row();
         composer.setPadding(dp(8), dp(7), dp(8), dp(7));
         composer.setBackground(bg(CARD, 22));
-        chatInput = edit("메시지 입력…", "", true);
+        chatInput = edit(getString(R.string.message_hint), "", true);
         chatInput.setMinLines(1); chatInput.setMaxLines(4);
-        rowItem(composer, chatInput, 1, 7);
+        rowItem(composer, chatInput, 1, 5);
+        voiceButton=button("🎙",false);
+        voiceButton.setContentDescription(getString(R.string.voice));
+        voiceButton.setMinWidth(dp(44));voiceButton.setMinimumWidth(dp(44));
+        rowItem(composer,voiceButton,0,4);
+        voiceButton.setOnClickListener(v->openVoice());
+        voiceButton.setOnLongClickListener(v->{if(voice!=null)voice.cancel();return true;});
         sendButton = button("↑", true);
+        sendButton.setContentDescription(getString(R.string.send));
         sendButton.setTextSize(19);
         rowItem(composer, sendButton, 0, 4);
         stopChatButton = button("■", false);
+        stopChatButton.setContentDescription(getString(R.string.stop));
         rowItem(composer, stopChatButton, 0, 0);
         margin(composer, chatPage, 8, 2);
         stopChatButton.setEnabled(false); stopChatButton.setAlpha(0.5f);
         sendButton.setOnClickListener(v -> sendChat());
         stopChatButton.setOnClickListener(v -> stopChat());
-        margin(text("AI 답변에 오류가 있을 수 있습니다. 중요한 정보는 확인하세요.",
+        margin(text(getString(R.string.disclaimer),
             10, MUTED, false), chatPage, 0, 0);
     }
 
@@ -546,13 +627,13 @@ public final class MainActivity extends Activity {
         LinearLayout content=column();content.setPadding(dp(4),dp(8),dp(4),dp(18));
         scroll.addView(content);modelPage.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
 
-        margin(text("추천 양자화 버전",23,WHITE,true),content,0,3);
+        margin(text(getString(R.string.recommended),23,WHITE,true),content,0,3);
         margin(text("기기 RAM·저장공간·CPU와 실제 모델 용량을 비교해 추천 양자화 버전을 표시합니다.",13,MUTED,false),
             content,0,10);
         LinearLayout top=row();
-        modelListHeader=text("추천 양자화 버전 · 최대 6개",18,WHITE,true);
+        modelListHeader=text(getString(R.string.recommended_six),18,WHITE,true);
         rowItem(top,modelListHeader,1,5);
-        Button refresh=button("새로고침",false);rowItem(top,refresh,0,0);
+        Button refresh=button(getString(R.string.refresh),false);rowItem(top,refresh,0,0);
         refresh.setOnClickListener(v->{refreshModels();if(modelFilter!=null&&!modelFilter.getText().toString().trim().isEmpty())onModelSearchChanged(modelFilter.getText().toString(),true);else loadRecommendedVariants(true);});
         margin(top,content,0,7);
         LinearLayout viewModeRow=row();
@@ -704,11 +785,16 @@ public final class MainActivity extends Activity {
         LinearLayout content=column();content.setPadding(dp(4),dp(8),dp(4),dp(20));
         scroll.addView(content);
         serverPage.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-        margin(text("설정",23,WHITE,true),content,0,5);
-        margin(text("앱 화면과 추론 방식을 원하는 대로 설정하세요.",13,MUTED,false),
-            content,0,15);
+        margin(text(getString(R.string.settings),23,WHITE,true),content,0,5);
+        margin(text(getString(R.string.settings_intro),13,MUTED,false),content,0,15);
+        Button language=button(getString(R.string.language),false);margin(language,content,0,8);
+        language.setOnClickListener(v->{if(isUiBusy())toast(getString(R.string.busy));else OnHandsLocale.choose(this);});
+        Button cloud=button(getString(R.string.cloud),false);margin(cloud,content,0,8);
+        cloud.setOnClickListener(v->{if(isUiBusy())toast(getString(R.string.busy));else startActivity(new Intent(this,CloudChatActivity.class));});
+        Button guest=button(getString(R.string.guest),false);margin(guest,content,0,14);
+        guest.setOnClickListener(v->enterGuestMode());
 
-        margin(text("화면 및 가독성",17,WHITE,true),content,0,8);
+        margin(text(getString(R.string.display),17,WHITE,true),content,0,8);
         String currentTheme="auto".equals(themeMode)?
             "자동 · 일몰 이후 블랙":"화이트".equals(themeMode)?"화이트":
             ("light".equals(themeMode)||"mono_light".equals(themeMode))?"화이트":"블랙";
@@ -753,26 +839,26 @@ public final class MainActivity extends Activity {
         Button hud=button("실시간 성능 HUD  ·  "+(showHud?"표시":"숨김"),false);
         margin(hud,content,0,8);
         hud.setOnClickListener(v->{
-            if(isUiBusy()){toast("진행 중인 작업이 끝난 뒤 변경하세요");return;}
+            if(isUiBusy()){toast(getString(R.string.busy));return;}
             getPreferences(MODE_PRIVATE).edit().putBoolean("show_hud",!showHud).apply();
             recreate();
         });
         Button motion=button("부드러운 화면 전환  ·  "+(smoothMotion?"켜짐":"꺼짐"),false);
         margin(motion,content,0,14);
         motion.setOnClickListener(v->{
-            if(isUiBusy()){toast("진행 중인 작업이 끝난 뒤 변경하세요");return;}
+            if(isUiBusy()){toast(getString(R.string.busy));return;}
             getPreferences(MODE_PRIVATE).edit().putBoolean("smooth_motion",!smoothMotion).apply();
             recreate();
         });
 
-        margin(text("로컬 추론",17,WHITE,true),content,0,8);
+        margin(text(getString(R.string.local_inference),17,WHITE,true),content,0,8);
         Button compute=button("추론 장치 선택  ·  CPU / GPU / 협력",false);
         margin(compute,content,0,8);
         compute.setOnClickListener(v->showComputeChoiceDialog());
         serverStatus=text("로컬 서버 상태 확인 중",13,MUTED,true);
         margin(serverStatus,content,0,8);
         LinearLayout controls=row();
-        Button start=button("서버 시작",true),stop=button("서버 종료",false);
+        Button start=button(getString(R.string.server_start),true),stop=button(getString(R.string.server_stop),false);
         rowItem(controls,start,1,7);rowItem(controls,stop,1,0);
         margin(controls,content,0,14);
         start.setOnClickListener(v->startServer());
@@ -781,24 +867,24 @@ public final class MainActivity extends Activity {
             "협력 추론은 같은 Wi-Fi의 승인된 기기에만 연결하세요.",
             12,MUTED,false),content,0,16);
 
-        margin(text("광고 및 개인정보",17,WHITE,true),content,0,8);
-        Button privacy=button("광고 개인정보 설정",false);
+        margin(text(getString(R.string.privacy),17,WHITE,true),content,0,8);
+        Button privacy=button(getString(R.string.privacy_settings),false);
         margin(privacy,content,0,7);
         privacy.setOnClickListener(v->ads.showPrivacyChoices());
         margin(text("광고와 모델 다운로드에는 인터넷 데이터가 필요하며 통신료가 " +
             "발생할 수 있습니다. 개발용 APK에서는 테스트 광고만 표시합니다.",
             12,MUTED,false),content,0,16);
 
-        margin(text("앱 정보",17,WHITE,true),content,0,8);
+        margin(text(getString(R.string.about),17,WHITE,true),content,0,8);
         Button license=button("오픈소스 · 상표 및 모델 라이선스",false);
         margin(license,content,0,5);
         license.setOnClickListener(v->new AlertDialog.Builder(this)
             .setTitle("오픈소스 및 비공식 클라이언트")
-            .setMessage("AI in Pocket - Client for Ollama는 Ollama 공식 앱이 아닙니다. " +
+            .setMessage("On Hands AI - Client for Ollama는 Ollama 공식 앱이 아닙니다. " +
                 "앱 자체 코드는 MIT-0, Ollama/llama.cpp와 모델 가중치는 각자의 " +
                 "라이선스가 적용됩니다. 모델의 상업적 이용 가능 여부를 확인하세요.")
             .setPositiveButton("닫기",null).show());
-        margin(text("AI in Pocket · 독립 안드로이드 클라이언트",12,MUTED,false),content,8,0);
+        margin(text("On Hands AI · 독립 안드로이드 클라이언트",12,MUTED,false),content,8,0);
     }
 
     private boolean isUiBusy(){
@@ -807,7 +893,7 @@ public final class MainActivity extends Activity {
     }
 
     private void applySetting(String key,String value){
-        if(isUiBusy()){toast("진행 중인 작업이 끝난 뒤 변경하세요");return;}
+        if(isUiBusy()){toast(getString(R.string.busy));return;}
         getPreferences(MODE_PRIVATE).edit().putString(key,value).apply();
         recreate(); // preserves active tab and draft via onSaveInstanceState.
     }
@@ -1011,7 +1097,7 @@ public final class MainActivity extends Activity {
                             .setNegativeButton("닫기", null)
                             .setPositiveButton("결과 복사", (dialog, action) -> {
                                 ClipboardManager clipboard = (ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
-                                clipboard.setPrimaryClip(ClipData.newPlainText("AI in Pocket 진단 결과", result));
+                                clipboard.setPrimaryClip(ClipData.newPlainText("On Hands AI 진단 결과", result));
                                 toast("진단 결과 복사됨");
                             }).show();
                     });
@@ -1086,10 +1172,10 @@ public final class MainActivity extends Activity {
             incoming.setAlpha(1f);
             incoming.setTranslationX(0f);
         }
-        if(topPageTitle!=null)topPageTitle.setText("AI in Pocket");
+        if(topPageTitle!=null)topPageTitle.setText("On Hands AI");
         if(topPageSubtitle!=null){
-            String[] subtitles={"대화","모델 선택","설정","기기 / 연결 진단"};
-            topPageSubtitle.setText(subtitles[activeTab]+"  ·  로컬 AI");
+            int[] subtitles={R.string.chat,R.string.models,R.string.settings,R.string.devices};
+            topPageSubtitle.setText(getString(subtitles[activeTab])+"  ·  "+getString(R.string.local));
         }
         if(activeTab==1)loadRecommendedVariants(false);
         if(activeTab==3)refreshDiagnosticViews();
@@ -1097,7 +1183,7 @@ public final class MainActivity extends Activity {
 
     private void showFirstRunGuide() {
         LinearLayout guide = column(); guide.setPadding(dp(20), dp(12), dp(20), dp(5));
-        margin(text("AI in Pocket 시작 안내", 20, WHITE, true), guide, 0, 8);
+        margin(text("On Hands AI 시작 안내", 20, WHITE, true), guide, 0, 8);
         margin(text("1. 모델 탭에서 휴대폰 성능을 진단하세요.\n" +
             "2. 추천 모델을 선택하고 다운로드하세요.\n" +
             "3. 채팅 탭에서 오프라인으로 질문할 수 있습니다.\n\n" +
@@ -1110,8 +1196,9 @@ public final class MainActivity extends Activity {
         margin(guideAd, guide, 0, 4);
         ads.register(guideAd, AdSupport.PLACEMENT_ONBOARDING);
         AlertDialog dialog = new AlertDialog.Builder(this).setView(guide)
-            .setNegativeButton("닫고 채팅", (d,w) -> showTab(0))
-            .setPositiveButton("모델 선택 시작", (d,w) -> showTab(1)).create();
+            .setNegativeButton(R.string.chat, (d,w) -> showTab(0))
+            .setNeutralButton(R.string.guest, (d,w) -> enterGuestMode())
+            .setPositiveButton(R.string.install_model, (d,w) -> showTab(1)).create();
         dialog.setOnDismissListener(d -> {
             getPreferences(MODE_PRIVATE).edit().putBoolean("welcome_v2_seen", true).apply();
             ads.detach(guideAd);
@@ -2347,7 +2434,7 @@ public final class MainActivity extends Activity {
         });
 
         LinearLayout heading=row();
-        TextView product=text("AI in Pocket",17,WHITE,true);
+        TextView product=text("On Hands AI",17,WHITE,true);
         rowItem(heading,product,1,8);
         Button close=button("×",false);
         close.setTextSize(20);
@@ -2357,7 +2444,7 @@ public final class MainActivity extends Activity {
         heading.setMinimumHeight(dp(48));
         margin(heading,shell,0,8);
 
-        TextView newChatItem=drawerRow("✎   새 대화","",false);
+        TextView newChatItem=drawerRow("✎   "+getString(R.string.new_chat),"",false);
         margin(newChatItem,shell,0,8);
         newChatItem.setOnClickListener(v->{
             if(chatBusy){toast("생성 중에는 새 대화를 시작할 수 없습니다");return;}
@@ -2365,11 +2452,11 @@ public final class MainActivity extends Activity {
             newChat();
         });
 
-        EditText search=edit("대화 검색","",false);
+        EditText search=edit(getString(R.string.search_chats),"",false);
         search.setSingleLine(true);
         search.setMinHeight(dp(44));
         margin(search,shell,0,9);
-        margin(text("최근 대화",12,MUTED,true),shell,0,5);
+        margin(text(getString(R.string.recent_chats),12,MUTED,true),shell,0,5);
         ScrollView scroll=new ScrollView(this);
         scroll.setFillViewport(false);
         scroll.setVerticalScrollBarEnabled(true);
@@ -2394,9 +2481,9 @@ public final class MainActivity extends Activity {
         separatorParams.bottomMargin=dp(6);
         shell.addView(separator,separatorParams);
 
-        TextView models=drawerNavigationItem("모델 선택");
-        TextView settings=drawerNavigationItem("설정");
-        TextView diagnostics=drawerNavigationItem("기기 연결 진단");
+        TextView models=drawerNavigationItem(getString(R.string.models));
+        TextView settings=drawerNavigationItem(getString(R.string.settings));
+        TextView diagnostics=drawerNavigationItem(getString(R.string.devices));
         margin(models,shell,0,3);
         margin(settings,shell,0,3);
         margin(diagnostics,shell,0,7);
@@ -2477,16 +2564,16 @@ public final class MainActivity extends Activity {
         if (messages == null) return;
         messages.removeAllViews();
         if (history.length() == 0) {
-            margin(text("무엇을 도와드릴까요?", 26, WHITE, true), messages, 45, 9);
-            margin(text("원하는 질문을 입력하거나 아래 예시를 선택하세요.",
+            margin(text(getString(R.string.welcome), 26, WHITE, true), messages, 45, 9);
+            margin(text(getString(R.string.welcome_sub),
                 13, MUTED, false), messages, 0, 20);
-            for (String hint : new String[]{"글을 자연스럽게 다듬어줘", "오늘 할 일을 정리해줘", "파이썬 코드 예시 작성"}) {
+            for (String hint : new String[]{getString(R.string.example_write),getString(R.string.example_plan),getString(R.string.example_code)}) {
                 Button suggestion = button("✦  " + hint, false);
                 margin(suggestion, messages, 4, 4);
                 suggestion.setOnClickListener(v -> chatInput.setText(hint));
             }
             if (knownModels.isEmpty()) {
-                Button install = button("모델 설치하러 가기", true);
+                Button install = button(getString(R.string.install_model), true);
                 margin(install, messages, 18, 0);
                 install.setOnClickListener(v -> showTab(1));
             }
@@ -2499,9 +2586,12 @@ public final class MainActivity extends Activity {
     }
     private TextView bubble(String role, String content) {
         boolean user = "user".equals(role);
-        TextView t = text((user ? "" : "AI in Pocket\n") + content, 14, WHITE, false);
+        TextView t = text((user ? "" : getString(R.string.app_name)+"\n") + content, 15, WHITE, false);
+        t.setTextIsSelectable(true);
+        t.setLineSpacing(dp(3),1f);
         t.setPadding(dp(12), dp(12), dp(12), dp(12));
         if (user) {
+            t.setMaxWidth((int)(getResources().getDisplayMetrics().widthPixels*0.82));
             t.setBackground(bg(BUBBLE,17));
         } else {
             t.setBackgroundColor(BG);
@@ -2521,22 +2611,26 @@ public final class MainActivity extends Activity {
         sendButton.setEnabled(!busy); sendButton.setAlpha(busy ? 0.5f : 1f);
         stopChatButton.setEnabled(busy); stopChatButton.setAlpha(busy ? 1f : 0.5f);
         modelChooser.setEnabled(!busy && !knownModels.isEmpty());
+        if(voiceButton!=null)voiceButton.setEnabled(!busy);
     }
     private void sendChat() {
         String prompt = chatInput.getText().toString().trim();
         if (prompt.isEmpty()) return;
-        if (currentModel.isEmpty() || knownModels.isEmpty()) { toast("모델 탭에서 모델을 설치하세요"); showTab(1); return; }
+        if (currentModel.isEmpty() || knownModels.isEmpty()) { toast(getString(R.string.need_model)); showTab(1); return; }
         if (chatBusy || benchmarkBusy) {
             if(benchmarkBusy)toast("벤치마크 측정이 끝난 뒤 채팅하세요");
             return;
         }
+        final boolean speakThisTurn=speakNextAnswer;
+        speakNextAnswer=false;
+        if(voice!=null)voice.cancel();
         // Clear the input first, then append to the selected model's history.
         chatInput.setText("");
         ((InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE))
             .hideSoftInputFromWindow(chatInput.getWindowToken(), 0);
         addHistory("user", prompt);
         bubble("user", prompt);
-        TextView assistant = bubble("assistant", "생성 중…");
+        TextView assistant = bubble("assistant", getString(R.string.thinking));
         setChatBusy(true); chatCancelled = false;
         final String modelAtStart = currentModel;
         final JSONArray requestHistory;
@@ -2553,7 +2647,7 @@ public final class MainActivity extends Activity {
                         throw new java.io.IOException("협력 모델 실행 실패: " + reason +
                             " · 보조 노드가 끊어졌다면 작은 단독 모델로 변경하세요.");
                     if (chatCancelled) {
-                        ui.post(() -> { assistant.setText("AI in Pocket\n생성 중단됨"); setChatBusy(false); });
+                        ui.post(() -> { assistant.setText("On Hands AI\n생성 중단됨"); setChatBusy(false); });
                         return;
                     }
                     HttpURLConnection connection = OllamaHttp.newCooperativeChatConnection();
@@ -2578,7 +2672,7 @@ public final class MainActivity extends Activity {
                     gpu = GpuRunner.ensure(getApplicationContext(), modelAtStart, fallback);
                 }
                 if (chatCancelled) {
-                    ui.post(() -> { assistant.setText("AI in Pocket\n생성 중단됨"); setChatBusy(false); });
+                    ui.post(() -> { assistant.setText("On Hands AI\n생성 중단됨"); setChatBusy(false); });
                     return;
                 }
                 final boolean verifiedGpu = gpu;
@@ -2612,14 +2706,15 @@ public final class MainActivity extends Activity {
             String finalError = error, finalAnswer = answer.toString();
             ui.post(() -> {
                 if (!finalAnswer.isEmpty()) {
-                    assistant.setText("AI in Pocket\n" + finalAnswer + (chatCancelled ? "\n\n[생성 중단]" : ""));
+                    assistant.setText("On Hands AI\n" + finalAnswer + (chatCancelled ? "\n\n[생성 중단]" : ""));
                     // Keep incomplete responses visible but out of next turn's request context.
                     if (!chatCancelled && finalError == null && modelAtStart.equals(currentModel))
                         addHistory("assistant", finalAnswer);
                 } else {
-                    assistant.setText("AI in Pocket\n" + (chatCancelled ? "생성 중단됨" : "오류: " + finalError));
+                    assistant.setText("On Hands AI\n" + (chatCancelled ? getString(R.string.stopped) : "오류: " + finalError));
                 }
                 setChatBusy(false);
+                if(speakThisTurn&&foreground&&!isDestroyed()&&!chatCancelled&&finalError==null&&!finalAnswer.isEmpty()&&voice!=null)voice.speak(finalAnswer);
                 scrollBottom();
             });
         });
@@ -2631,10 +2726,11 @@ public final class MainActivity extends Activity {
         if (part.isEmpty()) return;
         answer.append(part);
         String display = answer.toString();
-        ui.post(() -> { assistant.setText("AI in Pocket\n" + display); scrollBottom(); });
+        ui.post(() -> { assistant.setText("On Hands AI\n" + display); scrollBottom(); });
     }
     private void stopChat() {
         chatCancelled = true;
+        if(voice!=null)voice.cancel();
         HttpURLConnection c = chatConnection;
         if (c != null) c.disconnect();
     }

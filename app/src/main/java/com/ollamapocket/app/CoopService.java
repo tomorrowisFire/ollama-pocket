@@ -24,7 +24,7 @@ public final class CoopService extends Service {
     @Override public void onCreate(){
         super.onCreate();
         NotificationManager mgr=(NotificationManager)getSystemService(NOTIFICATION_SERVICE);
-        NotificationChannel ch=new NotificationChannel(CHANNEL,"AI in Pocket 협력 추론", NotificationManager.IMPORTANCE_LOW);
+        NotificationChannel ch=new NotificationChannel(CHANNEL,"On Hands AI 협력 추론", NotificationManager.IMPORTANCE_LOW);
         ch.setDescription("사용자가 켠 협력 노드 세션을 유지합니다");
         mgr.createNotificationChannel(ch);
     }
@@ -59,7 +59,7 @@ public final class CoopService extends Service {
             PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
         return new Notification.Builder(this,CHANNEL)
             .setSmallIcon(android.R.drawable.stat_notify_sync)
-            .setContentTitle("AI in Pocket · 협력 노드 연결")
+            .setContentTitle("On Hands AI · 협력 노드 연결")
             .setContentText("신뢰할 수 있는 동일 Wi-Fi에서 일시적으로 분산 추론을 준비합니다")
             .setContentIntent(pending).setOngoing(true)
             .addAction(android.R.drawable.ic_media_pause,"세션 종료",stop).build();
