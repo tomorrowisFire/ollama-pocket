@@ -866,4 +866,30 @@
     <string name="auto_code_step1" formatted="false">目标：%GOAL%。整理代码方案的 requirements 和 tests。</string>
     <string name="auto_code_step2" formatted="false">目标：%GOAL%。依据上一步需求和测试起草 code，说明 limitations，不声称已执行。</string>
     <string name="auto_code_step3" formatted="false">目标：%GOAL%。审查上一步代码的正确性和安全性，返回修订 code 和 test_plan，不声称实际运行测试。</string>
+    <string name="batch_title">长文档与多文档分析</string>
+    <string name="batch_notice">请选择1至3个文本、DOCX、XLSX或文本PDF。按上限提取每个文件的前部内容，分为最多12个片段并综合分析。文本文件使用统一选择的编码，Office及PDF使用各自格式。PDF文本提取需要Android 15或以上；批处理不支持扫描PDF、图像和OCR。请核对提取范围。本模式不保存聊天记录或原始文件。</string>
+    <string name="batch_goal">分析目标（最多300字符）</string>
+    <string name="batch_default_goal">整理重要事实、文档差异和缺失信息，不要编造证据。</string>
+    <string name="batch_preview">查看提取原文</string>
+    <string name="batch_copy">复制分析报告</string>
+    <string name="batch_start">开始本地分析</string>
+    <string name="batch_unknown_file">未知文件</string>
+    <string name="batch_ready">提取完成。请查看原文并输入目标。</string>
+    <string name="batch_stopped">分析已停止。</string>
+    <string name="batch_extract_failed">无法读取所选文件，请重新选择；分析尚未开始。</string>
+    <string name="batch_coverage">原文提取范围（并非完整文档审查）</string>
+    <string name="batch_scope">已包含的提取文本：UTF-16 %1$s个单位 · %2$s</string>
+    <string name="batch_partial">部分提取／存在遗漏或上限</string>
+    <string name="batch_extracted">仅限提取范围</string>
+    <string name="batch_run_notice">开始仅CPU的分析？最多12个片段和4次综合请求，限时20分钟。仅使用所选模型，不包含对话历史、协作或云端推理。模型可能遗漏或误读信息，不执行事实核验。关闭界面或离开应用将停止运行并丢弃临时结果。保留报告须主动复制。</string>
+    <string name="batch_progress">分析进度：%1$s / %2$s</string>
+    <string name="batch_completed">已完成所选提取片段的分析和综合生成。</string>
+    <string name="batch_failed">分析未完成。仅显示已完成片段的记录，不生成最终综合。</string>
+    <string name="batch_deadline">已达到20分钟限制。</string>
+    <string name="batch_processed">已完成的片段记录：%1$s / %2$s</string>
+    <string name="batch_quality_notice">这些是模型生成的记录和压缩综合结果，并非已验证的引用或全文覆盖证明。使用前请核对原文件和范围。</string>
+    <string name="batch_synthesis">最终综合</string>
+    <string name="batch_no_synthesis">未生成最终综合。</string>
+    <string name="batch_unit_notes">各片段分析记录与提取位置</string>
+    <string name="batch_file_limit">请选择1至3个不同文件。</string>
 </resources>

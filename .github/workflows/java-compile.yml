@@ -37,6 +37,7 @@ on:
       - 'tests/PdfExcerptTest.java'
       - 'tests/OcrPolicyTest.java'
       - 'tests/DocumentWindowTest.java'
+      - 'tests/DocumentBatchPolicyTest.java'
       - 'tests/VoiceQueuePolicyTest.java'
       - 'tests/CloudUsageLedgerTest.java'
       - 'tests/CloudStreamTest.java'
@@ -139,12 +140,13 @@ jobs:
       - name: Test bounded local attachment text extraction
         run: |
           mkdir -p /tmp/attachment-tests
-          javac -d /tmp/attachment-tests app/src/main/java/com/ollamapocket/app/LocalChatTurns.java app/src/main/java/com/ollamapocket/app/AttachmentText.java app/src/main/java/com/ollamapocket/app/OfficeText.java app/src/main/java/com/ollamapocket/app/PdfExcerpt.java app/src/main/java/com/ollamapocket/app/OcrPolicy.java app/src/main/java/com/ollamapocket/app/DocumentWindow.java tests/AttachmentTextTest.java tests/OfficeTextTest.java tests/PdfExcerptTest.java tests/OcrPolicyTest.java tests/DocumentWindowTest.java
+          javac -d /tmp/attachment-tests app/src/main/java/com/ollamapocket/app/LocalChatTurns.java app/src/main/java/com/ollamapocket/app/AttachmentText.java app/src/main/java/com/ollamapocket/app/OfficeText.java app/src/main/java/com/ollamapocket/app/PdfExcerpt.java app/src/main/java/com/ollamapocket/app/OcrPolicy.java app/src/main/java/com/ollamapocket/app/DocumentWindow.java app/src/main/java/com/ollamapocket/app/DocumentBatchPolicy.java tests/DocumentBatchPolicyTest.java tests/AttachmentTextTest.java tests/OfficeTextTest.java tests/PdfExcerptTest.java tests/OcrPolicyTest.java tests/DocumentWindowTest.java
           java -cp /tmp/attachment-tests com.ollamapocket.app.AttachmentTextTest
           java -cp /tmp/attachment-tests com.ollamapocket.app.OfficeTextTest
           java -cp /tmp/attachment-tests com.ollamapocket.app.PdfExcerptTest
           java -cp /tmp/attachment-tests com.ollamapocket.app.OcrPolicyTest
           java -cp /tmp/attachment-tests com.ollamapocket.app.DocumentWindowTest
+          java -cp /tmp/attachment-tests com.ollamapocket.app.DocumentBatchPolicyTest
       - name: Test voice queue policy and Unicode boundaries
         run: |
           mkdir -p /tmp/voice-tests

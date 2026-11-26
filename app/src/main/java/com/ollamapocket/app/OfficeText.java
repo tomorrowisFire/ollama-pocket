@@ -32,11 +32,16 @@ final class OfficeText {
     static AttachmentText.Result read(String name,InputStream source)throws IOException{return read(name,source,1);}
     static AttachmentText.Result read(String name,InputStream source,int segment)throws IOException{
         if(!DocumentWindow.validSegment(segment))throw bad(AttachmentText.Problem.RANGE);
+        AttachmentText.Prefix prefix=extract(name,source,DocumentWindow.prefixLimit(segment));
+        return AttachmentText.Result.window(name,DocumentWindow.select(prefix.text,segment,prefix.partial),true);
+    }
+    static AttachmentText.Prefix extract(String name,InputStream source,int limit)throws IOException{
+        if(limit<1||limit>DocumentWindow.prefixLimit(DocumentWindow.MAX_SEGMENTS))throw bad(AttachmentText.Problem.RANGE);
         if(!supports(name))throw bad(AttachmentText.Problem.UNSUPPORTED);
         if(source==null)throw invalid();
         try{
             Map<String,byte[]> parts=archive(bounded(source,MAX_BYTES));
-            Excerpt out=new Excerpt(DocumentWindow.prefixLimit(segment));
+            Excerpt out=new Excerpt(limit);
             if(name.toLowerCase(Locale.ROOT).endsWith(".docx")){
                 byte[] document=parts.get("word/document.xml");
                 if(document==null)throw invalid();
@@ -58,7 +63,7 @@ final class OfficeText {
                 }
             }
             if(!out.hasData)throw bad(AttachmentText.Problem.EMPTY);
-            return AttachmentText.Result.window(name,DocumentWindow.select(out.text.toString(),segment,out.partial),true);
+            return new AttachmentText.Prefix(out.text.toString(),out.partial);
         }catch(AttachmentText.Failure e){throw e;}
         catch(InterruptedIOException e){throw e;}
         catch(Exception e){

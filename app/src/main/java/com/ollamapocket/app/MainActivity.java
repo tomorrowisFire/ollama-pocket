@@ -75,6 +75,10 @@ public final class MainActivity extends Activity {
     private static final int VOICE_PERMISSION = 702;
     private static final int EXPORT_CHAT = 703;
     private static final int PICK_ATTACHMENT = 704;
+    private static final int PICK_DOCUMENT_BATCH = 705;
+    private String batchScope="",batchModel="";
+    private int batchEncoding;
+    private DocumentBatchUi documentBatch;
     private String attachmentScope="";
     private AlertDialog localTransferDialog;
     private boolean attachmentOcr;
@@ -407,6 +411,7 @@ public final class MainActivity extends Activity {
         if(state!=null){
             attachmentScope=state.getString("attachmentScope","");
             attachmentOcr=state.getBoolean("attachmentOcr",false);attachmentOcrScript=state.getInt("attachmentOcrScript",0);attachmentOcrPage=state.getInt("attachmentOcrPage",1);attachmentSegment=state.getInt("attachmentSegment",1);attachmentEncoding=state.getInt("attachmentEncoding",0);
+            batchScope=state.getString("batchScope","");batchModel=state.getString("batchModel","");batchEncoding=state.getInt("batchEncoding",0);
             exportScope=state.getString("exportScope","");
             exportDigest=state.getString("exportDigest","");
             exportModel=state.getString("exportModel","");
@@ -428,6 +433,7 @@ public final class MainActivity extends Activity {
         out.putInt("activeTab",activeTab);
         out.putString("attachmentScope",attachmentScope);
         out.putBoolean("attachmentOcr",attachmentOcr);out.putInt("attachmentOcrScript",attachmentOcrScript);out.putInt("attachmentOcrPage",attachmentOcrPage);out.putInt("attachmentSegment",attachmentSegment);out.putInt("attachmentEncoding",attachmentEncoding);
+        out.putString("batchScope",batchScope);out.putString("batchModel",batchModel);out.putInt("batchEncoding",batchEncoding);
         out.putString("exportScope",exportScope);out.putString("exportDigest",exportDigest);
         out.putString("exportModel",exportModel);out.putBoolean("exportJson",exportJson);
         saveLocalDraft();
@@ -446,13 +452,14 @@ public final class MainActivity extends Activity {
         long now = android.os.SystemClock.elapsedRealtime();
         if (lastPauseElapsed > 0 && now - lastPauseElapsed > 120_000
                 && getPreferences(MODE_PRIVATE).getBoolean("welcome_v2_seen", false)
-                && !AutomationUi.busy() && !cloudMode && !pullBusy && !chatBusy && !benchmarkBusy && (voice==null||(!voice.listening()&&!voice.speaking()))) {
+                && !AutomationUi.busy() && !DocumentBatchUi.busy() && !cloudMode && !pullBusy && !chatBusy && !benchmarkBusy && (voice==null||(!voice.listening()&&!voice.speaking()))) {
             ads.showAppOpenIfReady();
         }
     }
     @Override protected void onPause() {
         foreground=false;
         if(ads!=null)ads.pause();
+        if(documentBatch!=null){documentBatch.pause();documentBatch=null;}
         if(automationUi!=null)automationUi.pause();
         if(localTransferDialog!=null){localTransferDialog.dismiss();localTransferDialog=null;}
         saveLocalDraft();
@@ -467,6 +474,7 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onDestroy() {
         saveLocalDraft();
+        if(documentBatch!=null){documentBatch.pause();documentBatch=null;}
         if(automationUi!=null)automationUi.pause();
         chatCancelled=true;
         if(navigationDrawer!=null&&navigationDrawer.isShowing())navigationDrawer.dismiss();
@@ -1230,7 +1238,7 @@ public final class MainActivity extends Activity {
     }
 
     private boolean isUiBusy(){
-        return AutomationUi.busy()||attachmentReading||chatBusy||pullBusy||diagnosticBusy||benchmarkBusy
+        return AutomationUi.busy()||DocumentBatchUi.busy()||attachmentReading||chatBusy||pullBusy||diagnosticBusy||benchmarkBusy
                ||(cloudPanel!=null&&cloudPanel.isBusy())||HuggingFaceCatalog.isDownloading();
     }
 
@@ -3542,11 +3550,57 @@ public final class MainActivity extends Activity {
         if(guestOnly||cloudMode||isUiBusy()||!historyReadable||!ownsLoadedScope()){toast(getString(R.string.busy));return;}
         if(currentModel.isEmpty()){toast(getString(R.string.need_model));return;}
         final String scope=loadedHistoryScope;
-        String[] items=canRemoveLastAttachment()?new String[]{getString(R.string.attachment_select_range),getString(R.string.attachment_ocr),getString(R.string.attachment_remove_last)}:
-            new String[]{getString(R.string.attachment_select_range),getString(R.string.attachment_ocr)};
+        String[] items=canRemoveLastAttachment()?new String[]{getString(R.string.attachment_select_range),getString(R.string.batch_title),getString(R.string.attachment_ocr),getString(R.string.attachment_remove_last)}:
+            new String[]{getString(R.string.attachment_select_range),getString(R.string.batch_title),getString(R.string.attachment_ocr)};
         new AlertDialog.Builder(this).setTitle(R.string.attachment_pick).setItems(items,(d,w)->{
-            if(w==0)chooseAttachmentRange(scope);else if(w==1)chooseAttachmentOcr(scope);else removeLastAttachment();
+            if(w==0)chooseAttachmentRange(scope);else if(w==1)chooseDocumentBatch(scope);else if(w==2)chooseAttachmentOcr(scope);else removeLastAttachment();
         }).setNegativeButton(R.string.cancel,null).show();
+    }
+    private void chooseDocumentBatch(String scope){
+        if(isUiBusy()||cloudMode||guestOnly||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
+        String[] encodings={getString(R.string.attachment_encoding_auto),"CP949 / MS949","Windows-31J (Shift-JIS)","GB18030","Big5"};
+        LinearLayout panel=column();panel.setPadding(dp(16),dp(8),dp(16),dp(8));
+        margin(text(getString(R.string.batch_notice),13,WHITE,false),panel,0,8);
+        margin(text(getString(R.string.attachment_encoding),13,WHITE,true),panel,0,4);
+        Spinner encoding=new Spinner(this);
+        ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,encodings);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);encoding.setAdapter(adapter);encoding.setMinimumHeight(dp(48));
+        margin(encoding,panel,0,4);
+        new AlertDialog.Builder(this).setTitle(R.string.batch_title).setView(panel).setNegativeButton(R.string.cancel,null)
+            .setPositiveButton(R.string.ok,(d,w)->{
+                if(isUiBusy()||cloudMode||guestOnly||!foreground||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
+                if(voice!=null)voice.cancel();
+                batchScope=scope;batchModel=currentModel;batchEncoding=encoding.getSelectedItemPosition();
+                try{
+                    Intent picker=new Intent(Intent.ACTION_OPEN_DOCUMENT);picker.addCategory(Intent.CATEGORY_OPENABLE);
+                    picker.setType("*/*");picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);picker.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);
+                    picker.putExtra(Intent.EXTRA_MIME_TYPES,new String[]{"text/*","application/json","application/octet-stream",
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","application/pdf"});
+                    startActivityForResult(picker,PICK_DOCUMENT_BATCH);
+                }catch(Exception e){batchScope="";batchModel="";toast(getString(R.string.chat_export_unavailable));}
+            }).show();
+    }
+    private void finishDocumentBatch(int result,Intent data){
+        final String scope=batchScope,model=batchModel;final int encoding=batchEncoding;
+        batchScope="";batchModel="";
+        if(result!=RESULT_OK||data==null)return;
+        if(guestOnly||cloudMode||isUiBusy()||!ownsLoadedScope()||!scope.equals(loadedHistoryScope)||!model.equals(currentModel)
+            ||model.isEmpty()||encoding<0||encoding>=AttachmentText.Encoding.values().length){
+            toast(getString(R.string.attachment_scope_changed));return;
+        }
+        java.util.LinkedHashSet<Uri> unique=new java.util.LinkedHashSet<>();
+        ClipData selected=data.getClipData();
+        if(selected!=null){
+            if(selected.getItemCount()>DocumentBatchPolicy.MAX_SOURCES){toast(getString(R.string.batch_file_limit));return;}
+            for(int i=0;i<selected.getItemCount();i++)unique.add(selected.getItemAt(i).getUri());
+        }else if(data.getData()!=null)unique.add(data.getData());
+        if(unique.isEmpty()||unique.size()>DocumentBatchPolicy.MAX_SOURCES){toast(getString(R.string.batch_file_limit));return;}
+        for(Uri uri:unique)if(uri==null||!"content".equals(uri.getScheme())){toast(getString(R.string.attachment_unsupported));return;}
+        if(voice!=null)voice.cancel();
+        documentBatch=new DocumentBatchUi(this,model,AttachmentText.Encoding.values()[encoding],()->foreground&&!guestOnly&&!cloudMode&&!isUiBusy()
+            &&activeTab==0&&ownsLoadedScope()&&scope.equals(loadedHistoryScope)&&model.equals(currentModel)&&knownModels.contains(model));
+        documentBatch.show(new ArrayList<>(unique));
     }
     private void chooseAttachmentRange(String scope){
         if(isUiBusy()||cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
@@ -3794,6 +3848,7 @@ public final class MainActivity extends Activity {
     @Override protected void onActivityResult(int code, int result, Intent data) {
         super.onActivityResult(code, result, data);
         if(code==PICK_ATTACHMENT){finishChatAttachment(result,data);return;}
+        if(code==PICK_DOCUMENT_BATCH){finishDocumentBatch(result,data);return;}
         if(code==EXPORT_CHAT){finishChatExport(result,data);return;}
         if (code != PICK_GGUF || result != RESULT_OK || data == null || data.getData() == null) return;
         Uri uri = data.getData();

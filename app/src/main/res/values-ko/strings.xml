@@ -866,4 +866,30 @@
     <string name="auto_code_step1" formatted="false">목표: %GOAL%. 코드 해결안의 requirements와 tests를 정리하세요.</string>
     <string name="auto_code_step2" formatted="false">목표: %GOAL%. 직전 요구사항과 테스트를 바탕으로 code를 작성하고 limitations를 명시하세요. 실행했다고 주장하지 마세요.</string>
     <string name="auto_code_step3" formatted="false">목표: %GOAL%. 직전 코드의 정확성과 안전성을 검토하세요. 수정 code와 test_plan을 반환하고 실제 테스트 실행을 주장하지 마세요.</string>
+    <string name="batch_title">장문·다중 문서 분석</string>
+    <string name="batch_notice">텍스트·DOCX·XLSX·텍스트 PDF 파일을 1~3개 선택하세요. 문서별 제한된 앞부분을 추출해 최대 12개 구간으로 나누고 분석 결과를 종합합니다. 텍스트는 공통 선택 인코딩을 적용하며 Office·PDF는 각 형식을 따릅니다. PDF 텍스트 추출은 Android 15 이상에서 지원하며, 스캔 PDF·이미지·OCR은 일괄 분석에서 지원하지 않습니다. 추출 범위를 확인한 후 분석합니다. 이 모드는 대화 기록과 원본 파일을 저장하지 않습니다.</string>
+    <string name="batch_goal">분석 목표 (최대 300자)</string>
+    <string name="batch_default_goal">중요한 사실과 문서 간 차이점, 부족한 정보를 근거 없이 만들어내지 말고 정리해 주세요.</string>
+    <string name="batch_preview">추출 원문 확인</string>
+    <string name="batch_copy">분석 보고서 복사</string>
+    <string name="batch_start">로컬 분석 시작</string>
+    <string name="batch_unknown_file">파일명 미확인</string>
+    <string name="batch_ready">추출을 완료했습니다. 추출 원문을 확인하고 목표를 입력하세요.</string>
+    <string name="batch_stopped">분석이 중단되었습니다.</string>
+    <string name="batch_extract_failed">선택한 파일을 읽을 수 없습니다. 파일을 다시 선택하세요. 분석은 시작되지 않았습니다.</string>
+    <string name="batch_coverage">원문 추출 범위 (문서 전체 검증 아님)</string>
+    <string name="batch_scope">포함된 추출 텍스트: UTF-16 %1$s자 · %2$s</string>
+    <string name="batch_partial">부분 추출 / 누락 또는 한도 확인</string>
+    <string name="batch_extracted">추출된 범위만 해당</string>
+    <string name="batch_run_notice">CPU 전용 분석을 시작할까요? 최대 12개 구간과 4회 종합 요청, 20분 제한을 적용합니다. 선택한 모델만 사용하며 대화 기록과 협력·클라우드 추론은 포함하지 않습니다. 모델이 정보를 누락하거나 잘못 읽을 수 있으며 사실 검증은 수행하지 않습니다. 화면을 닫거나 앱을 벗어나면 실행을 중단하고 임시 결과를 폐기합니다. 보관하려면 보고서를 직접 복사하세요.</string>
+    <string name="batch_progress">분석 진행: %1$s / %2$s</string>
+    <string name="batch_completed">선택한 추출 구간 분석 및 종합 생성 완료.</string>
+    <string name="batch_failed">분석이 끝나지 않았습니다. 완료된 구간 기록만 표시하며 최종 종합은 생성하지 않았습니다.</string>
+    <string name="batch_deadline">20분 시간 제한에 도달했습니다.</string>
+    <string name="batch_processed">구간별 분석 기록 완료: %1$s / %2$s</string>
+    <string name="batch_quality_notice">모델이 생성한 구간별 기록과 압축된 종합 결과입니다. 검증된 인용문이나 전체 문서를 분석했다는 증거가 아닙니다. 사용하기 전에 원본과 범위를 확인하세요.</string>
+    <string name="batch_synthesis">최종 종합</string>
+    <string name="batch_no_synthesis">최종 종합 미생성.</string>
+    <string name="batch_unit_notes">구간별 분석 기록 및 추출 위치</string>
+    <string name="batch_file_limit">서로 다른 파일을 1~3개 선택하세요.</string>
 </resources>

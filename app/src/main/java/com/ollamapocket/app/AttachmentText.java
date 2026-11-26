@@ -63,6 +63,28 @@ final class AttachmentText {
         if(!DocumentWindow.validSegment(segment))throw new Failure(Problem.RANGE);
         if(encoding==null)throw new Failure(Problem.INVALID);
         if(OfficeText.supports(name))return OfficeText.read(name,source,segment);
+        return Result.window(name,DocumentWindow.select(decodePlain(name,source,encoding),segment,false),false);
+    }
+    static final class Prefix {
+        final String text;
+        final boolean partial;
+        Prefix(String text,boolean partial){this.text=text;this.partial=partial;}
+        Prefix bounded(int limit)throws Failure{
+            if(limit<1||text==null||text.trim().isEmpty())throw new Failure(Problem.EMPTY);
+            int end=Math.min(limit,text.length());
+            if(end<text.length()&&end>0&&Character.isHighSurrogate(text.charAt(end-1))&&Character.isLowSurrogate(text.charAt(end)))end--;
+            if(end<=0)throw new Failure(Problem.EMPTY);
+            return new Prefix(text.substring(0,end),partial||end<text.length());
+        }
+    }
+    /** Read one bounded extracted prefix per selected file. Existing single-window path is unchanged. */
+    static Prefix readPrefix(String name,InputStream source,Encoding encoding,int limit)throws IOException{
+        if(encoding==null||limit<1||limit>DocumentWindow.prefixLimit(DocumentWindow.MAX_SEGMENTS)-1)
+            throw new Failure(Problem.RANGE);
+        Prefix all=OfficeText.supports(name)?OfficeText.extract(name,source,limit+1):new Prefix(decodePlain(name,source,encoding),false);
+        return all.bounded(limit);
+    }
+    private static String decodePlain(String name,InputStream source,Encoding encoding)throws IOException{
         if(name==null||!name.toLowerCase(Locale.ROOT).matches("(?s).+\\.(txt|md|csv|tsv|json|log)"))
             throw new Failure(Problem.UNSUPPORTED);
         if(source==null)throw new Failure(Problem.INVALID);
@@ -87,7 +109,7 @@ final class AttachmentText {
         catch(CharacterCodingException e){throw new Failure(Problem.INVALID);}
         for(int i=0;i<text.length();i++){char c=text.charAt(i);if(c<32&&c!='\t'&&c!='\n'&&c!='\r')throw new Failure(Problem.INVALID);}
         if(text.trim().isEmpty())throw new Failure(Problem.EMPTY);
-        return Result.window(name,DocumentWindow.select(text,segment,false),false);
+        return text;
     }
     /** The model sees the original extraction scope even if the preview was edited.
         Extraction is not proof that every visual/table element was captured. */
