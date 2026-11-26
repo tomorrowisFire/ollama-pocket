@@ -18,6 +18,7 @@ on:
       - 'tests/WorkspaceDictationPolicyTest.java'
       - 'tests/WorkspaceReadPolicyTest.java'
       - 'tests/WorkbenchLayoutPolicyTest.java'
+      - 'tests/WorkbenchVisualPolicyTest.java'
       - 'tests/CoopCapacityAdviceTest.java'
       - 'tests/ModelResourceAdviceTest.java'
       - 'tests/KnowledgeAnswerPolicyTest.java'

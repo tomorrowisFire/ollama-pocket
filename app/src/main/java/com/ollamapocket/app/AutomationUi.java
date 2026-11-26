@@ -34,16 +34,16 @@ final class AutomationUi {
     private int dp(int n){return Math.round(n*owner.getResources().getDisplayMetrics().density);}
     private void toast(int id){Toast.makeText(owner,id,Toast.LENGTH_SHORT).show();}
     private LinearLayout column(){LinearLayout l=new LinearLayout(owner);l.setOrientation(LinearLayout.VERTICAL);l.setPadding(dp(16),dp(12),dp(16),dp(12));return l;}
-    private void label(LinearLayout l,String value){TextView t=new TextView(owner);t.setText(value);t.setTextSize(14);l.addView(t,new LinearLayout.LayoutParams(-1,-2));}
-    private TextView output(LinearLayout l){TextView t=new TextView(owner);t.setTextIsSelectable(true);t.setSaveEnabled(false);t.setAutoLinkMask(0);t.setTextSize(13);l.addView(t,new LinearLayout.LayoutParams(-1,-2));return t;}
+    private void label(LinearLayout l,String value){TextView t=new TextView(owner);t.setText(value);WorkbenchStyle.label(owner,t,14,false,false);l.addView(t,WorkbenchStyle.row(owner));}
+    private TextView output(LinearLayout l){TextView t=new TextView(owner);t.setTextIsSelectable(true);t.setSaveEnabled(false);t.setAutoLinkMask(0);WorkbenchStyle.label(owner,t,14,false,false);l.addView(t,WorkbenchStyle.row(owner));return t;}
     private EditText field(LinearLayout l,int hint,String value,int max,boolean multiline){
         EditText e=new EditText(owner);e.setHint(hint);e.setText(value);e.setSaveEnabled(false);e.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
         e.setInputType(InputType.TYPE_CLASS_TEXT|(multiline?InputType.TYPE_TEXT_FLAG_MULTI_LINE:InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS));
         e.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(max)});
         if(multiline){e.setMinLines(3);e.setMaxLines(7);}
-        l.addView(e,new LinearLayout.LayoutParams(-1,-2));return e;
+        WorkbenchStyle.field(owner,e);l.addView(e,WorkbenchStyle.row(owner));return e;
     }
-    private Button button(LinearLayout l,int id,Runnable run){Button b=new Button(owner);b.setText(id);b.setAllCaps(false);b.setMinHeight(dp(48));b.setOnClickListener(v->run.run());l.addView(b,new LinearLayout.LayoutParams(-1,-2));return b;}
+    private Button button(LinearLayout l,int id,Runnable run){Button b=new Button(owner);b.setText(id);WorkbenchStyle.button(owner,b,id);b.setOnClickListener(v->run.run());l.addView(b,WorkbenchStyle.row(owner));return b;}
     private boolean valid(int token){return token==epoch&&!stopped&&!owner.isFinishing()&&!owner.isDestroyed();}
     private void secure(AlertDialog d){if(d.getWindow()!=null)d.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);}
     private void confirm(String title,String body,Runnable action){

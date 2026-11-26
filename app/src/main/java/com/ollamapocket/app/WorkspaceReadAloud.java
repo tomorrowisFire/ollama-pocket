@@ -25,8 +25,8 @@ final class WorkspaceReadAloud {
         catch(RuntimeException e){return false;}
     }
     private Button button(LinearLayout panel,int label){
-        Button b=new Button(owner);b.setText(label);b.setAllCaps(false);b.setMinHeight(dp(48));
-        panel.addView(b,new LinearLayout.LayoutParams(-1,-2));return b;
+        Button b=new Button(owner);b.setText(label);WorkbenchStyle.button(owner,b,label);
+        panel.addView(b,WorkbenchStyle.row(owner));return b;
     }
     Button add(LinearLayout panel,int subject,Supplier<String> source,BooleanSupplier guard){
         Button b=button(panel,R.string.workspace_read_open);
@@ -69,7 +69,7 @@ final class WorkspaceReadAloud {
             catch(RuntimeException e){return false;}
         }
         private Spinner options(LinearLayout panel,int caption,String[] rows,int selected){
-            TextView label=new TextView(owner);label.setText(caption);panel.addView(label);
+            TextView label=new TextView(owner);label.setText(caption);WorkbenchStyle.label(owner,label,13,false,true);panel.addView(label);
             Spinner pick=new Spinner(owner);
             ArrayAdapter<String> adapter=new ArrayAdapter<>(owner,android.R.layout.simple_spinner_item,rows);
             adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -81,7 +81,7 @@ final class WorkspaceReadAloud {
             panel.setPadding(dp(16),dp(12),dp(16),dp(12));
             TextView note=new TextView(owner);
             note.setText(owner.getString(R.string.workspace_read_notice,owner.getString(subject),text.length()));
-            panel.addView(note);
+            WorkbenchStyle.label(owner,note,14,false,false);panel.addView(note,WorkbenchStyle.row(owner));
             String saved=VoiceInteractionPolicy.language(owner.getPreferences(Context.MODE_PRIVATE).getString("voice_language","app"));
             language=options(panel,R.string.voice_language,new String[]{owner.getString(R.string.voice_app_language),"한국어","English","简体中文","繁體中文","日本語"},
                 Math.max(0,Arrays.asList(VoiceInteractionPolicy.LANGUAGES).indexOf(saved)));
@@ -90,12 +90,12 @@ final class WorkspaceReadAloud {
             start=button(panel,R.string.workspace_read_start);
             pause=button(panel,R.string.voice_pause_playback);pause.setEnabled(false);
             stop=button(panel,R.string.stop);stop.setEnabled(false);
-            status=new TextView(owner);status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+            status=new TextView(owner);WorkbenchStyle.label(owner,status,14,false,false);status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
             status.setText(R.string.workspace_read_ready);panel.addView(status);
             progress=new ProgressBar(owner,null,android.R.attr.progressBarStyleHorizontal);
             progress.setMax(100);progress.setContentDescription(owner.getString(R.string.workspace_read_progress));
             panel.addView(progress,new LinearLayout.LayoutParams(-1,dp(12)));
-            preview=new TextView(owner);preview.setText(text);preview.setTextSize(14);preview.setAutoLinkMask(0);
+            preview=new TextView(owner);preview.setText(text);WorkbenchStyle.label(owner,preview,14,false,false);preview.setAutoLinkMask(0);
             preview.setTextIsSelectable(false);preview.setSaveEnabled(false);panel.addView(preview);
             ScrollView scroll=new ScrollView(owner);scroll.setSaveEnabled(false);scroll.addView(panel);
             dialog=new AlertDialog.Builder(owner).setTitle(R.string.workspace_read_open).setView(scroll)

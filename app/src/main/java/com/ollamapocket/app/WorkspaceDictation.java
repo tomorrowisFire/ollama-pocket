@@ -35,9 +35,10 @@ final class WorkspaceDictation {
         catch(RuntimeException e){return false;}
     }
     Button add(LinearLayout parent,EditText target,int fieldLabel,int limit,boolean multiline,BooleanSupplier guard){
-        Button b=new Button(owner);b.setAllCaps(false);b.setMinHeight(dp(48));
+        Button b=new Button(owner);
         b.setText(owner.getString(R.string.workspace_voice_field,owner.getString(fieldLabel)));
-        parent.addView(b,new LinearLayout.LayoutParams(-1,-2));
+        WorkbenchStyle.button(owner,b,WorkbenchVisualPolicy.Role.SECONDARY);
+        parent.addView(b,WorkbenchStyle.row(owner));
         b.setOnClickListener(v->{
             if(!valid(target,guard)||!target.hasWindowFocus()){toast(R.string.busy);return;}
             if(owner.checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){
@@ -80,8 +81,8 @@ final class WorkspaceDictation {
             body.setPadding(dp(16),dp(12),dp(16),dp(12));
             TextView note=new TextView(owner);
             note.setText(owner.getString(R.string.workspace_voice_notice,owner.getString(fieldLabel)));
-            body.addView(note,new LinearLayout.LayoutParams(-1,-2));
-            TextView caption=new TextView(owner);caption.setText(R.string.voice_language);body.addView(caption);
+            WorkbenchStyle.label(owner,note,14,false,false);body.addView(note,WorkbenchStyle.row(owner));
+            TextView caption=new TextView(owner);caption.setText(R.string.voice_language);WorkbenchStyle.label(owner,caption,13,false,true);body.addView(caption);
             language=new Spinner(owner);language.setMinimumHeight(dp(48));
             String[] labels={owner.getString(R.string.voice_app_language),"한국어","English","简体中文","繁體中文","日本語"};
             ArrayAdapter<String> adapter=new ArrayAdapter<>(owner,android.R.layout.simple_spinner_item,labels);
@@ -89,9 +90,9 @@ final class WorkspaceDictation {
             String saved=VoiceInteractionPolicy.language(owner.getPreferences(Context.MODE_PRIVATE).getString("voice_language","app"));
             language.setSelection(Math.max(0,Arrays.asList(VoiceInteractionPolicy.LANGUAGES).indexOf(saved)));
             language.setContentDescription(owner.getString(R.string.voice_language));body.addView(language);
-            start=new Button(owner);start.setText(R.string.workspace_voice_start);start.setAllCaps(false);start.setMinHeight(dp(48));body.addView(start);
-            state=new TextView(owner);state.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);body.addView(state);
-            transcript=new TextView(owner);transcript.setTextSize(14);transcript.setSaveEnabled(false);
+            start=new Button(owner);start.setText(R.string.workspace_voice_start);WorkbenchStyle.button(owner,start,R.string.workspace_voice_start);body.addView(start,WorkbenchStyle.row(owner));
+            state=new TextView(owner);WorkbenchStyle.label(owner,state,14,false,false);state.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);body.addView(state,WorkbenchStyle.row(owner));
+            transcript=new TextView(owner);WorkbenchStyle.label(owner,transcript,14,false,false);transcript.setSaveEnabled(false);
             transcript.setAutoLinkMask(0);transcript.setTextIsSelectable(false);
             transcript.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);body.addView(transcript);
             ScrollView scroll=new ScrollView(owner);scroll.setSaveEnabled(false);scroll.addView(body);

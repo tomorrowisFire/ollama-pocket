@@ -75,16 +75,19 @@ final class ProjectWorkspaceUi {
         // An explicitly dispatched write can finish; WORK stays held until callback.
     }
     private void label(String value,boolean selectable){
-        TextView t=new TextView(owner);t.setText(value);t.setTextSize(14);t.setSaveEnabled(false);
-        t.setAutoLinkMask(0);t.setTextIsSelectable(selectable);body.addView(t,new LinearLayout.LayoutParams(-1,-2));
+        TextView t=new TextView(owner);t.setText(value);WorkbenchStyle.label(owner,t,14,false,false);t.setSaveEnabled(false);
+        t.setAutoLinkMask(0);t.setTextIsSelectable(selectable);body.addView(t,WorkbenchStyle.row(owner));
     }
     private void button(String value,boolean enabled,Runnable run){
-        Button b=new Button(owner);b.setAllCaps(false);b.setText(value);b.setMinHeight(dp(48));b.setEnabled(enabled);
+        button(value,enabled,run,WorkbenchVisualPolicy.Role.SECONDARY);
+    }
+    private void button(String value,boolean enabled,Runnable run,WorkbenchVisualPolicy.Role role){
+        Button b=new Button(owner);b.setText(value);WorkbenchStyle.button(owner,b,role);b.setEnabled(enabled);
         final long token=session.token();
         b.setOnClickListener(v->{if(valid(token)&&!WORK.get()&&confirmation==null)run.run();});
-        body.addView(b,new LinearLayout.LayoutParams(-1,-2));
+        body.addView(b,WorkbenchStyle.row(owner));
     }
-    private void button(int id,Runnable run){button(s(id),true,run);}
+    private void button(int id,Runnable run){button(s(id),true,run,WorkbenchStyle.role(id));}
     private EditText field(int hint,String value,int max,boolean multi){
         EditText e=new EditText(owner);e.setHint(hint);e.setContentDescription(s(hint));e.setSaveEnabled(false);e.setFreezesText(false);
         e.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
@@ -92,7 +95,8 @@ final class ProjectWorkspaceUi {
         e.setImeOptions(EditorInfo.IME_FLAG_NO_EXTRACT_UI|EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING);
         e.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(max)});
         e.setText(value);if(multi){e.setMinLines(4);e.setMaxLines(10);}
-        body.addView(e,new LinearLayout.LayoutParams(-1,-2));
+        WorkbenchStyle.field(owner,e);
+        body.addView(e,WorkbenchStyle.row(owner));
         final long token=session.token();
         dictation.add(body,e,hint,max,multi,()->valid(token)&&!WORK.get()&&confirmation==null&&dialog!=null&&dialog.isShowing());
         return e;
@@ -100,7 +104,8 @@ final class ProjectWorkspaceUi {
     private void reset(){
         reading.cancel();dictation.cancel();
         body.removeAllViews();titleField=null;textField=null;oldTitle="";oldText="";reloadRequired=false;
-        notice=new TextView(owner);notice.setSaveEnabled(false);notice.setTextSize(14);body.addView(notice);
+        notice=new TextView(owner);notice.setSaveEnabled(false);WorkbenchStyle.label(owner,notice,14,false,false);
+        notice.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);body.addView(notice);
         final ScrollView current=scroll;current.post(()->{if(scroll==current)current.scrollTo(0,0);});
     }
     private void status(int id){notice.setText(id);}

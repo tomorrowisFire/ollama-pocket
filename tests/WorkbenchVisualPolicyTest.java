@@ -1,0 +1,35 @@
+package com.ollamapocket.app;
+
+public final class WorkbenchVisualPolicyTest {
+    private static int n;
+    private static void check(boolean ok){n++;if(!ok)throw new AssertionError("workbench visual "+n);}
+    private static void contrast(int ink,int fill,double minimum){
+        check(WorkbenchVisualPolicy.contrast(ink,fill)>=minimum);
+    }
+    public static void main(String[] args){
+        for(boolean dark:new boolean[]{false,true}){
+            WorkbenchVisualPolicy.Palette p=WorkbenchVisualPolicy.palette(dark);
+            for(WorkbenchVisualPolicy.Role role:WorkbenchVisualPolicy.Role.values()){
+                contrast(p.ink(role,true),p.fill(role,true),4.5);
+                contrast(p.ink(role,false),p.fill(role,false),4.5);
+                contrast(p.focusInk(role),p.fill(role,true),3);
+                check(p.fill(role,false)==p.disabled&&p.ink(role,false)==p.disabledText);
+            }
+            contrast(p.text,p.surface,4.5);contrast(p.text,p.field,4.5);
+            contrast(p.muted,p.surface,4.5);contrast(p.muted,p.field,4.5);
+            contrast(p.disabledText,p.disabled,4.5);contrast(p.focus,p.field,3);contrast(p.focus,p.surface,3);
+            check(WorkbenchVisualPolicy.darkFromPrimaryText(p.text)==dark);
+            check(p.fill(WorkbenchVisualPolicy.Role.PRIMARY,true)!=p.fill(WorkbenchVisualPolicy.Role.SECONDARY,true));
+            check(p.ink(WorkbenchVisualPolicy.Role.DESTRUCTIVE,true)!=p.ink(WorkbenchVisualPolicy.Role.SECONDARY,true));
+        }
+        check(WorkbenchVisualPolicy.textScale("large")==1.13f);
+        check(WorkbenchVisualPolicy.textScale("extra")==1.26f);
+        check(WorkbenchVisualPolicy.textScale("normal")==1f);
+        check(WorkbenchVisualPolicy.textScale(null)==1f&&WorkbenchVisualPolicy.textScale("unexpected")==1f);
+        check(WorkbenchVisualPolicy.MIN_TARGET_DP>=48&&WorkbenchVisualPolicy.RADIUS_DP>=8&&WorkbenchVisualPolicy.GAP_DP>=4);
+        check(!WorkbenchVisualPolicy.darkFromPrimaryText(0xde000000));
+        check(WorkbenchVisualPolicy.darkFromPrimaryText(0xdeffffff));
+        check(Math.abs(WorkbenchVisualPolicy.contrast(0xff000000,0xffffffff)-21)<1e-9);
+        System.out.println("PASS: "+n+" shared workspace palette and accessibility assertions");
+    }
+}

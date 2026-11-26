@@ -328,15 +328,17 @@ final class CloudChatPanel extends LinearLayout {
         LinearLayout list=new LinearLayout(owner);list.setOrientation(VERTICAL);
         list.setPadding(dp(18),dp(12),dp(18),dp(12));scroll.addView(list);
         TextView intro=new TextView(owner);intro.setText(R.string.api_overview_intro);
-        intro.setTextSize(13);list.addView(intro);
+        WorkbenchStyle.label(owner,intro,14,false,false);list.addView(intro,WorkbenchStyle.row(owner));
         TextView capacity=new TextView(owner);
         capacity.setText(getResources().getString(R.string.api_overview_capacity,ledger.trackedScopes(),CloudUsageLedger.MAX_SCOPES));
-        capacity.setTextSize(12);capacity.setPadding(0,dp(8),0,dp(12));list.addView(capacity);
+        WorkbenchStyle.label(owner,capacity,13,true,false);list.addView(capacity,WorkbenchStyle.row(owner));
         AlertDialog dialog=new AlertDialog.Builder(owner).setTitle(R.string.api_manager_title)
             .setView(scroll).setPositiveButton(R.string.close,null).create();
         for(CloudApi.Provider p:CloudApi.Provider.values()){
             Profile saved=profiles.get(p);
             boolean selected=p==provider;
+            LinearLayout card=new LinearLayout(owner);card.setOrientation(VERTICAL);WorkbenchStyle.card(owner,card,selected);
+            list.addView(card,WorkbenchStyle.row(owner));
             boolean exists=saved!=null;
             try{exists=exists||profilePrefs.contains(p.name());}catch(RuntimeException ignored){}
             String id=saved==null?"":saved.model,address=saved==null?"":saved.address;
@@ -345,8 +347,7 @@ final class CloudChatPanel extends LinearLayout {
                 config==CloudProviderOverview.ProfileState.INVALID?R.string.api_overview_invalid:R.string.api_overview_missing;
             TextView title=new TextView(owner);
             title.setText(p.title+(selected?" · "+getResources().getString(R.string.api_overview_current):""));
-            title.setTypeface(Typeface.DEFAULT,Typeface.BOLD);title.setTextSize(16);
-            title.setPadding(0,dp(12),0,dp(6));list.addView(title);
+            WorkbenchStyle.label(owner,title,16,false,true);card.addView(title,WorkbenchStyle.row(owner));
             String route=config==CloudProviderOverview.ProfileState.CONFIGURED?
                 routeText(p,id,CloudApi.requestTarget(p,address)):
                 getResources().getString(p.remote()?R.string.api_manager_lan:R.string.api_manager_https);
@@ -382,19 +383,16 @@ final class CloudChatPanel extends LinearLayout {
             }
             if(config==CloudProviderOverview.ProfileState.CONFIGURED&&!ledger.canTrack(p.remote()?p.name()+"@"+address:p.name()))
                 detail.append("\n").append(getResources().getString(R.string.api_overview_ledger_full));
-            TextView body=new TextView(owner);body.setText(detail.toString());body.setTextSize(13);
-            body.setAutoLinkMask(0);body.setSaveEnabled(false);list.addView(body);
-            Button edit=button(R.string.api_overview_configure);
+            TextView body=new TextView(owner);body.setText(detail.toString());WorkbenchStyle.label(owner,body,14,false,false);
+            body.setAutoLinkMask(0);body.setSaveEnabled(false);card.addView(body,WorkbenchStyle.row(owner));
+            Button edit=button(R.string.api_overview_configure);WorkbenchStyle.button(owner,edit,R.string.api_overview_configure);
             edit.setContentDescription(getResources().getString(R.string.api_overview_configure)+" · "+p.title);
-            list.addView(edit,new LinearLayout.LayoutParams(-1,-2));
+            card.addView(edit,new LinearLayout.LayoutParams(-1,-2));
             edit.setOnClickListener(v->{
                 if(!active||closed||busy||actionDialog!=dialog||!dialog.isShowing())return;
                 dialog.dismiss();configure(p);
             });
-            View separator=new View(owner);separator.setBackgroundColor(0x33808080);
-            LinearLayout.LayoutParams divider=new LinearLayout.LayoutParams(-1,dp(1));
-            divider.topMargin=dp(8);list.addView(separator,divider);
-        }
+         }
         showAction(dialog);WorkbenchWindow.fit(owner,dialog);
     }
     private void configure(){configure(provider);}
@@ -412,28 +410,36 @@ final class CloudChatPanel extends LinearLayout {
         CloudApi.Provider[] values=CloudApi.Provider.values();
         String[] names=new String[values.length];for(int i=0;i<names.length;i++)names[i]=values[i].title;
         Spinner pick=new Spinner(owner);pick.setAdapter(new ArrayAdapter<>(owner,android.R.layout.simple_spinner_dropdown_item,names));
-        pick.setSelection(initial.ordinal());fields.addView(pick);
+        pick.setSelection(initial.ordinal());pick.setMinimumHeight(dp(48));
+        WorkbenchStyle.fieldLabel(owner,fields,R.string.cloud_provider_model,pick);fields.addView(pick,WorkbenchStyle.row(owner));
         EditText chosenModel=input(R.string.cloud_model,InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS,200);
-        chosenModel.setText(initialModel);fields.addView(chosenModel);
+        chosenModel.setText(initialModel);WorkbenchStyle.field(owner,chosenModel);
+        WorkbenchStyle.fieldLabel(owner,fields,R.string.cloud_model,chosenModel);fields.addView(chosenModel,WorkbenchStyle.row(owner));
         EditText key=input(R.string.cloud_key,InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD,4096);
         key.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
-        key.setText(currentProvider?token:"");fields.addView(key);
+        key.setText(currentProvider?token:"");WorkbenchStyle.field(owner,key);
+        TextView keyCaption=WorkbenchStyle.fieldLabel(owner,fields,R.string.cloud_key,key);fields.addView(key,WorkbenchStyle.row(owner));
         EditText address=input(R.string.cloud_pc_address,InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS,22);
-        address.setText(initialAddress);fields.addView(address);
-        TextView lanNotice=new TextView(owner);lanNotice.setText(R.string.cloud_pc_notice);fields.addView(lanNotice);
+        address.setText(initialAddress);WorkbenchStyle.field(owner,address);
+        TextView addressCaption=WorkbenchStyle.fieldLabel(owner,fields,R.string.cloud_pc_address,address);fields.addView(address,WorkbenchStyle.row(owner));
+        TextView lanNotice=new TextView(owner);lanNotice.setText(R.string.cloud_pc_notice);WorkbenchStyle.label(owner,lanNotice,13,false,false);fields.addView(lanNotice,WorkbenchStyle.row(owner));
         TextView routeDetails=new TextView(owner);routeDetails.setTextSize(12);routeDetails.setAutoLinkMask(0);
-        routeDetails.setSaveEnabled(false);fields.addView(routeDetails);
-        Button fetch=button(R.string.cloud_fetch_models);fields.addView(fetch);
+        routeDetails.setSaveEnabled(false);WorkbenchStyle.label(owner,routeDetails,13,false,false);fields.addView(routeDetails,WorkbenchStyle.row(owner));
+        Button fetch=button(R.string.cloud_fetch_models);WorkbenchStyle.button(owner,fetch,R.string.cloud_fetch_models);fields.addView(fetch,WorkbenchStyle.row(owner));
         EditText inRate=input(R.string.cloud_input_rate,InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL,20);
         EditText outRate=input(R.string.cloud_output_rate,InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL,20);
         if(initialIn>=0)inRate.setText(Double.toString(initialIn));if(initialOut>=0)outRate.setText(Double.toString(initialOut));
-        fields.addView(inRate);fields.addView(outRate);
+        WorkbenchStyle.field(owner,inRate);WorkbenchStyle.field(owner,outRate);
+        TextView inCaption=WorkbenchStyle.fieldLabel(owner,fields,R.string.cloud_input_rate,inRate);fields.addView(inRate,WorkbenchStyle.row(owner));
+        TextView outCaption=WorkbenchStyle.fieldLabel(owner,fields,R.string.cloud_output_rate,outRate);fields.addView(outRate,WorkbenchStyle.row(owner));
         EditText spending=input(R.string.cloud_budget,InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL,20);
-        if(initialLimit>=0)spending.setText(Double.toString(initialLimit));fields.addView(spending);
-        TextView priceNotice=new TextView(owner);priceNotice.setTextSize(12);priceNotice.setText(R.string.api_manager_price_note);fields.addView(priceNotice);
-        CheckBox remember=new CheckBox(owner);remember.setText(R.string.cloud_key_remember);fields.addView(remember);
+        if(initialLimit>=0)spending.setText(Double.toString(initialLimit));WorkbenchStyle.field(owner,spending);
+        TextView budgetCaption=WorkbenchStyle.fieldLabel(owner,fields,R.string.cloud_budget,spending);fields.addView(spending,WorkbenchStyle.row(owner));
+        TextView priceNotice=new TextView(owner);priceNotice.setText(R.string.api_manager_price_note);WorkbenchStyle.label(owner,priceNotice,13,true,false);fields.addView(priceNotice,WorkbenchStyle.row(owner));
+        CheckBox remember=new CheckBox(owner);remember.setText(R.string.cloud_key_remember);remember.setMinimumHeight(dp(48));fields.addView(remember,WorkbenchStyle.row(owner));
         Button load=button(R.string.cloud_key_load),delete=button(R.string.cloud_key_delete);
-        fields.addView(load);fields.addView(delete);
+        WorkbenchStyle.button(owner,load,R.string.cloud_key_load);WorkbenchStyle.button(owner,delete,R.string.cloud_key_delete);
+        fields.addView(load,WorkbenchStyle.row(owner));fields.addView(delete,WorkbenchStyle.row(owner));
         Runnable updateRoute=()->{
             int index=pick.getSelectedItemPosition();
             if(index<0||index>=values.length){routeDetails.setText(R.string.unknown);return;}
@@ -450,8 +456,8 @@ final class CloudChatPanel extends LinearLayout {
         };
         chosenModel.addTextChangedListener(routeWatcher);address.addTextChangedListener(routeWatcher);
         Runnable updateFields=()->{int index=pick.getSelectedItemPosition();if(index<0||index>=values.length)return;boolean remote=values[index].remote();
-            for(View v:new View[]{key,inRate,outRate,spending,priceNotice,remember,load,delete})v.setVisibility(remote?GONE:VISIBLE);
-            address.setVisibility(remote?VISIBLE:GONE);lanNotice.setVisibility(remote?VISIBLE:GONE);updateRoute.run();};
+            for(View v:new View[]{keyCaption,key,inCaption,inRate,outCaption,outRate,budgetCaption,spending,priceNotice,remember,load,delete})v.setVisibility(remote?GONE:VISIBLE);
+            addressCaption.setVisibility(remote?VISIBLE:GONE);address.setVisibility(remote?VISIBLE:GONE);lanNotice.setVisibility(remote?VISIBLE:GONE);updateRoute.run();};
         updateFields.run();
         final int[] last={initial.ordinal()};
         pick.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){

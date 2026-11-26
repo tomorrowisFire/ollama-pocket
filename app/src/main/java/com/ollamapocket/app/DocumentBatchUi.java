@@ -57,11 +57,11 @@ final class DocumentBatchUi {
     private void secure(AlertDialog d){if(d.getWindow()!=null)d.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);}
     private LinearLayout column(){LinearLayout panel=new LinearLayout(owner);panel.setOrientation(LinearLayout.VERTICAL);panel.setPadding(dp(16),dp(12),dp(16),dp(12));return panel;}
     private TextView label(LinearLayout panel,String value,boolean selectable){
-        TextView v=new TextView(owner);v.setText(value);v.setTextSize(14);v.setSaveEnabled(false);v.setTextIsSelectable(selectable);v.setAutoLinkMask(0);
-        panel.addView(v,new LinearLayout.LayoutParams(-1,-2));return v;
+        TextView v=new TextView(owner);v.setText(value);WorkbenchStyle.label(owner,v,14,false,false);v.setSaveEnabled(false);v.setTextIsSelectable(selectable);v.setAutoLinkMask(0);
+        panel.addView(v,WorkbenchStyle.row(owner));return v;
     }
     private Button button(LinearLayout panel,int resource,Runnable action){
-        Button b=new Button(owner);b.setText(resource);b.setAllCaps(false);b.setMinHeight(dp(48));b.setOnClickListener(v->action.run());panel.addView(b,new LinearLayout.LayoutParams(-1,-2));return b;
+        Button b=new Button(owner);b.setText(resource);WorkbenchStyle.button(owner,b,resource);b.setOnClickListener(v->action.run());panel.addView(b,WorkbenchStyle.row(owner));return b;
     }
     private void confirm(int title,String body,Runnable action){
         if(confirmation!=null)confirmation.dismiss();
@@ -129,7 +129,8 @@ final class DocumentBatchUi {
         goal=new EditText(owner);goal.setHint(R.string.batch_goal);goal.setText(s(R.string.batch_default_goal));goal.setTextSize(15);
         goal.setMinLines(2);goal.setMaxLines(4);goal.setSaveEnabled(false);goal.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
         goal.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(DocumentBatchPolicy.MAX_GOAL)});
-        panel.addView(goal,new LinearLayout.LayoutParams(-1,-2));
+        WorkbenchStyle.field(owner,goal);WorkbenchStyle.fieldLabel(owner,panel,R.string.batch_goal,goal);
+        panel.addView(goal,WorkbenchStyle.row(owner));
         dictateGoal=dictation.add(panel,goal,R.string.batch_goal,DocumentBatchPolicy.MAX_GOAL,true,
             ()->visible()&&!busy()&&confirmation==null&&eligible.getAsBoolean());
         preview=button(panel,R.string.batch_preview,this::showSourcePreview);
