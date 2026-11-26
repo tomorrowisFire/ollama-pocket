@@ -697,7 +697,7 @@
     <string name="attachment_pdf_no_text">확인한 페이지에서 읽을 수 있는 텍스트를 찾지 못했습니다. OCR 모드에서 원하는 페이지와 언어를 선택해 보세요.</string>
     <string name="attachment_pdf_protected">비밀번호가 필요하거나 지원하지 않는 보안 방식의 PDF입니다. 보호된 문서는 추출하지 않습니다.</string>
     <string name="attachment_pdf_timeout">PDF 추출 제한 시간에 도달하여 중단했습니다. 더 작은 문서로 시도하세요.</string>
-    <string name="attachment_pdf_note">PDF 텍스트 전용입니다. 전체 %2$d페이지 중 %1$d페이지 확인, 읽을 수 있는 텍스트가 있는 페이지 %3$d개입니다. 처음 12페이지·최대 6,000자 범위만 처리합니다. 이미지·표의 시각적 배치·OCR은 포함하지 않으며 읽기 순서가 화면과 다를 수 있습니다.</string>
+    <string name="attachment_pdf_note">PDF 텍스트 전용입니다. 전체 %3$d페이지 중 %1$d~%2$d페이지 확인, 텍스트가 있는 페이지 %4$d개입니다. 지정한 시작 페이지부터 최대 12페이지·6,000자 범위만 처리합니다. 이미지·시각적 표·OCR은 제외합니다.</string>
     <string name="attachment_pdf_privacy">PDF 추출을 위해 임시 비공개 복사본을 만들고 파싱 전에 삭제합니다. 복사 도중 비정상 종료되면 비공개 캐시 파일이 남을 수 있습니다.</string>
     <string name="attachment_ocr">이미지·스캔 PDF OCR</string>
     <string name="attachment_ocr_language">인식 언어 선택</string>
@@ -711,4 +711,15 @@
     <string name="attachment_ocr_timeout">OCR 결과 제한 시간에 도달했습니다. 이전 작업이 자원을 정리 중일 수 있습니다.</string>
     <string name="attachment_ocr_bad_page">문서 범위에 해당하는 1~10,000의 PDF 페이지 번호를 입력하세요.</string>
     <string name="attachment_ocr_image_pick">PNG·JPEG·WEBP 또는 PDF 페이지 선택</string>
+    <string name="attachment_select_range">텍스트·Office·PDF 텍스트</string>
+    <string name="attachment_segment">텍스트·Office 구간 번호(1~256)</string>
+    <string name="attachment_pdf_first">PDF 시작 페이지(1~10,000)</string>
+    <string name="attachment_range_help">텍스트·Office는 약 6,000자(UTF-16) 단위 구간을, PDF는 시작 페이지를 선택합니다. 해당 파일 형식의 설정만 적용합니다. Office 문단·셀 참조가 구간 경계에서 나뉠 수 있습니다. 발췌문별로 분석하며 문서 전체 분석은 아닙니다.</string>
+    <string name="attachment_range_invalid">선택한 구간이 추출 가능한 내용 또는 지원 범위를 벗어났습니다.</string>
+    <string name="attachment_range_note">구간 %1$d · 추출 텍스트 UTF-16 위치 %2$d~%3$d. 원본 페이지 또는 셀 좌표가 아닙니다.</string>
+    <string name="attachment_remove_last">마지막 첨부 발췌문 제거</string>
+    <string name="attachment_remove_confirm">현재 초안에서 수정되지 않은 마지막 첨부 발췌문을 제거할까요? 나머지 초안과 저장된 대화는 유지합니다.</string>
+    <string name="attachment_removed">마지막 발췌문을 초안에서 제거했습니다.</string>
+    <string name="attachment_copy_excerpt">발췌문 복사</string>
+    <string name="attachment_copy_notice">검토한 발췌문을 클립보드에 복사할까요? 다른 앱 또는 클립보드 동기화에서 접근할 수 있습니다. 클라우드 채팅에 붙여넣은 경우 별도 전송 승인이 필요합니다.</string>
 </resources>

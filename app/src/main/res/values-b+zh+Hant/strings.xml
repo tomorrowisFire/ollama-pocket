@@ -697,7 +697,7 @@
     <string name="attachment_pdf_no_text">在已檢查頁面中未找到可讀文字。請嘗試 OCR 模式並選擇所需頁面及語言。</string>
     <string name="attachment_pdf_protected">此 PDF 需要密碼或使用不支援的安全機制。不擷取受保護的文件。</string>
     <string name="attachment_pdf_timeout">PDF 擷取達到時間限制後停止。請嘗試較小的文件。</string>
-    <string name="attachment_pdf_note">僅擷取 PDF 文字。已檢查 %2$d 頁中的 %1$d 頁，其中 %3$d 頁含可讀文字。最多處理前 12 頁及 6,000 字元。不包含圖片、表格視覺配置或 OCR；閱讀順序可能與頁面顯示不同。</string>
+    <string name="attachment_pdf_note">僅擷取 PDF 文字。已檢查第 %1$d–%2$d 頁（共 %3$d 頁），其中 %4$d 頁含可讀文字。從指定起始頁處理最多 12 頁及 6,000 字元。不含圖片、視覺表格或 OCR。</string>
     <string name="attachment_pdf_privacy">PDF 擷取時建立暫時私人副本以取得可定位檔案描述符，並在解析前移除。複製期間異常中斷可能留下私人快取檔案。</string>
     <string name="attachment_ocr">圖片／掃描 PDF OCR</string>
     <string name="attachment_ocr_language">選擇辨識語言</string>
@@ -711,4 +711,15 @@
     <string name="attachment_ocr_timeout">OCR 結果逾時。上一個工作可能仍在清理資源。</string>
     <string name="attachment_ocr_bad_page">請輸入文件範圍內 1 至 10,000 的有效 PDF 頁碼。</string>
     <string name="attachment_ocr_image_pick">選擇 PNG、JPEG、WEBP 或 PDF 頁面</string>
+    <string name="attachment_select_range">文字／Office／PDF 文字</string>
+    <string name="attachment_segment">文字／Office 分段（1–256）</string>
+    <string name="attachment_pdf_first">PDF 起始頁（1–10,000）</string>
+    <string name="attachment_range_help">選擇約 6,000 個 UTF-16 字元的文字／Office 分段或 PDF 起始頁。僅套用對應檔案類型的設定。Office 段落或儲存格參照可能跨段。請分別分析摘錄，不代表全文分析。</string>
+    <string name="attachment_range_invalid">所選範圍超出可擷取內容或支援上限。</string>
+    <string name="attachment_range_note">分段 %1$d · 擷取文字 UTF-16 位置 %2$d–%3$d。並非原始頁碼或儲存格座標。</string>
+    <string name="attachment_remove_last">移除最後插入的摘錄</string>
+    <string name="attachment_remove_confirm">從目前草稿移除最後一個未修改的摘錄？其他草稿內容和已儲存對話將保留。</string>
+    <string name="attachment_removed">已從草稿移除最後的摘錄</string>
+    <string name="attachment_copy_excerpt">複製摘錄</string>
+    <string name="attachment_copy_notice">將已檢查的摘錄複製到剪貼簿？其他應用程式或剪貼簿同步可能存取。貼到雲端聊天後仍需確認傳送。</string>
 </resources>

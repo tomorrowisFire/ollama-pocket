@@ -77,7 +77,9 @@ public final class MainActivity extends Activity {
     private static final int PICK_ATTACHMENT = 704;
     private String attachmentScope="";
     private boolean attachmentOcr;
-    private int attachmentOcrScript,attachmentOcrPage=1;
+    private int attachmentOcrScript,attachmentOcrPage=1,attachmentSegment=1;
+    private String lastAttachmentScope="",lastAttachmentDigest="";
+    private int lastAttachmentLength;
     private long attachmentSerial;
     private boolean attachmentReading;
     private Button attachFileButton;
@@ -367,7 +369,7 @@ public final class MainActivity extends Activity {
         showTab(state==null?0:state.getInt("activeTab",0));
         if(state!=null){
             attachmentScope=state.getString("attachmentScope","");
-            attachmentOcr=state.getBoolean("attachmentOcr",false);attachmentOcrScript=state.getInt("attachmentOcrScript",0);attachmentOcrPage=state.getInt("attachmentOcrPage",1);
+            attachmentOcr=state.getBoolean("attachmentOcr",false);attachmentOcrScript=state.getInt("attachmentOcrScript",0);attachmentOcrPage=state.getInt("attachmentOcrPage",1);attachmentSegment=state.getInt("attachmentSegment",1);
             exportScope=state.getString("exportScope","");
             exportDigest=state.getString("exportDigest","");
             exportModel=state.getString("exportModel","");
@@ -388,7 +390,7 @@ public final class MainActivity extends Activity {
         super.onSaveInstanceState(out);
         out.putInt("activeTab",activeTab);
         out.putString("attachmentScope",attachmentScope);
-        out.putBoolean("attachmentOcr",attachmentOcr);out.putInt("attachmentOcrScript",attachmentOcrScript);out.putInt("attachmentOcrPage",attachmentOcrPage);
+        out.putBoolean("attachmentOcr",attachmentOcr);out.putInt("attachmentOcrScript",attachmentOcrScript);out.putInt("attachmentOcrPage",attachmentOcrPage);out.putInt("attachmentSegment",attachmentSegment);
         out.putString("exportScope",exportScope);out.putString("exportDigest",exportDigest);
         out.putString("exportModel",exportModel);out.putBoolean("exportJson",exportJson);
         saveLocalDraft();
@@ -3323,14 +3325,59 @@ public final class MainActivity extends Activity {
         if (c != null) c.disconnect();
     }
 
+    private boolean canRemoveLastAttachment(){
+        if(!ownsLoadedScope()||!loadedHistoryScope.equals(lastAttachmentScope)||lastAttachmentLength<=0||chatInput==null)return false;
+        String draft=chatInput.getText().toString();
+        return draft.length()>=lastAttachmentLength&&LocalChatLibrary.digest(draft.substring(draft.length()-lastAttachmentLength)).equals(lastAttachmentDigest);
+    }
+    private void forgetLastAttachment(){
+        lastAttachmentScope="";lastAttachmentDigest="";lastAttachmentLength=0;
+    }
+    private void removeLastAttachment(){
+        if(!canRemoveLastAttachment()||isUiBusy()||cloudMode){toast(getString(R.string.attachment_scope_changed));return;}
+        final String scope=loadedHistoryScope,hash=lastAttachmentDigest;
+        final int length=lastAttachmentLength;
+        new AlertDialog.Builder(this).setTitle(R.string.attachment_remove_last).setMessage(R.string.attachment_remove_confirm)
+            .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,(d,w)->{
+                if(isUiBusy()||cloudMode||!scope.equals(loadedHistoryScope)||length!=lastAttachmentLength||
+                    !hash.equals(lastAttachmentDigest)||!canRemoveLastAttachment())return;
+                String draft=chatInput.getText().toString();
+                chatInput.setText(draft.substring(0,draft.length()-length));chatInput.setSelection(chatInput.length());
+                forgetLastAttachment();saveLocalDraft();toast(getString(R.string.attachment_removed));
+            }).show();
+    }
     private void pickChatAttachment(){
         if(guestOnly||cloudMode||isUiBusy()||!historyReadable||!ownsLoadedScope()){toast(getString(R.string.busy));return;}
         if(currentModel.isEmpty()){toast(getString(R.string.need_model));return;}
         final String scope=loadedHistoryScope;
-        new AlertDialog.Builder(this).setTitle(R.string.attachment_pick).setMessage(R.string.attachment_formats)
-            .setNegativeButton(R.string.cancel,null)
-            .setNeutralButton(R.string.attachment_ocr,(d,w)->chooseAttachmentOcr(scope))
-            .setPositiveButton(R.string.ok,(d,w)->openAttachmentPicker(scope,false,0,1)).show();
+        String[] items=canRemoveLastAttachment()?new String[]{getString(R.string.attachment_select_range),getString(R.string.attachment_ocr),getString(R.string.attachment_remove_last)}:
+            new String[]{getString(R.string.attachment_select_range),getString(R.string.attachment_ocr)};
+        new AlertDialog.Builder(this).setTitle(R.string.attachment_pick).setItems(items,(d,w)->{
+            if(w==0)chooseAttachmentRange(scope);else if(w==1)chooseAttachmentOcr(scope);else removeLastAttachment();
+        }).setNegativeButton(R.string.cancel,null).show();
+    }
+    private void chooseAttachmentRange(String scope){
+        if(isUiBusy()||cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
+        ScrollView scroll=new ScrollView(this);LinearLayout panel=column();panel.setPadding(dp(16),dp(8),dp(16),dp(8));scroll.addView(panel);
+        margin(text(getString(R.string.attachment_formats),12,WHITE,false),panel,0,6);
+        margin(text(getString(R.string.attachment_range_help),12,MUTED,false),panel,0,8);
+        margin(text(getString(R.string.attachment_segment),13,WHITE,true),panel,0,3);
+        EditText segment=edit(getString(R.string.attachment_segment),"1",false);
+        segment.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);segment.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(3)});
+        margin(segment,panel,0,6);
+        margin(text(getString(R.string.attachment_pdf_first),13,WHITE,true),panel,0,3);
+        EditText page=edit(getString(R.string.attachment_pdf_first),"1",false);
+        page.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);page.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(5)});
+        margin(page,panel,0,6);
+        AlertDialog d=new AlertDialog.Builder(this).setTitle(R.string.attachment_select_range).setView(scroll)
+            .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,null).create();
+        d.show();d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
+            try{
+                int seg=Integer.parseInt(segment.getText().toString().trim()),first=Integer.parseInt(page.getText().toString().trim());
+                if(!DocumentWindow.validSegment(seg)||!OcrPolicy.validPage(first))throw new NumberFormatException();
+                d.dismiss();openAttachmentPicker(scope,false,0,first,seg);
+            }catch(NumberFormatException e){toast(getString(R.string.attachment_range_invalid));}
+        });
     }
     private void chooseAttachmentOcr(String scope){
         if(isUiBusy()||cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
@@ -3354,12 +3401,12 @@ public final class MainActivity extends Activity {
             int number;
             try{number=Integer.parseInt(page.getText().toString().trim());if(!OcrPolicy.validPage(number))throw new NumberFormatException();}
             catch(NumberFormatException e){toast(getString(R.string.attachment_ocr_bad_page));return;}
-            int script=language.getSelectedItemPosition();d.dismiss();openAttachmentPicker(scope,true,script,number);
+            int script=language.getSelectedItemPosition();d.dismiss();openAttachmentPicker(scope,true,script,number,1);
         });
     }
-    private void openAttachmentPicker(String scope,boolean ocr,int script,int page){
+    private void openAttachmentPicker(String scope,boolean ocr,int script,int page,int segment){
         if(guestOnly||isUiBusy()||cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
-        attachmentScope=scope;attachmentOcr=ocr;attachmentOcrScript=script;attachmentOcrPage=page;
+        attachmentScope=scope;attachmentOcr=ocr;attachmentOcrScript=script;attachmentOcrPage=page;attachmentSegment=segment;
         try{
             Intent picker=new Intent(Intent.ACTION_OPEN_DOCUMENT);
             picker.addCategory(Intent.CATEGORY_OPENABLE);picker.setType("*/*");picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
@@ -3373,7 +3420,7 @@ public final class MainActivity extends Activity {
     private void finishChatAttachment(int result,Intent data){
         String scope=attachmentScope;attachmentScope="";
         final boolean ocr=attachmentOcr;attachmentOcr=false;
-        final int script=attachmentOcrScript,page=attachmentOcrPage;
+        final int script=attachmentOcrScript,page=attachmentOcrPage,segment=attachmentSegment;
         if(result!=RESULT_OK||data==null||data.getData()==null)return;
         Uri uri=data.getData();
         if(guestOnly||cloudMode||isUiBusy()||!ownsLoadedScope()||!scope.equals(loadedHistoryScope)||!"content".equals(uri.getScheme())){
@@ -3403,7 +3450,7 @@ public final class MainActivity extends Activity {
                     if(ocr){
                         OcrPolicy.Script chosen=OcrPolicy.Script.values()[script];
                         extracted=pdf?PdfTextClient.ocr(this,name,in,chosen,page):ImageOcr.read(name,in,chosen);
-                    }else extracted=pdf?PdfTextClient.read(this,name,in):AttachmentText.read(name,in);
+                    }else extracted=pdf?PdfTextClient.read(this,name,in,page):AttachmentText.read(name,in,segment);
                 }
             }catch(AttachmentText.Failure e){
                 error=e.problem==AttachmentText.Problem.UNSUPPORTED?R.string.attachment_unsupported:
@@ -3417,7 +3464,8 @@ public final class MainActivity extends Activity {
                     e.problem==AttachmentText.Problem.OCR_BUSY?R.string.attachment_ocr_busy:
                     e.problem==AttachmentText.Problem.OCR_TIMEOUT?R.string.attachment_ocr_timeout:
                     e.problem==AttachmentText.Problem.OCR_PAGE?R.string.attachment_ocr_bad_page:
-                    e.problem==AttachmentText.Problem.OCR_FAILED?R.string.attachment_ocr_failed:R.string.attachment_invalid;
+                    e.problem==AttachmentText.Problem.OCR_FAILED?R.string.attachment_ocr_failed:
+                    e.problem==AttachmentText.Problem.RANGE?R.string.attachment_range_invalid:R.string.attachment_invalid;
             }catch(Exception ignored){}
             final AttachmentText.Result preview=extracted;final int fail=error;
             ui.post(()->{
@@ -3438,8 +3486,9 @@ public final class MainActivity extends Activity {
         margin(text(getString(R.string.attachment_notice),12,WHITE,false),panel,0,6);
         margin(text(getString(R.string.attachment_rpc_notice),12,MUTED,false),panel,0,6);
         if(preview.office)margin(text(getString(R.string.attachment_office_note),12,MUTED,false),panel,0,6);
+        if(preview.segment>0)margin(text(getString(R.string.attachment_range_note,preview.segment,preview.rangeStart+1,preview.rangeEnd),12,MUTED,false),panel,0,6);
         if(preview.pdf){
-            margin(text(getString(R.string.attachment_pdf_note,preview.pdfExamined,preview.pdfPages,preview.pdfTextPages),12,MUTED,false),panel,0,6);
+            margin(text(getString(R.string.attachment_pdf_note,preview.pdfFirst,preview.pdfFirst+preview.pdfExamined-1,preview.pdfPages,preview.pdfTextPages),12,MUTED,false),panel,0,6);
             margin(text(getString(R.string.attachment_pdf_privacy),12,MUTED,false),panel,0,6);
         }
         if(preview.ocr){
@@ -3454,14 +3503,29 @@ public final class MainActivity extends Activity {
         excerpt.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(AttachmentText.MAX_EXCERPT)});
         excerpt.setMinLines(4);excerpt.setMaxLines(10);excerpt.setSaveEnabled(false);panel.addView(excerpt,lp(-1,-2));
         AlertDialog dialog=new AlertDialog.Builder(this).setTitle(R.string.attachment_preview).setView(scroll)
-            .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.attachment_insert,null).create();
+            .setNegativeButton(R.string.cancel,null).setNeutralButton(R.string.attachment_copy_excerpt,null)
+            .setPositiveButton(R.string.attachment_insert,null).create();
         dialog.show();
+        dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v->{
+            if(isUiBusy()||cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
+            final String reviewed=excerpt.getText().toString();
+            if(reviewed.trim().isEmpty())return;
+            new AlertDialog.Builder(this).setTitle(R.string.attachment_copy_excerpt).setMessage(R.string.attachment_copy_notice)
+                .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,(d,w)->{
+                    if(isUiBusy()||cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
+                    android.content.ClipboardManager cb=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
+                    if(cb!=null)cb.setPrimaryClip(ClipData.newPlainText(preview.sourceName(),preview.sourceName()+"\n"+reviewed));
+                }).show();
+        });
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
             if(isUiBusy()||cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope)||activeTab!=0){
                 dialog.dismiss();toast(getString(R.string.attachment_scope_changed));return;
             }
             try{
-                String combined=AttachmentText.include(chatInput.getText().toString(),preview.name,excerpt.getText().toString());
+                String previous=chatInput.getText().toString();
+                String combined=AttachmentText.include(previous,preview.sourceName(),excerpt.getText().toString());
+                String suffix=combined.substring(previous.length());
+                lastAttachmentScope=scope;lastAttachmentLength=suffix.length();lastAttachmentDigest=LocalChatLibrary.digest(suffix);
                 chatInput.setText(combined);chatInput.setSelection(combined.length());saveLocalDraft();
                 dialog.dismiss();toast(getString(R.string.attachment_added));
             }catch(IllegalArgumentException e){toast(getString(R.string.attachment_context_limit));}

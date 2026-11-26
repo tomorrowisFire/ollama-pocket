@@ -697,7 +697,7 @@
     <string name="attachment_pdf_no_text">確認したページに読み取れるテキストがありません。OCR モードでページと言語を指定してください。</string>
     <string name="attachment_pdf_protected">パスワードが必要な PDF、または非対応のセキュリティ方式です。保護された文書は抽出しません。</string>
     <string name="attachment_pdf_timeout">PDF 抽出の時間制限に達したため停止しました。より小さい文書をお試しください。</string>
-    <string name="attachment_pdf_note">PDF のテキストのみです。全 %2$d ページ中 %1$d ページを確認し、%3$d ページに読み取れるテキストがありました。先頭12ページ・最大6,000文字を処理します。画像・表の視覚的配置・OCR は含まれず、読み順が表示と異なる場合があります。</string>
+    <string name="attachment_pdf_note">PDF テキストのみです。全 %3$d ページ中 %1$d〜%2$d ページを確認し、%4$d ページに読み取れる文字がありました。指定開始ページから最大12ページ・6,000文字を処理します。画像・視覚的な表・OCR は含みません。</string>
     <string name="attachment_pdf_privacy">PDF 抽出時にはシーク可能なファイル記述子用に一時的な非公開コピーを作成し、解析前に削除します。コピー中の異常終了で非公開キャッシュが残る場合があります。</string>
     <string name="attachment_ocr">画像・スキャン PDF OCR</string>
     <string name="attachment_ocr_language">認識言語を選択</string>
@@ -711,4 +711,15 @@
     <string name="attachment_ocr_timeout">OCR 結果がタイムアウトしました。前回の処理がリソースを解放中の場合があります。</string>
     <string name="attachment_ocr_bad_page">文書範囲内の1〜10,000の PDF ページ番号を入力してください。</string>
     <string name="attachment_ocr_image_pick">PNG・JPEG・WEBP または PDF ページを選択</string>
+    <string name="attachment_select_range">テキスト・Office・PDF テキスト</string>
+    <string name="attachment_segment">テキスト・Office 区間番号（1〜256）</string>
+    <string name="attachment_pdf_first">PDF 開始ページ（1〜10,000）</string>
+    <string name="attachment_range_help">約6,000 UTF-16文字のテキスト・Office 区間、または PDF 開始ページを指定します。該当形式の設定のみ適用します。Office の段落・セル参照は区間境界で分割される場合があります。抜粋ごとの分析であり全文分析ではありません。</string>
+    <string name="attachment_range_invalid">指定範囲が抽出可能な内容または対応上限を超えています。</string>
+    <string name="attachment_range_note">区間 %1$d · 抽出テキスト UTF-16 位置 %2$d〜%3$d。元のページ・セル座標ではありません。</string>
+    <string name="attachment_remove_last">最後に追加した抜粋を削除</string>
+    <string name="attachment_remove_confirm">現在の下書きから未変更の最後の抜粋を削除しますか？その他の下書きと保存済み会話は保持します。</string>
+    <string name="attachment_removed">最後の抜粋を下書きから削除しました</string>
+    <string name="attachment_copy_excerpt">抜粋をコピー</string>
+    <string name="attachment_copy_notice">確認した抜粋をクリップボードにコピーしますか？他のアプリや同期機能がアクセスする場合があります。クラウド会話への貼り付け後は別途送信確認が必要です。</string>
 </resources>
