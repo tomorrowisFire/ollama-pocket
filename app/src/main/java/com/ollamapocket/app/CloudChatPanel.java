@@ -344,20 +344,22 @@ final class CloudChatPanel extends LinearLayout {
     }
     private void request(CloudApi.Provider p,String id,String apiKey,String q,CloudHistory.Session s,long revision,List<CloudHistory.Message> messages){
         s.draft(q);int request=++serial;setBusy(true);status.setText(R.string.thinking);
+        TextView question=new TextView(owner);question.setText(q);question.setTextSize(15);question.setPadding(dp(10),dp(10),dp(10),dp(10));transcript.addView(question,new LayoutParams(-1,-2));
+        TextView partial=new TextView(owner);partial.setTextSize(15);partial.setPadding(dp(10),dp(10),dp(10),dp(10));partial.setAutoLinkMask(0);partial.setTextIsSelectable(true);transcript.addView(partial,new LayoutParams(-1,-2));
         io.execute(()->{
             HttpsURLConnection c=null;CloudApi.Reply result=null;int err=R.string.cloud_fail;
             try{
                 if(closed||request!=serial)return;
                 c=CloudApi.connection(p,apiKey);connection=c;
                 if(closed||request!=serial)return;
-                result=CloudApi.executeReply(p,c,id,messages);
+                result=CloudApi.streamReply(p,c,id,messages,value->owner.runOnUiThread(()->{if(!closed&&active&&request==serial){partial.setText(value);scroll.post(()->scroll.fullScroll(View.FOCUS_DOWN));}}));
             }catch(Exception e){err=errorLabel(e);}finally{if(c!=null)c.disconnect();if(connection==c)connection=null;}
             CloudApi.Reply output=result;final int failure=err;
             owner.runOnUiThread(()->{
                 if(closed||request!=serial||!active)return;
                 setBusy(false);
                 if(!current(p,id,s,revision)){status.setText(R.string.cloud_context_changed);return;}
-                if(output==null){status.setText(failure);return;}
+                if(output==null){render();status.setText(failure);return;}
                 try{s.complete(q,output.text);prompt.setText("");status.setText(usageLabel(output));render();}
                 catch(IllegalArgumentException e){status.setText(R.string.cloud_fail);}
             });
@@ -365,6 +367,6 @@ final class CloudChatPanel extends LinearLayout {
     }
     private void cancel(){
         serial++;HttpsURLConnection c=connection;if(c!=null)c.disconnect();
-        setBusy(false);status.setText(R.string.cloud_cancel_cost);
+        setBusy(false);render();status.setText(R.string.cloud_cancel_cost);
     }
 }
