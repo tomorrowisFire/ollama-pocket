@@ -169,6 +169,10 @@ final class CloudApi {
         return parseReply(provider,readJson(c));
     }
     interface Progress { void update(String text); }
+    static final class StreamFailure extends java.io.IOException {
+        final boolean incomplete;
+        StreamFailure(String reason,boolean incomplete){super(reason);this.incomplete=incomplete;}
+    }
     static Reply streamReply(Provider provider,java.net.HttpURLConnection c,String model,java.util.List<CloudHistory.Message> messages,Progress progress)throws Exception{
         JSONObject body=request(provider,model,messages).put("stream",true);
         if(provider==Provider.DEEPSEEK||provider==Provider.OPENROUTER)body.put("stream_options",new JSONObject().put("include_usage",true));
@@ -180,11 +184,14 @@ final class CloudApi {
         String contentType=c.getContentType();
         if(contentType==null||!contentType.toLowerCase(java.util.Locale.ROOT).contains("text/event-stream"))throw new java.io.IOException("Expected SSE");
         StringBuilder answer=new StringBuilder();long input=-1,output=-1,lastUi=0;
+        final long deadline=System.nanoTime()+300000000000L;
         boolean complete=false,finishedChoice=false;
         try(InputStream raw=c.getInputStream();java.io.Reader reader=new java.io.InputStreamReader(raw,StandardCharsets.UTF_8)){
             StringBuilder line=new StringBuilder(),event=new StringBuilder();int ch;long consumed=0;
             while((ch=reader.read())!=-1){
-                if(++consumed>4000000)throw new java.io.IOException("Stream limit");
+                if(Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("Stream interrupted");
+                if(System.nanoTime()-deadline>=0)throw new java.net.SocketTimeoutException("Stream deadline");
+                if(++consumed>4000000)throw new StreamFailure("Stream limit",true);
                 if(ch!='\n'){if(ch!='\r')line.append((char)ch);if(line.length()>1000000)throw new java.io.IOException("Event limit");continue;}
                 String row=line.toString();line.setLength(0);
                 if(row.startsWith("data:")){if(event.length()>0)event.append('\n');event.append(row.substring(5).trim());if(event.length()>1000000)throw new java.io.IOException("Event limit");continue;}
@@ -192,7 +199,7 @@ final class CloudApi {
                 String data=event.toString();event.setLength(0);
                 if("[DONE]".equals(data)){complete=provider.protocol==1&&finishedChoice;break;}
                 JSONObject j=new JSONObject(data);String type=j.optString("type","");
-                if(!j.isNull("error")||"error".equals(type)||"response.failed".equals(type)||"response.incomplete".equals(type))throw new java.io.IOException("Provider stream failed");
+                if(!j.isNull("error")||"error".equals(type)||"response.failed".equals(type)||"response.incomplete".equals(type))throw new StreamFailure("Provider stream failed",true);
                 JSONObject usage=j.optJSONObject("usage");
                 String part="";
                 if(provider.protocol==0){
@@ -204,11 +211,12 @@ final class CloudApi {
                 }else if(provider.protocol==2){
                     if("message_start".equals(type)){JSONObject message=j.optJSONObject("message");if(message!=null)usage=message.optJSONObject("usage");}
                     if("content_block_delta".equals(type)){JSONObject delta=j.optJSONObject("delta");if(delta!=null&&"text_delta".equals(delta.optString("type")))part=delta.optString("text","");}
+                    if("message_delta".equals(type)){JSONObject delta=j.optJSONObject("delta");String reason=delta==null?"":delta.optString("stop_reason","");if("max_tokens".equals(reason)||"refusal".equals(reason)||"tool_use".equals(reason))throw new StreamFailure("Incomplete message",true);}
                     if("message_stop".equals(type))complete=true;
                 }else{
                     JSONArray choices=j.optJSONArray("choices");JSONObject choice=choices==null?null:choices.optJSONObject(0);
                     if(choice!=null){JSONObject delta=choice.optJSONObject("delta");if(delta!=null&&!delta.isNull("content"))part=delta.optString("content","");
-                        if(!choice.isNull("finish_reason")){String reason=choice.optString("finish_reason");if(!"stop".equals(reason)&&!"length".equals(reason))throw new java.io.IOException("Incomplete choice");finishedChoice=true;}}
+                        if(!choice.isNull("finish_reason")){String reason=choice.optString("finish_reason");if(!"stop".equals(reason))throw new StreamFailure("Incomplete choice",true);finishedChoice=true;}}
                 }
                 long a=tokenCount(usage,provider.protocol==1?"prompt_tokens":"input_tokens"),b=tokenCount(usage,provider.protocol==1?"completion_tokens":"output_tokens");
                 if(a>=0)input=a;if(b>=0)output=b;
@@ -217,7 +225,7 @@ final class CloudApi {
                 if(complete)break;
             }
         }
-        if(!complete||answer.toString().trim().isEmpty())throw new java.io.IOException("Incomplete stream");
+        if(!complete||answer.toString().trim().isEmpty())throw new StreamFailure("Incomplete stream",true);
         return new Reply(answer.toString(),input,output);
     }
     private static JSONObject readJson(java.net.HttpURLConnection c)throws Exception{
