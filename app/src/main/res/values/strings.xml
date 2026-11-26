@@ -953,4 +953,17 @@
     <string name="auto_goal_generate">Generate draft</string>
     <string name="auto_goal_cancelled">Draft generation stopped. Existing plan is unchanged.</string>
     <string name="auto_goal_failed">Could not generate a valid bounded plan. Check the local model, server and goal, then try again. Existing plan is unchanged.</string>
+    <string name="auto_sample_notice">Test a sample answer locally. This checks only the selected condition, not facts or quality. It does not run the model or advance the workflow.</string>
+    <string name="auto_sample_text">Sample answer (up to 4000 UTF-16 units)</string>
+    <string name="auto_sample_truncated">Simulate truncated output</string>
+    <string name="auto_sample_check">Check sample</string>
+    <string name="auto_sample_match">Condition matched. No step was executed.</string>
+    <string name="auto_sample_mismatch">Condition did not match.</string>
+    <string name="auto_sample_empty">Sample is empty.</string>
+    <string name="auto_sample_oversized">Sample exceeds the output limit.</string>
+    <string name="auto_sample_rejected_truncated">Truncated output cannot pass.</string>
+    <string name="auto_sample_invalid">Invalid step or verification condition.</string>
+    <string name="auto_budget_remaining">Remaining: current step %1$s attempts · total cap %2$s attempts · wall-clock allowance %3$s s</string>
+    <string name="auto_budget_clock">The device clock is earlier than the saved run. Resume is blocked.</string>
+    <string name="auto_resume_changed">The reviewed checkpoint, draft or remaining allowance changed. Review again before resuming.</string>
 </resources>

@@ -953,4 +953,17 @@
     <string name="auto_goal_generate">生成计划草稿</string>
     <string name="auto_goal_cancelled">已停止生成草稿，原有计划未更改。</string>
     <string name="auto_goal_failed">无法生成有效的受限计划。请检查本地模型、服务器和目标后重试。原有计划未更改。</string>
+    <string name="auto_sample_notice">在本机检查示例回答。仅检查所选条件，不验证事实或质量。不会运行模型或推进工作流。</string>
+    <string name="auto_sample_text">示例回答（最多4000个UTF-16单元）</string>
+    <string name="auto_sample_truncated">模拟输出截断</string>
+    <string name="auto_sample_check">检查示例</string>
+    <string name="auto_sample_match">条件匹配，未实际执行步骤。</string>
+    <string name="auto_sample_mismatch">不符合验证条件。</string>
+    <string name="auto_sample_empty">示例为空。</string>
+    <string name="auto_sample_oversized">示例超过输出上限。</string>
+    <string name="auto_sample_rejected_truncated">截断的输出不能通过。</string>
+    <string name="auto_sample_invalid">步骤或验证条件无效。</string>
+    <string name="auto_budget_remaining">剩余限额：当前步骤 %1$s次 · 总尝试 %2$s次 · 时间 %3$s秒</string>
+    <string name="auto_budget_clock">设备时间早于已保存的运行时间，无法恢复。</string>
+    <string name="auto_resume_changed">已审核的检查点、草稿或剩余额度已改变。请重新审核后恢复。</string>
 </resources>

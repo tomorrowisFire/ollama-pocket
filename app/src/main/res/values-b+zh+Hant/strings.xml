@@ -953,4 +953,17 @@
     <string name="auto_goal_generate">產生計畫草稿</string>
     <string name="auto_goal_cancelled">已停止產生草稿，原有計畫未變更。</string>
     <string name="auto_goal_failed">無法產生有效的受限計畫。請檢查本機模型、伺服器和目標後重試。原有計畫未變更。</string>
+    <string name="auto_sample_notice">在本機檢查範例回答。僅檢查所選條件，不驗證事實或品質。不會執行模型或推進工作流程。</string>
+    <string name="auto_sample_text">範例回答（最多4000個UTF-16單元）</string>
+    <string name="auto_sample_truncated">模擬輸出截斷</string>
+    <string name="auto_sample_check">檢查範例</string>
+    <string name="auto_sample_match">條件相符，未實際執行步驟。</string>
+    <string name="auto_sample_mismatch">不符合驗證條件。</string>
+    <string name="auto_sample_empty">範例為空。</string>
+    <string name="auto_sample_oversized">範例超過輸出上限。</string>
+    <string name="auto_sample_rejected_truncated">截斷的輸出無法通過。</string>
+    <string name="auto_sample_invalid">步驟或驗證條件無效。</string>
+    <string name="auto_budget_remaining">剩餘限額：目前步驟 %1$s次 · 總嘗試 %2$s次 · 時間 %3$s秒</string>
+    <string name="auto_budget_clock">裝置時間早於已儲存的執行時間，無法繼續。</string>
+    <string name="auto_resume_changed">已審閱的檢查點、草稿或剩餘額度已變更。請重新審閱後繼續。</string>
 </resources>

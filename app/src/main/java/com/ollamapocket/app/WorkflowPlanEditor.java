@@ -47,6 +47,13 @@ final class WorkflowPlanEditor {
             !parsed.get(0).required.equals(required.trim()))throw new IllegalArgumentException("Invalid step");
         return value;
     }
+    static WorkflowPolicy.Sample sample(Row row,String answer,boolean truncated){
+        if(row==null)return WorkflowPolicy.Sample.INVALID_CONDITION;
+        try{
+            WorkflowPolicy.Step step=WorkflowPolicy.parse(line(row.prompt,row.gate,row.required)).get(0);
+            return WorkflowPolicy.sample(step,answer,truncated);
+        }catch(IllegalArgumentException e){return WorkflowPolicy.Sample.INVALID_CONDITION;}
+    }
     int firstInvalid(){
         for(int i=0;i<rows.size();i++)try{Row r=rows.get(i);line(r.prompt,r.gate,r.required);}catch(IllegalArgumentException e){return i;}
         return -1;

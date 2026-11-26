@@ -9,9 +9,21 @@ import org.json.JSONTokener;
 /** Bounded, deterministic text validators; none establishes factual or artistic quality. */
 final class WorkflowPolicy {
     static final int MAX_STEPS=10, MAX_ATTEMPTS=3, MAX_STEP_CHARS=2000, MAX_OUTPUT=4000, MAX_TOKENS=512;
+    static final int MAX_TOTAL_ATTEMPTS=MAX_STEPS*MAX_ATTEMPTS;
     static final long MAX_MILLIS=30L*60*1000;
     enum Gate { CONTAINS, EXACT, MIN_CHARS, JSON_KEYS, JSON_FIELDS, JSON_VALUES }
     enum Decision { ADVANCE, RETRY, BLOCK }
+    enum Sample { MATCH, MISMATCH, EMPTY, OVERSIZED, TRUNCATED, INVALID_CONDITION }
+    enum BudgetState { READY, COMPLETE, CANCELLED, CLOCK, EXPIRED, ATTEMPTS, INVALID }
+    static final class Budget {
+        final int stepAttempts,totalAttempts;
+        final long millis;
+        final BudgetState state;
+        Budget(int stepAttempts,int totalAttempts,long millis,BudgetState state){
+            this.stepAttempts=stepAttempts;this.totalAttempts=totalAttempts;this.millis=millis;this.state=state;
+        }
+        boolean allowed(){return state==BudgetState.READY;}
+    }
     static final class Step {
         final String prompt,required;
         final Gate gate;
@@ -80,11 +92,43 @@ final class WorkflowPolicy {
             default:return output.contains(step.required);
         }
     }
+    /** One predicate for the actual runner and the read-only sample lab. */
+    static Sample sample(Step step,String output,boolean truncated){
+        if(step==null||step.gate==null||step.required==null)return Sample.INVALID_CONDITION;
+        if(truncated)return Sample.TRUNCATED;
+        if(output==null)return Sample.EMPTY;
+        if(output.length()>MAX_OUTPUT)return Sample.OVERSIZED;
+        if(output.trim().isEmpty())return Sample.EMPTY;
+        try{return verified(step,output)?Sample.MATCH:Sample.MISMATCH;}
+        catch(IllegalArgumentException e){return Sample.INVALID_CONDITION;}
+    }
     /** Shared runner decision: never accept truncated, invalid or unbudgeted attempts. */
     static Decision decide(Step step,String output,boolean truncated,int attempts){
         if(attempts<1||attempts>MAX_ATTEMPTS)return Decision.BLOCK;
-        if(!truncated&&verified(step,output))return Decision.ADVANCE;
+        if(sample(step,output,truncated)==Sample.MATCH)return Decision.ADVANCE;
         return attempts<MAX_ATTEMPTS?Decision.RETRY:Decision.BLOCK;
+    }
+    /** Read-only allowance. Legacy counters can be incomplete; never invent missing history. */
+    static Budget budget(String status,int steps,int completed,int attempts,int total,long started,long updated,long now){
+        if(!java.util.Arrays.asList("QUEUED","RUNNING","VERIFYING","RETRY_WAIT","PAUSED","BLOCKED","COMPLETED","CANCELLED").contains(status)||
+            steps<1||steps>MAX_STEPS||completed<0||completed>steps||attempts<0||attempts>MAX_ATTEMPTS||
+            total<0||total>MAX_TOTAL_ATTEMPTS||started<=0||updated<0||(updated!=0&&updated<started)||
+            ("COMPLETED".equals(status)!=(completed==steps)))
+            return new Budget(0,0,0,BudgetState.INVALID);
+        if("COMPLETED".equals(status))return new Budget(0,0,0,BudgetState.COMPLETE);
+        if("CANCELLED".equals(status))return new Budget(0,0,0,BudgetState.CANCELLED);
+        if(now<started||now<updated)return new Budget(0,0,0,BudgetState.CLOCK);
+        long elapsed=now-started;
+        if(elapsed>=MAX_MILLIS)return new Budget(0,0,0,BudgetState.EXPIRED);
+        int remainingTotal=MAX_TOTAL_ATTEMPTS-total;
+        int remainingStep=Math.min(MAX_ATTEMPTS-attempts,remainingTotal);
+        return new Budget(remainingStep,remainingTotal,MAX_MILLIS-elapsed,
+            remainingStep>0?BudgetState.READY:BudgetState.ATTEMPTS);
+    }
+    /** Compare the reviewed snapshot to a freshly decoded durable checkpoint and exact draft/model. */
+    static boolean reviewedResume(String reviewed,String current,String plan,String draft,String model,String selected){
+        return reviewed!=null&&!reviewed.isEmpty()&&reviewed.equals(current)&&
+            plan!=null&&plan.equals(draft)&&model!=null&&!model.isEmpty()&&model.equals(selected);
     }
     static boolean canAttempt(int attempts,long now,long started){
         return attempts>=0&&attempts<MAX_ATTEMPTS&&started>0&&now>=started&&now-started<MAX_MILLIS;

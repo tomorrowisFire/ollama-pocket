@@ -181,7 +181,21 @@ final class AutomationUi {
             if(busy()||checkpoint[0]==null){toast(R.string.auto_blocked);return;}
             LocalWorkflow.Checkpoint c=checkpoint[0];
             if(!c.plan.equals(plan.getText().toString())||!c.model.equals(model)){toast(R.string.auto_invalid_plan);return;}
-            confirm(s(R.string.auto_resume),s(R.string.auto_workflow_notice)+"\n\n"+summary(c)+"\n"+s(R.string.auto_resume_remaining),()->start.accept(c));
+            if(!c.resumable()){display(status,c);toast(R.string.auto_blocked);return;}
+            final String reviewed;
+            try{reviewed=runner.reviewSnapshot(c);}catch(Exception e){toast(R.string.auto_checkpoint_error);return;}
+            confirm(s(R.string.auto_resume),s(R.string.auto_workflow_notice)+"\n\n"+summary(c)+"\n"+s(R.string.auto_resume_remaining),()->{
+                if(busy()||checkpoint[0]!=c){toast(R.string.auto_resume_changed);return;}
+                try{
+                    LocalWorkflow.Checkpoint fresh=runner.reviewedResume(reviewed,plan.getText().toString(),model);
+                    if(fresh==null){toast(R.string.auto_resume_changed);return;}
+                    if(!OllamaForegroundService.isRunning()){toast(R.string.test_need_server);return;}
+                    if(!"off".equals(CoopSession.get(owner).role())){toast(R.string.guest_stop_first);return;}
+                    InferenceSafetyPolicy.Reason risk=InferenceSafety.check(owner);
+                    if(risk!=InferenceSafetyPolicy.Reason.NONE){toast(InferenceSafety.label(risk));return;}
+                    checkpoint[0]=fresh;start.accept(fresh);
+                }catch(Exception e){toast(R.string.auto_checkpoint_error);}
+            });
         });
         buttons[3]=button(l,R.string.auto_example,()->{if(busy())return;confirm(s(R.string.auto_example),s(R.string.auto_example_text),()->plan.setText(s(R.string.auto_example_text)));});
         buttons[4]=button(l,R.string.auto_reorder,()->{if(!busy())reorder(plan);});
@@ -231,6 +245,16 @@ final class AutomationUi {
             default:return s(R.string.auto_gate_contains_hint);
         }
     }
+    private int sampleLabel(WorkflowPolicy.Sample result){
+        switch(result){
+            case MATCH:return R.string.auto_sample_match;
+            case MISMATCH:return R.string.auto_sample_mismatch;
+            case EMPTY:return R.string.auto_sample_empty;
+            case OVERSIZED:return R.string.auto_sample_oversized;
+            case TRUNCATED:return R.string.auto_sample_rejected_truncated;
+            default:return R.string.auto_sample_invalid;
+        }
+    }
     private void showVisualEditor(EditText plan,LocalWorkflow.Checkpoint checkpoint){
         final String original=plan.getText().toString();
         final WorkflowPlanEditor editor;
@@ -255,6 +279,14 @@ final class AutomationUi {
         TextView gateHelp=output(l);gateHelp.setText(s(R.string.auto_gate_jsonvalues_help));gateHelp.setVisibility(View.GONE);
         TextView error=output(l);
         error.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        label(l,s(R.string.auto_sample_notice));
+        // Permit one extra code point so an over-limit paste cannot silently become a passing sample.
+        EditText sample=field(l,R.string.auto_sample_text,"",WorkflowPolicy.MAX_OUTPUT+2,true);
+        sample.setMinLines(2);sample.setMaxLines(5);
+        CheckBox truncated=new CheckBox(owner);truncated.setText(R.string.auto_sample_truncated);
+        truncated.setSaveEnabled(false);l.addView(truncated,new LinearLayout.LayoutParams(-1,-2));
+        TextView sampleResult=output(l);
+        sampleResult.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         final int[] index={0};
         final Button[] controls=new Button[6];
         Runnable capture=()->{
@@ -263,11 +295,26 @@ final class AutomationUi {
             row.required=required.getText().toString();
             row.gate=gates[Math.max(0,picker.getSelectedItemPosition())];
         };
+        button(l,R.string.auto_sample_check,()->{
+            if(!valid(token)||busy())return;
+            capture.run();
+            sampleResult.setText(sampleLabel(WorkflowPlanEditor.sample(editor.row(index[0]),sample.getText().toString(),truncated.isChecked())));
+        });
+        android.text.TextWatcher invalidateSample=new android.text.TextWatcher(){
+            public void beforeTextChanged(CharSequence text,int start,int count,int after){}
+            public void onTextChanged(CharSequence text,int start,int before,int count){sampleResult.setText("");}
+            public void afterTextChanged(android.text.Editable value){}
+        };
+        prompt.addTextChangedListener(invalidateSample);
+        required.addTextChangedListener(invalidateSample);
+        sample.addTextChangedListener(invalidateSample);
+        truncated.setOnCheckedChangeListener((v,checked)->sampleResult.setText(""));
         Runnable render=()->{
             WorkflowPlanEditor.Row row=editor.row(index[0]);
             stepLabel.setText(owner.getString(R.string.auto_editor_index,Integer.toString(index[0]+1),Integer.toString(editor.size())));
             prompt.setText(row.prompt);required.setText(row.required);picker.setSelection(row.gate.ordinal());
             required.setHint(gateHint(row.gate));gateHelp.setVisibility(row.gate==WorkflowPolicy.Gate.JSON_VALUES?View.VISIBLE:View.GONE);error.setText("");
+            sample.setText("");truncated.setChecked(false);sampleResult.setText("");
             if(controls[0]!=null)controls[0].setEnabled(index[0]>0);
             if(controls[1]!=null)controls[1].setEnabled(index[0]+1<editor.size());
             if(controls[2]!=null)controls[2].setEnabled(editor.size()<WorkflowPolicy.MAX_STEPS);
@@ -276,8 +323,11 @@ final class AutomationUi {
             if(controls[5]!=null)controls[5].setEnabled(index[0]+1<editor.size());
         };
         picker.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
-            public void onItemSelected(AdapterView<?> parent,View view,int position,long id){if(position>=0&&position<gates.length){required.setHint(gateHint(gates[position]));gateHelp.setVisibility(gates[position]==WorkflowPolicy.Gate.JSON_VALUES?View.VISIBLE:View.GONE);}}
-            public void onNothingSelected(AdapterView<?> parent){}
+            public void onItemSelected(AdapterView<?> parent,View view,int position,long id){
+                sampleResult.setText("");
+                if(position>=0&&position<gates.length){required.setHint(gateHint(gates[position]));gateHelp.setVisibility(gates[position]==WorkflowPolicy.Gate.JSON_VALUES?View.VISIBLE:View.GONE);}
+            }
+            public void onNothingSelected(AdapterView<?> parent){sampleResult.setText("");}
         });
         controls[0]=button(l,R.string.auto_editor_previous,()->{capture.run();if(index[0]>0)index[0]--;render.run();});
         controls[1]=button(l,R.string.auto_editor_next,()->{capture.run();if(index[0]+1<editor.size())index[0]++;render.run();});
@@ -593,11 +643,15 @@ final class AutomationUi {
     private String summary(LocalWorkflow.Checkpoint c){
         String seconds=c.updated<=0?s(R.string.metric_unavailable):Long.toString(Math.max(0,Math.min(WorkflowPolicy.MAX_MILLIS,c.updated-c.started))/1000);
         String reason=reasonLabel(c.reason);
+        WorkflowPolicy.Budget budget=c.budget(System.currentTimeMillis());
+        String allowance=owner.getString(R.string.auto_budget_remaining,Integer.toString(budget.stepAttempts),
+            Integer.toString(budget.totalAttempts),Long.toString(budget.millis/1000));
+        if(budget.state==WorkflowPolicy.BudgetState.CLOCK)allowance+="\n"+s(R.string.auto_budget_clock);
         String next=c.complete()?"":"\n"+owner.getString(R.string.auto_current_step,Integer.toString(c.results.size()+1),Integer.toString(c.steps().size()),gateLabel(c.steps().get(c.results.size()).gate));
         return stateLabel(c.status)+" · "+c.results.size()+"/"+c.steps().size()+" · "+c.attempts+"/"+WorkflowPolicy.MAX_ATTEMPTS+
             (reason.isEmpty()?"":"\n"+reason)+next+
             "\n"+owner.getString(R.string.auto_run_stats,seconds,Integer.toString(c.totalAttempts),Long.toString(c.reportedTokens),Integer.toString(c.unknownAttempts))+
-            (c.legacyStats?"\n"+s(R.string.auto_legacy_stats):"");
+            "\n"+allowance+(c.legacyStats?"\n"+s(R.string.auto_legacy_stats):"");
     }
     private void display(TextView status,LocalWorkflow.Checkpoint c){
         StringBuilder text=new StringBuilder(summary(c));

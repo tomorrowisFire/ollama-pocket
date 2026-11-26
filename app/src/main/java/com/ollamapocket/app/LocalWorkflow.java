@@ -33,16 +33,28 @@ final class LocalWorkflow {
         final List<String> results=new ArrayList<>();
         List<WorkflowPolicy.Step> steps(){return WorkflowPolicy.parse(plan,format);}
         boolean complete(){return results.size()==steps().size();}
-        boolean resumable(){return !complete()&&!"CANCELLED".equals(status)&&totalAttempts<30&&WorkflowPolicy.canAttempt(attempts,System.currentTimeMillis(),started);}
+        WorkflowPolicy.Budget budget(long now){return WorkflowPolicy.budget(status,steps().size(),results.size(),attempts,totalAttempts,started,updated,now);}
+        boolean resumable(){return budget(System.currentTimeMillis()).allowed();}
+    }
+    private Checkpoint readCurrent()throws Exception{
+        String raw=store.getString("checkpoint",null);
+        return raw==null?null:decode(raw,store.getString("checkpoint_digest",""));
     }
     Checkpoint load()throws Exception{
-        String raw=store.getString("checkpoint",null);
-        if(raw==null)return null;
-        Checkpoint c=decode(raw,store.getString("checkpoint_digest",""));
+        Checkpoint c=readCurrent();
+        if(c==null)return null;
         if(WorkflowRunJournal.interruptedState(c.status)){
             c.status="PAUSED";c.reason=WorkflowRunJournal.Reason.RECOVERED;save(c);
         }
         return c;
+    }
+    String reviewSnapshot(Checkpoint c)throws Exception{return encode(c);}
+    Checkpoint reviewedResume(String reviewed,String draft,String model)throws Exception{
+        Checkpoint fresh=readCurrent(); // do not write recovery state during confirmation
+        if(fresh==null||WorkflowRunJournal.interruptedState(fresh.status)||
+            !WorkflowPolicy.reviewedResume(reviewed,encode(fresh),fresh.plan,draft,fresh.model,model)||!fresh.resumable())
+            return null;
+        return fresh;
     }
     private static Checkpoint decode(String raw,String digest)throws Exception{
         if(raw.length()>WorkflowLibrary.MAX_SNAPSHOT)throw new IOException("Checkpoint limit");
@@ -54,7 +66,7 @@ final class LocalWorkflow {
         c.format=schema==1?1:j.getInt("format");c.legacyStats=schema==1||j.optBoolean("legacyStats",false);
         c.totalAttempts=j.optInt("totalAttempts",0);c.unknownAttempts=j.optInt("unknownAttempts",0);c.reportedTokens=j.optLong("reportedTokens",0);
         if(c.model.isEmpty()||c.model.length()>200||c.id.isEmpty()||c.id.length()>64||c.started<=0||c.updated<0||(c.updated>0&&c.updated<c.started)||c.attempts<0||c.attempts>WorkflowPolicy.MAX_ATTEMPTS||
-           c.totalAttempts<0||c.totalAttempts>30||c.unknownAttempts<0||c.unknownAttempts>c.totalAttempts||c.reportedTokens<0||
+           c.totalAttempts<0||c.totalAttempts>WorkflowPolicy.MAX_TOTAL_ATTEMPTS||c.unknownAttempts<0||c.unknownAttempts>c.totalAttempts||c.reportedTokens<0||
            c.reportedTokens>(long)(c.totalAttempts-c.unknownAttempts)*WorkflowPolicy.MAX_TOKENS||
            !java.util.Arrays.asList("QUEUED","RUNNING","VERIFYING","RETRY_WAIT","PAUSED","BLOCKED","COMPLETED","CANCELLED").contains(c.status))throw new IOException("Invalid checkpoint");
         List<WorkflowPolicy.Step> steps=c.steps();JSONArray a=j.getJSONArray("results");
@@ -148,8 +160,10 @@ final class LocalWorkflow {
                 watch.run();
                 WorkflowRunJournal.Reason halted=stopReason.get();
                 if(halted!=null){stopped(c,halted);break;}
-                if(!WorkflowPolicy.canAttempt(c.attempts,System.currentTimeMillis(),c.started)||c.totalAttempts>=30){
-                    stopped(c,expired.getAsBoolean()?WorkflowRunJournal.Reason.TIME_LIMIT:WorkflowRunJournal.Reason.ATTEMPT_LIMIT);break;
+                WorkflowPolicy.Budget remaining=c.budget(System.currentTimeMillis());
+                if(!remaining.allowed()){
+                    stopped(c,expired.getAsBoolean()||remaining.state==WorkflowPolicy.BudgetState.CLOCK||
+                        remaining.state==WorkflowPolicy.BudgetState.EXPIRED?WorkflowRunJournal.Reason.TIME_LIMIT:WorkflowRunJournal.Reason.ATTEMPT_LIMIT);break;
                 }
                 int index=c.results.size();WorkflowPolicy.Step step=steps.get(index);
                 String previous=index==0?"":c.results.get(index-1);

@@ -953,4 +953,17 @@
     <string name="auto_goal_generate">計画の下書きを生成</string>
     <string name="auto_goal_cancelled">下書きの生成を中止しました。既存の計画は変更されていません。</string>
     <string name="auto_goal_failed">有効な計画を生成できませんでした。ローカルモデル、サーバー、目標を確認して再試行してください。既存の計画は変更されていません。</string>
+    <string name="auto_sample_notice">サンプル回答を端末内で検査します。選択した条件のみを確認し、事実や品質は検証しません。モデル実行やステップ進行は行いません。</string>
+    <string name="auto_sample_text">サンプル回答（UTF-16で最大4000単位）</string>
+    <string name="auto_sample_truncated">出力切り捨てを模擬</string>
+    <string name="auto_sample_check">サンプルを検査</string>
+    <string name="auto_sample_match">条件に一致しました。ステップは実行していません。</string>
+    <string name="auto_sample_mismatch">検証条件に一致しません。</string>
+    <string name="auto_sample_empty">サンプルが空です。</string>
+    <string name="auto_sample_oversized">サンプルが出力上限を超えています。</string>
+    <string name="auto_sample_rejected_truncated">切り捨てられた出力は合格できません。</string>
+    <string name="auto_sample_invalid">ステップまたは検証条件が無効です。</string>
+    <string name="auto_budget_remaining">残り上限：現在のステップ %1$s回 · 全体 %2$s回 · 残り時間 %3$s秒</string>
+    <string name="auto_budget_clock">端末時刻が保存済みの実行より前です。再開できません。</string>
+    <string name="auto_resume_changed">確認したチェックポイント、下書き、または残り上限が変わりました。再開前に再確認してください。</string>
 </resources>
