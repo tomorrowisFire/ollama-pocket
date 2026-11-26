@@ -1,0 +1,22 @@
+# OnHand AI — Stage 12 completion batch
+User authorization: 2026-11-26, "12단계 전부 한방팩 진핸" (proceed with the entire remaining stage 12 as one batch). Continue without asking for a separate "next" for every substage. Do not reinterpret the request as permission to waive gates, release, merge main, sign production or run actual device tests early.
+
+## Entry state
+Development branch `dev/on-hands-ai-v012`, design head 9055bd7e6dd722efd54e5a40130744b37e081127, latest app candidate 5b1db18b278f2945a03ebb3aa5bb3dac5b596ddd. Exact Java 45829720717 SUCCESS: 93 private project repository assertions. Native 45829720720 still in progress at inspection (APK passed, QA AAB/16 KiB pending). F5A1 is not accepted until exact native succeeds. Prior 12-F4B2 accepted; provisional mean 80.3. Earlier completed stages retained.
+
+## Execution queue
+| Order | Stage | Concrete deliverable |
+|---|---|---|
+| 1 | F5A1 | Verify exact native CI; scoped acceptance, no score for inaccessible UI |
+| 2 | F5A2 | Foreground project CRUD/notes/artifact/version UI, restore/delete confirmations, private store, 5 locales |
+| 3 | F5B | Explicit conference/document terminal report handoff into chosen project/version, preserve status/provenance, no implicit transfer |
+| 4 | F5C | Explicit local chat links and reviewed project context selection; missing source state, no automatic mutation/cloud leakage |
+| 5 | F6A+ | Bounded private index of user-selected text/extracted document content; exact source identity/ranges, search and evidence-linked local answers, explicit index/remove. Evaluate supported OCR pathway, split into safe substeps; do not claim scanned PDF/OCR support unless implemented and tested. Preserve local privacy |
+| 6 | F7A+ | Resource-aware model/quantization and CPU/GPU/RPC recommendations, transparent engine/API choice and bounded explicit cloud consent; no hidden transfer or unsupported native performance claim |
+| 7 | F8A+ | Integrate voice and five locale workflow/project interactions using existing confirmation/lifecycle/voice privacy limits; no unapproved send |
+| 8 | F9A+ | Coherent responsive phone/tablet workbench, accessibility, reduced redundant controls, 5 locales; preserve first-run ad and sidebar constraint |
+| 9 | F10+ | Evidence-based ten-perspective gap audit, implement and verify concrete fixes; do not manufacture points to reach 90 |
+| 10 | FINAL preparation | Freeze app candidate with verified source/CI, produce actual APK/QA AAB references and final device test kit only then. List all deferred physical KPIs and 22 original release gates. Do not mark actual independent reviewer or device gates PASS without evidence. Stop before final physical tests and production release pending user execution/approval |
+
+## Batch rules
+Each iteration must read live branch head and acceptance/KPI files, exact candidate CI (Java + native APK, QA AAB, 16 KiB) before advancing. Do not use latest doc-only SHA as app candidate. If CI is pending, no next-stage app mutation; check exact run; when failed, repair scoped candidate and rerun. Freeze measurable KPI via A/B/C simulated conference before implementation. Commit app changes/tests and acceptance evidence under guarded expected-head, non-force update on development branch only. No speculative progress, no repeated planning-only commits unless a specific useful blocker or gate artifact needs recording. Avoid duplicate work by reading the existing source, never overwrite unrelated changes. Prior source policies/release/ads/locale/permissions/signing/history/models/CPU-GPU-RPC must remain intact. One real scoped app implementation per eligible iteration, or several sequentially only if all intermediate exact-candidate gates actually pass. Real physical tests last. Ten simulated perspectives are source/CI readiness opinions, not ten independent reviewers. Preserve actual final requirements >=90 each and mean, original 22 gates, zero P0/P1, separate release approval. If progress cannot be verified, report the blocker. Stop on permission, conflicting branch mutation or unsafe scope, request user decision only when necessary. No unbounded retry or artificial score increases.
