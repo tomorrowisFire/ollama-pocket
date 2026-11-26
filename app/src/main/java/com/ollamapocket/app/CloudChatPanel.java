@@ -97,9 +97,13 @@ final class CloudChatPanel extends LinearLayout {
     private void bubble(String value,boolean user){
         TextView text=new TextView(owner);text.setTextSize(15);text.setTextIsSelectable(true);
         text.setPadding(dp(10),dp(10),dp(10),dp(10));text.setLineSpacing(dp(3),1f);
-        text.setText(user?value:ChatPresentation.format(provider.title+"\n",value,"",0x33808080));
-        if(user)text.setBackgroundColor(0x14808080);
-        transcript.addView(text,new LayoutParams(-1,-2));
+        View rich=user?null:ChatRichView.create(owner,provider.title,value,"",text.getCurrentTextColor(),0x22808080,1f);
+        if(rich!=null)transcript.addView(rich,new LayoutParams(-1,-2));
+        else{
+            text.setText(user?value:ChatPresentation.format(provider.title+"\n",value,"",0x33808080));
+            if(user)text.setBackgroundColor(0x14808080);
+            transcript.addView(text,new LayoutParams(-1,-2));
+        }
         if(!user){
             Button copy=button(R.string.copy);
             copy.setOnClickListener(v->{ClipboardManager cb=(ClipboardManager)owner.getSystemService(Context.CLIPBOARD_SERVICE);

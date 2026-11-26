@@ -636,4 +636,11 @@
     <string name="chat_reply_limit">The response exceeded the safe display limit. Copy the partial answer or ask a shorter question.</string>
     <string name="chat_empty_answer">No text answer was received.</string>
     <string name="chat_context_note">Local context uses recent complete turns; older saved messages remain in the conversation.</string>
+    <string name="chat_copy_code">Copy code</string>
+    <string name="chat_copy_table">Copy table source</string>
+    <string name="chat_copy_math">Copy formula source</string>
+    <string name="chat_code_block">Code</string>
+    <string name="chat_table_block">Table</string>
+    <string name="chat_math_block">Formula · Simple display</string>
+    <string name="chat_math_raw">Formula · Original notation</string>
 </resources>

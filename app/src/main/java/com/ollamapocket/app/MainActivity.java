@@ -2943,7 +2943,9 @@ public final class MainActivity extends Activity {
         }else{
             t.setBackgroundColor(BG);
             wrapper.addView(t,lp(-1,-2));
-            LinearLayout actions=row();
+            LinearLayout rich=column();rich.setTag("rich-answer-body");rich.setVisibility(View.GONE);
+            wrapper.addView(rich,lp(-1,-2));
+            LinearLayout actions=row();actions.setTag("rich-answer-actions");
             Button copy=button(getString(R.string.copy),false);
             Button read=button(getString(R.string.read_answer),false);
             copy.setMinHeight(dp(48));copy.setMinimumHeight(dp(48));
@@ -2974,12 +2976,23 @@ public final class MainActivity extends Activity {
         return t;
     }
     private void showAssistant(TextView t,String raw,String suffix,boolean actionable){
-        t.setText(ChatPresentation.format(getString(R.string.app_name)+"\n",raw,suffix,FIELD));
         t.setTag(actionable?raw:null);
+        boolean richShown=false;
         if(t.getParent() instanceof LinearLayout){
             LinearLayout wrapper=(LinearLayout)t.getParent();
-            if(wrapper.getChildCount()>1)wrapper.getChildAt(1).setVisibility(actionable?View.VISIBLE:View.GONE);
+            LinearLayout rich=wrapper.findViewWithTag("rich-answer-body");
+            View actions=wrapper.findViewWithTag("rich-answer-actions");
+            if(rich!=null){
+                rich.removeAllViews();
+                View formatted=actionable?ChatRichView.create(this,getString(R.string.app_name),raw,suffix,WHITE,FIELD,uiTextScale):null;
+                if(formatted!=null){rich.addView(formatted,lp(-1,-2));richShown=true;}
+                rich.setVisibility(richShown?View.VISIBLE:View.GONE);
+            }
+            if(actions!=null)actions.setVisibility(actionable?View.VISIBLE:View.GONE);
         }
+        t.setVisibility(richShown?View.GONE:View.VISIBLE);
+        if(!richShown)t.setText(ChatPresentation.format(getString(R.string.app_name)+"\n",raw,suffix,FIELD));
+        else t.setText("");
     }
     private boolean followsLatest(){
         if(messageScroll==null||messageScroll.getChildCount()==0)return true;

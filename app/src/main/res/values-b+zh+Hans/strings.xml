@@ -636,4 +636,11 @@
     <string name="chat_reply_limit">回答超出安全显示上限。请复制部分回答或提出较短的问题。</string>
     <string name="chat_empty_answer">未收到文本回答。</string>
     <string name="chat_context_note">本地推理使用最近完成的对话，较早的记录仍保存在对话中。</string>
+    <string name="chat_copy_code">复制代码</string>
+    <string name="chat_copy_table">复制表格原文</string>
+    <string name="chat_copy_math">复制公式原文</string>
+    <string name="chat_code_block">代码</string>
+    <string name="chat_table_block">表格</string>
+    <string name="chat_math_block">公式 · 简易显示</string>
+    <string name="chat_math_raw">公式 · 原始记法</string>
 </resources>

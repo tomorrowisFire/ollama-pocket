@@ -636,4 +636,11 @@
     <string name="chat_reply_limit">응답이 안전 표시 한도를 초과했습니다. 부분 답변을 복사하거나 더 짧게 질문하세요.</string>
     <string name="chat_empty_answer">텍스트 답변을 받지 못했습니다.</string>
     <string name="chat_context_note">로컬 추론에는 최근 완료된 대화를 사용하며 이전 기록은 저장된 대화에 남습니다.</string>
+    <string name="chat_copy_code">코드 복사</string>
+    <string name="chat_copy_table">표 원문 복사</string>
+    <string name="chat_copy_math">수식 원문 복사</string>
+    <string name="chat_code_block">코드</string>
+    <string name="chat_table_block">표</string>
+    <string name="chat_math_block">수식 · 간단 표시</string>
+    <string name="chat_math_raw">수식 · 원문 표기</string>
 </resources>

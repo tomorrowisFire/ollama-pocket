@@ -636,4 +636,11 @@
     <string name="chat_reply_limit">応答が安全な表示上限を超えました。部分回答をコピーするか、短い質問にしてください。</string>
     <string name="chat_empty_answer">テキスト回答を受信できませんでした。</string>
     <string name="chat_context_note">ローカル推論には直近の完了した会話を使用し、以前の履歴は保存済み会話に残ります。</string>
+    <string name="chat_copy_code">コードをコピー</string>
+    <string name="chat_copy_table">表の原文をコピー</string>
+    <string name="chat_copy_math">数式の原文をコピー</string>
+    <string name="chat_code_block">コード</string>
+    <string name="chat_table_block">表</string>
+    <string name="chat_math_block">数式 · 簡易表示</string>
+    <string name="chat_math_raw">数式 · 原文表記</string>
 </resources>

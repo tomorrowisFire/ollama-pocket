@@ -1,0 +1,98 @@
+package com.ollamapocket.app;
+
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
+import android.graphics.Typeface;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.HorizontalScrollView;
+import android.widget.LinearLayout;
+import android.widget.TableLayout;
+import android.widget.TableRow;
+import android.widget.TextView;
+import android.widget.Toast;
+import java.util.List;
+
+/** Native views only. No HTML, JavaScript, network, links or executable code. */
+final class ChatRichView {
+    private ChatRichView(){}
+    private static int dp(Context c,int v){return Math.round(v*c.getResources().getDisplayMetrics().density);}
+    private static LinearLayout column(Context c){
+        LinearLayout v=new LinearLayout(c);v.setOrientation(LinearLayout.VERTICAL);return v;
+    }
+    private static TextView label(Context c,CharSequence value,int ink,float sp,boolean mono){
+        TextView t=new TextView(c);t.setText(value);t.setTextColor(ink);t.setTextSize(sp);
+        t.setTextIsSelectable(true);t.setAutoLinkMask(0);t.setLineSpacing(dp(c,3),1f);
+        if(mono)t.setTypeface(Typeface.MONOSPACE);
+        int pad=dp(c,9);t.setPadding(pad,pad,pad,pad);
+        return t;
+    }
+    private static void copy(Context c,String value){
+        ClipboardManager cm=(ClipboardManager)c.getSystemService(Context.CLIPBOARD_SERVICE);
+        if(cm!=null){
+            cm.setPrimaryClip(ClipData.newPlainText(c.getString(R.string.app_name),value));
+            Toast.makeText(c,R.string.copied,Toast.LENGTH_SHORT).show();
+        }
+    }
+    private static void section(Context c,LinearLayout root,String title,int button,String original,View content,int ink,int surface,float scale){
+        LinearLayout card=column(c);card.setBackgroundColor(surface);
+        TextView heading=label(c,title,ink,12*scale,false);heading.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        card.addView(heading,new LinearLayout.LayoutParams(-1,-2));
+        card.addView(content,new LinearLayout.LayoutParams(-1,-2));
+        Button b=new Button(c);b.setText(button);b.setAllCaps(false);b.setMinHeight(dp(c,48));
+        b.setTextSize(13*scale);b.setOnClickListener(v->copy(c,original));
+        card.addView(b,new LinearLayout.LayoutParams(-2,-2));
+        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.bottomMargin=dp(c,8);
+        root.addView(card,p);
+    }
+    private static HorizontalScrollView horizontal(Context c,View child){
+        HorizontalScrollView h=new HorizontalScrollView(c);
+        h.setFillViewport(false);h.setHorizontalScrollBarEnabled(true);
+        h.addView(child,new android.widget.FrameLayout.LayoutParams(-2,-2));return h;
+    }
+    static View create(Context c,String prefix,String source,String suffix,int ink,int surface,float scale){
+        List<ChatBlocks.Block> blocks=ChatBlocks.parse(source);
+        if(!ChatBlocks.hasSpecial(blocks))return null;
+        LinearLayout root=column(c);
+        if(!prefix.isEmpty())root.addView(label(c,prefix,ink,14*scale,false),new LinearLayout.LayoutParams(-1,-2));
+        for(ChatBlocks.Block b:blocks){
+            if(b.kind==ChatBlocks.Kind.TEXT){
+                root.addView(label(c,ChatPresentation.format("",b.body,"",surface),ink,15*scale,false),new LinearLayout.LayoutParams(-1,-2));
+            }else if(b.kind==ChatBlocks.Kind.CODE){
+                TextView code=label(c,b.body,ink,14*scale,true);
+                code.setHorizontallyScrolling(true);
+                section(c,root,c.getString(R.string.chat_code_block)+(b.language.isEmpty()?"":" · "+b.language),
+                    R.string.chat_copy_code,b.body,horizontal(c,code),ink,surface,scale);
+            }else if(b.kind==ChatBlocks.Kind.TABLE){
+                TableLayout table=new TableLayout(c);
+                int count=b.rows.get(0).size();int[] widths=new int[count];
+                for(int j=0;j<count;j++){
+                    int len=0;for(List<String> row:b.rows)len=Math.max(len,row.get(j).length());
+                    widths[j]=dp(c,Math.min(240,Math.max(112,72+Math.min(21,len)*8)));
+                }
+                for(int i=0;i<b.rows.size();i++){
+                    TableRow row=new TableRow(c);
+                    for(int j=0;j<count;j++){
+                        TextView cell=label(c,ChatPresentation.format("",b.rows.get(i).get(j),"",surface),ink,14*scale,false);
+                        if(i==0)cell.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+                        if(i%2==0)cell.setBackgroundColor(0x14808080);
+                        TableRow.LayoutParams params=new TableRow.LayoutParams(widths[j],ViewGroup.LayoutParams.WRAP_CONTENT);
+                        params.setMargins(0,0,dp(c,1),dp(c,1));row.addView(cell,params);
+                    }
+                    table.addView(row,new TableLayout.LayoutParams(-2,-2));
+                }
+                section(c,root,c.getString(R.string.chat_table_block),R.string.chat_copy_table,b.raw,
+                    horizontal(c,table),ink,surface,scale);
+            }else{
+                String formula=SimpleFormula.display(b.body);
+                boolean converted=!b.body.equals(formula);
+                section(c,root,c.getString(converted?R.string.chat_math_block:R.string.chat_math_raw),
+                    R.string.chat_copy_math,b.raw,label(c,formula,ink,15*scale,true),ink,surface,scale);
+            }
+        }
+        if(!suffix.isEmpty())root.addView(label(c,suffix,ink,13*scale,false),new LinearLayout.LayoutParams(-1,-2));
+        return root;
+    }
+}

@@ -10,6 +10,7 @@ on:
       - '.github/workflows/java-compile.yml'
       - 'app/src/main/res/**'
       - 'tests/ChatMarkupTest.java'
+      - 'tests/ChatBlocksTest.java'
       - 'tests/CloudPolicyTest.java'
       - 'tests/WorkspaceLayoutPolicyTest.java'
       - 'tests/DiagnosticValuesTest.java'
@@ -36,6 +37,11 @@ jobs:
           mkdir -p /tmp/chat-markup-tests
           javac -d /tmp/chat-markup-tests app/src/main/java/com/ollamapocket/app/ChatMarkup.java tests/ChatMarkupTest.java
           java -cp /tmp/chat-markup-tests com.ollamapocket.app.ChatMarkupTest
+      - name: Test bounded rich answer blocks and simple formula rendering
+        run: |
+          mkdir -p /tmp/chat-block-tests
+          javac -d /tmp/chat-block-tests app/src/main/java/com/ollamapocket/app/ChatBlocks.java app/src/main/java/com/ollamapocket/app/SimpleFormula.java tests/ChatBlocksTest.java
+          java -cp /tmp/chat-block-tests com.ollamapocket.app.ChatBlocksTest
       - name: Guard first-run advertisement and production lock
         run: |
           python3 - <<'PY'
