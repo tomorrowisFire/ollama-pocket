@@ -729,4 +729,15 @@
     <string name="transfer_cloud_notice">以下のメッセージ内容が今回のプロバイダーへのリクエストに含まれます。貼り付けた文書の抜粋や以前の会話を含む場合があります。送信前に確認してください。プロバイダー固有のメタデータは表示しません。</string>
     <string name="transfer_changed">リクエスト文脈または推論モードが変わりました。再確認してください。</string>
     <string name="transfer_review_failed">リクエスト文脈全体を安全に表示できません。送信していません。</string>
+    <string name="cloud_fetch_models">モデル取得</string>
+    <string name="cloud_fetch_notice">選択した提供元にAPIキーでモデル一覧を問い合わせます。会話内容は送信しません。</string>
+    <string name="cloud_usage">入力トークン: %1$s · 出力トークン: %2$s</string>
+    <string name="cloud_usage_unknown">使用量不明</string>
+    <string name="cloud_rate_limit">利用制限に達しました。後で再試行してください。</string>
+    <string name="cloud_auth_error">認証または権限エラーです。APIキーを確認してください。</string>
+    <string name="cloud_provider_error">提供元は一時的に利用できません。</string>
+    <string name="cloud_timeout">リクエストがタイムアウトしました。</string>
+    <string name="cloud_estimated_cost">推定費用（USD）: %1$s</string>
+    <string name="cloud_input_rate">入力100万トークンあたりUSD</string>
+    <string name="cloud_output_rate">出力100万トークンあたりUSD</string>
 </resources>
