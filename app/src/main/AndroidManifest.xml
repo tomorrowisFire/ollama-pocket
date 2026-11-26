@@ -43,5 +43,8 @@
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="user_opt_in_lan_cooperative_inference" />
         </service>
+        <service android:name="com.ollamapocket.app.PdfExtractService"
+            android:exported="false" android:isolatedProcess="true"
+            android:process=":pdf_extract" />
     </application>
 </manifest>
