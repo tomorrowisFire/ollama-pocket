@@ -966,4 +966,26 @@
     <string name="auto_budget_remaining">残り上限：現在のステップ %1$s回 · 全体 %2$s回 · 残り時間 %3$s秒</string>
     <string name="auto_budget_clock">端末時刻が保存済みの実行より前です。再開できません。</string>
     <string name="auto_resume_changed">確認したチェックポイント、下書き、または残り上限が変わりました。再開前に再確認してください。</string>
+    <string name="conference_title">AIエージェント会議室</string>
+    <string name="conference_notice">選択したローカルCPUモデル1つが3つの役割を順番に担当します。1行の目標（UTF-16で最大240単位）と成果物の条件を設定してください。最大5回・5分、1回の出力512トークン、成果物UTF-16で600単位、修正は最大1回です。テキストのみを生成し、外部ツール、クラウド呼び出し、ファイル実行、履歴保存は行いません。確認してから開始してください。</string>
+    <string name="conference_goal">会議の目標</string>
+    <string name="conference_start">会議を開始</string>
+    <string name="conference_planner">企画AI</string>
+    <string name="conference_producer">制作AI</string>
+    <string name="conference_reviewer">レビューAI</string>
+    <string name="conference_complete">条件一致・モデルが承認</string>
+    <string name="conference_blocked">停止：条件またはレビュー未達</string>
+    <string name="conference_stopped">会議を中止</string>
+    <string name="conference_context">停止：推定コンテキスト上限超過</string>
+    <string name="conference_invalid_reply">役割の応答が無効または切り捨て</string>
+    <string name="conference_failed">会議リクエストに失敗</string>
+    <string name="conference_accept">モデルの推奨：承認</string>
+    <string name="conference_revise">モデルの推奨：修正</string>
+    <string name="conference_pending">未検査または未レビュー</string>
+    <string name="conference_match">設定した条件に一致</string>
+    <string name="conference_mismatch">設定した条件に不一致</string>
+    <string name="conference_calls">役割リクエストの試行：%1$s/%2$s回</string>
+    <string name="conference_current">現在の成果物</string>
+    <string name="conference_evidence_notice">条件の一致やモデルの承認は、独立した検証、事実確認、品質検証ではありません。会議記録は一時的です。共有前に確認してください。</string>
+    <string name="conference_copy">会議記録をコピー</string>
 </resources>

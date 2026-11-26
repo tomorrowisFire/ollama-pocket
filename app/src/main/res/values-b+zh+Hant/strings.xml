@@ -966,4 +966,26 @@
     <string name="auto_budget_remaining">剩餘限額：目前步驟 %1$s次 · 總嘗試 %2$s次 · 時間 %3$s秒</string>
     <string name="auto_budget_clock">裝置時間早於已儲存的執行時間，無法繼續。</string>
     <string name="auto_resume_changed">已審閱的檢查點、草稿或剩餘額度已變更。請重新審閱後繼續。</string>
+    <string name="conference_title">AI代理會議室</string>
+    <string name="conference_notice">所選的一個本機CPU模型依序模擬三個角色。輸入單行目標（最多240個UTF-16單元）並設定成果條件。最多5次請求、5分鐘，每次最多512個輸出權杖，成果最多600個UTF-16單元，最多修訂一次。僅產生文字，不呼叫外部工具、雲端，不執行檔案或儲存記錄。確認後手動啟動。</string>
+    <string name="conference_goal">會議目標</string>
+    <string name="conference_start">開始會議</string>
+    <string name="conference_planner">規劃AI</string>
+    <string name="conference_producer">製作AI</string>
+    <string name="conference_reviewer">審查AI</string>
+    <string name="conference_complete">條件相符且模型接受</string>
+    <string name="conference_blocked">已阻擋：條件或審查未通過</string>
+    <string name="conference_stopped">會議已停止</string>
+    <string name="conference_context">已停止：預估上下文超限</string>
+    <string name="conference_invalid_reply">角色回覆無效或遭截斷</string>
+    <string name="conference_failed">會議請求失敗</string>
+    <string name="conference_accept">模型建議：接受</string>
+    <string name="conference_revise">模型建議：修訂</string>
+    <string name="conference_pending">尚未檢查或審查</string>
+    <string name="conference_match">設定條件相符</string>
+    <string name="conference_mismatch">設定條件不相符</string>
+    <string name="conference_calls">角色請求嘗試：%1$s/%2$s次</string>
+    <string name="conference_current">目前成果</string>
+    <string name="conference_evidence_notice">條件相符與模型接受不代表獨立、事實或品質驗證。會議記錄為暫時資料，分享前請審閱。</string>
+    <string name="conference_copy">複製會議記錄</string>
 </resources>

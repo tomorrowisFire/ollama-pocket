@@ -21,6 +21,7 @@ final class AutomationUi {
     private McpLanClient mcp;
     private LocalWorkflow workflow;
     private LocalWorkflowPlanner planner;
+    private LocalConferenceRunner conference;
     private volatile Thread worker;
     private volatile boolean stopped;
     private int epoch;
@@ -60,6 +61,7 @@ final class AutomationUi {
         if(mcp!=null){mcp.cancel();mcp=null;}
         if(workflow!=null)workflow.pause();
         if(planner!=null){planner.cancel();planner=null;}
+        if(conference!=null){conference.cancel();conference=null;}
         Thread t=worker;if(t!=null)t.interrupt();
         AlertDialog c=confirmation;confirmation=null;if(c!=null)c.dismiss();
         AlertDialog d=dialog;dialog=null;if(d!=null)d.dismiss();
@@ -81,11 +83,156 @@ final class AutomationUi {
         stopped=false;epoch++;
         final int token=epoch;
         AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.auto_title)
-            .setItems(new String[]{s(R.string.auto_mcp),s(R.string.auto_workflow)},(x,w)->{
+            .setItems(new String[]{s(R.string.auto_mcp),s(R.string.auto_workflow),s(R.string.conference_title)},(x,w)->{
                 if(!valid(token))return;
-                if(w==0)showMcp();else showWorkflow(model);
+                if(w==0)showMcp();else if(w==1)showWorkflow(model);else showConference(model);
             }).setNegativeButton(R.string.cancel,null).create();
         confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;});d.show();secure(d);
+    }
+    private String conferenceRole(ConferencePolicy.Role role){
+        switch(role){
+            case PLANNER:return s(R.string.conference_planner);
+            case PRODUCER:return s(R.string.conference_producer);
+            default:return s(R.string.conference_reviewer);
+        }
+    }
+    private String conferenceState(ConferencePolicy.Result result){
+        switch(result.status){
+            case COMPLETE:return s(R.string.conference_complete);
+            case BLOCKED:return s(R.string.conference_blocked);
+            case STOPPED:return s(R.string.conference_stopped);
+            case FAILED:
+                if(result.cause==ConferencePolicy.Cause.CONTEXT)return s(R.string.conference_context);
+                if(result.cause==ConferencePolicy.Cause.INVALID_REPLY)return s(R.string.conference_invalid_reply);
+                return s(R.string.conference_failed);
+            default:return result.activeRole==null?s(R.string.thinking):conferenceRole(result.activeRole)+" · "+s(R.string.thinking);
+        }
+    }
+    private String conferenceRecommendation(ConferencePolicy.Recommendation recommendation){
+        return recommendation==ConferencePolicy.Recommendation.ACCEPT?s(R.string.conference_accept):s(R.string.conference_revise);
+    }
+    private String conferencePredicate(WorkflowPolicy.Sample sample){
+        if(sample==null)return s(R.string.conference_pending);
+        return sample==WorkflowPolicy.Sample.MATCH?s(R.string.conference_match):s(R.string.conference_mismatch);
+    }
+    private String conferenceReport(ConferencePolicy.Request request,ConferencePolicy.Result result){
+        StringBuilder out=new StringBuilder(conferenceState(result));
+        out.append("\n").append(owner.getString(R.string.conference_calls,Integer.toString(result.attempts),Integer.toString(ConferencePolicy.MAX_CALLS)))
+            .append("\n").append(s(R.string.model_label)).append(": ").append(request.model)
+            .append("\n").append(s(R.string.conference_goal)).append(": ").append(request.goal)
+            .append("\n").append(gateLabel(request.condition.gate)).append(": ").append(request.condition.required)
+            .append("\n").append(s(R.string.conference_evidence_notice));
+        if(result.artifact!=null){
+            out.append("\n\n").append(s(R.string.conference_current)).append("\n").append(result.artifact)
+                .append("\n").append(conferencePredicate(result.predicate))
+                .append("\n").append(result.recommendation==null?s(R.string.conference_pending):conferenceRecommendation(result.recommendation));
+        }
+        for(ConferencePolicy.Turn turn:result.turns){
+            out.append("\n\n").append(conferenceRole(turn.role)).append(" · ").append(turn.round);
+            if(turn.predicate!=null)out.append("\n").append(conferencePredicate(turn.predicate));
+            if(turn.recommendation!=null)out.append("\n").append(conferenceRecommendation(turn.recommendation));
+            if(!turn.text.isEmpty())out.append("\n").append(turn.text);
+        }
+        return out.toString();
+    }
+    private void showConference(String model){
+        if(busy()||model==null||model.isEmpty()){toast(R.string.test_need_model);return;}
+        final int token=epoch;
+        final String language=OnHandsLocale.normalize(owner.getResources().getConfiguration().getLocales().get(0));
+        LinearLayout panel=column();
+        label(panel,s(R.string.conference_notice));label(panel,s(R.string.model_label)+": "+model);
+        EditText goal=field(panel,R.string.conference_goal,"",ConferencePolicy.MAX_GOAL+2,false);
+        goal.setSingleLine(true);
+        label(panel,s(R.string.auto_verification_type));
+        Spinner picker=new Spinner(owner);
+        WorkflowPolicy.Gate[] gates=WorkflowPolicy.Gate.values();
+        String[] names=new String[gates.length];for(int i=0;i<gates.length;i++)names[i]=gateLabel(gates[i]);
+        ArrayAdapter<String> adapter=new ArrayAdapter<>(owner,android.R.layout.simple_spinner_item,names);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);picker.setAdapter(adapter);
+        picker.setMinimumHeight(dp(48));panel.addView(picker,new LinearLayout.LayoutParams(-1,-2));
+        picker.setSelection(WorkflowPolicy.Gate.MIN_CHARS.ordinal());
+        EditText required=field(panel,R.string.auto_step_condition,"",202,false);
+        required.setHint(gateHint(WorkflowPolicy.Gate.MIN_CHARS));
+        picker.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
+            public void onItemSelected(AdapterView<?> parent,View view,int position,long id){
+                if(position>=0&&position<gates.length)required.setHint(gateHint(gates[position]));
+            }
+            public void onNothingSelected(AdapterView<?> parent){}
+        });
+        java.util.function.Supplier<ConferencePolicy.Request> capture=()->{
+            int i=picker.getSelectedItemPosition();
+            if(i<0||i>=gates.length)throw new IllegalArgumentException("Condition");
+            return new ConferencePolicy.Request(goal.getText().toString(),model,language,gates[i],required.getText().toString());
+        };
+        TextView status=output(panel);status.setTextIsSelectable(false);
+        status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        final Button[] controls=new Button[3];
+        final ConferencePolicy.Result[] latest={null};
+        final ConferencePolicy.Request[] executed={null};
+        final boolean[] stopRequested={false};
+        Runnable enabled=()->{
+            boolean idle=!busy();
+            goal.setEnabled(idle);picker.setEnabled(idle);required.setEnabled(idle);
+            controls[0].setEnabled(idle);
+            controls[1].setEnabled(!idle&&conference!=null&&!stopRequested[0]);
+            controls[2].setEnabled(idle&&latest[0]!=null&&latest[0].status!=ConferencePolicy.Status.RUNNING&&!latest[0].turns.isEmpty());
+        };
+        controls[0]=button(panel,R.string.conference_start,()->{
+            if(!valid(token)||busy())return;
+            final ConferencePolicy.Request request;
+            try{request=capture.get();}catch(IllegalArgumentException e){toast(R.string.auto_invalid_plan);return;}
+            if(!OllamaForegroundService.isRunning()){toast(R.string.test_need_server);return;}
+            if(!"off".equals(CoopSession.get(owner).role())){toast(R.string.guest_stop_first);return;}
+            confirm(s(R.string.conference_start),s(R.string.conference_notice)+"\n\n"+s(R.string.model_label)+": "+request.model+
+                "\n"+request.goal+"\n"+gateLabel(request.condition.gate)+": "+request.condition.required,()->{
+                if(!valid(token)||busy())return;
+                try{if(!request.same(capture.get())){toast(R.string.auto_preview_first);return;}}
+                catch(IllegalArgumentException e){toast(R.string.auto_invalid_plan);return;}
+                InferenceSafetyPolicy.Reason risk=InferenceSafety.check(owner);
+                if(risk!=InferenceSafetyPolicy.Reason.NONE){toast(InferenceSafety.label(risk));return;}
+                if(!OllamaForegroundService.isRunning()){toast(R.string.test_need_server);return;}
+                if(!"off".equals(CoopSession.get(owner).role())){toast(R.string.guest_stop_first);return;}
+                final LocalConferenceRunner runner=new LocalConferenceRunner(owner);
+                conference=runner;executed[0]=request;latest[0]=null;stopRequested[0]=false;
+                status.setText(R.string.thinking);
+                work(()->runner.run(request,value->owner.runOnUiThread(()->{
+                    if(valid(token)&&conference==runner&&!stopRequested[0]){
+                        latest[0]=value;status.setText(conferenceReport(request,value));
+                    }
+                })),value->{
+                    if(conference!=runner)return;
+                    conference=null;
+                    latest[0]=stopRequested[0]?value.stopped():value;
+                    status.setText(conferenceReport(request,latest[0]));
+                    if(latest[0].status==ConferencePolicy.Status.STOPPED&&runner.reason()!=null)
+                        status.append("\n"+runner.reason().name());
+                    enabled.run();
+                },()->{
+                    if(conference!=runner)return;
+                    conference=null;latest[0]=null;status.setText(R.string.conference_failed);enabled.run();
+                });
+                enabled.run();
+            });
+        });
+        controls[1]=button(panel,R.string.stop,()->{
+            if(conference!=null&&busy()&&!stopRequested[0]){
+                stopRequested[0]=true;conference.cancel();status.setText(R.string.auto_pause_requested);enabled.run();
+            }
+        });
+        controls[2]=button(panel,R.string.conference_copy,()->{
+            if(busy()||latest[0]==null||executed[0]==null||latest[0].status==ConferencePolicy.Status.RUNNING)return;
+            final ConferencePolicy.Result reviewed=latest[0];
+            final String report=conferenceReport(executed[0],reviewed);
+            confirm(s(R.string.conference_copy),s(R.string.attachment_copy_notice),()->{
+                if(busy()||latest[0]!=reviewed)return;
+                try{
+                    android.content.ClipboardManager clipboard=(android.content.ClipboardManager)owner.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                    if(clipboard==null)throw new IllegalStateException("Clipboard unavailable");
+                    clipboard.setPrimaryClip(SensitiveClipboard.text(s(R.string.conference_title),report));toast(R.string.copied);
+                }catch(RuntimeException e){toast(R.string.batch_export_failed);}
+            });
+        });
+        enabled.run();show(s(R.string.conference_title),panel);
     }
     private void showMcp(){
         LinearLayout l=column();label(l,s(R.string.auto_mcp_notice));

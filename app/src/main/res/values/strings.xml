@@ -966,4 +966,26 @@
     <string name="auto_budget_remaining">Remaining: current step %1$s attempts · total cap %2$s attempts · wall-clock allowance %3$s s</string>
     <string name="auto_budget_clock">The device clock is earlier than the saved run. Resume is blocked.</string>
     <string name="auto_resume_changed">The reviewed checkpoint, draft or remaining allowance changed. Review again before resuming.</string>
+    <string name="conference_title">AI role conference</string>
+    <string name="conference_notice">One selected local CPU model simulates three roles sequentially. Enter a one-line goal (up to 240 UTF-16 units) and choose an artifact condition. Up to five requests, five minutes, 512 output tokens per request, 600 UTF-16 units per artifact. One correction pair at most. Only text is produced; no external tool, cloud call, file execution or saved history. Review and start explicitly.</string>
+    <string name="conference_goal">Conference goal</string>
+    <string name="conference_start">Start conference</string>
+    <string name="conference_planner">Planner</string>
+    <string name="conference_producer">Producer</string>
+    <string name="conference_reviewer">Reviewer</string>
+    <string name="conference_complete">Condition matched and model accepted</string>
+    <string name="conference_blocked">Blocked: condition or review unmet</string>
+    <string name="conference_stopped">Conference stopped</string>
+    <string name="conference_context">Stopped: estimated context budget exceeded</string>
+    <string name="conference_invalid_reply">Invalid or truncated role reply</string>
+    <string name="conference_failed">Conference request failed</string>
+    <string name="conference_accept">Model recommendation: accept</string>
+    <string name="conference_revise">Model recommendation: revise</string>
+    <string name="conference_pending">Not yet checked or reviewed</string>
+    <string name="conference_match">Configured condition matched</string>
+    <string name="conference_mismatch">Configured condition did not match</string>
+    <string name="conference_calls">Role request attempts: %1$s/%2$s</string>
+    <string name="conference_current">Current artifact</string>
+    <string name="conference_evidence_notice">A configured condition match and model recommendation are not independent, factual or quality verification. The transcript is temporary; review before sharing.</string>
+    <string name="conference_copy">Copy conference transcript</string>
 </resources>

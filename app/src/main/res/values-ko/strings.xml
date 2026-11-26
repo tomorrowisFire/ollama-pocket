@@ -966,4 +966,26 @@
     <string name="auto_budget_remaining">남은 한도: 현재 단계 %1$s회 · 전체 시도 %2$s회 · 시간 %3$s초</string>
     <string name="auto_budget_clock">기기 시간이 저장된 실행보다 이전입니다. 재개를 차단합니다.</string>
     <string name="auto_resume_changed">검토한 체크포인트·초안 또는 남은 한도가 변경되었습니다. 재개 전에 다시 확인하세요.</string>
+    <string name="conference_title">AI 에이전트 회의실</string>
+    <string name="conference_notice">선택한 로컬 CPU 모델 하나가 세 역할을 순차적으로 수행합니다. 한 줄 목표(최대 UTF-16 240단위)와 결과물 검증 조건을 설정하세요. 요청 최대 5회·5분·요청당 출력 512토큰·결과물 UTF-16 600단위, 보완은 최대 한 차례입니다. 텍스트만 생성하며 외부 도구·클라우드 호출·파일 실행·기록 저장은 하지 않습니다. 확인 후 직접 시작하세요.</string>
+    <string name="conference_goal">회의 목표</string>
+    <string name="conference_start">회의 시작</string>
+    <string name="conference_planner">기획 AI</string>
+    <string name="conference_producer">제작 AI</string>
+    <string name="conference_reviewer">검수 AI</string>
+    <string name="conference_complete">조건 일치 및 모델 수락</string>
+    <string name="conference_blocked">차단: 검증 조건 또는 검수 미충족</string>
+    <string name="conference_stopped">회의 중단</string>
+    <string name="conference_context">중단: 예상 컨텍스트 한도 초과</string>
+    <string name="conference_invalid_reply">역할 응답 오류 또는 출력 잘림</string>
+    <string name="conference_failed">회의 요청 실패</string>
+    <string name="conference_accept">모델 검수 의견: 수락</string>
+    <string name="conference_revise">모델 검수 의견: 보완</string>
+    <string name="conference_pending">아직 검사 또는 검수하지 않음</string>
+    <string name="conference_match">설정한 검증 조건 일치</string>
+    <string name="conference_mismatch">설정한 검증 조건 불일치</string>
+    <string name="conference_calls">역할별 요청 시도: %1$s/%2$s회</string>
+    <string name="conference_current">현재 결과물</string>
+    <string name="conference_evidence_notice">검증 조건 일치와 모델의 수락은 독립 검증·사실 검증·품질 검증을 의미하지 않습니다. 회의 기록은 임시로 유지되므로 공유 전 확인하세요.</string>
+    <string name="conference_copy">회의 기록 복사</string>
 </resources>

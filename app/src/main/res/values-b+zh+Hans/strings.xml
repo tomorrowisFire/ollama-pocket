@@ -966,4 +966,26 @@
     <string name="auto_budget_remaining">剩余限额：当前步骤 %1$s次 · 总尝试 %2$s次 · 时间 %3$s秒</string>
     <string name="auto_budget_clock">设备时间早于已保存的运行时间，无法恢复。</string>
     <string name="auto_resume_changed">已审核的检查点、草稿或剩余额度已改变。请重新审核后恢复。</string>
+    <string name="conference_title">AI代理会议室</string>
+    <string name="conference_notice">所选的一个本地CPU模型依次模拟三个角色。输入单行目标（最多240个UTF-16单元）并设置成果条件。最多5次请求、5分钟，每次最多512个输出令牌，成果最多600个UTF-16单元，最多修订一次。仅生成文本，不调用外部工具、云端，不执行文件或保存记录。确认后手动启动。</string>
+    <string name="conference_goal">会议目标</string>
+    <string name="conference_start">开始会议</string>
+    <string name="conference_planner">规划AI</string>
+    <string name="conference_producer">制作AI</string>
+    <string name="conference_reviewer">审查AI</string>
+    <string name="conference_complete">条件匹配且模型接受</string>
+    <string name="conference_blocked">已阻止：条件或审查未通过</string>
+    <string name="conference_stopped">会议已停止</string>
+    <string name="conference_context">已停止：预计上下文超限</string>
+    <string name="conference_invalid_reply">角色回复无效或被截断</string>
+    <string name="conference_failed">会议请求失败</string>
+    <string name="conference_accept">模型建议：接受</string>
+    <string name="conference_revise">模型建议：修订</string>
+    <string name="conference_pending">尚未检查或审查</string>
+    <string name="conference_match">设定条件匹配</string>
+    <string name="conference_mismatch">设定条件不匹配</string>
+    <string name="conference_calls">角色请求尝试：%1$s/%2$s次</string>
+    <string name="conference_current">当前成果</string>
+    <string name="conference_evidence_notice">条件匹配与模型接受不代表独立、事实或质量验证。会议记录为临时数据，分享前请审核。</string>
+    <string name="conference_copy">复制会议记录</string>
 </resources>
