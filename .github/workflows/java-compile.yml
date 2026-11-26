@@ -50,6 +50,7 @@ on:
       - 'tests/VoiceQueuePolicyTest.java'
       - 'tests/VoiceInteractionPolicyTest.java'
       - 'tests/CloudRequestAdviceTest.java'
+      - 'tests/CloudProviderOverviewTest.java'
       - 'tests/CloudUsageLedgerTest.java'
       - 'tests/CloudStreamTest.java'
       - 'tests/InferenceSafetyPolicyTest.java'
@@ -207,6 +208,10 @@ jobs:
           bash scripts/fetch_test_json.sh /tmp/cloud-stream-tests/json.jar
           javac -cp /tmp/cloud-stream-tests/json.jar -d /tmp/cloud-stream-tests app/src/main/java/com/ollamapocket/app/CloudApi.java app/src/main/java/com/ollamapocket/app/CloudHistory.java app/src/main/java/com/ollamapocket/app/PrivacyPolicy.java tests/CloudStreamTest.java
           java -cp /tmp/cloud-stream-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.CloudStreamTest
+      - name: Test API provider dashboard and bounded usage accounting
+        run: |
+          javac -cp /tmp/cloud-stream-tests:/tmp/cloud-stream-tests/json.jar:/tmp/cloud-usage-tests -d /tmp/cloud-stream-tests app/src/main/java/com/ollamapocket/app/CloudProviderOverview.java tests/CloudProviderOverviewTest.java
+          java -cp /tmp/cloud-stream-tests:/tmp/cloud-stream-tests/json.jar:/tmp/cloud-usage-tests com.ollamapocket.app.CloudProviderOverviewTest
       - name: Test document snapshot and structured report
         run: |
           javac -cp /tmp/attachment-tests:/tmp/cloud-stream-tests/json.jar -d /tmp/attachment-tests app/src/main/java/com/ollamapocket/app/DocumentBatchReport.java tests/DocumentBatchReportTest.java

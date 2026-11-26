@@ -1140,4 +1140,21 @@
     <string name="api_review_limit">已设置的会话估算费用限额（美元）：%1$s</string>
     <string name="api_review_unknown_block">已阻止发送：启用估算费用限额时，必须确认费率和会话用量。</string>
     <string name="api_review_over_block">已阻止发送：预计会话费用超出设置的估算限额，或已达到限额。</string>
+    <string name="api_overview_intro">八个提供方的离线概览。不执行连接或密钥验证。用量仅在当前面板会话中统计，面板销毁或重建时重置；实际账单未经验证。</string>
+    <string name="api_overview_capacity">已跟踪会话范围：%1$d / %2$d</string>
+    <string name="api_overview_current">当前选择</string>
+    <string name="api_overview_configured">已保存配置（连接未经验证）</string>
+    <string name="api_overview_invalid">已保存配置不完整或无效</string>
+    <string name="api_overview_missing">尚未配置</string>
+    <string name="api_overview_key_lan">此局域网连接不使用托管 API 密钥。</string>
+    <string name="api_overview_key_session_saved">会话密钥存在；有加密保存条目（均未经验证）。</string>
+    <string name="api_overview_key_session_only">会话密钥存在；无保存条目。密钥有效性未经验证。</string>
+    <string name="api_overview_key_session_unknown">会话密钥存在；保存状态未知。密钥有效性未经验证。</string>
+    <string name="api_overview_key_saved_only">有加密保存条目；无活动会话密钥。未验证或加载保存的密钥。</string>
+    <string name="api_overview_key_missing">无会话密钥或加密保存条目。</string>
+    <string name="api_overview_key_unknown">无会话密钥；保存状态未知。</string>
+    <string name="api_overview_unknown_usage">词元计数缺失的请求：%1$d</string>
+    <string name="api_overview_lan_usage">用量合计涵盖本次会话中该提供方的已跟踪局域网地址。不估算局域网费用，但仍可能产生费用。</string>
+    <string name="api_overview_ledger_full">已阻止新请求：新的统计范围已达到会话上限。现有已跟踪范围仍可使用。</string>
+    <string name="api_overview_configure">配置提供方</string>
 </resources>

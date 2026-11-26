@@ -35,6 +35,12 @@ final class CloudKeyVault {
         if(!prefs.edit().putString(p.name(),Base64.encodeToString(ciphertext,Base64.NO_WRAP)).commit())
             throw new java.io.IOException("Key storage failed");
     }
+    /** Presence only: never reads ciphertext or opens Android Keystore. */
+    synchronized CloudProviderOverview.SavedEntry savedEntry(CloudApi.Provider p){
+        if(p==null||p.remote())return CloudProviderOverview.SavedEntry.UNKNOWN;
+        try{return prefs.contains(p.name())?CloudProviderOverview.SavedEntry.PRESENT:CloudProviderOverview.SavedEntry.ABSENT;}
+        catch(RuntimeException e){return CloudProviderOverview.SavedEntry.UNKNOWN;}
+    }
     synchronized String load(CloudApi.Provider p)throws Exception{
         if(p==null||p.remote())throw new IllegalArgumentException("Hosted credential required");
         String encoded=prefs.getString(p.name(),null);

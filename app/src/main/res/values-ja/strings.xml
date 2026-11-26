@@ -1140,4 +1140,21 @@
     <string name="api_review_limit">設定済みセッション概算費用上限（USD）：%1$s</string>
     <string name="api_review_unknown_block">送信を中止：概算費用上限の設定時は単価とセッション使用量が確認できる必要があります。</string>
     <string name="api_review_over_block">送信を中止：セッション概算費用が設定上限を超えるか、すでに上限に達しています。</string>
+    <string name="api_overview_intro">8つの提供元のオフライン概要です。接続やキーの検証は行いません。使用量は現在のパネルセッション内で集計し、パネルの終了・再生成時にリセットされます。実際の請求額は未検証です。</string>
+    <string name="api_overview_capacity">追跡中のセッション範囲：%1$d / %2$d</string>
+    <string name="api_overview_current">選択中</string>
+    <string name="api_overview_configured">保存済み設定（接続未検証）</string>
+    <string name="api_overview_invalid">保存済み設定が不完全または無効</string>
+    <string name="api_overview_missing">未設定</string>
+    <string name="api_overview_key_lan">このLAN接続ではホスト型APIキーを使用しません。</string>
+    <string name="api_overview_key_session_saved">セッションキーあり・暗号化保存項目あり（どちらも未検証）。</string>
+    <string name="api_overview_key_session_only">セッションキーあり・保存項目なし。キーの有効性は未検証です。</string>
+    <string name="api_overview_key_session_unknown">セッションキーあり・保存状態不明。キーの有効性は未検証です。</string>
+    <string name="api_overview_key_saved_only">暗号化保存項目あり・有効なセッションキーなし。保存キーの検証・読み込みは行っていません。</string>
+    <string name="api_overview_key_missing">セッションキー・暗号化保存項目なし。</string>
+    <string name="api_overview_key_unknown">セッションキーなし・保存状態不明。</string>
+    <string name="api_overview_unknown_usage">トークン数が不明なリクエスト：%1$d件</string>
+    <string name="api_overview_lan_usage">使用量はこのセッションで追跡した提供元のLANアドレスの合計です。LAN費用は推定せず、別途料金が発生する可能性があります。</string>
+    <string name="api_overview_ledger_full">新規リクエストを中止：新規集計範囲のセッション上限に達しました。既存の追跡範囲は引き続き利用できます。</string>
+    <string name="api_overview_configure">提供元を設定</string>
 </resources>

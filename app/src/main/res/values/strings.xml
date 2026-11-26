@@ -1140,4 +1140,21 @@
     <string name="api_review_limit">Configured session estimate limit (USD): %1$s</string>
     <string name="api_review_unknown_block">Send blocked: an active estimate limit requires known rates and known session usage.</string>
     <string name="api_review_over_block">Send blocked: the projected session cost exceeds the configured estimate limit, or the limit is already reached.</string>
+    <string name="api_overview_intro">Offline overview of all eight providers. No connection or key validation is performed. Usage is local to this panel session and resets when the panel is destroyed or recreated; actual provider billing is not verified.</string>
+    <string name="api_overview_capacity">Tracked session scopes: %1$d / %2$d</string>
+    <string name="api_overview_current">Selected</string>
+    <string name="api_overview_configured">Saved configuration (connection unverified)</string>
+    <string name="api_overview_invalid">Saved configuration incomplete or invalid</string>
+    <string name="api_overview_missing">Not configured</string>
+    <string name="api_overview_key_lan">Hosted API key not used by this LAN route.</string>
+    <string name="api_overview_key_session_saved">Session key present; encrypted saved entry exists (neither validated).</string>
+    <string name="api_overview_key_session_only">Session key present; no saved entry. Key validity unverified.</string>
+    <string name="api_overview_key_session_unknown">Session key present; saved-entry status unknown. Key validity unverified.</string>
+    <string name="api_overview_key_saved_only">Encrypted saved entry exists; no active session key. Saved key not validated or loaded.</string>
+    <string name="api_overview_key_missing">No session key or encrypted saved entry.</string>
+    <string name="api_overview_key_unknown">No session key; saved-entry status unknown.</string>
+    <string name="api_overview_unknown_usage">Requests with missing token counts: %1$d</string>
+    <string name="api_overview_lan_usage">Usage totals include this provider’s tracked LAN addresses in this session. LAN costs are not estimated and may still incur fees.</string>
+    <string name="api_overview_ledger_full">New request blocked: session accounting capacity reached for new scopes. Existing tracked scopes remain available.</string>
+    <string name="api_overview_configure">Configure provider</string>
 </resources>

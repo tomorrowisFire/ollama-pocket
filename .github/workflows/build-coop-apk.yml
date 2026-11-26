@@ -14,6 +14,7 @@ on:
       - 'scripts/build_rpc_cpu.sh'
       - 'app/src/main/java/**'
       - 'tests/CloudRequestAdviceTest.java'
+      - 'tests/CloudProviderOverviewTest.java'
       - 'tests/CoopCapacityAdviceTest.java'
       - 'tests/ModelResourceAdviceTest.java'
       - 'tests/KnowledgeAnswerPolicyTest.java'

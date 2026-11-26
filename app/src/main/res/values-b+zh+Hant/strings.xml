@@ -1140,4 +1140,21 @@
     <string name="api_review_limit">已設定的工作階段估算費用限額（美元）：%1$s</string>
     <string name="api_review_unknown_block">已阻止傳送：啟用估算費用限額時，必須確認費率與工作階段用量。</string>
     <string name="api_review_over_block">已阻止傳送：預估工作階段費用超出設定的估算限額，或已達限額。</string>
+    <string name="api_overview_intro">八個提供者的離線概覽。不執行連線或金鑰驗證。用量僅在目前面板工作階段統計，面板銷毀或重建時重設；實際帳單未驗證。</string>
+    <string name="api_overview_capacity">已追蹤工作階段範圍：%1$d / %2$d</string>
+    <string name="api_overview_current">目前選取</string>
+    <string name="api_overview_configured">已儲存設定（連線未驗證）</string>
+    <string name="api_overview_invalid">已儲存設定不完整或無效</string>
+    <string name="api_overview_missing">尚未設定</string>
+    <string name="api_overview_key_lan">此區域網路連線不使用託管 API 金鑰。</string>
+    <string name="api_overview_key_session_saved">工作階段金鑰存在；有加密儲存項目（均未驗證）。</string>
+    <string name="api_overview_key_session_only">工作階段金鑰存在；無儲存項目。金鑰有效性未驗證。</string>
+    <string name="api_overview_key_session_unknown">工作階段金鑰存在；儲存狀態未知。金鑰有效性未驗證。</string>
+    <string name="api_overview_key_saved_only">有加密儲存項目；無作用中工作階段金鑰。未驗證或載入儲存的金鑰。</string>
+    <string name="api_overview_key_missing">無工作階段金鑰或加密儲存項目。</string>
+    <string name="api_overview_key_unknown">無工作階段金鑰；儲存狀態未知。</string>
+    <string name="api_overview_unknown_usage">權杖計數缺失的請求：%1$d</string>
+    <string name="api_overview_lan_usage">用量合計涵蓋本次工作階段中該提供者的已追蹤區域網路位址。不估算區域網路費用，但仍可能產生費用。</string>
+    <string name="api_overview_ledger_full">已阻止新請求：新的統計範圍已達工作階段上限。現有已追蹤範圍仍可使用。</string>
+    <string name="api_overview_configure">設定提供者</string>
 </resources>
