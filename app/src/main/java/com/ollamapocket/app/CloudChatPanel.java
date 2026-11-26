@@ -237,7 +237,7 @@ final class CloudChatPanel extends LinearLayout {
         if(busy||closed||!active)return;
         ScrollView sc=new ScrollView(owner);LinearLayout fields=new LinearLayout(owner);fields.setOrientation(VERTICAL);
         int pad=dp(18);fields.setPadding(pad,pad,pad,pad);sc.addView(fields);
-        CloudApi.Provider[] values=CloudApi.Provider.values();
+        CloudApi.Provider[] values=CloudApi.Provider.hosted();
         String[] names=new String[values.length];for(int i=0;i<names.length;i++)names[i]=values[i].title;
         Spinner pick=new Spinner(owner);pick.setAdapter(new ArrayAdapter<>(owner,android.R.layout.simple_spinner_dropdown_item,names));
         pick.setSelection(provider.ordinal());fields.addView(pick);
@@ -284,7 +284,7 @@ final class CloudChatPanel extends LinearLayout {
             final CloudApi.Provider selected=values[pick.getSelectedItemPosition()];final String secret=key.getText().toString().trim();
             if(secret.isEmpty()){toast(R.string.cloud_key_needed);return;}
             new AlertDialog.Builder(owner).setMessage(R.string.cloud_fetch_notice).setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,(d,w)->{
-                if(!active||closed||keyDialog!=dialog)return;fetch.setEnabled(false);
+                if(!active||closed||keyDialog!=dialog||!dialog.isShowing()||values[pick.getSelectedItemPosition()]!=selected||!secret.equals(key.getText().toString().trim()))return;fetch.setEnabled(false);
                 io.execute(()->{HttpsURLConnection c=null;List<String> models=null;int err=R.string.cloud_fail;
                     try{c=CloudApi.catalogConnection(selected,secret);catalogRequest=c;models=CloudApi.catalog(c);}catch(Exception e){err=errorLabel(e);}finally{if(c!=null)c.disconnect();if(catalogRequest==c)catalogRequest=null;}
                     final List<String> result=models;final int failure=err;owner.runOnUiThread(()->{
@@ -304,8 +304,8 @@ final class CloudChatPanel extends LinearLayout {
             if(id.isEmpty()||apiKey.isEmpty()||apiKey.indexOf('\r')>=0||apiKey.indexOf('\n')>=0){toast(R.string.cloud_fields);return;}
             try{history.session(selected.name(),id);}catch(IllegalStateException e){toast(R.string.cloud_session_capacity);return;}
             catch(IllegalArgumentException e){toast(R.string.cloud_fields);return;}
-            if(remember.isChecked())try{vault.save(selected,apiKey);}catch(Exception e){toast(R.string.cloud_key_error);return;}
             double ir,or;try{ir=rate(inRate.getText().toString());or=rate(outRate.getText().toString());}catch(RuntimeException e){toast(R.string.cloud_fields);return;}
+            if(remember.isChecked())try{vault.save(selected,apiKey);}catch(Exception e){toast(R.string.cloud_key_error);return;}
             rememberDraft();inputRate=ir;outputRate=or;provider=selected;model=id;token=apiKey;restoreDraft();status.setText("");dialog.dismiss();render();
         });
     }
