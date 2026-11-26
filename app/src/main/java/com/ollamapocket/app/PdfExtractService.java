@@ -54,8 +54,11 @@ public final class PdfExtractService extends Service {
             // PdfRenderer takes ownership after successful construction.
             try(PdfRenderer renderer=new PdfRenderer(input)){
                 if(raster){renderPage(renderer,reply,pageNumber);return;}
-                PdfExcerpt.Builder excerpt=new PdfExcerpt.Builder(renderer.getPageCount());
-                for(int i=0;excerpt.canReadPage();i++){
+                if(!OcrPolicy.validPage(pageNumber)||pageNumber>renderer.getPageCount()){
+                    sendError(reply,AttachmentText.Problem.RANGE);return;
+                }
+                PdfExcerpt.Builder excerpt=new PdfExcerpt.Builder(renderer.getPageCount(),pageNumber);
+                for(int i=pageNumber-1;excerpt.canReadPage();i++){
                     if(Thread.currentThread().isInterrupted())return;
                     excerpt.startPage(i+1);
                     try(PdfRenderer.Page page=renderer.openPage(i)){
@@ -70,7 +73,7 @@ public final class PdfExtractService extends Service {
                 AttachmentText.Result r=excerpt.result("file.pdf");
                 Bundle b=new Bundle();
                 b.putString("text",r.text);b.putBoolean("partial",r.partial);
-                b.putInt("pages",r.pdfPages);b.putInt("examined",r.pdfExamined);b.putInt("textPages",r.pdfTextPages);
+                b.putInt("pages",r.pdfPages);b.putInt("examined",r.pdfExamined);b.putInt("textPages",r.pdfTextPages);b.putInt("first",r.pdfFirst);
                 send(reply,b);
             }
         }catch(SecurityException e){sendError(reply,AttachmentText.Problem.PDF_PROTECTED);}

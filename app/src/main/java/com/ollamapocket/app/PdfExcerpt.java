@@ -10,19 +10,20 @@ final class PdfExcerpt {
         return name!=null&&name.toLowerCase(Locale.ROOT).endsWith(".pdf");
     }
     static final class Builder {
-        private final int pages;
+        private final int pages,first;
         private final StringBuilder out=new StringBuilder();
         private int examined,withText;
         private boolean partial,started,hasText;
-        Builder(int pages){
-            if(pages<=0)throw new IllegalArgumentException("Invalid page count");
-            this.pages=pages;partial=pages>MAX_PAGES;
+        Builder(int pages){this(pages,1);}
+        Builder(int pages,int first){
+            if(pages<=0||!OcrPolicy.validPage(first)||first>pages)throw new IllegalArgumentException("Invalid page range");
+            this.pages=pages;this.first=first;partial=first>1||pages>MAX_PAGES;
         }
         boolean canReadPage(){
-            return examined<Math.min(pages,MAX_PAGES)&&out.length()<AttachmentText.MAX_EXCERPT;
+            return examined<Math.min(pages-first+1,MAX_PAGES)&&out.length()<AttachmentText.MAX_EXCERPT;
         }
         void startPage(int index){
-            if(started||!canReadPage()||index!=examined+1)throw new IllegalStateException("Unexpected page");
+            if(started||!canReadPage()||index!=first+examined)throw new IllegalStateException("Unexpected page");
             started=true;hasText=false;examined++;
         }
         void append(String text){
@@ -35,7 +36,7 @@ final class PdfExcerpt {
                 if(!Character.isWhitespace(c)&&!Character.isISOControl(c)&&c!='\uFFFD'){useful=true;break;}
             }
             if(!useful)return;
-            if(!hasText){hasText=true;withText++;add("\n[Page "+examined+"]\n");}
+            if(!hasText){hasText=true;withText++;add("\n[Page "+(first+examined-1)+"]\n");}
             add(text);add("\n");
         }
         private void add(String text){
@@ -63,7 +64,7 @@ final class PdfExcerpt {
         AttachmentText.Result result(String name)throws AttachmentText.Failure{
             if(started)throw new IllegalStateException("Page still open");
             if(withText==0||text().isEmpty())throw new AttachmentText.Failure(AttachmentText.Problem.PDF_NO_TEXT);
-            return new AttachmentText.Result(AttachmentText.safeName(name),text(),partial(),false,true,pages,examined,withText);
+            return new AttachmentText.Result(AttachmentText.safeName(name),text(),partial(),false,true,pages,examined,withText,false,0,0,0,0,0,first);
         }
     }
 }

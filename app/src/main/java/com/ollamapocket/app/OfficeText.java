@@ -157,15 +157,16 @@ final class OfficeText {
         void chars(char[] c,int start,int len)throws SAXException{}
     }
     private static final class Excerpt{
-        final StringBuilder text=new StringBuilder();boolean partial,hasData;
+        final StringBuilder text=new StringBuilder();boolean partial,hasData,sealed;
         final int limit;
         Excerpt(int limit){this.limit=limit;}
         void add(String value){
+            if(sealed){if(!value.isEmpty())partial=true;return;}
             int room=limit-text.length();
             if(value.length()<=room){text.append(value);return;}
             int end=Math.max(room,0);
             if(end>0&&Character.isHighSurrogate(value.charAt(end-1)))end--;
-            text.append(value,0,end);partial=true;
+            text.append(value,0,end);partial=true;sealed=true;
         }
         void record(String label,String value){
             if(value.trim().isEmpty())return;
@@ -174,26 +175,26 @@ final class OfficeText {
     }
     private static final class Word extends Handler{
         final Excerpt out;int bodyDepth,paragraphDepth,textDepth,paragraphNumber;
-        StringBuilder paragraph;
+        StringBuilder paragraph;boolean paragraphSealed;
         Word(Excerpt o){out=o;}
         boolean root(String ns,String tag){return word(ns)&&tag.equals("document");}
         @Override void start(String ns,String tag,Attributes a){
             if(!word(ns))return;
             if(tag.equals("body"))bodyDepth=depth;
             if(bodyDepth==0)return;
-            if(tag.equals("p")&&paragraphDepth==0){paragraphDepth=depth;paragraphNumber++;paragraph=new StringBuilder();}
+            if(tag.equals("p")&&paragraphDepth==0){paragraphDepth=depth;paragraphNumber++;paragraph=new StringBuilder();paragraphSealed=false;}
             if(paragraphDepth==0)return;
             if(tag.equals("t"))textDepth=depth;
             if(tag.equals("tab"))append("\t");
             if(tag.equals("br")||tag.equals("cr"))append("\n");
         }
         void append(String value){
-            if(paragraph==null)return;
+            if(paragraph==null||paragraphSealed)return;
             int room=out.limit-paragraph.length();
             if(value.length()>room){
                 int take=Math.max(room,0);
                 if(take>0&&Character.isHighSurrogate(value.charAt(take-1)))take--;
-                paragraph.append(value,0,take);out.partial=true;
+                paragraph.append(value,0,take);out.partial=true;paragraphSealed=true;
             }else paragraph.append(value);
         }
         @Override void end(String ns,String tag){

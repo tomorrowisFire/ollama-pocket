@@ -27,6 +27,13 @@ public final class PdfExcerptTest {
         PdfExcerpt.Builder control=new PdfExcerpt.Builder(1);
         control.startPage(1);control.append("a\u0001b");control.endPage();
         ok(control.result("a.pdf").text.endsWith("a b"),"control sanitization");
+        PdfExcerpt.Builder later=new PdfExcerpt.Builder(25,13);
+        later.startPage(13);later.append("Later");later.endPage();
+        AttachmentText.Result p=later.result("a.pdf");
+        ok(p.pdfFirst==13&&p.pdfExamined==1&&p.text.startsWith("[Page 13]"),"physical page offset");
+        ok(p.sourceName().contains("pages 13–13")&&p.partial,"page source range");
+        try{new PdfExcerpt.Builder(3,4);throw new AssertionError("page range");}
+        catch(IllegalArgumentException e){n++;}
         System.out.println("PdfExcerptTest PASS: "+n+" assertions");
     }
 }
