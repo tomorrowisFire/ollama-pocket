@@ -50,6 +50,7 @@
     <string name="dictate">聽寫 · 確認後傳送</string>
     <string name="voice_turn">連續語音對話 · 回答後自動聆聽</string>
     <string name="voice_playback">正在朗讀… 點擊麥克風可打斷。</string>
+    <string name="voice_barge_opt_in">實驗性免觸控打斷（僅限有線耳機，朗讀停止後請重新說話）。</string>
     <string name="voice_notice">點擊開始。停止前，每次朗讀回答後自動開啟麥克風。需要已安裝的離線語言支援。</string>
     <string name="voice_permission">允許麥克風權限後，再次點擊語音。</string>
     <string name="voice_unavailable">無法使用離線語音辨識。請安裝支援的語音語言或輸入文字。</string>
