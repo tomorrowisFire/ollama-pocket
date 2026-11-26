@@ -76,6 +76,8 @@ public final class MainActivity extends Activity {
     private static final int EXPORT_CHAT = 703;
     private static final int PICK_ATTACHMENT = 704;
     private String attachmentScope="";
+    private boolean attachmentOcr;
+    private int attachmentOcrScript,attachmentOcrPage=1;
     private long attachmentSerial;
     private boolean attachmentReading;
     private Button attachFileButton;
@@ -365,6 +367,7 @@ public final class MainActivity extends Activity {
         showTab(state==null?0:state.getInt("activeTab",0));
         if(state!=null){
             attachmentScope=state.getString("attachmentScope","");
+            attachmentOcr=state.getBoolean("attachmentOcr",false);attachmentOcrScript=state.getInt("attachmentOcrScript",0);attachmentOcrPage=state.getInt("attachmentOcrPage",1);
             exportScope=state.getString("exportScope","");
             exportDigest=state.getString("exportDigest","");
             exportModel=state.getString("exportModel","");
@@ -385,6 +388,7 @@ public final class MainActivity extends Activity {
         super.onSaveInstanceState(out);
         out.putInt("activeTab",activeTab);
         out.putString("attachmentScope",attachmentScope);
+        out.putBoolean("attachmentOcr",attachmentOcr);out.putInt("attachmentOcrScript",attachmentOcrScript);out.putInt("attachmentOcrPage",attachmentOcrPage);
         out.putString("exportScope",exportScope);out.putString("exportDigest",exportDigest);
         out.putString("exportModel",exportModel);out.putBoolean("exportJson",exportJson);
         saveLocalDraft();
@@ -3324,22 +3328,52 @@ public final class MainActivity extends Activity {
         if(currentModel.isEmpty()){toast(getString(R.string.need_model));return;}
         final String scope=loadedHistoryScope;
         new AlertDialog.Builder(this).setTitle(R.string.attachment_pick).setMessage(R.string.attachment_formats)
-            .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,(d,w)->{
-                if(isUiBusy()||cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
-                attachmentScope=scope;
-                try{
-                    Intent picker=new Intent(Intent.ACTION_OPEN_DOCUMENT);
-                    picker.addCategory(Intent.CATEGORY_OPENABLE);picker.setType("*/*");
-                    picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                    picker.putExtra(Intent.EXTRA_MIME_TYPES,new String[]{"text/*","application/json","application/octet-stream",
-                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","application/pdf"});
-                    startActivityForResult(picker,PICK_ATTACHMENT);
-                }catch(Exception e){attachmentScope="";toast(getString(R.string.chat_export_unavailable));}
-            }).show();
+            .setNegativeButton(R.string.cancel,null)
+            .setNeutralButton(R.string.attachment_ocr,(d,w)->chooseAttachmentOcr(scope))
+            .setPositiveButton(R.string.ok,(d,w)->openAttachmentPicker(scope,false,0,1)).show();
+    }
+    private void chooseAttachmentOcr(String scope){
+        if(isUiBusy()||cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
+        LinearLayout panel=column();panel.setPadding(dp(16),dp(8),dp(16),dp(8));
+        margin(text(getString(R.string.attachment_ocr_notice),12,WHITE,false),panel,0,8);
+        margin(text(getString(R.string.attachment_ocr_language),13,WHITE,true),panel,0,4);
+        Spinner language=new Spinner(this);
+        String[] choices={"English / Latin","한국어","中文","日本語"};
+        ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,choices);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);language.setAdapter(adapter);
+        String locale=getResources().getConfiguration().getLocales().get(0).getLanguage();
+        language.setSelection("ko".equals(locale)?1:"zh".equals(locale)?2:"ja".equals(locale)?3:0);
+        panel.addView(language,lp(-1,-2));
+        EditText page=edit(getString(R.string.attachment_ocr_page),"1",false);
+        page.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        page.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(5)});
+        margin(page,panel,8,4);
+        AlertDialog d=new AlertDialog.Builder(this).setTitle(R.string.attachment_ocr).setView(panel)
+            .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.attachment_ocr_image_pick,null).create();
+        d.show();d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
+            int number;
+            try{number=Integer.parseInt(page.getText().toString().trim());if(!OcrPolicy.validPage(number))throw new NumberFormatException();}
+            catch(NumberFormatException e){toast(getString(R.string.attachment_ocr_bad_page));return;}
+            int script=language.getSelectedItemPosition();d.dismiss();openAttachmentPicker(scope,true,script,number);
+        });
+    }
+    private void openAttachmentPicker(String scope,boolean ocr,int script,int page){
+        if(guestOnly||isUiBusy()||cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
+        attachmentScope=scope;attachmentOcr=ocr;attachmentOcrScript=script;attachmentOcrPage=page;
+        try{
+            Intent picker=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            picker.addCategory(Intent.CATEGORY_OPENABLE);picker.setType("*/*");picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            picker.putExtra(Intent.EXTRA_MIME_TYPES,ocr?new String[]{"image/jpeg","image/png","image/webp","application/pdf"}:
+                new String[]{"text/*","application/json","application/octet-stream",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","application/pdf"});
+            startActivityForResult(picker,PICK_ATTACHMENT);
+        }catch(Exception e){attachmentScope="";attachmentOcr=false;toast(getString(R.string.chat_export_unavailable));}
     }
     private void finishChatAttachment(int result,Intent data){
         String scope=attachmentScope;attachmentScope="";
+        final boolean ocr=attachmentOcr;attachmentOcr=false;
+        final int script=attachmentOcrScript,page=attachmentOcrPage;
         if(result!=RESULT_OK||data==null||data.getData()==null)return;
         Uri uri=data.getData();
         if(guestOnly||cloudMode||isUiBusy()||!ownsLoadedScope()||!scope.equals(loadedHistoryScope)||!"content".equals(uri.getScheme())){
@@ -3361,10 +3395,15 @@ public final class MainActivity extends Activity {
                     }
                 }
                 boolean pdf=PdfExcerpt.supports(name);
+                boolean image=OcrPolicy.image(name);
+                if(ocr&&(!pdf&&!image||script<0||script>=OcrPolicy.Script.values().length))throw new AttachmentText.Failure(AttachmentText.Problem.UNSUPPORTED);
                 if(pdf&&Build.VERSION.SDK_INT<35)throw new AttachmentText.Failure(AttachmentText.Problem.PDF_VERSION);
                 if(bytes>AttachmentText.maxBytes(name))throw new AttachmentText.Failure(AttachmentText.Problem.TOO_LARGE);
                 try(InputStream in=getContentResolver().openInputStream(uri)){
-                    extracted=pdf?PdfTextClient.read(this,name,in):AttachmentText.read(name,in);
+                    if(ocr){
+                        OcrPolicy.Script chosen=OcrPolicy.Script.values()[script];
+                        extracted=pdf?PdfTextClient.ocr(this,name,in,chosen,page):ImageOcr.read(name,in,chosen);
+                    }else extracted=pdf?PdfTextClient.read(this,name,in):AttachmentText.read(name,in);
                 }
             }catch(AttachmentText.Failure e){
                 error=e.problem==AttachmentText.Problem.UNSUPPORTED?R.string.attachment_unsupported:
@@ -3373,7 +3412,12 @@ public final class MainActivity extends Activity {
                     e.problem==AttachmentText.Problem.PDF_VERSION?R.string.attachment_pdf_version:
                     e.problem==AttachmentText.Problem.PDF_NO_TEXT?R.string.attachment_pdf_no_text:
                     e.problem==AttachmentText.Problem.PDF_PROTECTED?R.string.attachment_pdf_protected:
-                    e.problem==AttachmentText.Problem.PDF_TIMEOUT?R.string.attachment_pdf_timeout:R.string.attachment_invalid;
+                    e.problem==AttachmentText.Problem.PDF_TIMEOUT?R.string.attachment_pdf_timeout:
+                    e.problem==AttachmentText.Problem.OCR_NO_TEXT?R.string.attachment_ocr_empty:
+                    e.problem==AttachmentText.Problem.OCR_BUSY?R.string.attachment_ocr_busy:
+                    e.problem==AttachmentText.Problem.OCR_TIMEOUT?R.string.attachment_ocr_timeout:
+                    e.problem==AttachmentText.Problem.OCR_PAGE?R.string.attachment_ocr_bad_page:
+                    e.problem==AttachmentText.Problem.OCR_FAILED?R.string.attachment_ocr_failed:R.string.attachment_invalid;
             }catch(Exception ignored){}
             final AttachmentText.Result preview=extracted;final int fail=error;
             ui.post(()->{
@@ -3397,6 +3441,13 @@ public final class MainActivity extends Activity {
         if(preview.pdf){
             margin(text(getString(R.string.attachment_pdf_note,preview.pdfExamined,preview.pdfPages,preview.pdfTextPages),12,MUTED,false),panel,0,6);
             margin(text(getString(R.string.attachment_pdf_privacy),12,MUTED,false),panel,0,6);
+        }
+        if(preview.ocr){
+            margin(text(getString(R.string.attachment_ocr_note),12,MUTED,false),panel,0,6);
+            if(preview.ocrPage>0){
+                margin(text(getString(R.string.attachment_ocr_pdf_page,preview.ocrPage,preview.ocrPages),12,MUTED,false),panel,0,6);
+                margin(text(getString(R.string.attachment_pdf_privacy),12,MUTED,false),panel,0,6);
+            }
         }
         if(preview.partial)margin(text(getString(R.string.attachment_partial),12,MUTED,true),panel,0,6);
         EditText excerpt=edit(getString(R.string.attachment_preview),preview.text,true);

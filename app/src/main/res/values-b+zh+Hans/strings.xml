@@ -678,7 +678,7 @@
     <string name="chat_manage_failed">无法更新对话列表，已保存消息未更改。</string>
     <string name="chat_manage_done">对话已更新</string>
     <string name="attachment_pick">附加文件</string>
-    <string name="attachment_formats">请选择 TXT、MD、CSV、TSV、JSON、LOG、DOCX、XLSX 或 PDF。PDF 文本提取需要 Android 15 或以上版本。暂不支持 OCR、图像和旧版 DOC/XLS。</string>
+    <string name="attachment_formats">请选择文本、Office 或 PDF 文件。PNG、JPG、WEBP 或扫描 PDF 请选择 OCR 模式。PDF 处理需要 Android 15 或以上。不支持旧版 DOC/XLS。</string>
     <string name="attachment_reading">正在提取文件文本…</string>
     <string name="attachment_preview">预览提取文本</string>
     <string name="attachment_notice">加入本地问题前请检查或编辑摘录。摘录将成为草稿及已保存问题的一部分，可能用于后续本地上下文。不保存原文件。文档服务可能通过网络获取文件。</string>
@@ -686,7 +686,7 @@
     <string name="attachment_insert">将摘录添加到问题</string>
     <string name="attachment_added">已添加摘录，发送前可在本地输入框编辑或删除。</string>
     <string name="attachment_unsupported">不支持的文件格式。</string>
-    <string name="attachment_too_large">文件或解压文档超出大小限制（文本 1 MiB，PDF 8 MiB，Office 压缩 8 MiB、解压 16 MiB）。</string>
+    <string name="attachment_too_large">文件、解压文档或图像超出安全输入限制。</string>
     <string name="attachment_invalid">无法提取受支持的文本。文件可能损坏、加密、为二进制或使用不支持的格式或编码。</string>
     <string name="attachment_empty">未找到可读文本。</string>
     <string name="attachment_context_limit">请缩短摘录或问题。模型令牌上限可能小于字符限制。</string>
@@ -694,9 +694,21 @@
     <string name="attachment_rpc_notice">添加摘录不会发送数据。之后选择协作推理时，可信访客设备可能参与处理。</string>
     <string name="attachment_office_note">Office 预览为只读：显示 Word 正文段落编号、Excel 工作表名称、单元格地址和存储值。不会重新计算公式；格式、图像、页眉页脚和部分工作表可能省略。请勿将缓存值视为最新结果。</string>
     <string name="attachment_pdf_version">PDF 文本提取需要 Android 15 或以上版本。其他受支持的文件格式仍可使用。</string>
-    <string name="attachment_pdf_no_text">在已检查的 PDF 页面中未找到可读文本。扫描页或不支持的文本编码可能需要 OCR。尚未实现 OCR。</string>
+    <string name="attachment_pdf_no_text">在已检查页面中未找到可读文本。请尝试 OCR 模式并选择所需页面和语言。</string>
     <string name="attachment_pdf_protected">此 PDF 需要密码或使用不支持的安全机制。不提取受保护的文档。</string>
     <string name="attachment_pdf_timeout">PDF 提取达到时间限制后停止。请尝试较小的文档。</string>
     <string name="attachment_pdf_note">仅提取 PDF 文本。已检查 %2$d 页中的 %1$d 页，其中 %3$d 页含可读文本。最多处理前 12 页和 6,000 字符。不包含图像、表格视觉布局或 OCR；阅读顺序可能与页面显示不同。</string>
     <string name="attachment_pdf_privacy">PDF 提取时创建临时私有副本以获得可寻址文件描述符，并在解析前移除。复制期间异常中断可能留下私有缓存文件。</string>
+    <string name="attachment_ocr">图像／扫描 PDF OCR</string>
+    <string name="attachment_ocr_language">选择识别语言</string>
+    <string name="attachment_ocr_page">PDF 页码（图像忽略此设置）</string>
+    <string name="attachment_ocr_notice">内置 ML Kit 在设备上识别文字。Google SDK 可能收集使用诊断。请检查提取结果，准确率取决于图像质量和所选语言。本操作不会向云端 AI 发送图像。</string>
+    <string name="attachment_ocr_note">仅为 OCR 文本；表格、图表、手写及阅读顺序可能不准确。必要时缩小图像，摘录最多 6,000 字符。</string>
+    <string name="attachment_ocr_pdf_page">PDF 共 %2$d 页，仅为第 %1$d 页的 OCR 结果。未包含其他页面。</string>
+    <string name="attachment_ocr_empty">OCR 未找到可读文字。请尝试其他语言或更清晰的图像。</string>
+    <string name="attachment_ocr_failed">OCR 未能完成。请检查图像格式、设备内存或识别支持。</string>
+    <string name="attachment_ocr_busy">上一个 OCR 任务仍在释放资源，请稍后重试。</string>
+    <string name="attachment_ocr_timeout">OCR 结果超时。上一个任务可能仍在清理资源。</string>
+    <string name="attachment_ocr_bad_page">请输入文档范围内 1 至 10,000 的有效 PDF 页码。</string>
+    <string name="attachment_ocr_image_pick">选择 PNG、JPEG、WEBP 或 PDF 页面</string>
 </resources>
