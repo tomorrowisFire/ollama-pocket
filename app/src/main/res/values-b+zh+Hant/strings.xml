@@ -729,4 +729,15 @@
     <string name="transfer_cloud_notice">以下訊息內容將用於本次服務商請求，可能包含貼上的文件摘錄或先前對話。傳送前請確認。不顯示服務商特定請求中繼資料。</string>
     <string name="transfer_changed">請求文脈或推論模式已變更。請重新確認。</string>
     <string name="transfer_review_failed">無法安全顯示完整請求文脈。未傳送請求。</string>
+    <string name="cloud_fetch_models">取得模型</string>
+    <string name="cloud_fetch_notice">使用 API 金鑰向所選提供商取得模型清單。不傳送聊天內容。</string>
+    <string name="cloud_usage">輸入權杖：%1$s · 輸出權杖：%2$s</string>
+    <string name="cloud_usage_unknown">用量未知</string>
+    <string name="cloud_rate_limit">已達呼叫限制，請稍後重試。</string>
+    <string name="cloud_auth_error">驗證或權限錯誤，請檢查 API 金鑰。</string>
+    <string name="cloud_provider_error">提供商暫時無法使用。</string>
+    <string name="cloud_timeout">請求逾時。</string>
+    <string name="cloud_estimated_cost">預估費用（USD）：%1$s</string>
+    <string name="cloud_input_rate">每百萬輸入權杖 USD</string>
+    <string name="cloud_output_rate">每百萬輸出權杖 USD</string>
 </resources>
