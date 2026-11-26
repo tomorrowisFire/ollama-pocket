@@ -742,4 +742,8 @@
     <string name="cloud_output_rate">每百万输出令牌 USD</string>
     <string name="cloud_pc_address">PC 地址（私有 IPv4:端口）</string>
     <string name="cloud_pc_notice">未加密的局域网连接。仅在可信私有网络使用；消息可能被读取或篡改。</string>
+    <string name="cloud_session_usage">会话用量：%1$s 次请求 · 输入 %2$s / 输出 %3$s 令牌</string>
+    <string name="cloud_session_cost">已知预估费用：$%1$s · 未知费用请求：%2$s</string>
+    <string name="cloud_budget">会话预估支出上限（USD，可选）</string>
+    <string name="cloud_budget_stop">已达到预估支出上限或用量未知。修改上限前请核查服务商账单。</string>
 </resources>
