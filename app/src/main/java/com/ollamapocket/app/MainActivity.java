@@ -202,7 +202,7 @@ public final class MainActivity extends Activity {
     private volatile boolean serverPollBusy;
     private JSONArray history = new JSONArray();
     private boolean historyReadable=true;
-    private String pendingLocalPrompt="";
+    private String loadedHistoryScope="",pendingLocalPrompt="";
     private String currentModel = "";
     private final List<String> knownModels = new ArrayList<>();
     private boolean ignoreSelection;
@@ -352,8 +352,8 @@ public final class MainActivity extends Activity {
         loadHistory();
         renderHistory();
         showTab(state==null?0:state.getInt("activeTab",0));
-        if(state!=null&&chatInput!=null&&historyKey().equals(state.getString("draftScope","")))
-            chatInput.setText(state.getString("draftMessage",chatInput.getText().toString()));
+        // Draft recovery uses the current per-conversation preference only.
+        // A saved Bundle from before a completed turn must not resurrect its prompt.
         startServer();
         ui.postDelayed(this::refreshModels, 2000);
         if (!getPreferences(MODE_PRIVATE).getBoolean("welcome_v2_seen", false)) {
@@ -366,10 +366,7 @@ public final class MainActivity extends Activity {
     @Override protected void onSaveInstanceState(Bundle out) {
         super.onSaveInstanceState(out);
         out.putInt("activeTab",activeTab);
-        if(chatInput!=null){
-            out.putString("draftScope",historyKey());
-            out.putString("draftMessage",chatBusy?pendingLocalPrompt:chatInput.getText().toString());
-        }
+        saveLocalDraft();
     }
     @Override protected void onResume() {
         super.onResume();
@@ -2497,13 +2494,34 @@ public final class MainActivity extends Activity {
         return Long.toString(id);
     }
     private String draftKey(String scope){return "chat_draft_v1_"+scope;}
+    private boolean ownsLoadedScope(){
+        return !loadedHistoryScope.isEmpty()&&loadedHistoryScope.equals(historyKey());
+    }
+    private boolean originalStillStored(String scope,String original)throws Exception{
+        return new JSONArray(getPreferences(MODE_PRIVATE).getString(scope,"[]")).toString().equals(original);
+    }
+    private void persistLocalDraft(String scope,String session,String prompt)throws Exception{
+        if(!ownsLoadedScope()||!scope.equals(loadedHistoryScope)||!historyReadable||
+            !originalStillStored(scope,history.toString()))throw new IllegalStateException("Chat scope changed");
+        android.content.SharedPreferences prefs=getPreferences(MODE_PRIVATE);
+        JSONArray index=indexWith(session,shortTitle(prompt));
+        android.content.SharedPreferences.Editor change=prefs.edit().putString(draftKey(scope),prompt)
+            .putString(listKey(),index.toString());
+        if(!prefs.contains(scope))change.putString(scope,history.toString());
+        change.apply();
+        refreshTabletRail();
+    }
     private void saveLocalDraft(){
-        if(guestOnly||chatInput==null||currentModel.isEmpty())return;
+        if(guestOnly||chatInput==null||currentModel.isEmpty()||!historyReadable||!ownsLoadedScope())return;
         String text=chatBusy?pendingLocalPrompt:chatInput.getText().toString();
         if(text.length()>LocalChatTurns.MAX_PROMPT)return;
-        android.content.SharedPreferences.Editor edit=getPreferences(MODE_PRIVATE).edit();
-        if(text.isEmpty())edit.remove(draftKey(historyKey()));else edit.putString(draftKey(historyKey()),text);
-        edit.apply();
+        try{
+            if(!originalStillStored(loadedHistoryScope,history.toString()))return;
+            if(text.isEmpty())getPreferences(MODE_PRIVATE).edit().remove(draftKey(loadedHistoryScope)).apply();
+            else persistLocalDraft(loadedHistoryScope,currentSessionId(),text);
+        }catch(Exception ignored){
+            // Preserve existing records; do not replace a damaged index or a newer conversation.
+        }
     }
     private void newChat() {
         if(cloudMode){if(cloudPanel!=null)cloudPanel.newChat();return;}
@@ -2514,6 +2532,7 @@ public final class MainActivity extends Activity {
         getPreferences(MODE_PRIVATE).edit().putString(sessionKey(),id)
             .putString("chat_v4_"+currentModel+"_"+id,"[]").apply();
         history=new JSONArray();historyReadable=true;
+        loadedHistoryScope="chat_v4_"+currentModel+"_"+id;
         if(chatInput!=null)chatInput.setText("");
         renderHistory();
         showTab(0);
@@ -2762,7 +2781,8 @@ public final class MainActivity extends Activity {
         } catch (Exception ignored) { }
     }
     private void loadHistory() {
-        if (!getPreferences(MODE_PRIVATE).contains(historyKey())) {
+        loadedHistoryScope=historyKey();
+        if (!getPreferences(MODE_PRIVATE).contains(loadedHistoryScope)) {
             String legacy = getPreferences(MODE_PRIVATE).getString("chat_" + currentModel, "[]");
             if (!"[]".equals(legacy)) {
                 getPreferences(MODE_PRIVATE).edit().putString(historyKey(), legacy).apply();
@@ -2774,10 +2794,10 @@ public final class MainActivity extends Activity {
             }
         }
         historyReadable=true;
-        try { history = new JSONArray(getPreferences(MODE_PRIVATE).getString(historyKey(), "[]")); }
+        try { history = new JSONArray(getPreferences(MODE_PRIVATE).getString(loadedHistoryScope, "[]")); }
         catch (Exception ignored) { history = new JSONArray();historyReadable=false; }
         if(chatInput!=null){
-            try{chatInput.setText(getPreferences(MODE_PRIVATE).getString(draftKey(historyKey()),""));}
+            try{chatInput.setText(getPreferences(MODE_PRIVATE).getString(draftKey(loadedHistoryScope),""));}
             catch(Exception ignored){chatInput.setText("");}
         }
     }
@@ -2811,7 +2831,8 @@ public final class MainActivity extends Activity {
         return next;
     }
     private void completeLocalTurn(String scope,String session,String original,String prompt,String answer)throws Exception{
-        if(!historyReadable||!scope.equals(historyKey())||!original.equals(history.toString()))throw new IllegalStateException("Chat scope changed");
+        if(!historyReadable||!ownsLoadedScope()||!scope.equals(loadedHistoryScope)||!original.equals(history.toString())||
+            !originalStillStored(scope,original))throw new IllegalStateException("Chat scope changed");
         if(!LocalChatTurns.validReply(answer))throw new IllegalArgumentException("Invalid response");
         JSONArray next=new JSONArray(original);
         next.put(new JSONObject().put("role","user").put("content",prompt));
@@ -2826,8 +2847,8 @@ public final class MainActivity extends Activity {
         refreshTabletRail();
     }
     private void branchMessage(int selected,boolean edit){
-        if(guestOnly||cloudMode||isUiBusy()||!historyReadable)return;
-        final String scope=historyKey(),original=history.toString();
+        if(guestOnly||cloudMode||isUiBusy()||!historyReadable||!ownsLoadedScope())return;
+        final String scope=loadedHistoryScope,original=history.toString();
         final LocalChatTurns.Branch plan;
         try{plan=LocalChatTurns.branch(localMessages(history),selected);}
         catch(Exception e){toast(getString(R.string.chat_branch_invalid));return;}
@@ -2844,12 +2865,13 @@ public final class MainActivity extends Activity {
             .setPositiveButton(R.string.chat_branch_create,null).create();
         dialog.show();
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
-            if(isUiBusy()||cloudMode||!scope.equals(historyKey())||!original.equals(history.toString())){
+            if(isUiBusy()||cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope)||!original.equals(history.toString())){
                 dialog.dismiss();return;
             }
             String prompt=question==null?plan.prompt:question.getText().toString().trim();
             if(!LocalChatTurns.validPrompt(prompt)){toast(getString(R.string.chat_prompt_limit));return;}
             try{
+                if(!originalStillStored(scope,original)){dialog.dismiss();toast(getString(R.string.chat_history_invalid));return;}
                 JSONArray prefix=new JSONArray();
                 JSONArray source=new JSONArray(original);
                 for(int i=0;i<plan.prefixLength;i++)prefix.put(source.get(i));
@@ -2862,7 +2884,7 @@ public final class MainActivity extends Activity {
                 getPreferences(MODE_PRIVATE).edit().putString(target,prefix.toString())
                     .putString(listKey(),index.toString()).putString(sessionKey(),id)
                     .putString(draftKey(target),prompt).apply();
-                history=prefix;historyReadable=true;chatInput.setText(prompt);
+                history=prefix;historyReadable=true;loadedHistoryScope=target;chatInput.setText(prompt);
                 dialog.dismiss();renderHistory();showTab(0);sendChat();
             }catch(Exception e){toast(getString(R.string.chat_save_failed));}
         });
@@ -2978,7 +3000,7 @@ public final class MainActivity extends Activity {
         String prompt=chatInput.getText().toString().trim();
         if(prompt.isEmpty())return;
         if(!LocalChatTurns.validPrompt(prompt)){toast(getString(R.string.chat_prompt_limit));return;}
-        if(!historyReadable){toast(getString(R.string.chat_history_invalid));return;}
+        if(!historyReadable||!ownsLoadedScope()){toast(getString(R.string.chat_history_invalid));return;}
         if(currentModel.isEmpty()||!knownModels.contains(currentModel)){toast(getString(R.string.need_model));showTab(1);return;}
         if(isUiBusy()){toast(getString(benchmarkBusy?R.string.benchmark_wait:R.string.busy));return;}
         final String modelAtStart=currentModel,sessionAtStart=currentSessionId(),scopeAtStart=historyKey(),original=history.toString();
@@ -2989,8 +3011,9 @@ public final class MainActivity extends Activity {
         try{requestHistory=modelContext(history,prompt);}catch(Exception e){toast(getString(R.string.chat_history_invalid));return;}
         final boolean speakThisTurn=speakNextAnswer;speakNextAnswer=false;
         if(voice!=null)voice.cancel();
+        try{persistLocalDraft(scopeAtStart,sessionAtStart,prompt);}
+        catch(Exception e){toast(getString(R.string.chat_history_invalid));return;}
         pendingLocalPrompt=prompt;
-        getPreferences(MODE_PRIVATE).edit().putString(draftKey(scopeAtStart),prompt).apply();
         chatInput.setText("");
         ((InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(chatInput.getWindowToken(),0);
         renderHistory();
@@ -3065,7 +3088,7 @@ public final class MainActivity extends Activity {
             ui.post(()->{
                 if(isFinishing()||isDestroyed())return;
                 boolean follow=followsLatest();
-                boolean sameScope=modelAtStart.equals(currentModel)&&scopeAtStart.equals(historyKey());
+                boolean sameScope=modelAtStart.equals(currentModel)&&ownsLoadedScope()&&scopeAtStart.equals(loadedHistoryScope);
                 boolean saved=false;String problem=finalError;
                 if(sameScope&&!chatCancelled&&problem==null){
                     try{completeLocalTurn(scopeAtStart,sessionAtStart,original,prompt,finalAnswer);saved=true;}
