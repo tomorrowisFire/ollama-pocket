@@ -21,6 +21,7 @@ on:
       - 'tests/LocalChatTurnsTest.java'
       - 'tests/LocalChatLibraryTest.java'
       - 'tests/ChatOrganizationTest.java'
+      - 'tests/AttachmentTextTest.java'
 
 jobs:
   compile:
@@ -103,6 +104,11 @@ jobs:
           mkdir -p /tmp/chat-organization-tests
           javac -d /tmp/chat-organization-tests app/src/main/java/com/ollamapocket/app/ChatOrganization.java tests/ChatOrganizationTest.java
           java -cp /tmp/chat-organization-tests com.ollamapocket.app.ChatOrganizationTest
+      - name: Test bounded local attachment text extraction
+        run: |
+          mkdir -p /tmp/attachment-tests
+          javac -d /tmp/attachment-tests app/src/main/java/com/ollamapocket/app/LocalChatTurns.java app/src/main/java/com/ollamapocket/app/AttachmentText.java tests/AttachmentTextTest.java
+          java -cp /tmp/attachment-tests com.ollamapocket.app.AttachmentTextTest
       - name: Audit direct Hangul UI literals
         run: python3 tests/locale_ui_audit.py
       - name: Verify OnHand AI brand and locale resource parity
