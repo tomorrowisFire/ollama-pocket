@@ -22,7 +22,21 @@ final class OnHandsVoice {
     private boolean ready, initialized, closed;
     private String pendingSpeech;
     private int generation;
-    private boolean continuous;
+    private boolean continuous, bargeOptIn;
+    private BargeMonitor barge;
+    void enableBarge(boolean enabled){bargeOptIn=enabled;}
+    boolean bargeEnabled(){return bargeOptIn;}
+    private void stopBarge(){BargeMonitor old=barge;barge=null;if(old!=null)old.stop();}
+    private void startBarge(){
+        if(!continuous||!bargeOptIn||afterSpeech==null||barge!=null)return;
+        final int token=generation;
+        BargeMonitor monitor=new BargeMonitor(a,()->handler.post(()->{
+            if(closed||token!=generation||barge==null||!continuous||afterSpeech==null)return;
+            Runnable next=afterSpeech;afterSpeech=null;utterancePrefix=null;lastUtterance=null;
+            stopBarge();clearTimeout();if(tts!=null)tts.stop();resumeAfterPlayback(next);
+        }));
+        barge=monitor;monitor.start();
+    }
     private Runnable afterSpeech;
     private String lastUtterance;
     private String utterancePrefix;
@@ -46,7 +60,7 @@ final class OnHandsVoice {
         VoiceQueuePolicy.Event event=VoiceQueuePolicy.event(utterancePrefix,lastUtterance,id,success);
         if(event==VoiceQueuePolicy.Event.ERROR){cancel();toast(R.string.tts_unavailable);return;}
         if(event!=VoiceQueuePolicy.Event.COMPLETE)return;
-        clearTimeout();utterancePrefix=null;lastUtterance=null; Runnable next=afterSpeech; afterSpeech=null;
+        stopBarge();clearTimeout();utterancePrefix=null;lastUtterance=null; Runnable next=afterSpeech; afterSpeech=null;
         if(success&&continuous&&next!=null)resumeAfterPlayback(next);
     }
     OnHandsVoice(Activity a) {
@@ -68,7 +82,7 @@ final class OnHandsVoice {
     boolean speaking(){return pendingSpeech!=null || lastUtterance!=null || (tts!=null && tts.isSpeaking());}
     private void toast(int id){if(!closed)Toast.makeText(a,id,Toast.LENGTH_SHORT).show();}
     void listen(Result cb) {
-        boolean loop=continuous; cancel(); continuous=loop;
+        boolean loop=continuous, opt=bargeOptIn; cancel(); continuous=loop;bargeOptIn=opt;
         if(closed||Build.VERSION.SDK_INT<31||!SpeechRecognizer.isOnDeviceRecognitionAvailable(a)){
             cancel();toast(R.string.voice_unavailable);return;
         }
@@ -87,7 +101,7 @@ final class OnHandsVoice {
                 public void onResults(Bundle b){
                     if(closed||id!=generation)return;
                     ArrayList<String> rows=b==null?null:b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-                    boolean loop=continuous;cancel();continuous=loop;
+                    boolean loop=continuous, opt=bargeOptIn;cancel();continuous=loop;bargeOptIn=opt;
                     if(rows==null||rows.isEmpty()||rows.get(0)==null||rows.get(0).trim().isEmpty()){cancel();toast(R.string.voice_error);return;}
                     cb.accepted(rows.get(0).trim());
                 }
@@ -116,7 +130,7 @@ final class OnHandsVoice {
             }
             if(selected==null||tts.setVoice(selected)!=TextToSpeech.SUCCESS){cancel();toast(R.string.tts_unavailable);return;}
             int max=Math.min(2000,TextToSpeech.getMaxSpeechInputLength());
-            utterancePrefix=null;lastUtterance=null;tts.stop();
+            stopBarge();utterancePrefix=null;lastUtterance=null;tts.stop();
             utterancePrefix="oh-"+generation+"-"+(++speechSequence)+"-";
             armTimeout(VoiceQueuePolicy.timeout(text.length()));
             for(int i=0;i<text.length();){
@@ -128,13 +142,59 @@ final class OnHandsVoice {
                 }
                 i=end;
             }
+            if(lastUtterance!=null)startBarge();
         }catch(RuntimeException e){cancel();toast(R.string.tts_unavailable);}
     }
     void cancel(){
-        generation++;clearTimeout();clearResume();pendingSpeech=null;continuous=false;afterSpeech=null;lastUtterance=null;utterancePrefix=null;
+        generation++;stopBarge();clearTimeout();clearResume();pendingSpeech=null;continuous=false;bargeOptIn=false;afterSpeech=null;lastUtterance=null;utterancePrefix=null;
         SpeechRecognizer old=recognizer;recognizer=null;
         if(old!=null){try{old.cancel();}catch(RuntimeException ignored){}try{old.destroy();}catch(RuntimeException ignored){}}
         if(tts!=null)tts.stop();
     }
     void close(){closed=true;cancel();if(tts!=null){tts.shutdown();tts=null;}}
+    /** Experimental energy detector. Wired headset plus enabled platform AEC required.
+        Never interprets captured audio as a command; the user repeats after playback stops. */
+    private static final class BargeMonitor {
+        private final Activity activity; private final Runnable detected;
+        private volatile boolean stopped;
+        private android.media.AudioRecord recorder;
+        BargeMonitor(Activity a,Runnable callback){activity=a;detected=callback;}
+        void start(){new Thread(this::run,"onhand-barge").start();}
+        synchronized void stop(){stopped=true;if(recorder!=null)try{recorder.stop();}catch(RuntimeException ignored){}}
+        private static boolean wired(android.media.AudioDeviceInfo device){
+            return device!=null&&(device.getType()==android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET||
+                device.getType()==android.media.AudioDeviceInfo.TYPE_USB_HEADSET);
+        }
+        private void run(){
+            android.media.AudioRecord rec=null;
+            android.media.audiofx.AcousticEchoCanceler aec=null;
+            try{
+                android.media.AudioManager am=(android.media.AudioManager)activity.getSystemService(android.content.Context.AUDIO_SERVICE);
+                if(am==null||!android.media.audiofx.AcousticEchoCanceler.isAvailable())return;
+                boolean headset=false;
+                for(android.media.AudioDeviceInfo d:am.getDevices(android.media.AudioManager.GET_DEVICES_OUTPUTS))if(wired(d))headset=true;
+                if(!headset)return;
+                int min=android.media.AudioRecord.getMinBufferSize(16000,android.media.AudioFormat.CHANNEL_IN_MONO,android.media.AudioFormat.ENCODING_PCM_16BIT);
+                if(min<=0)return;
+                rec=new android.media.AudioRecord(android.media.MediaRecorder.AudioSource.VOICE_COMMUNICATION,16000,
+                    android.media.AudioFormat.CHANNEL_IN_MONO,android.media.AudioFormat.ENCODING_PCM_16BIT,Math.max(min,3200));
+                if(rec.getState()!=android.media.AudioRecord.STATE_INITIALIZED)return;
+                aec=android.media.audiofx.AcousticEchoCanceler.create(rec.getAudioSessionId());
+                if(aec==null||aec.setEnabled(true)!=android.media.audiofx.AudioEffect.SUCCESS||!aec.getEnabled())return;
+                synchronized(this){if(stopped)return;recorder=rec;rec.startRecording();}
+                short[] frame=new short[320];int consecutive=0;int warmup=20;
+                while(!stopped){
+                    int n=rec.read(frame,0,frame.length);
+                    if(n<=0||!wired(rec.getRoutedDevice()))break;
+                    if(warmup>0){warmup--;continue;}
+                    consecutive=VoiceQueuePolicy.bargeFrames(frame,n,consecutive);
+                    if(consecutive>=8){if(!stopped)detected.run();break;}
+                }
+            }catch(RuntimeException ignored){}finally{
+                synchronized(this){recorder=null;if(rec!=null)try{rec.stop();}catch(RuntimeException ignored){}}
+                if(aec!=null)try{aec.release();}catch(RuntimeException ignored){}
+                if(rec!=null)try{rec.release();}catch(RuntimeException ignored){}
+            }
+        }
+    }
 }
