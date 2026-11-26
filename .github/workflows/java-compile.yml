@@ -247,6 +247,8 @@ jobs:
           mkdir -p /tmp/project-tests
           javac -cp /tmp/cloud-stream-tests/json.jar -d /tmp/project-tests app/src/main/java/com/ollamapocket/app/ProjectTransactions.java app/src/main/java/com/ollamapocket/app/ProjectLibrary.java tests/ProjectLibraryTest.java
           java -Xmx512m -cp /tmp/project-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.ProjectLibraryTest
+          javac -cp /tmp/project-tests:/tmp/cloud-stream-tests/json.jar -d /tmp/project-tests app/src/main/java/com/ollamapocket/app/ProjectWorkspacePolicy.java tests/ProjectWorkspacePolicyTest.java
+          java -cp /tmp/project-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.ProjectWorkspacePolicyTest
       - name: Audit direct Hangul UI literals
         run: python3 tests/locale_ui_audit.py
       - name: Verify OnHand AI brand and locale resource parity

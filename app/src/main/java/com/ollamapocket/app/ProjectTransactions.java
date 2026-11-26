@@ -21,6 +21,7 @@ final class ProjectTransactions<T> {
         final T value;
         final long revision;
         private final byte[] bytes;
+        int storedByteCount(){return bytes==null?0:bytes.length;}
         private Snapshot(T value,long revision,byte[] bytes){
             this.value=value;this.revision=revision;this.bytes=bytes==null?null:bytes.clone();
         }
