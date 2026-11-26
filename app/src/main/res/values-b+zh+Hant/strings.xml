@@ -1190,4 +1190,22 @@
     <string name="workbench_api_detail">開啟雲端或電腦聊天並管理提供者設定。</string>
     <string name="workbench_export_detail">檢查並匯出目前本機對話。</string>
     <string name="workbench_compute_detail">檢視可用推論引擎與運算設定。</string>
+    <string name="workspace_text_open">查看原文：%1$s</string>
+    <string name="workspace_text_title">原文查看與複製</string>
+    <string name="workspace_text_notice">來源：%1$s · %2$d 個 UTF-16 單位。按原字元搜尋，區分大小寫及標點，不循環。分段顯示未變更的原文。</string>
+    <string name="workspace_text_query">精確搜尋文字</string>
+    <string name="workspace_text_find_previous">尋找上一處</string>
+    <string name="workspace_text_find_next">尋找下一處</string>
+    <string name="workspace_text_range">UTF-16 範圍 %1$d–%2$d / %3$d</string>
+    <string name="workspace_text_match">精確相符位置 %1$d–%2$d</string>
+    <string name="workspace_text_previous">上一段</string>
+    <string name="workspace_text_next">下一段</string>
+    <string name="workspace_text_copy_excerpt">複製目前片段</string>
+    <string name="workspace_text_copy_full">複製所選全文</string>
+    <string name="workspace_text_full_notice">複製 %1$s 的未變更全文？\n%2$s\n複製不驗證內容。</string>
+    <string name="workspace_text_excerpt_notice">僅複製 %1$s 目前片段？\n%2$s\n片段可能缺少報告狀態、證據或注意事項。需要完整脈絡時請複製全文。</string>
+    <string name="workspace_text_no_match">該方向沒有更多精確相符項目。</string>
+    <string name="workspace_text_bad_query">請輸入有效的非空搜尋文字（最多 160 個 UTF-16 單位）。</string>
+    <string name="workspace_text_invalid">所選原文為空、無效或超過 160000 個 UTF-16 單位。未截斷或複製。</string>
+    <string name="workspace_text_changed">已檢查的來源或選取範圍已變更。未複製，請重新開啟來源。</string>
 </resources>

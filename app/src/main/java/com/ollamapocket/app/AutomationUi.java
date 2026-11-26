@@ -19,6 +19,7 @@ final class AutomationUi {
     private final Activity owner;
     private final WorkspaceDictation dictation;
     private final WorkspaceReadAloud reading;
+    private final WorkspaceTextViewer viewer;
     private AlertDialog dialog,confirmation;
     private McpLanClient mcp;
     private LocalWorkflow workflow;
@@ -28,7 +29,7 @@ final class AutomationUi {
     private volatile Thread worker;
     private volatile boolean stopped;
     private int epoch;
-    AutomationUi(Activity a){owner=a;dictation=new WorkspaceDictation(a);reading=new WorkspaceReadAloud(a);}
+    AutomationUi(Activity a){owner=a;dictation=new WorkspaceDictation(a);reading=new WorkspaceReadAloud(a);viewer=new WorkspaceTextViewer(a);}
     static boolean busy(){return BUSY.get();}
     private String s(int id){return owner.getString(id);}
     private int dp(int n){return Math.round(n*owner.getResources().getDisplayMetrics().density);}
@@ -60,7 +61,7 @@ final class AutomationUi {
         dialog=d;d.setOnDismissListener(x->{if(dialog==d){dialog=null;pause();}});d.show();secure(d);WorkbenchWindow.fit(owner,d);
     }
     void pause(){
-        reading.cancel();dictation.cancel();
+        viewer.cancel();reading.cancel();dictation.cancel();
         stopped=true;epoch++;
         if(reportWorkspace!=null){reportWorkspace.pause();reportWorkspace=null;}
         if(mcp!=null){mcp.cancel();mcp=null;}
@@ -73,7 +74,7 @@ final class AutomationUi {
     }
     private <T> void work(Callable<T> task,Consumer<T> success,Runnable failure){
         if(!BUSY.compareAndSet(false,true)){toast(R.string.busy);return;}
-        reading.cancel();dictation.cancel();
+        viewer.cancel();reading.cancel();dictation.cancel();
         final int token=epoch;
         Thread t=new Thread(()->{
             T result=null;boolean ok=false;
@@ -201,7 +202,7 @@ final class AutomationUi {
         capacityStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         TextView status=output(panel);status.setTextIsSelectable(false);
         status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
-        final Button[] controls=new Button[8];
+        final Button[] controls=new Button[9];
         final ConferencePolicy.Result[] latest={null};
         final ConferenceReport[] terminal={null};
         final boolean[] stopRequested={false};
@@ -215,6 +216,7 @@ final class AutomationUi {
             controls[5].setEnabled(idle&&terminal[0]!=null);
             controls[6].setEnabled(idle&&terminal[0]!=null);
             controls[7].setEnabled(idle&&terminal[0]!=null);
+            controls[8].setEnabled(idle&&terminal[0]!=null);
         };
         android.text.TextWatcher resetCapacity=new android.text.TextWatcher(){
             public void beforeTextChanged(CharSequence text,int start,int count,int after){}
@@ -313,6 +315,9 @@ final class AutomationUi {
             }catch(ProjectReportHandoff.TooLarge e){toast(R.string.project_report_too_large);}
             catch(Exception e){toast(R.string.batch_export_failed);}
         });
+        controls[8]=viewer.add(panel,R.string.conference_title,()->status.getText().toString(),
+            ()->valid(token)&&!busy()&&terminal[0]!=null&&confirmation==null&&dialog!=null&&dialog.isShowing());
+        panel.removeView(controls[8]);panel.addView(controls[8],panel.indexOfChild(status),WorkbenchStyle.row(owner));
         controls[7]=reading.add(panel,R.string.conference_title,()->status.getText().toString(),
             ()->valid(token)&&!busy()&&terminal[0]!=null&&confirmation==null&&dialog!=null&&dialog.isShowing());
         enabled.run();show(s(R.string.conference_title),panel);
@@ -373,7 +378,7 @@ final class AutomationUi {
         final LocalWorkflow runner=new LocalWorkflow(owner);workflow=runner;
         LocalWorkflow.Checkpoint saved=null;
         try{saved=runner.load();}catch(Exception e){toast(R.string.auto_checkpoint_error);}
-        Button[] buttons=new Button[12];
+        Button[] buttons=new Button[13];
         EditText plan=field(l,R.string.auto_plan,saved==null?"":saved.plan,24000,true);
         final LocalWorkflow.Checkpoint[] checkpoint={saved};
         buttons[8]=button(l,R.string.auto_visual_editor,()->{
@@ -386,7 +391,8 @@ final class AutomationUi {
         ProgressBar progress=new ProgressBar(owner,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(10);l.addView(progress,new LinearLayout.LayoutParams(-1,dp(12)));
         if(saved!=null){display(status,saved);progress.setMax(saved.steps().size());progress.setProgress(saved.results.size());}
         Runnable enabled=()->{boolean idle=!busy();plan.setEnabled(idle);for(Button b:buttons)if(b!=null)b.setEnabled(idle);
-            if(buttons[11]!=null)buttons[11].setEnabled(idle&&checkpoint[0]!=null);};
+            if(buttons[11]!=null)buttons[11].setEnabled(idle&&checkpoint[0]!=null);
+            if(buttons[12]!=null)buttons[12].setEnabled(idle&&checkpoint[0]!=null);};
         buttons[10]=button(l,R.string.auto_goal_planner,()->{if(!busy())showGoalPlanner(model,plan,enabled);});
         Consumer<LocalWorkflow.Checkpoint> start=c->{
             if(!c.model.equals(model)){toast(R.string.need_model);return;}
@@ -434,7 +440,7 @@ final class AutomationUi {
         buttons[6]=button(l,R.string.auto_history,()->{if(!busy())showHistory(runner);});
         buttons[2]=button(l,R.string.auto_clear,()->{
             if(busy())return;
-            confirm(s(R.string.auto_clear),s(R.string.auto_clear_current_notice),()->{try{runner.clear();checkpoint[0]=null;plan.setText("");status.setText("");progress.setProgress(0);}catch(Exception e){toast(R.string.auto_checkpoint_error);}});
+            confirm(s(R.string.auto_clear),s(R.string.auto_clear_current_notice),()->{try{runner.clear();checkpoint[0]=null;plan.setText("");status.setText("");progress.setProgress(0);enabled.run();}catch(Exception e){toast(R.string.auto_checkpoint_error);}});
         });
         button(l,R.string.auto_cancel_run,()->{
             if(planner!=null&&busy()){toast(R.string.busy);return;}
@@ -455,6 +461,10 @@ final class AutomationUi {
         });
         button(l,R.string.auto_pause,()->{pause();});
         final int readToken=epoch;
+        buttons[12]=viewer.add(l,R.string.auto_workflow,()->status.getText().toString(),
+            ()->valid(readToken)&&!busy()&&checkpoint[0]!=null&&confirmation==null&&dialog!=null&&dialog.isShowing());
+        buttons[12].setEnabled(checkpoint[0]!=null&&!busy());
+        l.removeView(buttons[12]);l.addView(buttons[12],l.indexOfChild(status),WorkbenchStyle.row(owner));
         buttons[11]=reading.add(l,R.string.auto_workflow,()->status.getText().toString(),
             ()->valid(readToken)&&!busy()&&checkpoint[0]!=null&&confirmation==null&&dialog!=null&&dialog.isShowing());
         buttons[11].setEnabled(checkpoint[0]!=null&&!busy());

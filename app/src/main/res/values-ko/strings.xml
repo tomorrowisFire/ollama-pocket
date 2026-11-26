@@ -1190,4 +1190,22 @@
     <string name="workbench_api_detail">클라우드·PC 채팅을 열고 제공자별 설정을 관리합니다.</string>
     <string name="workbench_export_detail">현재 로컬 대화를 검토하고 내보냅니다.</string>
     <string name="workbench_compute_detail">추론 엔진 및 연산 설정을 확인합니다.</string>
+    <string name="workspace_text_open">원문 탐색: %1$s</string>
+    <string name="workspace_text_title">원문 탐색 및 복사</string>
+    <string name="workspace_text_notice">대상: %1$s · UTF-16 %2$d 단위. 대소문자와 문장부호를 포함하여 정확히 일치하는 문자열을 검색합니다. 끝에서 처음으로 돌아가지 않으며 원문을 변경하지 않고 구간별로 표시합니다.</string>
+    <string name="workspace_text_query">정확히 찾을 문자열</string>
+    <string name="workspace_text_find_previous">이전 일치 항목</string>
+    <string name="workspace_text_find_next">다음 일치 항목</string>
+    <string name="workspace_text_range">UTF-16 구간 %1$d–%2$d / %3$d</string>
+    <string name="workspace_text_match">일치 위치 %1$d–%2$d</string>
+    <string name="workspace_text_previous">이전 구간</string>
+    <string name="workspace_text_next">다음 구간</string>
+    <string name="workspace_text_copy_excerpt">표시 구간 복사</string>
+    <string name="workspace_text_copy_full">선택한 원문 전체 복사</string>
+    <string name="workspace_text_full_notice">%1$s의 변경되지 않은 원문 전체를 복사할까요?\n%2$s\n복사는 내용의 사실성을 검증하지 않습니다.</string>
+    <string name="workspace_text_excerpt_notice">%1$s의 표시 구간만 복사할까요?\n%2$s\n일부 구간에는 보고서 상태·근거·유의사항이 빠질 수 있습니다. 전체 맥락이 필요하면 원문 전체를 복사하세요.</string>
+    <string name="workspace_text_no_match">해당 방향에 더 이상 정확히 일치하는 항목이 없습니다.</string>
+    <string name="workspace_text_bad_query">유효한 검색 문자열을 입력하세요(UTF-16 최대 160 단위).</string>
+    <string name="workspace_text_invalid">선택한 원문이 비어 있거나 유효하지 않거나 UTF-16 160000 단위를 초과합니다. 원문을 잘라내거나 복사하지 않았습니다.</string>
+    <string name="workspace_text_changed">검토한 원문 또는 선택 구간이 변경되었습니다. 복사하지 않았습니다. 원문을 다시 열어 주세요.</string>
 </resources>

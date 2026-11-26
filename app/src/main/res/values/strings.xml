@@ -1190,4 +1190,22 @@
     <string name="workbench_api_detail">Open cloud/PC chat and manage explicit provider settings.</string>
     <string name="workbench_export_detail">Review and export the current local conversation.</string>
     <string name="workbench_compute_detail">Review available inference engines and compute preferences.</string>
+    <string name="workspace_text_open">Inspect text: %1$s</string>
+    <string name="workspace_text_title">Inspect and copy text</string>
+    <string name="workspace_text_notice">Source: %1$s · %2$d UTF-16 units. Search matches exact characters, including case and punctuation. No wraparound. Page navigation shows bounded excerpts of the unchanged text.</string>
+    <string name="workspace_text_query">Exact search text</string>
+    <string name="workspace_text_find_previous">Find previous</string>
+    <string name="workspace_text_find_next">Find next</string>
+    <string name="workspace_text_range">UTF-16 range %1$d–%2$d of %3$d</string>
+    <string name="workspace_text_match">Exact match at %1$d–%2$d</string>
+    <string name="workspace_text_previous">Previous excerpt</string>
+    <string name="workspace_text_next">Next excerpt</string>
+    <string name="workspace_text_copy_excerpt">Copy displayed excerpt</string>
+    <string name="workspace_text_copy_full">Copy complete selected text</string>
+    <string name="workspace_text_full_notice">Copy the entire unchanged text of %1$s?\n%2$s\nCopying does not verify its contents.</string>
+    <string name="workspace_text_excerpt_notice">Copy only the displayed excerpt of %1$s?\n%2$s\nAn excerpt may omit the report status, evidence and caveats. Use complete text when the full context matters.</string>
+    <string name="workspace_text_no_match">No further exact match in that direction.</string>
+    <string name="workspace_text_bad_query">Enter valid nonblank search text (up to 160 UTF-16 units).</string>
+    <string name="workspace_text_invalid">The selected text is empty, invalid, or exceeds 160000 UTF-16 units. No text was truncated or copied.</string>
+    <string name="workspace_text_changed">The reviewed source or selection changed. Nothing was copied. Open the source again.</string>
 </resources>

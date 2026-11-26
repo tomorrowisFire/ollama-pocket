@@ -1190,4 +1190,22 @@
     <string name="workbench_api_detail">クラウド・PCチャットを開き、提供元の設定を管理します。</string>
     <string name="workbench_export_detail">現在のローカル会話を確認してエクスポートします。</string>
     <string name="workbench_compute_detail">利用可能な推論エンジンと計算設定を確認します。</string>
+    <string name="workspace_text_open">原文を確認：%1$s</string>
+    <string name="workspace_text_title">原文の確認とコピー</string>
+    <string name="workspace_text_notice">対象：%1$s · UTF-16 %2$d単位。大文字・小文字や句読点を含め完全一致で検索します。循環せず、原文を変更せず区間ごとに表示します。</string>
+    <string name="workspace_text_query">完全一致の検索文字列</string>
+    <string name="workspace_text_find_previous">前の一致箇所</string>
+    <string name="workspace_text_find_next">次の一致箇所</string>
+    <string name="workspace_text_range">UTF-16範囲 %1$d–%2$d / %3$d</string>
+    <string name="workspace_text_match">一致位置 %1$d–%2$d</string>
+    <string name="workspace_text_previous">前の区間</string>
+    <string name="workspace_text_next">次の区間</string>
+    <string name="workspace_text_copy_excerpt">表示区間をコピー</string>
+    <string name="workspace_text_copy_full">選択した原文全体をコピー</string>
+    <string name="workspace_text_full_notice">%1$s の変更していない原文全体をコピーしますか？\n%2$s\nコピーは内容の検証ではありません。</string>
+    <string name="workspace_text_excerpt_notice">%1$s の表示区間だけをコピーしますか？\n%2$s\n抜粋ではレポートの状態、根拠、注意事項が欠落する場合があります。文脈が必要なら原文全体をコピーしてください。</string>
+    <string name="workspace_text_no_match">その方向にこれ以上の完全一致はありません。</string>
+    <string name="workspace_text_bad_query">有効な空白以外の検索文字列を入力してください（UTF-16 最大160単位）。</string>
+    <string name="workspace_text_invalid">対象の原文が空、無効、またはUTF-16 160000単位を超えています。切り捨てやコピーは行っていません。</string>
+    <string name="workspace_text_changed">確認した原文または選択範囲が変わりました。コピーしていません。原文を開き直してください。</string>
 </resources>

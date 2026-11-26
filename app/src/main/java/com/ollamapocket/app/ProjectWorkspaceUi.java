@@ -21,6 +21,7 @@ final class ProjectWorkspaceUi {
     private final Activity owner;
     private final WorkspaceDictation dictation;
     private final WorkspaceReadAloud reading;
+    private final WorkspaceTextViewer viewer;
     private final BooleanSupplier eligible;
     private final ProjectWorkspacePolicy.Session session=new ProjectWorkspacePolicy.Session();
     private ProjectTransactions.Snapshot<ProjectLibrary.State> snapshot;
@@ -39,7 +40,7 @@ final class ProjectWorkspaceUi {
     private ProjectLibrary.Link currentLink;
     private Function<ProjectLibrary.Link,ProjectChatLinkPolicy.Status> linkResolver;
     private Consumer<ProjectLibrary.Link> linkOpener;
-    ProjectWorkspaceUi(Activity owner,BooleanSupplier eligible){this.owner=owner;this.eligible=eligible;this.dictation=new WorkspaceDictation(owner);this.reading=new WorkspaceReadAloud(owner);}
+    ProjectWorkspaceUi(Activity owner,BooleanSupplier eligible){this.owner=owner;this.eligible=eligible;this.dictation=new WorkspaceDictation(owner);this.reading=new WorkspaceReadAloud(owner);this.viewer=new WorkspaceTextViewer(owner);}
     static boolean busy(){return MODAL.get()||WORK.get();}
     private boolean valid(long token){return session.valid(token)&&eligible.getAsBoolean()&&!owner.isFinishing()&&!owner.isDestroyed();}
     private String s(int id,Object... args){return owner.getString(id,args);}
@@ -65,7 +66,7 @@ final class ProjectWorkspaceUi {
         secure(dialog);dialog.show();secure(dialog);WorkbenchWindow.fit(owner,dialog);reload();
     }
     void pause(){
-        reading.cancel();dictation.cancel();
+        viewer.cancel();reading.cancel();dictation.cancel();
         session.close();
         if(confirmation!=null){AlertDialog d=confirmation;confirmation=null;d.dismiss();}
         if(dialog!=null){AlertDialog d=dialog;dialog=null;d.dismiss();}
@@ -102,7 +103,7 @@ final class ProjectWorkspaceUi {
         return e;
     }
     private void reset(){
-        reading.cancel();dictation.cancel();
+        viewer.cancel();reading.cancel();dictation.cancel();
         body.removeAllViews();titleField=null;textField=null;oldTitle="";oldText="";reloadRequired=false;
         notice=new TextView(owner);notice.setSaveEnabled(false);WorkbenchStyle.label(owner,notice,14,false,false);
         notice.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);body.addView(notice);
@@ -141,7 +142,7 @@ final class ProjectWorkspaceUi {
     private <T> void work(Task<T> task,Consumer<T> success,Consumer<Exception> failure){
         final long token=session.token();
         if(!valid(token)||!WORK.compareAndSet(false,true))return;
-        reading.cancel();dictation.cancel();lockControls(true);status(R.string.project_working);
+        viewer.cancel();reading.cancel();dictation.cancel();lockControls(true);status(R.string.project_working);
         Thread worker=new Thread(()->{
             T value=null;Exception error=null;
             try{value=task.run();}catch(Exception e){error=e;}
@@ -194,8 +195,8 @@ final class ProjectWorkspaceUi {
         }else{
             ProjectLibrary.Project p=state.project(pid);label(p.title,true);
             if(aid==null){
-                label(s(R.string.project_instructions),false);label(p.instructions,true);
-                readText(R.string.project_instructions,p.instructions);
+                label(s(R.string.project_instructions),false);readText(R.string.project_instructions,p.instructions);
+                label(p.instructions,true);
                 contextButton(state,p.id,null,0);
                 linkButtons(p);
                 button(R.string.project_edit,()->projectEditor(p));
@@ -328,6 +329,9 @@ final class ProjectWorkspaceUi {
         label(s(R.string.project_report_notice),false);
         label(p.title+" / "+title,true);
         label(reviewed.status+" · "+s(R.string.project_version,a==null?1:a.current().ordinal+1),false);
+        final long reviewToken=session.token();
+        viewer.add(body,R.string.project_text,()->reviewed.json,
+            ()->valid(reviewToken)&&!WORK.get()&&report==reviewed&&confirmation==null&&dialog!=null&&dialog.isShowing());
         label(reviewed.json,true);
         button(R.string.project_save,()->confirm(R.string.project_report_save,R.string.project_report_notice,
             ()->save(st->a==null?reviewed.create(st,pid,aid,title,System.currentTimeMillis()):
@@ -337,12 +341,15 @@ final class ProjectWorkspaceUi {
     }
     private void version(ProjectLibrary.Version v){
         label(s(R.string.project_version,v.ordinal)+" · "+DateFormat.getDateTimeInstance().format(new Date(v.saved)),false);
-        label(v.text,true);readText(R.string.project_text,v.text);
+        readText(R.string.project_text,v.text);label(v.text,true);
     }
     private void readText(int title,String value){
         final long token=session.token();
-        if(!value.trim().isEmpty())reading.add(body,title,()->value,
-            ()->valid(token)&&!WORK.get()&&confirmation==null&&dialog!=null&&dialog.isShowing());
+        if(!value.trim().isEmpty()){
+            BooleanSupplier guard=()->valid(token)&&!WORK.get()&&confirmation==null&&dialog!=null&&dialog.isShowing();
+            viewer.add(body,title,()->value,guard);
+            reading.add(body,title,()->value,guard);
+        }
     }
     private void editorNav(){
         label(s(R.string.project_draft_notice),false);

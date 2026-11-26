@@ -1190,4 +1190,22 @@
     <string name="workbench_api_detail">打开云端或电脑聊天并管理提供方设置。</string>
     <string name="workbench_export_detail">检查并导出当前本地对话。</string>
     <string name="workbench_compute_detail">查看可用推理引擎与计算设置。</string>
+    <string name="workspace_text_open">查看原文：%1$s</string>
+    <string name="workspace_text_title">原文查看与复制</string>
+    <string name="workspace_text_notice">来源：%1$s · %2$d 个 UTF-16 单位。按原字符搜索，区分大小写和标点，不循环。分段显示未更改的原文。</string>
+    <string name="workspace_text_query">精确搜索文字</string>
+    <string name="workspace_text_find_previous">查找上一处</string>
+    <string name="workspace_text_find_next">查找下一处</string>
+    <string name="workspace_text_range">UTF-16 范围 %1$d–%2$d / %3$d</string>
+    <string name="workspace_text_match">精确匹配位置 %1$d–%2$d</string>
+    <string name="workspace_text_previous">上一段</string>
+    <string name="workspace_text_next">下一段</string>
+    <string name="workspace_text_copy_excerpt">复制当前片段</string>
+    <string name="workspace_text_copy_full">复制所选全文</string>
+    <string name="workspace_text_full_notice">复制 %1$s 的未更改全文？\n%2$s\n复制不验证内容。</string>
+    <string name="workspace_text_excerpt_notice">仅复制 %1$s 当前片段？\n%2$s\n片段可能缺少报告状态、证据或注意事项。需要完整上下文时请复制全文。</string>
+    <string name="workspace_text_no_match">该方向没有更多精确匹配。</string>
+    <string name="workspace_text_bad_query">请输入有效的非空搜索文字（最多 160 个 UTF-16 单位）。</string>
+    <string name="workspace_text_invalid">所选原文为空、无效或超过 160000 个 UTF-16 单位。未截断或复制。</string>
+    <string name="workspace_text_changed">已检查的来源或选择范围已更改。未复制，请重新打开来源。</string>
 </resources>

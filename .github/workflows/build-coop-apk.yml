@@ -17,6 +17,7 @@ on:
       - 'tests/CloudProviderOverviewTest.java'
       - 'tests/WorkspaceDictationPolicyTest.java'
       - 'tests/WorkspaceReadPolicyTest.java'
+      - 'tests/WorkspaceTextPolicyTest.java'
       - 'tests/WorkbenchLayoutPolicyTest.java'
       - 'tests/WorkbenchVisualPolicyTest.java'
       - 'tests/CloudViewportPolicyTest.java'
