@@ -86,6 +86,7 @@ public final class MainActivity extends Activity {
     private String lastAttachmentScope="",lastAttachmentDigest="";
     private int lastAttachmentLength;
     private long attachmentSerial;
+    private AlertDialog attachmentPreviewDialog;
     private boolean attachmentReading;
     private Button attachFileButton;
     private boolean guestOnly, foreground, speakNextAnswer;
@@ -505,6 +506,7 @@ public final class MainActivity extends Activity {
         if(automationUi!=null)automationUi.pause();
         if(projectWorkspaceUi!=null){projectWorkspaceUi.pause();projectWorkspaceUi=null;}
         if(knowledgeWorkspaceUi!=null){knowledgeWorkspaceUi.pause();knowledgeWorkspaceUi=null;}
+        if(attachmentPreviewDialog!=null){attachmentPreviewDialog.dismiss();attachmentPreviewDialog=null;}
         if(localTransferDialog!=null){localTransferDialog.dismiss();localTransferDialog=null;}
         saveLocalDraft();
         if(cloudPanel!=null)cloudPanel.pause();
@@ -522,6 +524,7 @@ public final class MainActivity extends Activity {
         if(automationUi!=null)automationUi.pause();
         if(projectWorkspaceUi!=null){projectWorkspaceUi.pause();projectWorkspaceUi=null;}
         if(knowledgeWorkspaceUi!=null){knowledgeWorkspaceUi.pause();knowledgeWorkspaceUi=null;}
+        if(attachmentPreviewDialog!=null){attachmentPreviewDialog.dismiss();attachmentPreviewDialog=null;}
         chatCancelled=true;
         if(navigationDrawer!=null&&navigationDrawer.isShowing())navigationDrawer.dismiss();
         if (chatConnection != null) chatConnection.disconnect();
@@ -4020,6 +4023,7 @@ public final class MainActivity extends Activity {
                 updateDraftBudget();
                 if(cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope)||activeTab!=0){toast(getString(R.string.attachment_scope_changed));return;}
                 if(preview==null){toast(getString(fail));return;}
+                if(!foreground)return;
                 showAttachmentPreview(scope,preview);
             });
         });
@@ -4048,10 +4052,20 @@ public final class MainActivity extends Activity {
         EditText excerpt=edit(getString(R.string.attachment_preview),preview.text,true);
         excerpt.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(AttachmentText.MAX_EXCERPT)});
         excerpt.setMinLines(4);excerpt.setMaxLines(10);excerpt.setSaveEnabled(false);excerpt.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);panel.addView(excerpt,lp(-1,-2));
+        Button saveKnowledge=button(getString(R.string.knowledge_import_action),false);panel.addView(saveKnowledge,lp(-1,-2));
         AlertDialog dialog=new AlertDialog.Builder(this).setTitle(R.string.attachment_preview).setView(scroll)
             .setNegativeButton(R.string.cancel,null).setNeutralButton(R.string.attachment_copy_excerpt,null)
             .setPositiveButton(R.string.attachment_insert,null).create();
+        attachmentPreviewDialog=dialog;
+        dialog.setOnDismissListener(d->{if(attachmentPreviewDialog==dialog)attachmentPreviewDialog=null;});
         dialog.show();if(dialog.getWindow()!=null)dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        saveKnowledge.setOnClickListener(v->{
+            if(!foreground||guestOnly||attachmentPreviewDialog!=dialog||isUiBusy()||cloudMode||activeTab!=0||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
+            if(!preview.text.equals(excerpt.getText().toString())){toast(getString(R.string.knowledge_import_edited));return;}
+            dialog.dismiss();if(voice!=null)voice.cancel();
+            knowledgeWorkspaceUi=new KnowledgeWorkspaceUi(this,()->foreground&&!guestOnly&&!cloudMode&&activeTab==0&&ownsLoadedScope()&&scope.equals(loadedHistoryScope));
+            knowledgeWorkspaceUi.open(preview);
+        });
         dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v->{
             if(isUiBusy()||cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
             final String reviewed=excerpt.getText().toString();

@@ -1058,7 +1058,10 @@
     <string name="project_link_model_missing">原始模型尚未安装</string>
     <string name="knowledge_workspace">个人知识库</string>
     <string name="knowledge_usage">资料 %1$d/%2$d · 存储 %3$d/%4$d 字节</string>
-    <string name="knowledge_notice">仅私密保存手动输入的文本。最多24份，每份32,000个UTF-16单元，总计2MiB。不自动索引、导入文件或调用模型。</string>
+    <string name="knowledge_notice">私有手动文本或经审核的提取快照：最多24项，每项32,000个UTF-16单元，共2 MiB。不自动索引或调用模型。</string>
+    <string name="knowledge_import_action">将原始摘录保存到知识库</string>
+    <string name="knowledge_import_edited">请恢复未经编辑的提取内容，再连同来源信息保存。</string>
+    <string name="knowledge_import_notice">仅保存提取快照。请核对文件名、提取范围及全文。这不是原文件验证，不会发送消息。</string>
     <string name="knowledge_add">添加文本资料</string>
     <string name="knowledge_search">字面搜索</string>
     <string name="knowledge_empty">尚无资料。</string>

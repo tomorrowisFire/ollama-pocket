@@ -1058,7 +1058,10 @@
     <string name="project_link_model_missing">The original model is not installed</string>
     <string name="knowledge_workspace">Knowledge library</string>
     <string name="knowledge_usage">Sources %1$d/%2$d · Storage %3$d/%4$d bytes</string>
-    <string name="knowledge_notice">Private manual text snapshots only: up to 24 sources, 32,000 UTF-16 units each, shared 2 MiB. No automatic indexing, file import or model calls here.</string>
+    <string name="knowledge_notice">Private manual or reviewed extracted snapshots: up to 24 sources, 32,000 UTF-16 units each, shared 2 MiB. No automatic indexing or model calls.</string>
+    <string name="knowledge_import_action">Save original excerpt to knowledge</string>
+    <string name="knowledge_import_edited">Restore the exact original extraction before saving it with provenance.</string>
+    <string name="knowledge_import_notice">Extracted snapshot only. Review the filename, extraction scope and full text. This is not verification of the original file. No message is sent.</string>
     <string name="knowledge_add">Add text snapshot</string>
     <string name="knowledge_search">Literal search</string>
     <string name="knowledge_empty">No sources saved.</string>

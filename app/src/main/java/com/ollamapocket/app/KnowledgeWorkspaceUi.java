@@ -32,7 +32,8 @@ final class KnowledgeWorkspaceUi {
     private String s(int id,Object... args){return owner.getString(id,args);}
     private int dp(int n){return Math.round(n*owner.getResources().getDisplayMetrics().density);}
     private void secure(AlertDialog d){if(d.getWindow()!=null)d.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);}
-    void open(){
+    void open(){open(null);}
+    void open(AttachmentText.Result imported){
         if(!eligible.getAsBoolean()||WORK.get()||!MODAL.compareAndSet(false,true)){
             Toast.makeText(owner,R.string.busy,Toast.LENGTH_SHORT).show();return;
         }
@@ -40,7 +41,7 @@ final class KnowledgeWorkspaceUi {
         body=new LinearLayout(owner);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(16),dp(8),dp(16),dp(16));
         scroll=new ScrollView(owner);scroll.setFillViewport(true);scroll.setSaveEnabled(false);scroll.addView(body);
         dialog=new AlertDialog.Builder(owner).setTitle(R.string.knowledge_workspace).setView(scroll).setCancelable(false).create();
-        dialog.setOnDismissListener(d->{if(dialog==d)pause();});secure(dialog);dialog.show();secure(dialog);reload();
+        dialog.setOnDismissListener(d->{if(dialog==d)pause();});secure(dialog);dialog.show();secure(dialog);reload(imported);
     }
     void pause(){
         session.close();
@@ -114,9 +115,38 @@ final class KnowledgeWorkspaceUi {
         },"onhand-knowledge-store");
         try{worker.start();}catch(RuntimeException e){WORK.set(false);lockControls(false);failure.accept(e);}
     }
-    private void reload(){
+    private void reload(){reload(null);}
+    private void reload(AttachmentText.Result imported){
         reset();snapshot=null;
-        work(()->new KnowledgeStore(owner).read(),saved->{snapshot=saved;root();},error->blocked(R.string.project_unreadable));
+        work(()->new KnowledgeStore(owner).read(),saved->{
+            snapshot=saved;
+            if(imported==null){root();return;}
+            try{reviewImport(KnowledgeImportPolicy.review(snapshot.value,UUID.randomUUID().toString(),imported,imported.text));}
+            catch(IllegalArgumentException|ArithmeticException e){root();status(R.string.project_invalid);}
+        },error->blocked(R.string.project_unreadable));
+    }
+    private void reviewImport(KnowledgeImportPolicy.Review reviewed){
+        reset();label(s(R.string.knowledge_import_notice),false);label(reviewed.title,true);
+        label(s(R.string.knowledge_id,reviewed.id),true);showOrigin(reviewed.origin);label(reviewed.text,true);
+        button(R.string.project_save,()->save(reviewed::apply));
+        button(R.string.project_back,this::root);button(R.string.close,this::pause);
+    }
+    private void showOrigin(KnowledgeLibrary.Origin o){
+        if(o==null){label(s(R.string.knowledge_manual),false);return;}
+        label(s(R.string.knowledge_import_notice),false);label(o.name,true);
+        switch(o.kind){
+            case TEXT:case OFFICE:
+                if(o.kind==KnowledgeLibrary.Kind.OFFICE)label(s(R.string.attachment_office_note),false);
+                label(s(R.string.attachment_range_note,o.segment,o.first,o.last),false);break;
+            case PDF_TEXT:
+                label(s(R.string.attachment_pdf_note,o.first,o.last,o.total,o.readable),false);break;
+            case PDF_OCR:
+                label(s(R.string.attachment_ocr_pdf_page,o.first,o.total),false);
+                // fall through: both OCR origins have recognition limitations
+            case IMAGE_OCR:
+                label(s(R.string.attachment_ocr_note),false);break;
+        }
+        if(o.partial)label(s(R.string.attachment_partial),false);
     }
     private void blocked(int error){
         snapshot=null;reset();status(error);button(R.string.project_reload,this::reload);button(R.string.close,this::pause);
@@ -169,7 +199,7 @@ final class KnowledgeWorkspaceUi {
         button(R.string.close,()->confirm(R.string.project_discard_message,this::pause));
     }
     private void showSource(KnowledgeLibrary.Source source,Runnable back){
-        reset();label(source.title,true);label(s(R.string.knowledge_id,source.id),true);label(source.text,true);
+        reset();label(source.title,true);label(s(R.string.knowledge_id,source.id),true);showOrigin(source.origin);label(source.text,true);
         button(R.string.project_delete,()->confirm(R.string.knowledge_delete_notice,()->save(st->KnowledgeLibrary.remove(st,source.id))));
         button(R.string.project_back,back);button(R.string.close,this::pause);
     }

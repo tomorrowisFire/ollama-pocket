@@ -10,7 +10,7 @@ import java.util.*;
 /** Immutable, local-only knowledge snapshots. Literal search is not semantic or factual verification. */
 final class KnowledgeLibrary {
     static final int MAX_SOURCES=24,MAX_TEXT=32000,MAX_QUERY=120,MAX_HITS=40,MAX_BYTES=2*1024*1024;
-    private static final int MAGIC=0x4f484b31,SCHEMA=1,HASH_BYTES=32;
+    private static final int MAGIC=0x4f484b31,SCHEMA=1,EXTRACTED_SCHEMA=2,HASH_BYTES=32;
     private KnowledgeLibrary(){}
     private static IllegalArgumentException invalid(String msg){return new IllegalArgumentException(msg);}
     private static String checked(String s,int max){
@@ -27,11 +27,43 @@ final class KnowledgeLibrary {
         if(!visible)throw invalid("Blank text");
         return s;
     }
+    enum Kind { TEXT, OFFICE, PDF_TEXT, IMAGE_OCR, PDF_OCR }
+    /** Immutable extraction scope; not verification or identity of the original file. */
+    static final class Origin {
+        final Kind kind;final String name;final boolean partial;
+        final int segment,first,last,total,readable;
+        Origin(Kind kind,String name,boolean partial,int segment,int first,int last,int total,int readable){
+            if(kind==null)throw invalid("Origin kind");
+            this.name=checked(name,180);
+            for(int i=0;i<name.length();i++){
+                char c=name.charAt(i);
+                if(Character.isISOControl(c)||c>=0x202a&&c<=0x202e||c>=0x2066&&c<=0x2069)throw invalid("Origin name");
+            }
+            boolean valid;
+            switch(kind){
+                case TEXT:case OFFICE:
+                    valid=segment>=1&&segment<=256&&first>=1&&last>=first&&last<=1535745&&total==0&&readable==0&&(segment==1||partial);break;
+                case PDF_TEXT:
+                    valid=segment==0&&first>=1&&first<=10000&&last>=first&&last<=total&&(long)last-first<12&&readable>=1&&readable<=(long)last-first+1&&(first==1&&last==total&&readable==total||partial);break;
+                case IMAGE_OCR:
+                    valid=segment==0&&first==0&&last==0&&total==0&&readable==0;break;
+                case PDF_OCR:
+                    valid=segment==0&&first>=1&&first<=10000&&first==last&&last<=total&&readable==0&&(total==1||partial);break;
+                default:valid=false;
+            }
+            if(!valid)throw invalid("Origin range");
+            this.kind=kind;this.partial=partial;this.segment=segment;this.first=first;this.last=last;this.total=total;this.readable=readable;
+        }
+        void validateText(String text){
+            if(text.length()>6000||((kind==Kind.TEXT||kind==Kind.OFFICE)&&(long)last-first+1!=text.length()))throw invalid("Origin text range");
+        }
+    }
     static final class Source {
-        final String id,title,text;
-        private Source(String id,String title,String text){
+        final String id,title,text;final Origin origin;
+        private Source(String id,String title,String text,Origin origin){
             if(id==null||!id.matches("[A-Za-z0-9_-]{1,64}"))throw invalid("Invalid source ID");
-            this.id=id;this.title=ProjectLibrary.title(title);this.text=checked(text,MAX_TEXT);
+            this.id=id;this.title=ProjectLibrary.title(title);this.text=checked(text,MAX_TEXT);this.origin=origin;
+            if(origin!=null)origin.validateText(this.text);
         }
     }
     static final class State {
@@ -52,10 +84,11 @@ final class KnowledgeLibrary {
         if(s.revision==Long.MAX_VALUE)throw invalid("Revision limit");
         return s.revision+1;
     }
-    static State add(State s,String id,String title,String text){
+    static State add(State s,String id,String title,String text){return add(s,id,title,text,null);}
+    static State add(State s,String id,String title,String text,Origin origin){
         if(s.sources.size()>=MAX_SOURCES)throw invalid("Source limit");
         for(Source old:s.sources)if(old.id.equals(id))throw invalid("Duplicate source");
-        List<Source> sources=new ArrayList<>(s.sources);sources.add(new Source(id,title,text));
+        List<Source> sources=new ArrayList<>(s.sources);sources.add(new Source(id,title,text,origin));
         return new State(next(s),sources);
     }
     static State remove(State s,String id){
@@ -101,9 +134,18 @@ final class KnowledgeLibrary {
     static byte[] encode(State state)throws Exception{
         ByteArrayOutputStream buffer=new ByteArrayOutputStream();
         DataOutputStream out=new DataOutputStream(buffer);
-        out.writeInt(MAGIC);out.writeInt(SCHEMA);out.writeLong(state.revision);out.writeInt(state.sources.size());
+        boolean imported=false;
+        for(Source s:state.sources)if(s.origin!=null)imported=true;
+        out.writeInt(MAGIC);out.writeInt(imported?EXTRACTED_SCHEMA:SCHEMA);out.writeLong(state.revision);out.writeInt(state.sources.size());
         for(Source s:state.sources){
             writeText(out,s.id);writeText(out,s.title);writeText(out,s.text);
+            if(imported){
+                out.writeBoolean(s.origin!=null);
+                if(s.origin!=null){
+                    Origin o=s.origin;writeText(out,o.kind.name());writeText(out,o.name);out.writeBoolean(o.partial);
+                    out.writeInt(o.segment);out.writeInt(o.first);out.writeInt(o.last);out.writeInt(o.total);out.writeInt(o.readable);
+                }
+            }
             if(buffer.size()>MAX_BYTES-HASH_BYTES)throw invalid("Store byte limit");
         }
         out.flush();byte[] payload=buffer.toByteArray();
@@ -115,11 +157,20 @@ final class KnowledgeLibrary {
         byte[] payload=Arrays.copyOf(bytes,end);
         if(!MessageDigest.isEqual(hash(payload),Arrays.copyOfRange(bytes,end,bytes.length)))throw invalid("Checksum");
         DataInputStream in=new DataInputStream(new ByteArrayInputStream(payload));
-        if(in.readInt()!=MAGIC||in.readInt()!=SCHEMA)throw invalid("Schema");
+        if(in.readInt()!=MAGIC)throw invalid("Schema");
+        int schema=in.readInt();if(schema!=SCHEMA&&schema!=EXTRACTED_SCHEMA)throw invalid("Schema");
         long revision=in.readLong();int count=in.readInt();
         if(revision<1||count<0||count>MAX_SOURCES)throw invalid("State limit");
         List<Source> sources=new ArrayList<>();
-        for(int i=0;i<count;i++)sources.add(new Source(readText(in,64),readText(in,80),readText(in,MAX_TEXT)));
+        for(int i=0;i<count;i++){
+            String id=readText(in,64),title=readText(in,80),text=readText(in,MAX_TEXT);
+            Origin origin=null;
+            if(schema==EXTRACTED_SCHEMA&&in.readBoolean()){
+                Kind kind=Kind.valueOf(readText(in,16));String name=readText(in,180);boolean partial=in.readBoolean();
+                origin=new Origin(kind,name,partial,in.readInt(),in.readInt(),in.readInt(),in.readInt(),in.readInt());
+            }
+            sources.add(new Source(id,title,text,origin));
+        }
         if(in.available()!=0)throw invalid("Trailing bytes");
         State state=new State(revision,sources);
         if(!Arrays.equals(bytes,encode(state)))throw invalid("Noncanonical store");

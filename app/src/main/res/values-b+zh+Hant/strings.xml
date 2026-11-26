@@ -1058,7 +1058,10 @@
     <string name="project_link_model_missing">原始模型尚未安裝</string>
     <string name="knowledge_workspace">個人知識庫</string>
     <string name="knowledge_usage">資料 %1$d/%2$d · 儲存 %3$d/%4$d 位元組</string>
-    <string name="knowledge_notice">僅私密儲存手動輸入的文字。最多24份，每份32,000個UTF-16單元，總計2MiB。不自動索引、匯入檔案或呼叫模型。</string>
+    <string name="knowledge_notice">私有手動文字或經審閱的擷取快照：最多24項，每項32,000個UTF-16單元，共2 MiB。不自動索引或呼叫模型。</string>
+    <string name="knowledge_import_action">將原始摘錄儲存至知識庫</string>
+    <string name="knowledge_import_edited">請恢復未經編輯的擷取內容，再連同來源資訊儲存。</string>
+    <string name="knowledge_import_notice">僅儲存擷取快照。請核對檔名、擷取範圍及全文。這不是原始檔案驗證，不會傳送訊息。</string>
     <string name="knowledge_add">新增文字資料</string>
     <string name="knowledge_search">字面搜尋</string>
     <string name="knowledge_empty">尚無資料。</string>

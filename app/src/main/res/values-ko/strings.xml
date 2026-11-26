@@ -1058,7 +1058,10 @@
     <string name="project_link_model_missing">원래 모델이 설치되어 있지 않음</string>
     <string name="knowledge_workspace">개인 지식 DB</string>
     <string name="knowledge_usage">자료 %1$d/%2$d · 저장공간 %3$d/%4$d바이트</string>
-    <string name="knowledge_notice">수동 입력한 텍스트만 비공개 저장합니다. 최대 24개, 자료당 UTF-16 32,000단위, 전체 2MiB. 자동 색인·파일 가져오기·모델 호출은 하지 않습니다.</string>
+    <string name="knowledge_notice">비공개 수동 입력 또는 검토한 추출 스냅샷: 최대 24개, 자료당 UTF-16 32,000단위, 전체 2 MiB. 자동 색인이나 모델 호출 없음.</string>
+    <string name="knowledge_import_action">원본 추출문을 지식 DB에 저장</string>
+    <string name="knowledge_import_edited">출처 정보와 함께 저장하려면 편집 전 추출문으로 되돌려 주세요.</string>
+    <string name="knowledge_import_notice">추출 스냅샷만 저장합니다. 파일명, 추출 범위 및 전체 내용을 검토하세요. 원본 파일 검증이 아니며 메시지를 전송하지 않습니다.</string>
     <string name="knowledge_add">텍스트 자료 추가</string>
     <string name="knowledge_search">원문 검색</string>
     <string name="knowledge_empty">저장된 자료가 없습니다.</string>

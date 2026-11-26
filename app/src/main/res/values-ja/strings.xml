@@ -1058,7 +1058,10 @@
     <string name="project_link_model_missing">元のモデルがインストールされていません</string>
     <string name="knowledge_workspace">ナレッジライブラリ</string>
     <string name="knowledge_usage">資料 %1$d/%2$d · 保存領域 %3$d/%4$d バイト</string>
-    <string name="knowledge_notice">手動入力したテキストのみ非公開で保存します。最大24件、各32,000 UTF-16単位、合計2MiB。自動索引・ファイル取込・モデル呼出は行いません。</string>
+    <string name="knowledge_notice">非公開の手入力または確認済み抽出スナップショット：最大24件、各32,000 UTF-16単位、合計2 MiB。自動索引やモデル呼び出しは行いません。</string>
+    <string name="knowledge_import_action">元の抜粋を知識ライブラリに保存</string>
+    <string name="knowledge_import_edited">出典情報と保存するには、編集前の抽出内容に戻してください。</string>
+    <string name="knowledge_import_notice">抽出スナップショットのみを保存します。ファイル名、抽出範囲、全文を確認してください。元ファイルの検証ではなく、メッセージは送信されません。</string>
     <string name="knowledge_add">テキスト資料を追加</string>
     <string name="knowledge_search">文字列検索</string>
     <string name="knowledge_empty">保存済み資料はありません。</string>
