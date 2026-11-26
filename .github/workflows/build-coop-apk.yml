@@ -260,7 +260,7 @@ jobs:
           assert 'downloadRetryButton.setVisibility(' in src
           assert 'BenchmarkRecommendation.adjustment(' in src
           assert 'getString("ui_theme","light")' in src
-          assert 'new String[]{"화이트 (기본)","블랙","자동 (일몰 → 블랙 / 일출 → 화이트)"}' in src
+          assert 'new String[]{getString(R.string.theme_light_default),getString(R.string.theme_dark),getString(R.string.theme_auto_detail)}' in src
           assert 'navButtons' not in src
           assert 'private void showChatList()' not in src
           assert 'buildModelTile(' in src
@@ -272,7 +272,7 @@ jobs:
           assert '직접 모델 다운로드' not in src
           assert 'manualDownloadPanel.setVisibility(View.GONE)' in src
           assert 'cancelPullButton.setVisibility(View.VISIBLE)' in src
-          assert 'Button importButton=button("GGUF 파일 직접 가져오기",false)' in src
+          assert 'Button importButton=button(getString(R.string.import_gguf),false)' in src
           assert 'if(modelListView){' in src
           assert 'deviceRecommendedTiles()' in src
           assert 'ModelTileCatalog.forDevice(' in src

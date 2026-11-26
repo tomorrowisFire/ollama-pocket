@@ -8,6 +8,8 @@ on:
       - 'app/src/main/AndroidManifest.xml'
       - 'app/build.gradle'
       - '.github/workflows/java-compile.yml'
+      - 'app/src/main/res/**'
+      - 'tests/ChatMarkupTest.java'
 
 jobs:
   compile:
@@ -21,6 +23,12 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Test safe Markdown parser (pure Java)
+        shell: bash
+        run: |
+          mkdir -p /tmp/chat-markup-tests
+          javac -d /tmp/chat-markup-tests app/src/main/java/com/ollamapocket/app/ChatMarkup.java tests/ChatMarkupTest.java
+          java -cp /tmp/chat-markup-tests com.ollamapocket.app.ChatMarkupTest
       - name: Android SDK
         shell: bash
         run: |

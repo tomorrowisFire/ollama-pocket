@@ -1,0 +1,7 @@
+# v0.13-A: Chat experience and core localization
+
+Base f11e14306a35b3fbd0e16741385bd3c95ed5722d. Stage scope: improve the local chat layout and completed-response rendering, not merge local and cloud histories or implement full document/multimodal support.
+
+Changes: first message clears empty-state cards; mutually exclusive send/stop controls; local/cloud shortcut (separate explicit opt-in screen); optional HUD default hidden for new installations, existing preferences retained; answer copy uses unmodified original source; offline speech readout; throttled token redraw and scroll-follow only near bottom. Native Android spans render a bounded Markdown subset (headings, bold, italic, code, preformatted pipe tables). No HTML/WebView, remote images or active links; nested Markdown, rendered math and proper table layout remain pending. Raw chat history and existing package ID unchanged. Localized first-run guide, settings and core model selection labels across five languages, preserving internal Korean filter identifiers. 147 keys per language. Remaining legacy dynamic text and diagnostics need full translation; first-run ad disabled in candidate, live ads remain off. Unit test added to Java CI; native APK, screen, and device tests must be observed before stage approval.
+
+Evaluation gate: report ten simulated reviewer ratings after checks, preserve unresolved evidence and require all individual and mean scores >=90 plus actual end-to-end quality gates before final stop.
