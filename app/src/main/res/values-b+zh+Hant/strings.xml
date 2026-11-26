@@ -163,4 +163,18 @@
     <string name="cloud_cancel_cost">請求已取消。服務商仍可能對已傳送的請求收費。</string>
     <string name="cloud_session_limit">雲端工作階段過多。重新啟動應用程式可清除記憶體工作階段。</string>
     <string name="cloud_key_clear_confirm">刪除此服務商加密儲存的 API 金鑰？</string>
+    <string name="workspace_mode">螢幕配置</string>
+    <string name="workspace_auto">自動（預設）</string>
+    <string name="workspace_phone">手機模式</string>
+    <string name="workspace_tablet">平板模式</string>
+    <string name="workspace_wide">雙欄配置</string>
+    <string name="workspace_compact">單欄配置</string>
+    <string name="workspace_help">自動模式在寬視窗中分欄顯示導覽與內容。平板模式亦支援中等寬度，狹窄的分割視窗會切換為單欄以避免裁切。</string>
+    <string name="workspace_local_history">本機對話記錄</string>
+    <string name="workspace_new_local">＋ 新建本機對話</string>
+    <string name="workspace_no_history">尚無本機對話，請開始新對話。</string>
+    <string name="workspace_no_results">沒有符合的對話。</string>
+    <string name="workspace_selected">已選取</string>
+    <string name="workspace_chat_model">%1$s · 模型：%2$s</string>
+    <string name="workspace_missing_model">此對話的模型尚未安裝：%1$s</string>
 </resources>

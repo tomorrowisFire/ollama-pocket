@@ -1,0 +1,29 @@
+package com.ollamapocket.app;
+
+public final class WorkspaceLayoutPolicyTest {
+    private static int n;
+    private static void ok(boolean b,String label){if(!b)throw new AssertionError(label);n++;}
+    private static void eq(String mode,int width,float font,int expected){
+        int actual=WorkspaceLayoutPolicy.railWidthDp(mode,width,font);
+        ok(actual==expected,mode+" width="+width+" font="+font+" expected="+expected+" actual="+actual);
+    }
+    public static void main(String[] args){
+        eq("auto",360,1,0);eq("auto",599,1,0);eq("auto",719,1,0);
+        eq("auto",720,1,216);eq("auto",840,1,216);eq("auto",959,1,216);eq("auto",960,1,256);
+        eq("tablet",599,1,0);eq("tablet",600,1,180);eq("tablet",719,1,180);eq("tablet",720,1,216);
+        eq("phone",1200,1,0);eq("phone",600,1,0);
+        eq("tablet",600,1.26f,0);eq("tablet",671,1.26f,0);eq("tablet",672,1.26f,180);
+        eq("auto",720,1.26f,216);eq("auto",0,1,0);eq("tablet",-1,1,0);
+        eq("unknown",840,1,216);eq(null,840,1,216);eq("auto",720,Float.NaN,216);
+        for(String mode:new String[]{"auto","phone","tablet"}){
+            for(float scale:new float[]{1f,1.13f,1.26f}){
+                for(int width=240;width<=1600;width+=8){
+                    int rail=WorkspaceLayoutPolicy.railWidthDp(mode,width,scale);
+                    ok(rail==0||(rail>=180&&width-rail-WorkspaceLayoutPolicy.GAP_DP>=WorkspaceLayoutPolicy.minContentDp(scale)),"safe remaining width");
+                    if("phone".equals(mode))ok(rail==0,"phone mode remains single-pane");
+                }
+            }
+        }
+        System.out.println("WorkspaceLayoutPolicyTest PASS: "+n+" assertions");
+    }
+}

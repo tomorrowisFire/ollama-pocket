@@ -23,3 +23,6 @@ If CI, device, keys or permissions are unavailable, mark BLOCKED/NOT_RUN and rep
 
 ## User-mandated advertising preservation
 First-run onboarding banner must be retained at the original placement and original publisher ad-unit ID; do not remove or disable the placement during UX work. Keep the existing model-download and app-open formats. In development, Google test ad units only; live production requests remain locked until separately authorized, app approval and consent/lifecycle validation completed. The user can dismiss onboarding without interacting with ads or waiting for a fill. Do not allow overlapping ads or accidental clicks. CI regression guard is required for first-run placement and unit preservation.
+
+## Tablet layout gate
+Preserve user-selectable Auto / Phone / Tablet layout. Wide windows must show an actual persistent navigation/history pane; compact and split-screen windows must retain the drawer, without forcing undersized content. Settings must persist without touching model/history keys or stopping engines. Test 360/600/720/840/1024dp, portrait/landscape, resize and 126%+ font scaling, keyboard and cutout handling; include first-run ads, local/cloud separation, guest mode and model grid regression. Do not award UI usability PASS from width policy alone.

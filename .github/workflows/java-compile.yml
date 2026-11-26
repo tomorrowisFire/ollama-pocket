@@ -11,6 +11,7 @@ on:
       - 'app/src/main/res/**'
       - 'tests/ChatMarkupTest.java'
       - 'tests/CloudPolicyTest.java'
+      - 'tests/WorkspaceLayoutPolicyTest.java'
 
 jobs:
   compile:
@@ -54,6 +55,11 @@ jobs:
           mkdir -p /tmp/cloud-tests
           javac -d /tmp/cloud-tests app/src/main/java/com/ollamapocket/app/CloudHistory.java app/src/main/java/com/ollamapocket/app/CloudKeyCipher.java tests/CloudPolicyTest.java
           java -cp /tmp/cloud-tests com.ollamapocket.app.CloudPolicyTest
+      - name: Test responsive workspace policy (pure Java)
+        run: |
+          mkdir -p /tmp/workspace-tests
+          javac -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/WorkspaceLayoutPolicy.java tests/WorkspaceLayoutPolicyTest.java
+          java -cp /tmp/workspace-tests com.ollamapocket.app.WorkspaceLayoutPolicyTest
       - name: Android SDK
         shell: bash
         run: |

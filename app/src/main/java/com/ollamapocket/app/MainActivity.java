@@ -99,6 +99,14 @@ public final class MainActivity extends Activity {
     private int activeTab = 0;
     private boolean showHud = true;
     private boolean smoothMotion = true;
+    private String workspaceMode=WorkspaceLayoutPolicy.AUTO;
+    private LinearLayout workspace,tabletChats;
+    private ScrollView tabletRail;
+    private View tabletGap;
+    private Button menuButton,workspaceModeButton;
+    private EditText tabletSearch;
+    private final TextView[] tabletLinks=new TextView[5];
+    private int currentRailDp;
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newCachedThreadPool();
@@ -237,6 +245,7 @@ public final class MainActivity extends Activity {
         showHud=getPreferences(MODE_PRIVATE).getBoolean("show_hud",getPreferences(MODE_PRIVATE).getBoolean("welcome_v2_seen",false));
         smoothMotion=getPreferences(MODE_PRIVATE).getBoolean("smooth_motion",true);
         modelListView=getPreferences(MODE_PRIVATE).getBoolean("model_list_view",true);
+        workspaceMode=WorkspaceLayoutPolicy.normalize(getPreferences(MODE_PRIVATE).getString("workspace_mode",WorkspaceLayoutPolicy.AUTO));
         // Neutral and flatter system palette. Avoid the blue-tinted boxes
         // and outlines previously repeated around every setting and button.
         if(lightTheme()){
@@ -454,6 +463,7 @@ public final class MainActivity extends Activity {
         if(localChatContent!=null)localChatContent.setVisibility(View.VISIBLE);
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
         if(activeTab==0&&topPageSubtitle!=null)topPageSubtitle.setText(getString(R.string.chat)+"  ·  "+getString(R.string.local));
+        refreshTabletRail();
     }
     @Override public void onBackPressed(){
         if(cloudMode){returnToLocal();return;}
@@ -531,19 +541,21 @@ public final class MainActivity extends Activity {
         // Android 15+ enforces edge-to-edge. Respect real status-bar/cutout
         // insets instead of allowing the menu / chat title to be drawn under it.
         root.setOnApplyWindowInsetsListener((view,insets)->{
-            int top=0,bottom=0;
+            int top=0,bottom=0,left=0,right=0;
             if(Build.VERSION.SDK_INT>=30){
-                top=insets.getInsets(WindowInsets.Type.statusBars()|
-                    WindowInsets.Type.displayCutout()).top;
-                bottom=insets.getInsets(WindowInsets.Type.navigationBars()).bottom;
+                android.graphics.Insets bars=insets.getInsets(WindowInsets.Type.statusBars()|
+                    WindowInsets.Type.navigationBars()|WindowInsets.Type.displayCutout());
+                top=bars.top;bottom=bars.bottom;left=bars.left;right=bars.right;
             }else{
                 top=insets.getSystemWindowInsetTop();
                 bottom=insets.getSystemWindowInsetBottom();
             }
-            int safeTop=dp(15)+(Build.VERSION.SDK_INT>=35?top:0);
-            int safeBottom=dp(10)+(Build.VERSION.SDK_INT>=35?bottom:0);
-            if(view.getPaddingTop()!=safeTop||view.getPaddingBottom()!=safeBottom)
-                view.setPadding(dp(12),safeTop,dp(12),safeBottom);
+            boolean edge=Build.VERSION.SDK_INT>=35;
+            int safeTop=dp(15)+(edge?top:0),safeBottom=dp(10)+(edge?bottom:0);
+            int safeLeft=dp(12)+(edge?left:0),safeRight=dp(12)+(edge?right:0);
+            if(view.getPaddingTop()!=safeTop||view.getPaddingBottom()!=safeBottom||
+               view.getPaddingLeft()!=safeLeft||view.getPaddingRight()!=safeRight)
+                view.setPadding(safeLeft,safeTop,safeRight,safeBottom);
             return insets;
         });
         setContentView(root);
@@ -551,6 +563,7 @@ public final class MainActivity extends Activity {
         // Mobile-friendly WebUI-inspired navigation; independent Android widgets and branding.
         LinearLayout header = row();
         Button menu = button("☰", false);
+        menuButton=menu;
         menu.setContentDescription(getString(R.string.menu));
         menu.setTextSize(20);
         menu.setMinWidth(dp(46));menu.setMinimumWidth(dp(46));
@@ -587,19 +600,142 @@ public final class MainActivity extends Activity {
                 .setMessage(status).setPositiveButton(getString(R.string.close),null).show();
         });
         pages = new FrameLayout(this);
-        LinearLayout.LayoutParams contentParams = new LinearLayout.LayoutParams(-1, 0, 1);
-        root.addView(pages, contentParams);
+        workspace=new LinearLayout(this);
+        workspace.setOrientation(LinearLayout.HORIZONTAL);
+        tabletRail=createTabletRail();
+        tabletGap=new View(this);
+        tabletRail.setVisibility(View.GONE);tabletGap.setVisibility(View.GONE);
+        workspace.addView(tabletRail,new LinearLayout.LayoutParams(0,-1));
+        workspace.addView(tabletGap,new LinearLayout.LayoutParams(dp(WorkspaceLayoutPolicy.GAP_DP),-1));
+        workspace.addView(pages,new LinearLayout.LayoutParams(0,-1,1f));
+        root.addView(workspace,new LinearLayout.LayoutParams(-1,0,1f));
         createChatPage(); createModelPage(); createServerPage(); createDiagnosticsPage();
         pages.addView(chatPage); pages.addView(modelPage);
         pages.addView(serverPage); pages.addView(diagnosticPage);
-        // Navigation is exclusively in the top-left drawer, not below the composer.
-        // This avoids clipping against Android gesture navigation and enlarged fonts.
+        // Measure the actual usable window, including multi-window and landscape cutouts.
+        // Switch panes without recreating the Activity, engine, draft or cloud panel.
+        workspace.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
+            if(r-l!=or-ol)applyWorkspaceLayout();
+        });
+        workspace.post(this::applyWorkspaceLayout);
+    }
+
+    private int workspaceChoiceLabel(){
+        return WorkspaceLayoutPolicy.PHONE.equals(workspaceMode)?R.string.workspace_phone:
+            WorkspaceLayoutPolicy.TABLET.equals(workspaceMode)?R.string.workspace_tablet:R.string.workspace_auto;
+    }
+    private void refreshWorkspaceModeLabel(){
+        if(workspaceModeButton==null)return;
+        workspaceModeButton.setText(getString(R.string.workspace_mode)+" · "+getString(workspaceChoiceLabel())+
+            "\n"+getString(currentRailDp>0?R.string.workspace_wide:R.string.workspace_compact));
+    }
+    private void chooseWorkspaceMode(){
+        final String[] modes={WorkspaceLayoutPolicy.AUTO,WorkspaceLayoutPolicy.PHONE,WorkspaceLayoutPolicy.TABLET};
+        int selected=Math.max(0,java.util.Arrays.asList(modes).indexOf(workspaceMode));
+        new AlertDialog.Builder(this).setTitle(R.string.workspace_mode)
+            .setSingleChoiceItems(new String[]{getString(R.string.workspace_auto),getString(R.string.workspace_phone),getString(R.string.workspace_tablet)},selected,(dialog,index)->{
+                dialog.dismiss();
+                workspaceMode=modes[index];
+                getPreferences(MODE_PRIVATE).edit().putString("workspace_mode",workspaceMode).apply();
+                applyWorkspaceLayout();
+            }).setNegativeButton(R.string.cancel,null).show();
+    }
+    private void applyWorkspaceLayout(){
+        if(workspace==null||tabletRail==null||isFinishing()||isDestroyed())return;
+        int widthDp=(int)(workspace.getWidth()/getResources().getDisplayMetrics().density);
+        float scale=uiTextScale*Math.max(1f,getResources().getConfiguration().fontScale);
+        int desired=WorkspaceLayoutPolicy.railWidthDp(workspaceMode,widthDp,scale);
+        if(desired!=currentRailDp){
+            currentRailDp=desired;
+            LinearLayout.LayoutParams lp=(LinearLayout.LayoutParams)tabletRail.getLayoutParams();
+            lp.width=dp(desired);tabletRail.setLayoutParams(lp);
+            boolean wide=desired>0;
+            tabletRail.setVisibility(wide?View.VISIBLE:View.GONE);
+            tabletGap.setVisibility(wide?View.VISIBLE:View.GONE);
+            if(menuButton!=null)menuButton.setVisibility(wide?View.GONE:View.VISIBLE);
+            if(wide&&navigationDrawer!=null&&navigationDrawer.isShowing())navigationDrawer.dismiss();
+            if(wide)refreshTabletRail();
+        }
+        refreshWorkspaceModeLabel();
+    }
+    private ScrollView createTabletRail(){
+        ScrollView scroll=new ScrollView(this);
+        scroll.setFillViewport(true);
+        scroll.setBackground(bg(CARD,14));
+        LinearLayout rail=column();rail.setPadding(dp(10),dp(10),dp(10),dp(10));
+        scroll.addView(rail,new ScrollView.LayoutParams(-1,-2));
+        Button fresh=button(getString(R.string.workspace_new_local),true);
+        fresh.setMinHeight(dp(48));margin(fresh,rail,0,8);
+        fresh.setOnClickListener(v->{
+            if(chatBusy||(cloudPanel!=null&&cloudPanel.isBusy())){toast(getString(R.string.busy));return;}
+            if(cloudMode)returnToLocal();
+            newChat();
+        });
+        int[] titles={R.string.cloud_return,R.string.cloud_short,R.string.models,R.string.settings,R.string.devices};
+        for(int i=0;i<titles.length;i++){
+            final int target=i;
+            TextView item=drawerRow(getString(titles[i]),"",false);
+            item.setMinHeight(dp(48));item.setFocusable(true);item.setClickable(true);
+            tabletLinks[i]=item;margin(item,rail,0,3);
+            item.setOnClickListener(v->{
+                if(target==1){openCloud();return;}
+                if(target==0){if(cloudMode){if(cloudPanel!=null&&cloudPanel.isBusy()){toast(getString(R.string.busy));return;}returnToLocal();}showTab(0);return;}
+                if(cloudPanel!=null&&cloudPanel.isBusy()){toast(getString(R.string.busy));return;}
+                showTab(target-1);
+            });
+        }
+        margin(text(getString(R.string.workspace_local_history),12,MUTED,true),rail,14,5);
+        tabletSearch=edit(getString(R.string.search_chats),"",false);
+        tabletSearch.setSingleLine(true);tabletSearch.setMinHeight(dp(48));margin(tabletSearch,rail,0,7);
+        tabletChats=column();margin(tabletChats,rail,0,4);
+        tabletSearch.addTextChangedListener(new TextWatcher(){
+            @Override public void beforeTextChanged(CharSequence s,int start,int count,int after){}
+            @Override public void onTextChanged(CharSequence s,int start,int before,int count){refreshTabletRail();}
+            @Override public void afterTextChanged(Editable e){}
+        });
+        return scroll;
+    }
+    private void refreshTabletRail(){
+        if(currentRailDp<=0||tabletChats==null||tabletSearch==null)return;
+        int selected=cloudMode?1:activeTab==0?0:activeTab+1;
+        for(int i=0;i<tabletLinks.length;i++){
+            TextView item=tabletLinks[i];if(item==null)continue;
+            boolean active=i==selected;
+            item.setSelected(active);item.setTypeface(Typeface.DEFAULT,active?Typeface.BOLD:Typeface.NORMAL);
+            item.setBackground(bg(active?FIELD:BG,10));
+            item.setContentDescription(item.getText()+(active?" · "+getString(R.string.workspace_selected):""));
+        }
+        renderDrawerChats(tabletChats,null,allSavedConversations(),tabletSearch.getText().toString());
+    }
+    private int chatBubbleMaxWidth(){
+        int width=messageScroll==null?0:messageScroll.getWidth();
+        if(width<=0)width=workspace==null?getResources().getDisplayMetrics().widthPixels:workspace.getWidth()-dp(currentRailDp+(currentRailDp>0?WorkspaceLayoutPolicy.GAP_DP:0));
+        if(width<=0)width=getResources().getDisplayMetrics().widthPixels;
+        int padding=messages==null?dp(8):messages.getPaddingLeft()+messages.getPaddingRight();
+        return Math.max(dp(80),(int)(Math.max(0,width-padding)*0.82f));
+    }
+    private void refreshBubbleWidths(){
+        if(messages==null)return;
+        for(int i=0;i<messages.getChildCount();i++){
+            View child=messages.getChildAt(i);
+            if(child instanceof LinearLayout){
+                LinearLayout wrapper=(LinearLayout)child;
+                if((wrapper.getGravity()&Gravity.HORIZONTAL_GRAVITY_MASK)==Gravity.RIGHT&&wrapper.getChildCount()>0&&wrapper.getChildAt(0) instanceof TextView)
+                    ((TextView)wrapper.getChildAt(0)).setMaxWidth(chatBubbleMaxWidth());
+            }
+        }
     }
 
     private void createChatPage() {
         chatPage = column();
         localChatContent=column();
         chatPage.addView(localChatContent,new LinearLayout.LayoutParams(-1,0,1));
+        localChatContent.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
+            if(r-l==or-ol)return;
+            // Keep long conversations readable even on large external displays.
+            int side=Math.max(0,(r-l-dp(960))/2);
+            if(v.getPaddingLeft()!=side||v.getPaddingRight()!=side)v.setPadding(side,0,side,0);
+        });
         LinearLayout modelRow = row();
         TextView modelLabel = text(getString(R.string.model_label), 12, MUTED, false);
         rowItem(modelRow, modelLabel, 0, 12);
@@ -629,6 +765,9 @@ public final class MainActivity extends Activity {
         messageScroll.setBackgroundColor(BG);
         messages = column(); messages.setPadding(dp(4), dp(18), dp(4), dp(12));
         messageScroll.addView(messages);
+        messageScroll.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
+            if(r-l!=or-ol)refreshBubbleWidths();
+        });
         LinearLayout.LayoutParams scrollParam = new LinearLayout.LayoutParams(-1, 0, 1);
         localChatContent.addView(messageScroll, scrollParam);
         LinearLayout composer = row();
@@ -835,6 +974,11 @@ public final class MainActivity extends Activity {
         guest.setOnClickListener(v->enterGuestMode());
 
         margin(text(getString(R.string.display),17,WHITE,true),content,0,8);
+        workspaceModeButton=button(getString(R.string.workspace_mode),false);
+        workspaceModeButton.setMinHeight(dp(56));margin(workspaceModeButton,content,0,5);
+        workspaceModeButton.setOnClickListener(v->chooseWorkspaceMode());
+        refreshWorkspaceModeLabel();
+        margin(text(getString(R.string.workspace_help),11,MUTED,false),content,0,12);
         String currentTheme=getString("auto".equals(themeMode)?R.string.theme_auto:activeThemeDark?R.string.theme_dark:R.string.theme_light);
         Button theme=button(getString(R.string.theme)+"  ·  "+currentTheme,false);
         margin(theme,content,0,6);
@@ -1215,6 +1359,7 @@ public final class MainActivity extends Activity {
         }
         if(activeTab==1)loadRecommendedVariants(false);
         if(activeTab==3)refreshDiagnosticViews();
+        refreshTabletRail();
     }
 
     private void showFirstRunGuide() {
@@ -2392,12 +2537,12 @@ public final class MainActivity extends Activity {
 
     private void openSavedConversation(DrawerChat entry,Dialog drawer){
         if(chatBusy||benchmarkBusy||diagnosticBusy||(cloudPanel!=null&&cloudPanel.isBusy())){
-            toast("진행 중인 응답이나 검사를 마친 뒤 대화를 바꾸세요");
+            toast(getString(R.string.busy));
             return;
         }
         if(!knownModels.contains(entry.model)){
-            drawer.dismiss();
-            toast("이 대화의 모델이 현재 설치되어 있지 않습니다: "+entry.model);
+            if(drawer!=null)drawer.dismiss();
+            toast(getString(R.string.workspace_missing_model,entry.model));
             showTab(1);
             return;
         }
@@ -2406,7 +2551,7 @@ public final class MainActivity extends Activity {
         getPreferences(MODE_PRIVATE).edit()
             .putString("active_chat_"+entry.model,entry.id).apply();
         loadHistory();renderHistory();
-        drawer.dismiss();
+        if(drawer!=null)drawer.dismiss();
         showTab(0);
     }
 
@@ -2424,16 +2569,15 @@ public final class MainActivity extends Activity {
                 &&entry.id.equals(getPreferences(MODE_PRIVATE)
                     .getString("active_chat_"+entry.model,""));
             TextView item=drawerRow(entry.title,"",active);
-            item.setContentDescription(entry.title+" · 모델 "+entry.model);
+            item.setContentDescription(getString(R.string.workspace_chat_model,entry.title,entry.model));
+            item.setSelected(active);item.setFocusable(true);item.setClickable(true);item.setMinHeight(dp(48));
             LinearLayout.LayoutParams p=lp(-1,-2);
             p.bottomMargin=dp(3);
             list.addView(item,p);
             item.setOnClickListener(v->openSavedConversation(entry,drawer));
         }
         if(count==0){
-            TextView empty=text(search.isEmpty()?
-                "저장된 대화가 없습니다.\n위의 '새 대화'로 시작하세요.":
-                "검색 결과가 없습니다.",13,MUTED,false);
+            TextView empty=text(getString(search.isEmpty()?R.string.workspace_no_history:R.string.workspace_no_results),13,MUTED,false);
             empty.setPadding(dp(13),dp(19),dp(10),dp(12));
             list.addView(empty,lp(-1,-2));
         }
@@ -2441,16 +2585,17 @@ public final class MainActivity extends Activity {
 
     private TextView drawerNavigationItem(String title){
         // The lower sidebar displays only these three titles—no subtitles or icons.
-        boolean active=("모델 선택".equals(title)&&activeTab==1)
-            ||("설정".equals(title)&&activeTab==2)
-            ||("기기 연결 진단".equals(title)&&activeTab==3);
+        boolean active=(getString(R.string.models).equals(title)&&activeTab==1)
+            ||(getString(R.string.settings).equals(title)&&activeTab==2)
+            ||(getString(R.string.devices).equals(title)&&activeTab==3);
         TextView item=text(title,14,WHITE,active);
         item.setSingleLine(true);
         item.setEllipsize(TextUtils.TruncateAt.END);
         item.setMinHeight(dp(42));
         item.setPadding(dp(12),dp(7),dp(10),dp(7));
         item.setBackground(bg(active?FIELD:BG,10));
-        item.setContentDescription(title+(active?" · 선택됨":""));
+        item.setSelected(active);
+        item.setContentDescription(title+(active?" · "+getString(R.string.workspace_selected):""));
         item.setFocusable(true);
         item.setClickable(true);
         return item;
@@ -2583,6 +2728,7 @@ public final class MainActivity extends Activity {
             newer.put(new JSONObject().put("id", id).put("title", title));
             for (int i = 0; i < Math.min(39, sessions.length()); i++) newer.put(sessions.getJSONObject(i));
             getPreferences(MODE_PRIVATE).edit().putString(listKey(), newer.toString()).apply();
+            refreshTabletRail();
         } catch (Exception ignored) { }
     }
     private void loadHistory() {
@@ -2636,6 +2782,7 @@ public final class MainActivity extends Activity {
             if (item != null) bubble(item.optString("role"), item.optString("content"));
         }
         scrollBottom();
+        refreshTabletRail();
     }
     private TextView bubble(String role,String content){return bubble(role,content,false);}
     private TextView bubble(String role,String content,boolean pending) {
@@ -2647,7 +2794,7 @@ public final class MainActivity extends Activity {
         LinearLayout wrapper=column();
         wrapper.setGravity(user?Gravity.RIGHT:Gravity.LEFT);
         if(user){
-            t.setMaxWidth((int)(getResources().getDisplayMetrics().widthPixels*0.82));
+            t.setMaxWidth(chatBubbleMaxWidth());
             t.setBackground(bg(BUBBLE,17));
             wrapper.addView(t,lp(-2,-2));
         }else{

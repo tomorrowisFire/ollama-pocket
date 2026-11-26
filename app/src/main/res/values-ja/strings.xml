@@ -163,4 +163,18 @@
     <string name="cloud_cancel_cost">リクエストを取り消しました。送信済みのリクエストには料金が発生する場合があります。</string>
     <string name="cloud_session_limit">クラウドセッションが多すぎます。アプリを再起動してメモリ内の会話を消去してください。</string>
     <string name="cloud_key_clear_confirm">この提供元の暗号化保存済み API キーを削除しますか？</string>
+    <string name="workspace_mode">画面レイアウト</string>
+    <string name="workspace_auto">自動（既定）</string>
+    <string name="workspace_phone">スマートフォンモード</string>
+    <string name="workspace_tablet">タブレットモード</string>
+    <string name="workspace_wide">2 ペイン表示</string>
+    <string name="workspace_compact">1 ペイン表示</string>
+    <string name="workspace_help">自動モードは広いウィンドウでナビゲーションと内容を分けます。タブレットモードは中程度の幅にも対応し、狭い分割画面では表示切れを防ぐため1ペインに戻ります。</string>
+    <string name="workspace_local_history">ローカル会話履歴</string>
+    <string name="workspace_new_local">＋ 新しいローカル会話</string>
+    <string name="workspace_no_history">保存済みのローカル会話がありません。新しい会話を始めてください。</string>
+    <string name="workspace_no_results">該当する会話がありません。</string>
+    <string name="workspace_selected">選択済み</string>
+    <string name="workspace_chat_model">%1$s · モデル：%2$s</string>
+    <string name="workspace_missing_model">この会話のモデルは未インストールです：%1$s</string>
 </resources>

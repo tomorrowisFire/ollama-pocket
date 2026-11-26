@@ -163,4 +163,18 @@
     <string name="cloud_cancel_cost">请求已取消。服务商仍可能对已发送的请求收费。</string>
     <string name="cloud_session_limit">云端会话过多。重新启动应用可清空内存会话。</string>
     <string name="cloud_key_clear_confirm">删除此服务商加密保存的 API 密钥？</string>
+    <string name="workspace_mode">屏幕布局</string>
+    <string name="workspace_auto">自动（默认）</string>
+    <string name="workspace_phone">手机模式</string>
+    <string name="workspace_tablet">平板模式</string>
+    <string name="workspace_wide">双栏布局</string>
+    <string name="workspace_compact">单栏布局</string>
+    <string name="workspace_help">自动模式在宽窗口中分栏显示导航与内容。平板模式也支持中等宽度，狭窄的分屏会切换为单栏以避免裁切。</string>
+    <string name="workspace_local_history">本地对话记录</string>
+    <string name="workspace_new_local">＋ 新建本地对话</string>
+    <string name="workspace_no_history">暂无本地对话，请开始新对话。</string>
+    <string name="workspace_no_results">没有匹配的对话。</string>
+    <string name="workspace_selected">已选择</string>
+    <string name="workspace_chat_model">%1$s · 模型：%2$s</string>
+    <string name="workspace_missing_model">此对话的模型尚未安装：%1$s</string>
 </resources>

@@ -163,4 +163,18 @@
     <string name="cloud_cancel_cost">Request cancelled. The provider may still charge for a request already sent.</string>
     <string name="cloud_session_limit">Too many cloud sessions. Restart the app to clear in-memory sessions.</string>
     <string name="cloud_key_clear_confirm">Delete this provider\'s encrypted saved API key?</string>
+    <string name="workspace_mode">Screen layout</string>
+    <string name="workspace_auto">Automatic (default)</string>
+    <string name="workspace_phone">Phone mode</string>
+    <string name="workspace_tablet">Tablet mode</string>
+    <string name="workspace_wide">Two-pane layout</string>
+    <string name="workspace_compact">Single-pane layout</string>
+    <string name="workspace_help">Auto uses a wide window for the navigation and content panes. Tablet mode also supports medium-width windows. A narrow split-screen falls back to one pane to avoid clipping.</string>
+    <string name="workspace_local_history">Local conversations</string>
+    <string name="workspace_new_local">＋ New local chat</string>
+    <string name="workspace_no_history">No saved local conversations. Start a new chat.</string>
+    <string name="workspace_no_results">No matching conversations.</string>
+    <string name="workspace_selected">Selected</string>
+    <string name="workspace_chat_model">%1$s · Model: %2$s</string>
+    <string name="workspace_missing_model">This conversation\'s model is not installed: %1$s</string>
 </resources>

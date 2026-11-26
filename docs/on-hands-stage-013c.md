@@ -1,0 +1,7 @@
+# v0.13-C — responsive tablet mode
+
+Baseline: 72eb4f92f49c1b6cc43d76e319554f2cb92da0a8. User-requested layout modes Auto (default), Phone, Tablet. Auto uses actual measured usable window width >=720dp; explicit Tablet permits >=600dp only when 180dp navigation and >=400dp content remain after gap (>=480dp content at large text scale). Narrow split-screen falls back to drawer. Widths are usable window widths, not physical device classes. Rail is 180/216/256dp with an adjustable safety bound. Existing chat/model pages remain mounted. No Activity recreation on setting changes in the same window. Android OS configuration recreation can still interrupt work and clear cloud-only memory; this needs device verification.
+
+Features: permanent scrollable left navigation and local-history search, main content at right, localized active navigation, one-column fallback, local message bubbles bounded by actual chat width; local chat width capped for readability. Existing model list/card preference and responsive tile logic retained. Guest page remains compute-only. Original onboarding banner source unchanged; development test ads only, live production locked. No engine, model, cloud API or signing changes.
+
+178 keys per locale; five locales. Pure Java policy tests and regression assertions are in CI. Actual screen layout, rotation, split-screen, keyboard and signed install tests are NOT_RUN until observed.
