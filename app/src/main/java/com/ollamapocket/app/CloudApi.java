@@ -20,6 +20,22 @@ final class CloudApi {
         final String title,url;final int protocol;
         Provider(String title,String url,int protocol){this.title=title;this.url=url;this.protocol=protocol;}
     }
+    static final class Reply {
+        final String text; final long inputTokens, outputTokens;
+        Reply(String text,long input,long output){this.text=text;inputTokens=input;outputTokens=output;}
+    }
+    private static long tokenCount(JSONObject obj,String key){
+        if(obj==null)return -1;
+        Object raw=obj.opt(key);
+        if(!(raw instanceof Number))return -1;
+        double d=((Number)raw).doubleValue();
+        return Double.isFinite(d)&&d>=0&&d<=Long.MAX_VALUE&&d==Math.floor(d)?((Number)raw).longValue():-1;
+    }
+    static Reply parseReply(Provider provider,JSONObject body)throws Exception{
+        JSONObject usage=body.optJSONObject("usage");
+        return new Reply(parse(provider,body),tokenCount(usage,provider.protocol==1?"prompt_tokens":"input_tokens"),
+            tokenCount(usage,provider.protocol==1?"completion_tokens":"output_tokens"));
+    }
     static JSONObject request(Provider provider,String model,String text) throws Exception {
         return request(provider,model,java.util.Collections.singletonList(new CloudHistory.Message("user",text)));
     }
@@ -88,6 +104,9 @@ final class CloudApi {
         return execute(provider,c,model,java.util.Collections.singletonList(new CloudHistory.Message("user",text)));
     }
     static String execute(Provider provider,HttpsURLConnection c,String model,java.util.List<CloudHistory.Message> messages) throws Exception {
+        return executeReply(provider,c,model,messages).text;
+    }
+    static Reply executeReply(Provider provider,HttpsURLConnection c,String model,java.util.List<CloudHistory.Message> messages) throws Exception {
         byte[] payload=request(provider,model,messages).toString().getBytes(StandardCharsets.UTF_8);
         c.setFixedLengthStreamingMode(payload.length);
         try(java.io.OutputStream stream=c.getOutputStream()){stream.write(payload);}
@@ -99,7 +118,7 @@ final class CloudApi {
                 if(buffer.size()+n>2_000_000)throw new java.io.IOException("Response limit");
                 buffer.write(b,0,n);
             }
-            return parse(provider,new JSONObject(buffer.toString("UTF-8")));
+            return parseReply(provider,new JSONObject(buffer.toString("UTF-8")));
         }
     }
 }
