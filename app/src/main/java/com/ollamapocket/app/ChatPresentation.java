@@ -15,6 +15,13 @@ final class ChatPresentation {
         ChatMarkup.Result result=ChatMarkup.parse(source);
         SpannableStringBuilder text=new SpannableStringBuilder(prefix);
         int offset=text.length();text.append(result.text).append(suffix);
+        // Distinguish the short assistant/provider label from the answer body.
+        int labelEnd=prefix.length();
+        while(labelEnd>0&&Character.isWhitespace(prefix.charAt(labelEnd-1)))labelEnd--;
+        if(labelEnd>0&&labelEnd<=80&&prefix.substring(0,labelEnd).indexOf('\n')<0){
+            text.setSpan(new StyleSpan(Typeface.BOLD),0,labelEnd,Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+            text.setSpan(new RelativeSizeSpan(0.88f),0,labelEnd,Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
         for(ChatMarkup.Span s:result.spans){
             int start=offset+s.start,end=offset+s.end;
             if(start>=end)continue;

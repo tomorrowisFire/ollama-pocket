@@ -206,14 +206,14 @@ final class CloudChatPanel extends LinearLayout {
             if(user)text.setBackgroundColor(0x14808080);
             transcript.addView(text,new LayoutParams(-1,-2));
         }
-        LinearLayout actions=new LinearLayout(owner);actions.setOrientation(HORIZONTAL);
+        LinearLayout actions=new AdaptiveAnswerActions(owner);
         Button edit=button(user?R.string.chat_edit_question:R.string.chat_regenerate);
-        edit.setOnClickListener(v->branch(turn,user));actions.addView(edit,new LayoutParams(0,dp(48),1f));
+        edit.setOnClickListener(v->branch(turn,user));actions.addView(edit,new LayoutParams(-2,-2));
         if(!user){
             Button copy=button(R.string.copy);
             copy.setOnClickListener(v->{ClipboardManager cb=(ClipboardManager)owner.getSystemService(Context.CLIPBOARD_SERVICE);
                 if(cb!=null){cb.setPrimaryClip(SensitiveClipboard.text(provider.title,value));toast(R.string.copied);}});
-            actions.addView(copy,new LayoutParams(0,dp(48),1f));
+            actions.addView(copy,new LayoutParams(-2,-2));
         }
         transcript.addView(actions,new LayoutParams(-1,-2));
     }

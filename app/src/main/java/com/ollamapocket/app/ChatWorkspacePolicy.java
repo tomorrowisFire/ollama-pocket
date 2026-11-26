@@ -13,6 +13,13 @@ final class ChatWorkspacePolicy {
         long remaining=Math.max(0L,(long)Math.max(0,contentHeight)-Math.max(0,viewportHeight)-Math.max(0,scrollY));
         return remaining<=Math.max(0,threshold);
     }
+    /** Natural child widths in pixels, after font scaling. Never squeeze labels below their natural width in a row. */
+    static boolean stackAnswerActions(int available,int gap,int... naturalWidths){
+        if(naturalWidths==null||naturalWidths.length<2)return false;
+        long needed=(long)Math.max(0,gap)*(naturalWidths.length-1);
+        for(int width:naturalWidths)needed+=Math.max(0,width);
+        return needed>Math.max(0,available);
+    }
     static boolean showDraftBudget(int chars,int max){
         return max>0&&chars>=Math.max(1,max*3L/4);
     }

@@ -1,9 +1,9 @@
 package com.ollamapocket.app;
 
-import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -32,18 +32,23 @@ final class ChatRichView {
     private static void copy(Context c,String value){
         ClipboardManager cm=(ClipboardManager)c.getSystemService(Context.CLIPBOARD_SERVICE);
         if(cm!=null){
-            cm.setPrimaryClip(ClipData.newPlainText(c.getString(R.string.app_name),value));
+            cm.setPrimaryClip(SensitiveClipboard.text(c.getString(R.string.app_name),value));
             Toast.makeText(c,R.string.copied,Toast.LENGTH_SHORT).show();
         }
     }
     private static void section(Context c,LinearLayout root,String title,int button,String original,View content,int ink,int surface,float scale){
-        LinearLayout card=column(c);card.setBackgroundColor(surface);
+        LinearLayout card=column(c);
+        GradientDrawable frame=new GradientDrawable();frame.setColor(surface);frame.setCornerRadius(dp(c,12));
+        card.setBackground(frame);card.setPadding(dp(c,4),dp(c,2),dp(c,4),dp(c,4));
+        AdaptiveAnswerActions header=new AdaptiveAnswerActions(c);
         TextView heading=label(c,title,ink,12*scale,false);heading.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
-        card.addView(heading,new LinearLayout.LayoutParams(-1,-2));
-        card.addView(content,new LinearLayout.LayoutParams(-1,-2));
+        heading.setTextIsSelectable(false);
+        header.addView(heading,new LinearLayout.LayoutParams(-2,-2));
         Button b=new Button(c);b.setText(button);b.setAllCaps(false);b.setMinHeight(dp(c,48));
-        b.setTextSize(13*scale);b.setOnClickListener(v->copy(c,original));
-        card.addView(b,new LinearLayout.LayoutParams(-2,-2));
+        b.setMinimumHeight(dp(c,48));b.setTextSize(13*scale);b.setOnClickListener(v->copy(c,original));
+        header.addView(b,new LinearLayout.LayoutParams(-2,-2));
+        card.addView(header,new LinearLayout.LayoutParams(-1,-2));
+        card.addView(content,new LinearLayout.LayoutParams(-1,-2));
         LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.bottomMargin=dp(c,8);
         root.addView(card,p);
     }
@@ -56,7 +61,10 @@ final class ChatRichView {
         List<ChatBlocks.Block> blocks=ChatBlocks.parse(source);
         if(!ChatBlocks.hasSpecial(blocks))return null;
         LinearLayout root=column(c);
-        if(!prefix.isEmpty())root.addView(label(c,prefix,ink,14*scale,false),new LinearLayout.LayoutParams(-1,-2));
+        if(!prefix.isEmpty()){
+            TextView name=label(c,prefix,ink,13*scale,false);name.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+            name.setTextIsSelectable(false);root.addView(name,new LinearLayout.LayoutParams(-1,-2));
+        }
         for(ChatBlocks.Block b:blocks){
             if(b.kind==ChatBlocks.Kind.TEXT){
                 root.addView(label(c,ChatPresentation.format("",b.body,"",surface),ink,15*scale,false),new LinearLayout.LayoutParams(-1,-2));

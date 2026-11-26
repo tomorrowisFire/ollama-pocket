@@ -23,6 +23,14 @@ public final class ChatWorkspacePolicyTest {
         ok(ChatWorkspacePolicy.nearLatest(1000,400,600,0));
         ok(ChatWorkspacePolicy.nearLatest(0,0,0,0));
         ok(!ChatWorkspacePolicy.nearLatest(Integer.MAX_VALUE,0,0,96));
+        ok(!ChatWorkspacePolicy.stackAnswerActions(320,6,96,110,48));
+        ok(!ChatWorkspacePolicy.stackAnswerActions(266,6,96,110,48));
+        ok(ChatWorkspacePolicy.stackAnswerActions(265,6,96,110,48));
+        ok(ChatWorkspacePolicy.stackAnswerActions(220,6,140,130,48));
+        ok(ChatWorkspacePolicy.stackAnswerActions(300,6,160,160));
+        ok(!ChatWorkspacePolicy.stackAnswerActions(100,6,140));
+        ok(!ChatWorkspacePolicy.stackAnswerActions(0,6));
+        ok(ChatWorkspacePolicy.stackAnswerActions(Integer.MAX_VALUE,6,Integer.MAX_VALUE,48));
         ok(!ChatWorkspacePolicy.showDraftBudget(11999,16000));
         ok(ChatWorkspacePolicy.showDraftBudget(12000,16000));
         ok(ChatWorkspacePolicy.showDraftBudget(16001,16000));

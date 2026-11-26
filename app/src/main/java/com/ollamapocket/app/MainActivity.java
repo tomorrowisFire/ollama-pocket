@@ -722,7 +722,7 @@ public final class MainActivity extends Activity {
         b.setTextSize(13*uiTextScale); b.setTextColor(primary ? BG : WHITE);
         b.setPadding(dp(11), dp(6), dp(11), dp(6)); b.setMinHeight(dp(48)); b.setMinimumHeight(dp(48));
         b.setBackground(bg(primary ? ACCENT : FIELD, 11));
-        b.setElevation(0);return b;
+        b.setElevation(0);AdaptiveAnswerActions.feedback(b,11);return b;
     }
     private void margin(View v, LinearLayout host, int top, int bottom) {
         LinearLayout.LayoutParams p = lp(-1, -2); p.topMargin = dp(top); p.bottomMargin = dp(bottom); host.addView(v, p);
@@ -3390,12 +3390,12 @@ public final class MainActivity extends Activity {
             wrapper.addView(t,lp(-1,-2));
             LinearLayout rich=column();rich.setTag("rich-answer-body");rich.setVisibility(View.GONE);
             wrapper.addView(rich,lp(-1,-2));
-            LinearLayout actions=row();actions.setTag("rich-answer-actions");
+            LinearLayout actions=new AdaptiveAnswerActions(this);actions.setTag("rich-answer-actions");
             Button copy=button(getString(R.string.copy),false);
             Button read=button(getString(R.string.read_answer),false);
             copy.setMinHeight(dp(48));copy.setMinimumHeight(dp(48));
             read.setMinHeight(dp(48));read.setMinimumHeight(dp(48));
-            rowItem(actions,copy,1,4);rowItem(actions,read,1,4);
+            rowItem(actions,copy,0,0);rowItem(actions,read,0,0);
             copy.setOnClickListener(v->{
                 Object raw=t.getTag();if(!(raw instanceof String))return;
                 ClipboardManager cb=(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
@@ -3494,7 +3494,7 @@ public final class MainActivity extends Activity {
     private LinearLayout starterCard(String title,String detail,Runnable action){
         LinearLayout card=column();card.setPadding(dp(12),dp(10),dp(12),dp(10));card.setMinimumHeight(dp(72));
         GradientDrawable surface=bg(CARD,14);surface.setStroke(dp(1),borderTone());
-        card.setBackground(surface);card.setClickable(true);card.setFocusable(true);
+        card.setBackground(surface);card.setClickable(true);card.setFocusable(true);AdaptiveAnswerActions.feedback(card,14);
         TextView heading=text(title,14,WHITE,true);heading.setMaxLines(2);heading.setEllipsize(TextUtils.TruncateAt.END);
         TextView caption=text(detail,12,MUTED,false);caption.setMaxLines(3);caption.setEllipsize(TextUtils.TruncateAt.END);
         card.addView(heading,lp(-1,-2));margin(caption,card,3,0);
