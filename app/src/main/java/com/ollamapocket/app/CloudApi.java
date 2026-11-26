@@ -196,6 +196,8 @@ final class CloudApi {
         StringBuilder answer=new StringBuilder();long input=-1,output=-1,lastUi=0;
         final long deadline=System.nanoTime()+300000000000L;
         boolean complete=false,finishedChoice=false;
+        int published=0;
+        try{
         try(java.io.Reader reader=new java.io.InputStreamReader(raw,StandardCharsets.UTF_8)){
             StringBuilder line=new StringBuilder(),event=new StringBuilder();int ch;long consumed=0;
             while((ch=reader.read())!=-1){
@@ -231,12 +233,25 @@ final class CloudApi {
                 long a=tokenCount(usage,provider.protocol==1?"prompt_tokens":"input_tokens"),b=tokenCount(usage,provider.protocol==1?"completion_tokens":"output_tokens");
                 if(a>=0)input=a;if(b>=0)output=b;
                 if((long)answer.length()+part.length()>CloudHistory.MAX_REPLY)throw new java.io.IOException("Reply limit");answer.append(part);
-                long now=System.nanoTime();if(progress!=null&&!part.isEmpty()&&(lastUi==0||now-lastUi>=100000000L)){lastUi=now;progress.update(answer.toString());}
+                long now=System.nanoTime();if(progress!=null&&!part.isEmpty()&&(lastUi==0||now-lastUi>=100000000L)){
+                    lastUi=now;published=answer.length();progress.update(answer.toString());
+                }
                 if(complete)break;
             }
         }
         if(!complete||answer.toString().trim().isEmpty())throw new StreamFailure("Incomplete stream",true);
         return new Reply(answer.toString(),input,output);
+        }catch(Exception failure){
+            // Only previously accepted, bounded text; never synthesize a successful completion.
+            // The preview throttle must not discard the tail of an interrupted reply.
+            flushIncompletePreview(progress,answer,published);
+            throw failure;
+        }
+    }
+    static void flushIncompletePreview(Progress progress,StringBuilder accepted,int published){
+        if(progress!=null&&accepted.length()>published&&!Thread.currentThread().isInterrupted()){
+            try{progress.update(accepted.toString());}catch(RuntimeException ignored){}
+        }
     }
     private static JSONObject readJson(java.net.HttpURLConnection c)throws Exception{
         try(InputStream stream=c.getInputStream();ByteArrayOutputStream buffer=new ByteArrayOutputStream()){

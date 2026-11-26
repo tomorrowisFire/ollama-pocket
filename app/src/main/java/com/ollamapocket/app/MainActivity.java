@@ -87,6 +87,7 @@ public final class MainActivity extends Activity {
     private int lastAttachmentLength;
     private long attachmentSerial;
     private AlertDialog attachmentPreviewDialog;
+    private AlertDialog workbenchDialog;
     private boolean attachmentReading;
     private Button attachFileButton;
     private boolean guestOnly, foreground, speakNextAnswer;
@@ -422,7 +423,7 @@ public final class MainActivity extends Activity {
         @Override public void run(){
             if(isFinishing()||isDestroyed())return;
             if("auto".equals(themeMode)&&resolvedDarkTheme("auto")!=activeThemeDark
-                &&!isUiBusy()&&(navigationDrawer==null||!navigationDrawer.isShowing())){
+                &&!isUiBusy()&&!workbenchOpen()&&(navigationDrawer==null||!navigationDrawer.isShowing())){
                 switchAutoThemeWithoutRestart();
             }
             ui.postDelayed(this,60_000);
@@ -500,7 +501,7 @@ public final class MainActivity extends Activity {
         }
     }
     @Override protected void onPause() {
-        foreground=false;
+        foreground=false;closeWorkbench();
         if(ads!=null)ads.pause();
         if(documentBatch!=null){documentBatch.pause();documentBatch=null;}
         if(automationUi!=null)automationUi.pause();
@@ -519,7 +520,7 @@ public final class MainActivity extends Activity {
         super.onPause();
     }
     @Override protected void onDestroy() {
-        saveLocalDraft();
+        closeWorkbench();saveLocalDraft();
         if(documentBatch!=null){documentBatch.pause();documentBatch=null;}
         if(automationUi!=null)automationUi.pause();
         if(projectWorkspaceUi!=null){projectWorkspaceUi.pause();projectWorkspaceUi=null;}
@@ -582,7 +583,7 @@ public final class MainActivity extends Activity {
     private void openCloud(){
         if(isUiBusy()||guestOnly){toast(getString(R.string.busy));return;}
         if(cloudMode)return;
-        if(voice!=null)voice.cancel();
+        closeWorkbench();if(voice!=null)voice.cancel();
         if(cloudPanel==null){
             cloudPanel=new CloudChatPanel(this,this::returnToLocal);
             chatPage.addView(cloudPanel,new LinearLayout.LayoutParams(-1,0,1));
@@ -1103,7 +1104,13 @@ public final class MainActivity extends Activity {
         localChatContent.post(this::applyChatLayout);updateDraftBudget();
     }
 
+    private boolean workbenchOpen(){return workbenchDialog!=null&&workbenchDialog.isShowing();}
+    private void closeWorkbench(){
+        AlertDialog d=workbenchDialog;workbenchDialog=null;
+        if(d!=null)d.dismiss();
+    }
     private void showChatActions(){
+        if(workbenchOpen())return;
         if(guestOnly||cloudMode||isUiBusy()||!foreground||activeTab!=0){toast(getString(R.string.busy));return;}
         LinearLayout body=column();body.setPadding(dp(16),dp(8),dp(16),dp(16));
         ScrollView scroll=new ScrollView(this);scroll.setSaveEnabled(false);scroll.addView(body);
@@ -1125,13 +1132,16 @@ public final class MainActivity extends Activity {
             for(int i=g*3;i<g*3+3;i++){
                 final int index=i;
                 tiles.addView(workbenchCard(getString(titles[i]),getString(details[i]),()->{
-                    if(!dialog.isShowing()||isFinishing()||isDestroyed()||!foreground||activeTab!=0||isUiBusy()||guestOnly||cloudMode)return;
-                    dialog.dismiss();actions[index].run();
+                    if(workbenchDialog!=dialog||!dialog.isShowing()||isFinishing()||isDestroyed()||!foreground||activeTab!=0||isUiBusy()||guestOnly||cloudMode)return;
+                    closeWorkbench();actions[index].run();
                 }));
             }
             body.addView(tiles,lp(-1,-2));
         }
-        dialog.show();WorkbenchWindow.fit(this,dialog);
+        workbenchDialog=dialog;
+        dialog.setOnDismissListener(d->{if(workbenchDialog==dialog)workbenchDialog=null;});
+        try{dialog.show();WorkbenchWindow.fit(this,dialog);}
+        catch(RuntimeException e){closeWorkbench();toast(getString(R.string.busy));}
     }
     private View workbenchCard(String title,String detail,Runnable action){
         LinearLayout card=column();card.setPadding(dp(14),dp(13),dp(14),dp(13));card.setMinimumHeight(dp(84));
@@ -1732,6 +1742,7 @@ public final class MainActivity extends Activity {
 
     private void showTab(int index) {
         int target=Math.max(0,Math.min(3,index));
+        if(target!=0)closeWorkbench();
         if(target!=0&&cloudMode)returnToLocal();
         LinearLayout[] screens={chatPage,modelPage,serverPage,diagnosticPage};
         boolean alreadyShowing=screens[target].getVisibility()==View.VISIBLE;

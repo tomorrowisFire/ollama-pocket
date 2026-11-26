@@ -14,6 +14,16 @@ public final class CloudStreamTest {
         try{parse(p,data);}catch(CloudApi.StreamFailure expected){check(expected.incomplete);return;}
         throw new AssertionError("Unexpected successful stream");
     }
+    private static void recovered(CloudApi.Provider p,String data,String expected)throws Exception{
+        java.util.ArrayList<String> previews=new java.util.ArrayList<>();
+        try{
+            CloudApi.parseStream(p,new ByteArrayInputStream(data.getBytes(StandardCharsets.UTF_8)),previews::add);
+            throw new AssertionError("Unexpected completion");
+        }catch(CloudApi.StreamFailure failure){check(failure.incomplete);}
+        check(!previews.isEmpty()&&expected.equals(previews.get(previews.size()-1)));
+        String last="";
+        for(String value:previews){check(value.startsWith(last)&&expected.startsWith(value));last=value;}
+    }
     public static void main(String[] args)throws Exception{
         String[] targets={"https://api.openai.com/v1/responses","https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
             "https://api.anthropic.com/v1/messages","https://api.x.ai/v1/responses","https://api.deepseek.com/chat/completions",
@@ -58,6 +68,28 @@ public final class CloudStreamTest {
         }
         check(parse(CloudApi.Provider.OPENAI,delta.replace("\n","\r\n")+end).text.equals("안녕"));
         rejects(CloudApi.Provider.OPENAI,event("{\"error\":{\"message\":\"test\"}}"));
+        String more=event("{\"type\":\"response.output_text.delta\",\"delta\":\" 世界😀\"}");
+        for(CloudApi.Provider p:new CloudApi.Provider[]{CloudApi.Provider.OPENAI,CloudApi.Provider.XAI}){
+            recovered(p,delta+more,"안녕 世界😀");
+            recovered(p,delta+more+event("{\"type\":\"response.incomplete\"}"),"안녕 世界😀");
+        }
+        String moreClaude=event("{\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":\" ไทย😀\"}}");
+        recovered(CloudApi.Provider.CLAUDE,start+text+moreClaude+stop,"日本語 ไทย😀");
+        recovered(CloudApi.Provider.CLAUDE,start+text+moreClaude+event("{\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"max_tokens\"}}"),"日本語 ไทย😀");
+        String moreChat=event("{\"choices\":[{\"delta\":{\"content\":\" 한국어😀\"},\"finish_reason\":null}]}");
+        for(CloudApi.Provider p:new CloudApi.Provider[]{CloudApi.Provider.GEMINI,CloudApi.Provider.DEEPSEEK,CloudApi.Provider.OPENROUTER,CloudApi.Provider.PC_OLLAMA,CloudApi.Provider.PC_LM_STUDIO}){
+            recovered(p,chunk+moreChat+finish,"中文 한국어😀");
+            recovered(p,chunk+moreChat+event("{\"choices\":[{\"finish_reason\":\"length\"}]}"),"中文 한국어😀");
+        }
+        check(parse(CloudApi.Provider.OPENAI,delta+more+end).text.equals("안녕 世界😀"));
+        java.util.ArrayList<String> finalPreview=new java.util.ArrayList<>();
+        CloudApi.flushIncompletePreview(finalPreview::add,new StringBuilder("abc"),1);
+        check(finalPreview.size()==1&&finalPreview.get(0).equals("abc"));
+        CloudApi.flushIncompletePreview(finalPreview::add,new StringBuilder("abc"),3);
+        check(finalPreview.size()==1);
+        CloudApi.flushIncompletePreview(null,new StringBuilder("abc"),0);
+        CloudApi.flushIncompletePreview(value->{throw new IllegalStateException("preview failed");},new StringBuilder("abc"),1);
+        check(true);
         System.out.println("PASS: "+checks+" offline SSE protocol checks");
     }
 }

@@ -68,6 +68,11 @@ final class CloudChatPanel extends LinearLayout {
     }
     private final LinearLayout transcript;
     private final ScrollView scroll;
+    private final Button latest;
+    private final CloudViewportPolicy viewportPolicy=new CloudViewportPolicy();
+    private boolean programmaticScroll;
+    private final Runnable followTask=this::followIfCurrent;
+    private long followTicket;
     private final EditText prompt;
     private final Button send,stop,settings,conversations;
     private final LinearLayout header,composer,composerActions;
@@ -127,7 +132,22 @@ final class CloudChatPanel extends LinearLayout {
         scroll=new ScrollView(owner);scroll.setFillViewport(true);
         transcript=new LinearLayout(owner);transcript.setOrientation(VERTICAL);
         scroll.addView(transcript,new ScrollView.LayoutParams(-1,-2));
-        addView(scroll,new LayoutParams(-1,0,1f));
+        FrameLayout viewport=new FrameLayout(owner);
+        viewport.addView(scroll,new FrameLayout.LayoutParams(-1,-1));
+        latest=button(R.string.workspace_latest);latest.setText("↓");latest.setMinWidth(dp(48));latest.setMinimumWidth(dp(48));
+        latest.setContentDescription(getResources().getString(R.string.workspace_latest));
+        latest.setTooltipText(getResources().getString(R.string.workspace_latest));latest.setVisibility(GONE);
+        FrameLayout.LayoutParams jump=new FrameLayout.LayoutParams(dp(48),dp(48),android.view.Gravity.BOTTOM|android.view.Gravity.END);
+        jump.bottomMargin=dp(8);jump.rightMargin=dp(6);viewport.addView(latest,jump);
+        latest.setOnClickListener(v->{viewportPolicy.reset();scheduleFollow();});
+        scroll.setOnScrollChangeListener((v,x,y,oldX,oldY)->{
+            if(!programmaticScroll&&y!=oldY)viewportPolicy.observed(transcript.getBottom(),scroll.getHeight(),y,dp(96));
+            refreshLatest();
+        });
+        transcript.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
+            if(b-t!=ob-ot&&viewportPolicy.following())scheduleFollow();else refreshLatest();
+        });
+        addView(viewport,new LayoutParams(-1,0,1f));
         status=new TextView(owner);status.setTextSize(12);status.setPadding(0,dp(3),0,dp(3));
         addView(status,new LayoutParams(-1,-2));
         composer=new LinearLayout(owner);composer.setOrientation(HORIZONTAL);
@@ -189,6 +209,7 @@ final class CloudChatPanel extends LinearLayout {
     void activate(){if(closed)return;active=true;owner.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);restoreDraft();render();}
     void pause(){
         rememberDraft();active=false;
+        viewportPolicy.invalidate();scroll.removeCallbacks(followTask);
         if(actionDialog!=null){actionDialog.dismiss();actionDialog=null;}
         if(keyDialog!=null){keyDialog.dismiss();keyDialog=null;}
         HttpURLConnection catalog=catalogRequest;if(catalog!=null)catalog.disconnect();
@@ -217,13 +238,20 @@ final class CloudChatPanel extends LinearLayout {
         List<CloudHistory.Turn> turns=s.turns();
         String first=turns.isEmpty()?s.draft():turns.get(0).question;
         if(first.trim().isEmpty())first=getResources().getString(R.string.new_chat);
-        first=first.replace('\n',' ').replace('\r',' ').trim();
-        if(first.length()>38)first=first.substring(0,38)+"…";
+        first=CloudViewportPolicy.shortTitle(first,38);
         return getResources().getString(s.branched?R.string.cloud_branch_label:R.string.cloud_session_label,s.id,first);
     }
-    private void render(){
+    private void render(){render(true);}
+    private void render(boolean resetPosition){
+        if(resetPosition)viewportPolicy.reset();else viewportPolicy.invalidate();
+        scroll.removeCallbacks(followTask);
+        int priorY=scroll.getScrollY();
+        final boolean follow=viewportPolicy.following();
+        final long ticket=viewportPolicy.ticket();
         endpoint.setText(model.isEmpty()?getResources().getString(R.string.cloud_provider_model):provider.title+(provider.remote()?" · "+pcAddress:"")+" · "+model);
         refreshUsage();
+        programmaticScroll=true;
+        try{
         transcript.removeAllViews();
         conversations.setEnabled(!busy&&!model.isEmpty());
         if(!model.isEmpty()){
@@ -234,7 +262,33 @@ final class CloudChatPanel extends LinearLayout {
                 for(int i=0;i<turns.size();i++){CloudHistory.Turn t=turns.get(i);bubble(t.question,true,i);bubble(t.answer,false,i);}
             }catch(IllegalStateException e){toast(R.string.cloud_session_capacity);}
         }else conversations.setText(R.string.cloud_conversations);
-        scroll.post(()->scroll.fullScroll(View.FOCUS_DOWN));
+        }finally{programmaticScroll=false;}
+        if(follow)scheduleFollow();
+        else scroll.post(()->{
+            if(!closed&&active&&viewportPolicy.accepts(ticket)&&!viewportPolicy.following()){
+                programmaticScroll=true;
+                try{scroll.scrollTo(0,Math.min(priorY,Math.max(0,transcript.getBottom()-scroll.getHeight())));}
+                finally{programmaticScroll=false;}
+                refreshLatest();
+            }
+        });
+        refreshLatest();
+    }
+    private void refreshLatest(){
+        latest.setVisibility(active&&!closed&&transcript.getChildCount()>0&&!ChatWorkspacePolicy.nearLatest(
+            transcript.getBottom(),scroll.getHeight(),scroll.getScrollY(),dp(96))?VISIBLE:GONE);
+    }
+    private void scheduleFollow(){
+        if(closed||!active||!viewportPolicy.following())return;
+        followTicket=viewportPolicy.ticket();
+        scroll.removeCallbacks(followTask);scroll.post(followTask);
+    }
+    private void followIfCurrent(){
+        if(closed||!active||!viewportPolicy.shouldFollow(followTicket))return;
+        programmaticScroll=true;
+        try{scroll.scrollTo(0,Math.max(0,transcript.getBottom()-scroll.getHeight()));}
+        finally{programmaticScroll=false;}
+        refreshLatest();
     }
     private void bubble(String value,boolean user,int turn){
         TextView text=new TextView(owner);text.setTextSize(15);text.setTextIsSelectable(true);
@@ -611,7 +665,7 @@ final class CloudChatPanel extends LinearLayout {
     }
     private void request(CloudApi.Provider p,String id,String apiKey,String q,CloudHistory.Session s,long revision,List<CloudHistory.Message> messages){
         final String ledgerScope=usageScope(p);final double ir=p.remote()?-1:inputRate,or=p.remote()?-1:outputRate;
-        s.draft(q);int request=++serial;setBusy(true);status.setText(R.string.thinking);
+        s.draft(q);int request=++serial;viewportPolicy.reset();setBusy(true);status.setText(R.string.thinking);
         TextView question=new TextView(owner);question.setText(q);question.setTextSize(15);question.setPadding(dp(10),dp(10),dp(10),dp(10));transcript.addView(question,new LayoutParams(-1,-2));
         TextView partial=new TextView(owner);partial.setTextSize(15);partial.setPadding(dp(10),dp(10),dp(10),dp(10));partial.setAutoLinkMask(0);partial.setTextIsSelectable(true);transcript.addView(partial,new LayoutParams(-1,-2));
         io.execute(()->{
@@ -620,18 +674,18 @@ final class CloudChatPanel extends LinearLayout {
                 if(closed||request!=serial)return;
                 c=p.remote()?CloudApi.remoteConnection(p,apiKey,true):CloudApi.connection(p,apiKey);connection=c;
                 if(closed||request!=serial)return;
-                result=CloudApi.streamReply(p,c,id,messages,value->owner.runOnUiThread(()->{if(!closed&&active&&request==serial){partial.setText(value);scroll.post(()->scroll.fullScroll(View.FOCUS_DOWN));}}));
+                result=CloudApi.streamReply(p,c,id,messages,value->owner.runOnUiThread(()->{if(!closed&&active&&request==serial){partial.setText(value);scheduleFollow();}}));
             }catch(Exception e){err=errorLabel(e);}finally{if(c!=null)c.disconnect();if(connection==c)connection=null;}
             CloudApi.Reply output=result;final int failure=err;
             owner.runOnUiThread(()->{
                 if(closed||request!=serial||!active)return;
                 setBusy(false);
                 if(!current(p,id,s,revision)){status.setText(R.string.cloud_context_changed);return;}
-                if(output==null){ledger.record(ledgerScope,-1,-1,ir,or);String recovered=partial.getText().toString();render();prompt.setText(q);
+                if(output==null){ledger.record(ledgerScope,-1,-1,ir,or);String recovered=partial.getText().toString();render(false);prompt.setText(q);
                     if(!recovered.trim().isEmpty()){TextView fragment=new TextView(owner);fragment.setText(getResources().getString(R.string.chat_stream_incomplete)+"\n\n"+recovered);fragment.setTextIsSelectable(true);fragment.setAutoLinkMask(0);transcript.addView(fragment,new LayoutParams(-1,-2));}
                     status.setText(getResources().getString(failure)+"\n"+getResources().getString(R.string.chat_draft_recovered)+"\n"+getResources().getString(R.string.cloud_cancel_cost));return;}
                 ledger.record(ledgerScope,output.inputTokens,output.outputTokens,ir,or);
-                try{s.complete(q,output.text);prompt.setText("");status.setText(usageLabel(output));render();}
+                try{s.complete(q,output.text);prompt.setText("");status.setText(usageLabel(output));render(false);}
                 catch(IllegalArgumentException e){status.setText(R.string.cloud_fail);}
             });
         });
@@ -639,6 +693,6 @@ final class CloudChatPanel extends LinearLayout {
     private void cancel(){
         if(busy)ledger.record(usageScope(provider),-1,-1,-1,-1);
         serial++;HttpURLConnection c=connection;if(c!=null)c.disconnect();
-        setBusy(false);render();status.setText(R.string.cloud_cancel_cost);
+        setBusy(false);render(false);status.setText(R.string.cloud_cancel_cost);
     }
 }
