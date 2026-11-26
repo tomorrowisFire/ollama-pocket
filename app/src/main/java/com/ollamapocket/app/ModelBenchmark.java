@@ -98,6 +98,31 @@ public final class ModelBenchmark {
         }
     }
 
+    private static String engineLabel(Context c,String mode){
+        return "cpu".equals(mode)?"CPU · Ollama":"gpu".equals(mode)?"GPU · Vulkan":c.getString(R.string.bench_rpc);
+    }
+    private static String decimal(Context c,double value,int digits){
+        return Double.isFinite(value)?String.format(c.getResources().getConfiguration().getLocales().get(0),"%."+digits+"f",value):c.getString(R.string.metric_unavailable);
+    }
+    private static String metricTemperature(Context c,double value){
+        return Double.isFinite(value)?decimal(c,value,1)+"℃":c.getString(R.string.metric_unavailable);
+    }
+    private static String metricThermal(Context c,int value){
+        return value>=0?Integer.toString(value):c.getString(R.string.metric_unavailable);
+    }
+    private static String errorLabel(Context c,String error){
+        if(error==null||error.isEmpty())return c.getString(R.string.metric_unavailable);
+        switch(error){
+            case "검사 취소":return c.getString(R.string.bench_cancelled_error);
+            case "기기가 심하게 뜨거워져 안전을 위해 검사 중단":return c.getString(R.string.bench_hot);
+            case "Android 저메모리 경고로 검사 중단":return c.getString(R.string.bench_memory);
+            case "Ollama 서버 중지":return c.getString(R.string.test_need_server);
+            case "Vulkan 실행 파일 없음":return c.getString(R.string.compute_gpu_missing);
+            case "기기 Vulkan compute 미보고":return c.getString(R.string.compute_gpu_unavailable);
+            case "호스트 세션·활성 보조 노드 없음":return c.getString(R.string.coop_connect_first);
+            default:return error;
+        }
+    }
     public static final class EngineResult {
         public final String mode;
         public final String name;
@@ -115,6 +140,34 @@ public final class ModelBenchmark {
         }
         public boolean valid() {
             return passes == REPEATS && decodeTps > 0 && error.isEmpty();
+        }
+        String localizedSummary(Context c){
+            String name=engineLabel(c,mode);
+            if(!valid())return c.getString(R.string.bench_unmeasured,name,errorLabel(c,error));
+            return c.getString(R.string.bench_rates,name,decimal(c,decodeTps,1),decimal(c,prefillTps,1))+"\n"+
+                c.getString(R.string.bench_latency,decimal(c,ttftMs,0),decimal(c,decayPct,1),passes,REPEATS)+"\n"+
+                c.getString(R.string.bench_resources,minFreeMiB,metricTemperature(c,batteryStartC),metricTemperature(c,batteryEndC),
+                    metricThermal(c,thermalStart),metricThermal(c,thermalEnd));
+        }
+        JSONObject structured()throws Exception{
+            return new JSONObject().put("mode",mode).put("error",error).put("decode",decodeTps)
+                .put("prefill",prefillTps).put("ttft",ttftMs).put("decay",decayPct).put("ram",minFreeMiB)
+                .put("batteryStart",Float.isFinite(batteryStartC)?(Object)Double.valueOf(batteryStartC):JSONObject.NULL)
+                .put("batteryEnd",Float.isFinite(batteryEndC)?(Object)Double.valueOf(batteryEndC):JSONObject.NULL)
+                .put("thermalStart",thermalStart).put("thermalEnd",thermalEnd).put("passes",passes);
+        }
+        static EngineResult fromStructured(JSONObject o)throws Exception{
+            String mode=o.getString("mode");
+            if(!Arrays.asList("cpu","gpu","cooperative").contains(mode))throw new IOException("Invalid engine");
+            EngineResult e=new EngineResult(mode,mode);
+            e.error=o.getString("error");e.decodeTps=o.getDouble("decode");e.prefillTps=o.getDouble("prefill");
+            e.ttftMs=o.getDouble("ttft");e.decayPct=o.getDouble("decay");e.minFreeMiB=o.getLong("ram");
+            e.batteryStartC=o.isNull("batteryStart")?Float.NaN:(float)o.getDouble("batteryStart");
+            e.batteryEndC=o.isNull("batteryEnd")?Float.NaN:(float)o.getDouble("batteryEnd");
+            e.thermalStart=o.getInt("thermalStart");e.thermalEnd=o.getInt("thermalEnd");e.passes=o.getInt("passes");
+            if(e.passes<0||e.passes>REPEATS||e.minFreeMiB<0||!Double.isFinite(e.decodeTps)||!Double.isFinite(e.prefillTps)||
+                !Double.isFinite(e.ttftMs)||!Double.isFinite(e.decayPct))throw new IOException("Invalid benchmark");
+            return e;
         }
         public String summary() {
             if (!valid()) return name + ": 미측정 · " + error;
@@ -135,9 +188,35 @@ public final class ModelBenchmark {
         public String recommendedName;
         public boolean interrupted;
         Report(String model) { this.model = model; }
+        String localizedText(Context c){
+            StringBuilder s=new StringBuilder(c.getString(R.string.bench_header,model,WARMUP_TOKENS,TOKENS,REPEATS)).append("\n\n");
+            for(EngineResult result:results)s.append(result.localizedSummary(c)).append("\n\n");
+            s.append(c.getString(R.string.bench_npu)).append('\n');
+            s.append(recommendedMode==null?c.getString(R.string.bench_no_best):
+                c.getString(R.string.bench_best,engineLabel(c,recommendedMode))).append('\n');
+            if(interrupted)s.append(c.getString(R.string.bench_interrupted)).append('\n');
+            return s.append('\n').append(c.getString(R.string.bench_limitations)).toString();
+        }
+        String structured()throws Exception{
+            org.json.JSONArray values=new org.json.JSONArray();
+            for(EngineResult e:results)values.put(e.structured());
+            return new JSONObject().put("schema",1).put("model",model).put("results",values)
+                .put("recommended",recommendedMode==null?JSONObject.NULL:recommendedMode).put("interrupted",interrupted).toString();
+        }
+        static Report fromStructured(String value,String expectedModel)throws Exception{
+            if(value==null||value.length()>120000)throw new IOException("Invalid report");
+            JSONObject o=new JSONObject(value);
+            if(o.getInt("schema")!=1||!expectedModel.equals(o.getString("model")))throw new IOException("Invalid report scope");
+            Report r=new Report(expectedModel);org.json.JSONArray list=o.getJSONArray("results");
+            if(list.length()>3)throw new IOException("Invalid report size");
+            for(int i=0;i<list.length();i++)r.results.add(EngineResult.fromStructured(list.getJSONObject(i)));
+            r.recommendedMode=o.isNull("recommended")?null:o.getString("recommended");
+            if(r.recommendedMode!=null&&!Arrays.asList("cpu","gpu","cooperative").contains(r.recommendedMode))throw new IOException("Invalid recommendation");
+            r.interrupted=o.getBoolean("interrupted");return r;
+        }
         public String text() {
             StringBuilder s = new StringBuilder();
-            s.append("AI in Pocket · 모델 최적화 벤치마크\n")
+            s.append("OnHand AI · 모델 최적화 벤치마크\n")
                 .append("모델: ").append(model).append("\n")
                 .append("측정: 각 엔진 준비 후 워밍업 ").append(WARMUP_TOKENS)
                 .append("토큰(점수 제외), 본 측정 ").append(TOKENS)
@@ -296,12 +375,14 @@ public final class ModelBenchmark {
         EngineResult result = new EngineResult(mode,
                 "cpu".equals(mode) ? "CPU · Ollama" :
                 ("gpu".equals(mode) ? "GPU · Vulkan" : "협력 RPC"));
+        Context locale=OnHandsLocale.wrap(context);
+        String displayEngine=engineLabel(locale,mode);
         Reading before=Reading.capture(context);
         result.batteryStartC=before.batteryC;
         result.thermalStart=before.thermal;
         result.minFreeMiB=before.freeMiB;
         try {
-            progress.update(result.name + " · 실행 엔진 준비 중");
+            progress.update(locale.getString(R.string.bench_preparing,displayEngine));
             check(context);
             if("cpu".equals(mode)) {
                 GpuRunner.stop();DistributedRunner.stop();
@@ -324,13 +405,13 @@ public final class ModelBenchmark {
                     throw new IOException("분산 모델 로딩 실패: "+reason);
             }
 
-            progress.update(result.name + " · 워밍업 (점수 제외)");
+            progress.update(locale.getString(R.string.bench_warmup,displayEngine));
             measure(context,model,mode,WARMUP_TOKENS);
             List<Double> tgs=new ArrayList<>(), pps=new ArrayList<>(), firsts=new ArrayList<>();
             double firstRate=0,lastRate=0;
             for(int i=0;i<REPEATS;i++) {
                 check(context);
-                progress.update(result.name + " · 실측 "+(i+1)+"/"+REPEATS);
+                progress.update(locale.getString(R.string.bench_measuring,displayEngine,i+1,REPEATS));
                 Sample m=measure(context,model,mode,TOKENS);
                 result.passes++;
                 tgs.add(m.decodeTps);
@@ -391,9 +472,15 @@ public final class ModelBenchmark {
     }
 
     public static void showSaved(Activity activity,String model) {
-        String old=activity.getSharedPreferences("ai_pocket_bench",Context.MODE_PRIVATE)
-                .getString("model_"+model,"아직 이 모델의 벤치마크 결과가 없습니다.");
-        showReport(activity,old,null);
+        android.content.SharedPreferences prefs=activity.getSharedPreferences("ai_pocket_bench",Context.MODE_PRIVATE);
+        String old=prefs.getString("model_"+model,null);
+        String structured=prefs.getString("structured_"+model,null);
+        if(structured!=null)try{
+            Report report=Report.fromStructured(structured,model);
+            showReport(activity,report.localizedText(activity),null);return;
+        }catch(Exception ignored){}
+        showReport(activity,old==null?activity.getString(R.string.bench_none):
+            activity.getString(R.string.bench_legacy)+"\n\n"+old,null);
     }
 
     private static void showReport(Activity activity,String content,String best) {
@@ -406,15 +493,15 @@ public final class ModelBenchmark {
         ScrollView scroll=new ScrollView(activity);
         scroll.addView(view);
         AlertDialog.Builder builder=new AlertDialog.Builder(activity)
-                .setTitle("모델 벤치마크 결과")
+                .setTitle(activity.getString(R.string.bench_title))
                 .setView(scroll)
-                .setNegativeButton("닫기",null)
-                .setNeutralButton("결과 복사",(d,w)->{
+                .setNegativeButton(activity.getString(R.string.close),null)
+                .setNeutralButton(activity.getString(R.string.copy_result),(d,w)->{
                     ClipboardManager clipboard=(ClipboardManager)activity.getSystemService(Context.CLIPBOARD_SERVICE);
                     if(clipboard!=null)clipboard.setPrimaryClip(
-                            ClipData.newPlainText("AI in Pocket 벤치마크",content));
+                            ClipData.newPlainText(activity.getString(R.string.bench_title),content));
                 });
-        if(best!=null)builder.setPositiveButton("추천 모드 적용",(d,w)->
+        if(best!=null)builder.setPositiveButton(activity.getString(R.string.bench_apply),(d,w)->
                 activity.getPreferences(Context.MODE_PRIVATE).edit()
                         .putString("compute_preference",best).apply());
         builder.show();
@@ -423,14 +510,14 @@ public final class ModelBenchmark {
     public static void show(Activity activity, String model, Runnable started,
                             Runnable finished) {
         if(model==null||model.isEmpty()) {
-            new AlertDialog.Builder(activity).setMessage("모델을 먼저 설치·선택하세요.")
-                    .setPositiveButton("확인",null).show();return;
+            new AlertDialog.Builder(activity).setMessage(activity.getString(R.string.test_need_model))
+                    .setPositiveButton(activity.getString(R.string.ok),null).show();return;
         }
-        new AlertDialog.Builder(activity).setTitle("모델 속도 측정")
+        new AlertDialog.Builder(activity).setTitle(activity.getString(R.string.bench_speed))
                 .setItems(new String[]{
-                    "빠른 비교 · CPU / GPU / 협력 (지원 시)",
-                    "현재 설정한 연산 장치만 측정",
-                    "지난 결과 보기"
+                    activity.getString(R.string.bench_compare),
+                    activity.getString(R.string.bench_current),
+                    activity.getString(R.string.bench_previous)
                 },(d,which)->{
                     if(which==2){showSaved(activity,model);return;}
                     ModelBenchmark bench=new ModelBenchmark();
@@ -440,14 +527,13 @@ public final class ModelBenchmark {
                     ProgressBar spinner=new ProgressBar(activity);
                     panel.addView(spinner);
                     TextView status=new TextView(activity);
-                    status.setText("모델: "+model+"\n워밍업 후 토큰/초를 측정합니다.\n" +
-                            "CPU와 GPU/분산의 실제 속도를 비교합니다. 화면을 유지하세요.");
+                    status.setText(activity.getString(R.string.bench_intro,model));
                     status.setPadding(0,14,0,10);
                     panel.addView(status);
                     AlertDialog dialog=new AlertDialog.Builder(activity)
-                            .setTitle("벤치마크 실행 중")
+                            .setTitle(activity.getString(R.string.bench_running))
                             .setView(panel)
-                            .setNegativeButton("중단",(b,w)->bench.cancel())
+                            .setNegativeButton(activity.getString(R.string.stop),(b,w)->bench.cancel())
                             .create();
                     dialog.setCanceledOnTouchOutside(false);
                     dialog.setOnCancelListener(x->bench.cancel());
@@ -461,7 +547,7 @@ public final class ModelBenchmark {
                             report=bench.run(activity.getApplicationContext(),model,which==0,
                                     message->activity.runOnUiThread(()->{
                                         if(dialog.isShowing())status.setText(message+"\n" +
-                                            "생성 72토큰 × 2회, 취소 가능");
+                                            activity.getString(R.string.bench_repeat_note,TOKENS,REPEATS));
                                     }));
                         }catch(Exception e){failure=e.getMessage();}
                         final Report done=report;
@@ -472,11 +558,13 @@ public final class ModelBenchmark {
                             finished.run();
                             if(activity.isFinishing())return;
                             if(done!=null){
-                                String text=done.text();
-                                activity.getSharedPreferences("ai_pocket_bench",Context.MODE_PRIVATE)
-                                        .edit().putString("model_"+model,text).apply();
-                                showReport(activity,text,done.interrupted?null:done.recommendedMode);
-                            }else showReport(activity,"검사 실패: "+problem,null);
+                                String text=done.text(); // Preserve the canonical benchmark format used by recommendations.
+                                android.content.SharedPreferences.Editor edit=activity.getSharedPreferences("ai_pocket_bench",Context.MODE_PRIVATE).edit()
+                                    .putString("model_"+model,text).remove("structured_"+model);
+                                try{edit.putString("structured_"+model,done.structured());}catch(Exception ignored){}
+                                edit.apply();
+                                showReport(activity,done.localizedText(activity),done.interrupted?null:done.recommendedMode);
+                            }else showReport(activity,activity.getString(R.string.bench_failed,errorLabel(activity,problem)),null);
                         });
                     },"model-benchmark");
                     bench.worker=t;

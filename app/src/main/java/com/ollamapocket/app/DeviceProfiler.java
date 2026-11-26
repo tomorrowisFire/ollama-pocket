@@ -45,6 +45,13 @@ public final class DeviceProfiler {
             this.lowMemory = lowMemory;
         }
 
+        public String description(Context c){
+            Locale locale=c.getResources().getConfiguration().getLocales().get(0);
+            return c.getString(R.string.profile_report,device,chip,cores,abi,
+                String.format(locale,"%.1f",ramGb),String.format(locale,"%.1f",availableRamGb),
+                String.format(locale,"%.1f",freeStorageGb),androidApi,
+                lowMemory?" · "+c.getString(R.string.profile_low_memory):"");
+        }
         public String description() {
             return "기기: " + device +
                 "\n칩셋: " + chip +

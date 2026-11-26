@@ -103,7 +103,7 @@ public final class HuggingFaceCatalog {
     }
     private void fail(String message){
         onUi(()->new AlertDialog.Builder(activity).setTitle("Hugging Face")
-            .setMessage(message).setPositiveButton("확인",null).show());
+            .setMessage(message).setPositiveButton(activity.getString(R.string.ok),null).show());
     }
     private static String encode(String part) throws Exception {
         return URLEncoder.encode(part,StandardCharsets.UTF_8.name()).replace("+","%20");
@@ -127,8 +127,39 @@ public final class HuggingFaceCatalog {
         return out.toString();
     }
     private static int dp(int n){return (int)(n*android.content.res.Resources.getSystem().getDisplayMetrics().density+0.5f);}
-    private static String size(long bytes) {
-        return bytes>0?String.format(Locale.KOREA,"%.2f GB",bytes/1_000_000_000.0):"용량 미확인";
+    private String size(long bytes) {
+        return bytes>0?String.format(activity.getResources().getConfiguration().getLocales().get(0),"%.2f GB",bytes/1_000_000_000.0):activity.getString(R.string.storage_unknown);
+    }
+    private String licenseLabel(String value){
+        return "모델 카드 확인 필요".equals(value)?activity.getString(R.string.hf_license_unknown):value;
+    }
+    private String quantLabel(String value){
+        if("전체 양자화".equals(value))return activity.getString(R.string.quant_all);
+        if("미확인".equals(value))return activity.getString(R.string.unknown);
+        if(value.endsWith(" 전체"))return activity.getString(R.string.quant_band,quantLabel(value.substring(0,value.length()-3)));
+        return value;
+    }
+    // Only known app-authored errors are mapped. Preserve external details verbatim.
+    private static String errorLabel(Activity activity,String value){
+        if(value==null)return activity.getString(R.string.coop_unknown_error);
+        switch(value){
+            case "이 저장소는 로그인·라이선스 동의가 필요합니다. 공개 GGUF만 지원합니다.":
+            case "공개 GGUF만 지원합니다.":
+            case "라이선스 동의·로그인 필요. 공개 GGUF만 지원합니다.":return activity.getString(R.string.hf_public_only);
+            case "잘못된 Hugging Face 저장소":
+            case "잘못된 저장소":return activity.getString(R.string.hf_invalid_repo);
+            case "선택한 GGUF 파일을 찾을 수 없습니다.":return activity.getString(R.string.hf_missing_file);
+            case "GGUF 파일 경로 오류":case "GGUF 경로 깊이 초과":case "잘못된 GGUF 파일 경로":return activity.getString(R.string.hf_invalid_path);
+            case "Hugging Face 목록이 너무 큽니다":return activity.getString(R.string.hf_catalog_large);
+            case "공개 GGUF 파일 조회 실패":return activity.getString(R.string.hf_weights_failed);
+            case "임시 폴더 생성 실패":return activity.getString(R.string.file_directory_failed);
+            case "사용자가 다운로드를 중지했습니다.":case "취소되었습니다.":return activity.getString(R.string.download_stopped);
+            case "받은 파일 크기가 목록과 다릅니다. 불완전한 파일 삭제.":return activity.getString(R.string.hf_size_mismatch);
+            case "등록 취소됨":return activity.getString(R.string.hf_registration_cancelled);
+            default:
+                String prefix="Ollama 모델 등록 실패: ";
+                return value.startsWith(prefix)?activity.getString(R.string.hf_register_failed,value.substring(prefix.length())):value;
+        }
     }
 
     private static String getText(String url,int max) throws Exception {
@@ -160,13 +191,13 @@ public final class HuggingFaceCatalog {
     }
     private void showSearch(){
         LinearLayout root=panel(activity);
-        add(root,label(activity,"Hugging Face 공개 GGUF 모델 검색\n다운로드·등록은 이 기기에서 처리합니다."));
+        add(root,label(activity,activity.getString(R.string.hf_search_intro)));
         EditText query=new EditText(activity);
-        query.setSingleLine(true);query.setHint("모델 검색: Qwen, Gemma 등");query.setText("Qwen GGUF");
+        query.setSingleLine(true);query.setHint(activity.getString(R.string.hf_search_hint));query.setText("Qwen GGUF");
         add(root,query);
-        add(root,label(activity,"주요 모델 계열"));
+        add(root,label(activity,activity.getString(R.string.hf_family)));
         Spinner family=new Spinner(activity);
-        String[] families={"전체·직접 검색","Qwen","Llama","Gemma","DeepSeek","Mistral","Phi","GLM","GPT-OSS"};
+        String[] families={activity.getString(R.string.hf_all_families),"Qwen","Llama","Gemma","DeepSeek","Mistral","Phi","GLM","GPT-OSS"};
         ArrayAdapter<String> familiesAdapter=new ArrayAdapter<>(activity,
             android.R.layout.simple_spinner_item,families);
         familiesAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -178,24 +209,24 @@ public final class HuggingFaceCatalog {
                 if(pos>0)query.setText(families[pos]+" GGUF");
             }
         });
-        Button search=new Button(activity);search.setAllCaps(false);search.setText("모델 찾기");
+        Button search=new Button(activity);search.setAllCaps(false);search.setText(activity.getString(R.string.search));
         add(root,search);
         ScrollView scroller=new ScrollView(activity);
         LinearLayout results=panel(activity);scroller.addView(results);
         root.addView(scroller,new LinearLayout.LayoutParams(-1,dp(340)));
-        add(results,label(activity,"모델과 라이선스를 확인한 뒤 GGUF 파일을 선택하세요."));
+        add(results,label(activity,activity.getString(R.string.hf_review_license)));
         AlertDialog dialog=new AlertDialog.Builder(activity)
-                .setTitle("Hugging Face 모델")
-                .setView(root).setNegativeButton("닫기",null).create();
+                .setTitle(activity.getString(R.string.hf_title))
+                .setView(root).setNegativeButton(activity.getString(R.string.close),null).create();
         dialog.setOnDismissListener(d->{
             // Browsing exits safely. Download has its own cancellable dialog.
             if(downloading==null)io.shutdown();
         });
         search.setOnClickListener(v->{
             String q=query.getText().toString().trim();
-            if(q.isEmpty()){query.setError("검색어를 입력하세요");return;}
+            if(q.isEmpty()){query.setError(activity.getString(R.string.hf_query_required));return;}
             search.setEnabled(false);
-            results.removeAllViews();add(results,label(activity,"Hugging Face 검색 중…"));
+            results.removeAllViews();add(results,label(activity,activity.getString(R.string.hf_searching)));
             io.execute(()->{
                 try {
                     JSONArray array=new JSONArray(getText(BASE+"/api/models?search="+encode(q)
@@ -213,11 +244,11 @@ public final class HuggingFaceCatalog {
                     }
                     onUi(()->{
                         search.setEnabled(true);results.removeAllViews();
-                        if(models.isEmpty()){add(results,label(activity,"검색된 공개 GGUF 저장소가 없습니다."));return;}
+                        if(models.isEmpty()){add(results,label(activity,activity.getString(R.string.hf_no_results)));return;}
                         for(Model item:models) {
                             Button b=new Button(activity);b.setAllCaps(false);
-                            b.setText(item.id+"\n"+(item.gated?"접근 제한 · 로그인 필요":
-                                "다운로드 "+item.downloads+" · 라이선스 "+item.license));
+                            b.setText(item.id+"\n"+(item.gated?activity.getString(R.string.hf_gated):
+                                activity.getString(R.string.hf_download_license,item.downloads,licenseLabel(item.license))));
                             add(results,b);
                             b.setEnabled(!item.gated);
                             b.setOnClickListener(w->showFiles(item));
@@ -225,7 +256,7 @@ public final class HuggingFaceCatalog {
                     });
                 }catch(Exception e){onUi(()->{
                     search.setEnabled(true);results.removeAllViews();
-                    add(results,label(activity,"검색 실패: "+e.getMessage()));
+                    add(results,label(activity,activity.getString(R.string.hf_search_failed,errorLabel(activity,e.getMessage()))));
                 });}
             });
         });
@@ -282,7 +313,7 @@ public final class HuggingFaceCatalog {
     static void openVariant(Activity activity,ModelVariantCatalog.Variant variant,Runnable installed){
         HuggingFaceCatalog catalog=new HuggingFaceCatalog(activity,installed);
         AlertDialog loading=new AlertDialog.Builder(activity).setTitle("Hugging Face")
-            .setMessage("선택한 파일과 라이선스를 확인 중…").setNegativeButton("취소",null).create();
+            .setMessage(activity.getString(R.string.hf_check_file)).setNegativeButton(activity.getString(R.string.cancel),null).create();
         AtomicBoolean cancelled=new AtomicBoolean(false);
         loading.setOnCancelListener(d->cancelled.set(true));
         loading.show();
@@ -301,13 +332,13 @@ public final class HuggingFaceCatalog {
                 catalog.onUi(()->{loading.dismiss();if(cancelled.get()||activity.isDestroyed()){catalog.io.shutdown();return;}
                     catalog.confirmDownload(new Model(variant.model,lic,meta.optLong("downloads",0),false),lic,weight);
                 });
-            }catch(Exception ex){catalog.onUi(()->{loading.dismiss();if(!cancelled.get())catalog.fail("파일 확인 실패: "+ex.getMessage());});catalog.io.shutdown();}
+            }catch(Exception ex){catalog.onUi(()->{loading.dismiss();if(!cancelled.get())catalog.fail(activity.getString(R.string.hf_file_check_failed,errorLabel(activity,ex.getMessage())));});catalog.io.shutdown();}
         });
     }
     private void showFiles(Model model){
         AlertDialog loading=new AlertDialog.Builder(activity).setTitle(model.id)
-            .setMessage("GGUF 파일 목록과 라이선스를 확인 중…")
-            .setNegativeButton("닫기",null).show();
+            .setMessage(activity.getString(R.string.hf_check_list))
+            .setNegativeButton(activity.getString(R.string.close),null).show();
         io.execute(()->{
             try {
                 String repoPath=model.id.split("/")[0]+"/"+model.id.split("/")[1];
@@ -333,7 +364,7 @@ public final class HuggingFaceCatalog {
                     loading.dismiss();
                     showFileOptions(model,license,gguf);
                 });
-            }catch(Exception e){onUi(()->{loading.dismiss();fail("파일 목록 실패: "+e.getMessage());});}
+            }catch(Exception e){onUi(()->{loading.dismiss();fail(activity.getString(R.string.hf_list_failed,errorLabel(activity,e.getMessage())));});}
         });
     }
     private static String ggufQuantization(String path) {
@@ -350,14 +381,12 @@ public final class HuggingFaceCatalog {
     }
     private void showFileOptions(Model model,String license,List<Weight> files){
         LinearLayout content=panel(activity);
-        add(content,label(activity,"저장소: "+model.id+"\n라이선스: "+license+
-            "\n모델별 사용·재배포 조건을 직접 확인해야 합니다."+
-            "\n분할 GGUF·프로젝터 파일은 이 버전에서 제외합니다."));
-        Button card=new Button(activity);card.setAllCaps(false);card.setText("Hugging Face 모델 카드 열기");
+        add(content,label(activity,activity.getString(R.string.hf_repo_details,model.id,licenseLabel(license))));
+        Button card=new Button(activity);card.setAllCaps(false);card.setText(activity.getString(R.string.hf_open_card));
         add(content,card);
         card.setOnClickListener(v->activity.startActivity(new Intent(Intent.ACTION_VIEW,
             Uri.parse(BASE+"/"+model.id))));
-        add(content,label(activity,"파일 양자화 · 정확한 Q4_K_M 등 버전 선택"));
+        add(content,label(activity,activity.getString(R.string.hf_quant_help)));
         Spinner quant=new Spinner(activity);
         List<String> options=new ArrayList<>();
         options.add("전체 양자화");
@@ -373,17 +402,27 @@ public final class HuggingFaceCatalog {
         }
         java.util.Collections.sort(variants);
         for(String variant:variants)if(!"미확인".equals(variant))options.add(variant);
-        ArrayAdapter<String> adapter=new ArrayAdapter<>(activity,
-            android.R.layout.simple_spinner_item,options);
+        ArrayAdapter<String> adapter=new ArrayAdapter<String>(activity,android.R.layout.simple_spinner_item,options){
+            @Override public View getView(int position,View convert,android.view.ViewGroup parent){
+                View v=super.getView(position,convert,parent);
+                if(v instanceof TextView)((TextView)v).setText(quantLabel(getItem(position)));
+                return v;
+            }
+            @Override public View getDropDownView(int position,View convert,android.view.ViewGroup parent){
+                View v=super.getDropDownView(position,convert,parent);
+                if(v instanceof TextView)((TextView)v).setText(quantLabel(getItem(position)));
+                return v;
+            }
+        };
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         quant.setAdapter(adapter);add(content,quant);
         EditText filter=new EditText(activity);
-        filter.setSingleLine(true);filter.setHint("파일명 검색 (예: Q4_K_M)");add(content,filter);
+        filter.setSingleLine(true);filter.setHint(activity.getString(R.string.hf_file_search));add(content,filter);
         ScrollView scroll=new ScrollView(activity);
         LinearLayout list=panel(activity);scroll.addView(list);
         content.addView(scroll,new LinearLayout.LayoutParams(-1,dp(300)));
-        AlertDialog dialog=new AlertDialog.Builder(activity).setTitle("GGUF 파일 선택")
-            .setView(content).setNegativeButton("닫기",null).create();
+        AlertDialog dialog=new AlertDialog.Builder(activity).setTitle(activity.getString(R.string.hf_pick_file))
+            .setView(content).setNegativeButton(activity.getString(R.string.close),null).create();
         Runnable refresh=()->{
             list.removeAllViews();
             String selected=String.valueOf(quant.getSelectedItem());
@@ -399,11 +438,11 @@ public final class HuggingFaceCatalog {
                 shown++;
                 if(shown>50)break;
                 Button item=new Button(activity);item.setAllCaps(false);
-                item.setText(w.path+"\n"+size(w.size)+" · "+q);
+                item.setText(w.path+"\n"+size(w.size)+" · "+quantLabel(q));
                 add(list,item);
                 item.setOnClickListener(v->{dialog.dismiss();confirmDownload(model,license,w);});
             }
-            if(shown==0)add(list,label(activity,"조건에 맞는 단일 GGUF 파일이 없습니다."));
+            if(shown==0)add(list,label(activity,activity.getString(R.string.hf_no_file)));
         };
         quant.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
             @Override public void onNothingSelected(AdapterView<?> parent){}
@@ -425,41 +464,36 @@ public final class HuggingFaceCatalog {
         // destination may coexist. 2x model size is a conservative minimum.
         final long needed=weight.size*2+512*MIB;
         if(free<needed) {
-            fail("저장 공간 부족: 필요한 여유 "+size(needed)+" / 현재 "+size(free)+
-                "\nGGUF 다운로드와 Ollama 등록 중 두 복사본이 일시적으로 필요합니다.");
+            fail(activity.getString(R.string.hf_storage_low,size(needed),size(free)));
             return;
         }
-        new AlertDialog.Builder(activity).setTitle("모델 다운로드·데이터 사용")
-            .setMessage("모델: "+repo.id+"\n파일: "+weight.path+"\n다운로드 용량 "+size(weight.size)+
-                "\n임시 저장공간 포함 필요 "+size(needed)+
-                "\n라이선스: "+license+
-                "\n\nWi-Fi 또는 모바일 데이터가 사용되며 요금제에 따라 통신료가 발생할 수 있습니다."+
-                " 다운로드한 모델의 사용 조건을 확인하고 동의한 경우에만 진행하세요.")
-            .setNegativeButton("취소",null)
-            .setPositiveButton("확인 후 다운로드",(d,w)->startDownload(repo,weight))
+        new AlertDialog.Builder(activity).setTitle(activity.getString(R.string.download_data_title))
+            .setMessage(activity.getString(R.string.hf_confirm_download,repo.id,weight.path,size(weight.size),size(needed),licenseLabel(license)))
+            .setNegativeButton(activity.getString(R.string.cancel),null)
+            .setPositiveButton(activity.getString(R.string.download_confirm),(d,w)->startDownload(repo,weight))
             .show();
     }
     private void startDownload(Model repo,Weight weight){
         if(!DOWNLOAD_LOCK.compareAndSet(false,true)){
-            fail("다른 GGUF 다운로드·등록이 진행 중입니다.");return;
+            fail(activity.getString(R.string.hf_busy));return;
         }
         if(!OllamaForegroundService.isRunning()){
             DOWNLOAD_LOCK.set(false);
-            fail("로컬 Ollama 엔진이 실행 중이어야 합니다. 설정에서 서버 상태를 확인하세요.");
+            fail(activity.getString(R.string.hf_server_required));
             return;
         }
         stopped.set(false);
         LinearLayout panel=panel(activity);
-        TextView status=label(activity,"다운로드 준비 중…");add(panel,status);
+        TextView status=label(activity,activity.getString(R.string.model_download_preparing));add(panel,status);
         ProgressBar progress=new ProgressBar(activity,null,android.R.attr.progressBarStyleHorizontal);
         progress.setMax(100);add(panel,progress);
-        add(panel,label(activity,"광고 · 네트워크 데이터 사용 가능"));
+        add(panel,label(activity,activity.getString(R.string.ad_area)));
         FrameLayout adSlot=new FrameLayout(activity);
         add(panel,adSlot);
         AlertDialog dialog=new AlertDialog.Builder(activity)
                 .setTitle("Hugging Face → Ollama")
                 .setView(panel)
-                .setNegativeButton("다운로드 중지",(d,w)->cancel())
+                .setNegativeButton(activity.getString(R.string.cancel_download),(d,w)->cancel())
                 .create();
         dialog.setCanceledOnTouchOutside(false);
         dialog.setOnCancelListener(d->cancel());
@@ -502,7 +536,7 @@ public final class HuggingFaceCatalog {
                             final int pct=(int)Math.min(100,downloaded*100/weight.size);
                             final String txt=size(downloaded)+" / "+size(weight.size);
                             onUi(()->{progress.setProgress(pct);
-                                status.setText("파일 다운로드 "+pct+"% · "+txt);});
+                                status.setText(activity.getString(R.string.hf_progress,pct,txt));});
                             last=System.currentTimeMillis();
                         }
                     }
@@ -513,7 +547,7 @@ public final class HuggingFaceCatalog {
                     new FileOutputStream(modelfile),StandardCharsets.UTF_8)){
                     writer.write("FROM "+gguf.getAbsolutePath()+"\n");
                 }
-                onUi(()->status.setText("다운로드 완료 · 로컬 Ollama 모델 등록 중…"));
+                onUi(()->status.setText(activity.getString(R.string.hf_registering)));
                 ProcessBuilder pb=new ProcessBuilder(
                     OllamaForegroundService.ollamaBinary(activity).getAbsolutePath(),
                     "create",modelName,"-f",modelfile.getAbsolutePath());
@@ -536,11 +570,11 @@ public final class HuggingFaceCatalog {
                     dialog.dismiss();
                     onInstalled.run();
                     new AlertDialog.Builder(activity)
-                        .setTitle("모델 설치 완료").setMessage(modelName+"\n모델 탭에서 선택할 수 있습니다.")
-                        .setPositiveButton("확인",null).show();
+                        .setTitle(activity.getString(R.string.model_ready)).setMessage(activity.getString(R.string.hf_installed,modelName))
+                        .setPositiveButton(activity.getString(R.string.ok),null).show();
                 });
             } catch(Exception e){
-                fail("Hugging Face 다운로드/등록 실패: "+e.getMessage());
+                fail(activity.getString(R.string.hf_download_error,errorLabel(activity,e.getMessage())));
                 onUi(dialog::dismiss);
             } finally {
                 downloading=null;registration=null;

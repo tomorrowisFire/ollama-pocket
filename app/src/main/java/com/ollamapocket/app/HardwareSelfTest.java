@@ -105,7 +105,7 @@ public final class HardwareSelfTest {
 
     public static String run(Context context, String model, Progress callback) {
         StringBuilder report = new StringBuilder();
-        report.append("AI in Pocket · 기기 내 추론 실측 검사\n")
+        report.append(OnHandsLocale.wrap(context).getString(R.string.selftest_title)).append('\n')
                 .append("모델: ").append(model).append("\n")
                 .append("단회 짧은 프롬프트 테스트이며 장시간 안정성·발열 보증이 아닙니다.\n\n");
         ComputeProfiler.Report device = ComputeProfiler.scan(context);

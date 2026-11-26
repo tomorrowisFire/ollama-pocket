@@ -47,6 +47,14 @@ public final class ComputeProfiler {
             this.actualEngine = actualEngine;
         }
 
+        public String description(Context c){
+            String version="버전 정보 없음".equals(vulkanVersion)?c.getString(R.string.unknown):vulkanVersion;
+            String gpu=gpuCompute?c.getString(R.string.compute_vulkan_version,version):c.getString(R.string.compute_gpu_unavailable);
+            String npu=!nnapiQueried?c.getString(R.string.compute_nnapi_unknown):
+                nnapiAccelerators>0?c.getString(R.string.compute_nnapi_found,nnapiAccelerators):c.getString(R.string.compute_nnapi_none);
+            String backend=c.getString(actualEngine.contains("runner 포함")?R.string.compute_backend_packaged:R.string.compute_backend_cpu);
+            return c.getString(R.string.compute_report,cpuCores,deviceName,gpu,npu,backend);
+        }
         public String description() {
             String gpu = gpuCompute ? "Vulkan " + vulkanVersion + " 연산 지원 감지" :
                     "Vulkan 연산 지원을 확인하지 못함";

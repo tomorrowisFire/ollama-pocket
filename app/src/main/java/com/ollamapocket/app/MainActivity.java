@@ -588,9 +588,9 @@ public final class MainActivity extends Activity {
         performanceHudView.setVisibility(showHud?View.VISIBLE:View.GONE);
         performanceHudView.setOnClickListener(v->{
             PerformanceHud.Sample sample=lastHud;
-            String status=sample==null?getString(R.string.hud_check):sample.detail();
-            if(deviceProfile!=null)status=deviceProfile.description()+"\n\n"+status;
-            if(computeReport!=null)status+="\n\n"+computeReport.description();
+            String status=sample==null?getString(R.string.hud_check):sample.detail(this);
+            if(deviceProfile!=null)status=deviceProfile.description(this)+"\n\n"+status;
+            if(computeReport!=null)status+="\n\n"+computeReport.description(this);
             if("host".equals(CoopSession.get(this).role()))
                 status+="\n협력 노드: "+CoopSession.get(this).readyNodes().size()+"대";
             new AlertDialog.Builder(this).setTitle(getString(R.string.hud_title))
@@ -1088,7 +1088,7 @@ public final class MainActivity extends Activity {
         Button refresh=button(getString(R.string.diag_refresh),false);
         rowItem(ownTitle,refresh,0,0);
         margin(ownTitle,content,0,7);
-        deviceSummary=text(deviceProfile.description(),13,WHITE,false);
+        deviceSummary=text(deviceProfile.description(this),13,WHITE,false);
         deviceSummary.setPadding(dp(14),dp(13),dp(14),dp(13));
         deviceSummary.setBackground(bg(CARD,14));
         margin(deviceSummary,content,0,7);
@@ -1097,7 +1097,7 @@ public final class MainActivity extends Activity {
         suitabilitySummary.setPadding(dp(14),dp(13),dp(14),dp(13));
         suitabilitySummary.setBackground(bg(CARD,14));
         margin(suitabilitySummary,content,0,10);
-        computeSummary=text(computeReport.description(),12,MUTED,false);
+        computeSummary=text(computeReport.description(this),12,MUTED,false);
         computeSummary.setPadding(dp(14),dp(12),dp(14),dp(12));
         computeSummary.setBackground(bg(CARD,14));
         margin(computeSummary,content,0,8);
@@ -1184,9 +1184,9 @@ public final class MainActivity extends Activity {
 
     private void refreshDiagnosticViews(){
         if(deviceSummary==null||computeSummary==null||connectionSessionStatus==null)return;
-        deviceSummary.setText(deviceProfile.description()+
+        deviceSummary.setText(deviceProfile.description(this)+
             (lastHud==null?"":"\n\n"+getString(R.string.hud_live_detail,lastHud.detail(this))));
-        computeSummary.setText(computeReport.description());
+        computeSummary.setText(computeReport.description(this));
         if(suitabilitySummary!=null)suitabilitySummary.setText(suitabilityOverview());
         if(localConnectionStatus!=null)localConnectionStatus.setText(networkDiagnostics());
         CoopSession session=CoopSession.get(this);
