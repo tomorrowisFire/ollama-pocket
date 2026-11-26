@@ -13,8 +13,9 @@ final class AttachmentText {
         Failure(Problem p){super(p.name());problem=p;}
     }
     static final class Result {
-        final String name,text;final boolean partial;
-        Result(String name,String text,boolean partial){this.name=name;this.text=text;this.partial=partial;}
+        final String name,text;final boolean partial,office;
+        Result(String name,String text,boolean partial){this(name,text,partial,false);}
+        Result(String name,String text,boolean partial,boolean office){this.name=name;this.text=text;this.partial=partial;this.office=office;}
     }
     private AttachmentText(){}
     static String safeName(String name){
@@ -23,7 +24,9 @@ final class AttachmentText {
         if(clean.length()>180)clean=clean.substring(0,160)+"…"+clean.substring(clean.length()-19);
         return clean.isEmpty()?"file":clean;
     }
+    static int maxBytes(String name){return OfficeText.supports(name)?OfficeText.MAX_BYTES:MAX_BYTES;}
     static Result read(String name,InputStream source)throws IOException{
+        if(OfficeText.supports(name))return OfficeText.read(name,source);
         if(name==null||!name.toLowerCase(Locale.ROOT).matches("(?s).+\\.(txt|md|csv|tsv|json|log)"))
             throw new Failure(Problem.UNSUPPORTED);
         if(source==null)throw new Failure(Problem.INVALID);
