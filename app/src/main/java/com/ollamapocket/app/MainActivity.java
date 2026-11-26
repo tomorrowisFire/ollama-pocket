@@ -524,7 +524,7 @@ public final class MainActivity extends Activity {
         if(guestOnly)return;
         if(voice!=null&&(voice.continuous()||voice.listening()||voice.speaking())){
             if(chatBusy){stopChat();return;}
-            if(voice.continuous()&&voice.speaking()){voice.cancel();startVoice(true);return;}
+            if(voice.continuous()&&voice.speaking()){boolean opt=voice.bargeEnabled();voice.cancel();startVoice(true,opt);return;}
             voice.cancel();return;
         }
         if(isUiBusy())return;
@@ -532,19 +532,22 @@ public final class MainActivity extends Activity {
             requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},VOICE_PERMISSION);
             toast(getString(R.string.voice_permission));return;
         }
+        android.widget.CheckBox barge=new android.widget.CheckBox(this);
+        barge.setText(R.string.voice_barge_opt_in);barge.setChecked(false);
         new AlertDialog.Builder(this).setTitle(R.string.voice_options)
-            .setMessage(R.string.voice_notice)
+            .setMessage(R.string.voice_notice).setView(barge)
             .setNegativeButton(R.string.cancel,null)
             .setNeutralButton(R.string.dictate,(d,w)->startVoice(false))
-            .setPositiveButton(R.string.voice_turn,(d,w)->startVoice(true)).show();
+            .setPositiveButton(R.string.voice_turn,(d,w)->startVoice(true,barge.isChecked())).show();
     }
-    private void startVoice(boolean conversational){
+    private void startVoice(boolean conversational){startVoice(conversational,false);}
+    private void startVoice(boolean conversational,boolean bargeOptIn){
         if(!foreground||isUiBusy()||guestOnly)return;
         if(conversational&&(currentModel.isEmpty()||knownModels.isEmpty())){
             toast(getString(R.string.need_model));showTab(1);return;
         }
         if(voice==null)voice=new OnHandsVoice(this);
-        if(conversational)voice.beginContinuous();
+        if(conversational){voice.beginContinuous();voice.enableBarge(bargeOptIn);}
         listenVoiceTurn(conversational);
     }
     private void listenVoiceTurn(boolean conversational){
