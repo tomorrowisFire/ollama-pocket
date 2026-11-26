@@ -1,0 +1,2 @@
+# F6A2 scoped acceptance
+Exact app 881c3e2b9796d1b56c71c4d806a01a9ab5ebfbc6. Java 45885828814 job 140136169075 SUCCESS: 48 repository + 27 manual review/search/transaction/lifecycle assertions; all regressions, ad lock, locale parity, release audit and compile passed. Native 45885828754 jobs 140136169009 and 140136333383 SUCCESS: APK, QA AAB, 16 KiB ELF/APK, prerequisites, payload, sidebar, upload; fixed-signed publication skipped. F6A2 scoped PASS. Physical touch, IME, persistence/privacy, actual independent review remain FINAL. Provisional 80.3 unchanged.
