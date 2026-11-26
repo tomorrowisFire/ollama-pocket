@@ -1,0 +1,18 @@
+# 12-D evidence checkpoint and 12-E preflight (not started)
+Application candidate 913e0cdc50bbf33a1f3fe6797284c5ac33bcaf96. User directed real device testing at final 12-F. Three-role discussion simulated by one assistant.
+
+## 12-D source/CI checkpoint
+Java run 45800679804 succeeded: 81 voice interaction/playback checks (previously 44), voice queue/Unicode/draft checks, original first-run ad/production lock, locale parity and Android compile. Other regressions include 176 document policy, 86 workflow policy, 41 strict fields/editor, 23 workflow library and 28 journal checks. Native run 45800679833 still in progress at inspection (CPU RPC host/worker build); no APK/AAB/16 KiB approval claimed. D2–D5 deterministic/source evidence supports scoped acceptance; D1 remains pending native result. D6 actual physical/latency/recognition/visual tests remain DEFERRED_TO_12F, NOT_RUN. No next-stage implementation, score uplift or full product acceptance claimed until same-candidate native/source gate.
+
+## Three-role 12-E preflight
+A Product/UX: prioritize time-to-first-visible-answer and smooth streaming without sacrificing output or blocking user actions; show measured versus estimated performance distinctly.
+B Engineering: MainActivity auto-route currently calls modelDigest (/api/tags) and runtimeIdentity on every GPU-capable Auto chat even if no relevant measurement is saved. Examine a safe local profile-presence/scope prefilter that can skip unnecessary metadata reads, but revalidate live digest for any profile eligible to influence routing. Do not treat cache presence as proof of model identity. Benchmark uses two measured repetitions, CPU/GPU prompt caching may differ, and median currently filters zero TTFT; evaluate three matched repeats, strict sample eligibility, historical report compatibility and measured routing confidence.
+C QA: do not alter explicit CPU/GPU/RPC choice, consent, actual offload verification, fallback after partial output, resource safety, or existing storage/ads. No unsupported speed gain. Require an unchanged output/completion contract and candidate-scoped measurement evidence. Do not silently reinterpret older measurements as three-repeat data.
+
+## Proposed 12-E KPI agenda (not frozen, no implementation yet)
+- E1: same-candidate Java, native APK, QA AAB, 16 KiB, locale and original ad guard all pass.
+- E2: all deterministic routing and sample fixtures pass; no skipped live digest validation for an eligible measurement; no stale/invalid profile controlling the route; no change to manual choice, RPC transfer approval or safety guards.
+- E3: bounded benchmark evidence with at least three matched repetitions per condition, no missing/invalid sample promoted, preserve history format/readability; exact engine/model/manifest/runtime identity; distinguish cold/warm and caching settings.
+- E4: source review, unchanged complete output and persistence, bounded streaming/UI workload; no known P0/P1 source defect.
+- E5: DEFERRED_TO_12F/NOT_RUN, freeze actual devices, model tag/digest, quantization, prompt/context/output budget, engine, thermal/RAM conditions and cache state before matched baseline/candidate runs. Proposed primary bottleneck: median first-token latency reduction >=15% in the selected Auto-route condition; median decode throughput regression <=5%. At least three repetitions per condition, no new crash/OOM, false GPU indication, thermal stop failure, unintended transfer or data loss. Actual hardware/measurement protocol finalized before execution; no empirical speedup claimed.
+The upcoming 12-E kickoff must freeze the exact scope and KPI after the 12-D native/source gate passes. Preflight documentation does not start development or change application candidate.
