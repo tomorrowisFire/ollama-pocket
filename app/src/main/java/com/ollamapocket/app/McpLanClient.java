@@ -23,23 +23,29 @@ final class McpLanClient {
     private String session="";
     private int next=1;
     private final Map<String,Tool> catalog=new LinkedHashMap<>();
+    private final java.util.concurrent.ConcurrentHashMap<String,String> permissions=new java.util.concurrent.ConcurrentHashMap<>();
     McpLanClient(String address){endpoint=CloudApi.remoteBase(address)+"/mcp";}
     String endpoint(){return endpoint;}
     static final class Tool {
         final String name,description,schema,identity;
         final boolean eligible;
+        final JSONObject inputSchema;
         Tool(JSONObject t)throws Exception{
             name=t.getString("name");if(!name.matches("[A-Za-z0-9_.-]{1,128}"))throw new IOException("Invalid tool name");
             description=t.optString("description","");if(description.length()>4000)throw new IOException("Tool description limit");
             JSONObject s=t.optJSONObject("inputSchema");if(s==null)throw new IOException("Missing schema");
-            schema=s.toString(2);if(schema.length()>16000)throw new IOException("Schema limit");
+            inputSchema=s;schema=s.toString(2);if(schema.length()>16000)throw new IOException("Schema limit");
             JSONObject a=t.optJSONObject("annotations"),execution=t.optJSONObject("execution");
             eligible=a!=null&&Boolean.TRUE.equals(a.opt("readOnlyHint"))&&!Boolean.TRUE.equals(a.opt("destructiveHint"))&&
-                (execution==null||!"required".equals(execution.optString("taskSupport")));
+                (execution==null||!"required".equals(execution.optString("taskSupport")))&&McpInputPolicy.supportsObject(inputSchema);
             identity=t.toString();
         }
     }
-    void cancel(){closed=true;HttpURLConnection c=active;if(c!=null)c.disconnect();}
+    boolean permitted(Tool tool){return !closed&&tool!=null&&tool.identity.equals(permissions.get(tool.name));}
+    void authorize(Tool tool){if(closed||tool==null||!tool.eligible)throw new IllegalArgumentException("Tool not allowed");permissions.put(tool.name,tool.identity);}
+    void revoke(Tool tool){if(tool!=null)permissions.remove(tool.name);}
+    boolean validArguments(Tool tool,String raw){try{return tool!=null&&tool.eligible&&McpInputPolicy.valid(tool.inputSchema,McpInputPolicy.arguments(raw));}catch(Exception e){return false;}}
+    void cancel(){closed=true;permissions.clear();HttpURLConnection c=active;if(c!=null)c.disconnect();}
     List<Tool> connect()throws Exception{
         JSONObject init=call("initialize",new JSONObject().put("protocolVersion",VERSION).put("capabilities",new JSONObject())
             .put("clientInfo",new JSONObject().put("name","OnHand AI").put("version","0.12")));
@@ -66,9 +72,10 @@ final class McpLanClient {
     }
     JSONObject invoke(Tool reviewed,String rawArgs)throws Exception{
         if(reviewed==null||!reviewed.eligible||rawArgs==null||rawArgs.length()>16000)throw new IOException("Tool not allowed");
-        JSONObject args=new JSONObject(rawArgs);
+        if(!permitted(reviewed)||!validArguments(reviewed,rawArgs))throw new IOException("Missing permission or invalid arguments");
+        JSONObject args=McpInputPolicy.arguments(rawArgs);
         refresh();Tool now=catalog.get(reviewed.name);
-        if(now==null||!now.eligible||!now.identity.equals(reviewed.identity))throw new IOException("Tool changed; review again");
+        if(now==null||!now.eligible||!now.identity.equals(reviewed.identity)||!permitted(now)||!McpInputPolicy.valid(now.inputSchema,args)){revoke(reviewed);throw new IOException("Tool changed; review again");}
         // All arguments are entered and approved by the user. No chat/model access.
         return call("tools/call",new JSONObject().put("name",now.name).put("arguments",args));
     }
