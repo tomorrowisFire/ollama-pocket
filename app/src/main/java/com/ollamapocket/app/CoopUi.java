@@ -163,6 +163,6 @@ public final class CoopUi {
         return b.length()==0?a.getString(R.string.node_waiting):b.toString();
     }
     private static void message(Activity a,String s){
-        new AlertDialog.Builder(a).setMessage(s==null?a.getString(R.string.coop_unknown_error):s).setPositiveButton(R.string.ok,null).show();
+        new AlertDialog.Builder(a).setMessage(UiText.error(a,s)).setPositiveButton(R.string.ok,null).show();
     }
 }

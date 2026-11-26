@@ -120,7 +120,7 @@ public final class ModelBenchmark {
             case "Vulkan 실행 파일 없음":return c.getString(R.string.compute_gpu_missing);
             case "기기 Vulkan compute 미보고":return c.getString(R.string.compute_gpu_unavailable);
             case "호스트 세션·활성 보조 노드 없음":return c.getString(R.string.coop_connect_first);
-            default:return error;
+            default:return UiText.error(c,error);
         }
     }
     public static final class EngineResult {

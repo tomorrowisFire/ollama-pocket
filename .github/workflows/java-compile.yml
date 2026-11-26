@@ -15,6 +15,7 @@ on:
       - 'tests/DiagnosticValuesTest.java'
       - 'tests/AdvisorDisplayDataTest.java'
       - 'tests/CoopPlanLocaleDataTest.java'
+      - 'tests/locale_ui_audit.py'
 
 jobs:
   compile:
@@ -76,6 +77,8 @@ jobs:
           javac -d /tmp/coop-plan-tests app/src/main/java/com/ollamapocket/app/CoopMemoryPlanner.java tests/CoopMemoryPlannerTest.java tests/CoopPlanLocaleDataTest.java
           java -cp /tmp/coop-plan-tests CoopMemoryPlannerTest
           java -cp /tmp/coop-plan-tests CoopPlanLocaleDataTest
+      - name: Audit direct Hangul UI literals
+        run: python3 tests/locale_ui_audit.py
       - name: Verify OnHand AI brand and locale resource parity
         run: |
           python3 - <<'PY'

@@ -261,7 +261,7 @@ public final class CoopSession {
             .append('\n').append(context.getString(R.string.coop_safe_total,aggregatedSafeMiB()));
         if("guest".equals(current))out.append('\n').append(context.getString(R.string.coop_connected_host,hostIp))
             .append('\n').append(context.getString(R.string.coop_worker_status,context.getString(worker!=null&&worker.isAlive()?R.string.status_running:R.string.status_stopped)));
-        if(!lastError.isEmpty())out.append('\n').append(context.getString(R.string.status_detail,lastError));
+        if(!lastError.isEmpty())out.append('\n').append(context.getString(R.string.status_detail,UiText.error(context,lastError)));
         return out.toString();
     }
     public List<Node> readyNodes() {
