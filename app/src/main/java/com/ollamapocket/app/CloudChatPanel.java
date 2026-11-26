@@ -33,6 +33,25 @@ final class CloudChatPanel extends LinearLayout {
     private AlertDialog keyDialog,actionDialog;
     private CloudApi.Provider provider=CloudApi.Provider.OPENAI;
     private String model="",token="";
+    private double inputRate=-1,outputRate=-1;
+    private volatile HttpsURLConnection catalogRequest;
+    private int errorLabel(Exception e){
+        if(e instanceof java.net.SocketTimeoutException)return R.string.cloud_timeout;
+        if(e instanceof CloudApi.HttpFailure){int code=((CloudApi.HttpFailure)e).status;
+            if(code==401||code==403)return R.string.cloud_auth_error;
+            if(code==429)return R.string.cloud_rate_limit;
+            if(code>=500)return R.string.cloud_provider_error;
+        }return R.string.cloud_fail;
+    }
+    private String usageLabel(CloudApi.Reply reply){
+        String unknown=getResources().getString(R.string.cloud_usage_unknown);
+        String usage=getResources().getString(R.string.cloud_usage,reply.inputTokens<0?unknown:Long.toString(reply.inputTokens),reply.outputTokens<0?unknown:Long.toString(reply.outputTokens));
+        if(inputRate>=0&&outputRate>=0&&reply.inputTokens>=0&&reply.outputTokens>=0){
+            double amount=(inputRate*reply.inputTokens+outputRate*reply.outputTokens)/1000000d;
+            usage+="\n"+getResources().getString(R.string.cloud_estimated_cost,String.format(java.util.Locale.US,"%.6f",amount));
+        }return usage;
+    }
+    private double rate(String text){if(text.trim().isEmpty())return -1;double value=Double.parseDouble(text.trim());if(!Double.isFinite(value)||value<0||value>1000000)throw new IllegalArgumentException();return value;}
     CloudChatPanel(Activity activity,Runnable local){
         super(activity);owner=activity;vault=new CloudKeyVault(activity);
         setOrientation(VERTICAL);
@@ -84,6 +103,7 @@ final class CloudChatPanel extends LinearLayout {
         rememberDraft();active=false;
         if(actionDialog!=null){actionDialog.dismiss();actionDialog=null;}
         if(keyDialog!=null){keyDialog.dismiss();keyDialog=null;}
+        HttpsURLConnection catalog=catalogRequest;if(catalog!=null)catalog.disconnect();
         if(busy)cancel();token="";
     }
     void resume(){if(!closed)active=true;}
@@ -226,6 +246,11 @@ final class CloudChatPanel extends LinearLayout {
         EditText key=input(R.string.cloud_key,InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD,4096);
         key.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
         key.setText(token);fields.addView(key);
+        Button fetch=button(R.string.cloud_fetch_models);fields.addView(fetch);
+        EditText inRate=input(R.string.cloud_input_rate,InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL,20);
+        EditText outRate=input(R.string.cloud_output_rate,InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL,20);
+        if(inputRate>=0)inRate.setText(Double.toString(inputRate));if(outputRate>=0)outRate.setText(Double.toString(outputRate));
+        fields.addView(inRate);fields.addView(outRate);
         CheckBox remember=new CheckBox(owner);remember.setText(R.string.cloud_key_remember);fields.addView(remember);
         Button load=button(R.string.cloud_key_load),delete=button(R.string.cloud_key_delete);
         fields.addView(load);fields.addView(delete);
@@ -233,7 +258,7 @@ final class CloudChatPanel extends LinearLayout {
         pick.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
             @Override public void onNothingSelected(android.widget.AdapterView<?> p){}
             @Override public void onItemSelected(android.widget.AdapterView<?> p,View v,int pos,long id){
-                if(pos!=last[0]){last[0]=pos;chosenModel.setText("");key.setText("");remember.setChecked(false);}
+                if(pos!=last[0]){last[0]=pos;chosenModel.setText("");key.setText("");inRate.setText("");outRate.setText("");remember.setChecked(false);}
             }
         });
         load.setOnClickListener(v->{
@@ -254,7 +279,22 @@ final class CloudChatPanel extends LinearLayout {
         AlertDialog dialog=new AlertDialog.Builder(owner).setTitle(R.string.cloud_config).setView(sc)
             .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,null).create();
         keyDialog=dialog;
-        dialog.setOnDismissListener(d->{key.setText("");if(keyDialog==dialog)keyDialog=null;});
+        dialog.setOnDismissListener(d->{key.setText("");if(keyDialog==dialog)keyDialog=null;HttpsURLConnection c=catalogRequest;if(c!=null)c.disconnect();});
+        fetch.setOnClickListener(v->{
+            final CloudApi.Provider selected=values[pick.getSelectedItemPosition()];final String secret=key.getText().toString().trim();
+            if(secret.isEmpty()){toast(R.string.cloud_key_needed);return;}
+            new AlertDialog.Builder(owner).setMessage(R.string.cloud_fetch_notice).setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,(d,w)->{
+                if(!active||closed||keyDialog!=dialog)return;fetch.setEnabled(false);
+                io.execute(()->{HttpsURLConnection c=null;List<String> models=null;int err=R.string.cloud_fail;
+                    try{c=CloudApi.catalogConnection(selected,secret);catalogRequest=c;models=CloudApi.catalog(c);}catch(Exception e){err=errorLabel(e);}finally{if(c!=null)c.disconnect();if(catalogRequest==c)catalogRequest=null;}
+                    final List<String> result=models;final int failure=err;owner.runOnUiThread(()->{
+                        if(!active||closed||keyDialog!=dialog||!dialog.isShowing())return;fetch.setEnabled(true);
+                        if(values[pick.getSelectedItemPosition()]!=selected||!secret.equals(key.getText().toString().trim()))return;
+                        if(result==null){toast(failure);return;}new AlertDialog.Builder(owner).setTitle(R.string.cloud_fetch_models).setItems(result.toArray(new String[0]),(x,i)->{if(keyDialog==dialog&&values[pick.getSelectedItemPosition()]==selected)chosenModel.setText(result.get(i));}).setNegativeButton(R.string.cancel,null).show();
+                    });
+                });
+            }).show();
+        });
         dialog.show();
         if(dialog.getWindow()!=null)dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
@@ -265,7 +305,8 @@ final class CloudChatPanel extends LinearLayout {
             try{history.session(selected.name(),id);}catch(IllegalStateException e){toast(R.string.cloud_session_capacity);return;}
             catch(IllegalArgumentException e){toast(R.string.cloud_fields);return;}
             if(remember.isChecked())try{vault.save(selected,apiKey);}catch(Exception e){toast(R.string.cloud_key_error);return;}
-            rememberDraft();provider=selected;model=id;token=apiKey;restoreDraft();status.setText("");dialog.dismiss();render();
+            double ir,or;try{ir=rate(inRate.getText().toString());or=rate(outRate.getText().toString());}catch(RuntimeException e){toast(R.string.cloud_fields);return;}
+            rememberDraft();inputRate=ir;outputRate=or;provider=selected;model=id;token=apiKey;restoreDraft();status.setText("");dialog.dismiss();render();
         });
     }
     private void setBusy(boolean b){
@@ -304,20 +345,20 @@ final class CloudChatPanel extends LinearLayout {
     private void request(CloudApi.Provider p,String id,String apiKey,String q,CloudHistory.Session s,long revision,List<CloudHistory.Message> messages){
         s.draft(q);int request=++serial;setBusy(true);status.setText(R.string.thinking);
         io.execute(()->{
-            HttpsURLConnection c=null;String result=null;
+            HttpsURLConnection c=null;CloudApi.Reply result=null;int err=R.string.cloud_fail;
             try{
                 if(closed||request!=serial)return;
                 c=CloudApi.connection(p,apiKey);connection=c;
                 if(closed||request!=serial)return;
-                result=CloudApi.execute(p,c,id,messages);
-            }catch(Exception ignored){}finally{if(c!=null)c.disconnect();if(connection==c)connection=null;}
-            String output=result;
+                result=CloudApi.executeReply(p,c,id,messages);
+            }catch(Exception e){err=errorLabel(e);}finally{if(c!=null)c.disconnect();if(connection==c)connection=null;}
+            CloudApi.Reply output=result;final int failure=err;
             owner.runOnUiThread(()->{
                 if(closed||request!=serial||!active)return;
                 setBusy(false);
                 if(!current(p,id,s,revision)){status.setText(R.string.cloud_context_changed);return;}
-                if(output==null){status.setText(R.string.cloud_fail);return;}
-                try{s.complete(q,output);prompt.setText("");status.setText(R.string.cloud_history_limit);render();}
+                if(output==null){status.setText(failure);return;}
+                try{s.complete(q,output.text);prompt.setText("");status.setText(usageLabel(output));render();}
                 catch(IllegalArgumentException e){status.setText(R.string.cloud_fail);}
             });
         });
