@@ -16,7 +16,10 @@ final class CloudApi {
         CLAUDE("Anthropic Claude","https://api.anthropic.com/v1/messages",2),
         XAI("xAI Grok","https://api.x.ai/v1/responses",0),
         DEEPSEEK("DeepSeek","https://api.deepseek.com/chat/completions",1),
-        OPENROUTER("OpenRouter","https://openrouter.ai/api/v1/chat/completions",1);
+        OPENROUTER("OpenRouter","https://openrouter.ai/api/v1/chat/completions",1),
+        PC_OLLAMA("PC Ollama","",1), PC_LM_STUDIO("PC LM Studio","",1);
+        boolean remote(){return this==PC_OLLAMA||this==PC_LM_STUDIO;}
+        static Provider[] hosted(){return java.util.Arrays.stream(values()).filter(p->!p.remote()).toArray(Provider[]::new);}
         final String title,url;final int protocol;
         Provider(String title,String url,int protocol){this.title=title;this.url=url;this.protocol=protocol;}
     }
@@ -35,10 +38,26 @@ final class CloudApi {
             default:throw new IllegalArgumentException();
         }
     }
+    static String remoteBase(String address){
+        if(address==null||!address.matches("[0-9]{1,3}(\\.[0-9]{1,3}){3}:[0-9]{1,5}"))throw new IllegalArgumentException("Private IPv4:port required");
+        String[] pair=address.split(":"),parts=pair[0].split("\\.");
+        int[] ip=new int[4];for(int i=0;i<4;i++){ip[i]=Integer.parseInt(parts[i]);if(ip[i]>255||!Integer.toString(ip[i]).equals(parts[i]))throw new IllegalArgumentException("Invalid IPv4");}
+        int port=Integer.parseInt(pair[1]);
+        if(port<1||port>65535||!(ip[0]==10||ip[0]==172&&ip[1]>=16&&ip[1]<=31||ip[0]==192&&ip[1]==168))throw new IllegalArgumentException("Private IPv4:port required");
+        return "http://"+pair[0]+":"+port;
+    }
+    static java.net.HttpURLConnection remoteConnection(Provider p,String address,boolean post)throws Exception{
+        if(!p.remote())throw new IllegalArgumentException();
+        java.net.HttpURLConnection c=(java.net.HttpURLConnection)new URL(remoteBase(address)+(post?"/v1/chat/completions":"/v1/models")).openConnection(java.net.Proxy.NO_PROXY);
+        c.setInstanceFollowRedirects(false);c.setConnectTimeout(10000);c.setReadTimeout(180000);
+        c.setRequestMethod(post?"POST":"GET");c.setDoOutput(post);c.setUseCaches(false);
+        c.setRequestProperty("Content-Type","application/json");c.setRequestProperty("Accept","application/json");
+        return c;
+    }
     static HttpsURLConnection catalogConnection(Provider p,String key)throws Exception{
         return open(p,key,catalogUrl(p),false);
     }
-    static java.util.List<String> catalog(HttpsURLConnection c)throws Exception{
+    static java.util.List<String> catalog(java.net.HttpURLConnection c)throws Exception{
         int status=c.getResponseCode();
         if(status<200||status>=300)throw new HttpFailure(status);
         JSONObject json=readJson(c);JSONArray rows=json.optJSONArray("data");
@@ -120,6 +139,7 @@ final class CloudApi {
         return out.toString();
     }
     static HttpsURLConnection connection(Provider provider,String key) throws Exception {
+        if(provider.remote())throw new IllegalArgumentException("Remote requires explicit address");
         return open(provider,key,provider.url,true);
     }
     private static HttpsURLConnection open(Provider provider,String key,String url,boolean post)throws Exception{
@@ -134,13 +154,13 @@ final class CloudApi {
         else c.setRequestProperty("Authorization","Bearer "+key);
         return c;
     }
-    static String execute(Provider provider,HttpsURLConnection c,String model,String text) throws Exception {
+    static String execute(Provider provider,java.net.HttpURLConnection c,String model,String text) throws Exception {
         return execute(provider,c,model,java.util.Collections.singletonList(new CloudHistory.Message("user",text)));
     }
-    static String execute(Provider provider,HttpsURLConnection c,String model,java.util.List<CloudHistory.Message> messages) throws Exception {
+    static String execute(Provider provider,java.net.HttpURLConnection c,String model,java.util.List<CloudHistory.Message> messages) throws Exception {
         return executeReply(provider,c,model,messages).text;
     }
-    static Reply executeReply(Provider provider,HttpsURLConnection c,String model,java.util.List<CloudHistory.Message> messages) throws Exception {
+    static Reply executeReply(Provider provider,java.net.HttpURLConnection c,String model,java.util.List<CloudHistory.Message> messages) throws Exception {
         byte[] payload=request(provider,model,messages).toString().getBytes(StandardCharsets.UTF_8);
         c.setFixedLengthStreamingMode(payload.length);
         try(java.io.OutputStream stream=c.getOutputStream()){stream.write(payload);}
@@ -149,7 +169,7 @@ final class CloudApi {
         return parseReply(provider,readJson(c));
     }
     interface Progress { void update(String text); }
-    static Reply streamReply(Provider provider,HttpsURLConnection c,String model,java.util.List<CloudHistory.Message> messages,Progress progress)throws Exception{
+    static Reply streamReply(Provider provider,java.net.HttpURLConnection c,String model,java.util.List<CloudHistory.Message> messages,Progress progress)throws Exception{
         JSONObject body=request(provider,model,messages).put("stream",true);
         if(provider==Provider.DEEPSEEK||provider==Provider.OPENROUTER)body.put("stream_options",new JSONObject().put("include_usage",true));
         c.setRequestProperty("Accept","text/event-stream");
@@ -200,7 +220,7 @@ final class CloudApi {
         if(!complete||answer.toString().trim().isEmpty())throw new java.io.IOException("Incomplete stream");
         return new Reply(answer.toString(),input,output);
     }
-    private static JSONObject readJson(HttpsURLConnection c)throws Exception{
+    private static JSONObject readJson(java.net.HttpURLConnection c)throws Exception{
         try(InputStream stream=c.getInputStream();ByteArrayOutputStream buffer=new ByteArrayOutputStream()){
             byte[] b=new byte[8192];int n;
             while((n=stream.read(b))!=-1){
