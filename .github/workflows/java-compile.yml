@@ -24,6 +24,8 @@ on:
       - 'tests/LocalChatTurnsTest.java'
       - 'tests/LocalInferenceStreamTest.java'
       - 'tests/test_stage10_gate.py'
+      - 'tests/test_collect_ci_evidence.py'
+      - 'scripts/collect_ci_evidence.py'
       - 'scripts/stage10_gate.py'
       - 'scripts/collect_device_evidence.py'
       - 'docs/stage10/evidence-template.json'
@@ -237,6 +239,7 @@ jobs:
       - name: Verify final evidence-gate rules
         run: |
           python3 -m unittest discover -s tests -p test_stage10_gate.py
+          python3 -m unittest discover -s tests -p test_collect_ci_evidence.py
           python3 scripts/stage10_gate.py docs/stage10/evidence-template.json --report /tmp/stage10-status.json --expect-blocked
       - name: Android SDK
         shell: bash
