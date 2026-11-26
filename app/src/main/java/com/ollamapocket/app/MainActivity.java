@@ -592,7 +592,7 @@ public final class MainActivity extends Activity {
             if(deviceProfile!=null)status=deviceProfile.description(this)+"\n\n"+status;
             if(computeReport!=null)status+="\n\n"+computeReport.description(this);
             if("host".equals(CoopSession.get(this).role()))
-                status+="\n협력 노드: "+CoopSession.get(this).readyNodes().size()+"대";
+                status+="\n"+getString(R.string.node_count_hud,CoopSession.get(this).readyNodes().size());
             new AlertDialog.Builder(this).setTitle(getString(R.string.hud_title))
                 .setMessage(status).setPositiveButton(getString(R.string.close),null).show();
         });
@@ -1195,27 +1195,13 @@ public final class MainActivity extends Activity {
         nodeRows.removeAllViews();
         if("host".equals(session.role())&&!session.nodes().isEmpty()){
             for(CoopSession.Node node:session.nodes()){
-                long age=Math.max(0,(android.os.SystemClock.elapsedRealtime()-node.lastSeen)/1000);
-                String state=(age<30&&node.workerOk)?"연결 정상":"연결 상태 확인 필요";
-                String info=node.name+"  ·  "+state+
-                    "\n기기: "+node.deviceModel+" · Android API "+node.androidApi+
-                    "\n칩셋: "+node.chip+" · "+node.cpuCores+"코어 · "+node.abi+
-                    "\nRAM "+node.totalRamMiB+" MiB / 안전 사용 가능 "+node.safeRamMiB+
-                    " MiB / 저장공간 여유 "+node.freeStorageMiB+" MiB"+
-                    "\nCPU "+(node.cpuPermille<0?"조회 불가":(node.cpuPermille/10.0)+"%")+
-                    " · GPU "+(node.gpuPermille<0?"조회 불가":(node.gpuPermille/10.0)+"%")+
-                    " · Vulkan "+(node.vulkanCompute?"감지":"미확인")+
-                    " · NPU 후보 "+node.nnapiAccelerators+"개"+
-                    "\n배터리 "+(node.batteryTenths<0?"조회 불가":(node.batteryTenths/10.0)+"℃")+
-                    " · 열 상태 "+(node.thermalStatus<0?"조회 불가":node.thermalStatus)+
-                    " · RPC "+(node.workerOk?"실행":"중지")+
-                    "\n마지막 보고 "+age+"초 전";
+                String info=CoopDiagnosticPresentation.host(this,node,false);
                 TextView card=text(info,12,WHITE,false);
                 card.setPadding(dp(14),dp(12),dp(14),dp(12));
                 card.setBackground(bg(CARD,14));margin(card,nodeRows,0,8);
             }
         }else if("guest".equals(session.role())){
-            String summary=session.peerDiagnostics();
+            String summary=session.peerDiagnostics(this);
             TextView text=text(summary,12,WHITE,false);
             text.setPadding(dp(14),dp(12),dp(14),dp(12));
             text.setBackground(bg(CARD,14));margin(text,nodeRows,0,7);
@@ -1254,7 +1240,7 @@ public final class MainActivity extends Activity {
                                     diagnosticStatus.setText(message);
                             }));
                     } catch (Throwable e) {
-                        computed = "검사 실행 오류: " + e.getClass().getSimpleName() + " · " + e.getMessage();
+                        computed = getString(R.string.bench_failed,e.getClass().getSimpleName()+" · "+e.getMessage());
                     }
                     final String result = computed;
                     ui.post(() -> {
@@ -1267,7 +1253,7 @@ public final class MainActivity extends Activity {
                             .setNegativeButton(getString(R.string.close), null)
                             .setPositiveButton(getString(R.string.copy_result), (dialog, action) -> {
                                 ClipboardManager clipboard = (ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
-                                clipboard.setPrimaryClip(ClipData.newPlainText("OnHand AI 진단 결과", result));
+                                clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.test_report), result));
                                 toast(getString(R.string.diag_copied));
                             }).show();
                     });
@@ -1738,32 +1724,43 @@ public final class MainActivity extends Activity {
             sizeGiB,ownTps,baselineTps,baselineSize);
     }
 
+    private String localeDecimal(double value){
+        return Double.isFinite(value)?String.format(getResources().getConfiguration().getLocales().get(0),"%.1f",value):getString(R.string.metric_unavailable);
+    }
+    private String advisorSpeed(ModelPerformanceAdvisor.Result r){
+        switch(r.reason){
+            case UNSUPPORTED:return getString(R.string.advisor_no_speed);
+            case MEASURED:return getString(R.string.advisor_measured,localeDecimal(r.measuredTps));
+            case RANGE:return getString(R.string.advisor_range,localeDecimal(r.lowTps),localeDecimal(r.highTps));
+            default:return getString(R.string.advisor_unmeasured);
+        }
+    }
+    private String advisorSummary(ModelPerformanceAdvisor.Result r){
+        String header=suitabilityLabel(r.suitability)+" · "+advisorSpeed(r);
+        if(r.reason==ModelPerformanceAdvisor.Result.Reason.UNSUPPORTED)return header+"\n"+getString(R.string.advisor_arm);
+        String memory=r.weightGiB>0?getString(R.string.advisor_memory_estimate,localeDecimal(r.weightGiB),localeDecimal(r.requiredGiB)):getString(R.string.advisor_memory_unknown);
+        int reason=r.reason==ModelPerformanceAdvisor.Result.Reason.MEASURED?R.string.advisor_reason_measured:
+            r.reason==ModelPerformanceAdvisor.Result.Reason.MEMORY?R.string.advisor_reason_memory:
+            r.reason==ModelPerformanceAdvisor.Result.Reason.RANGE?R.string.advisor_reason_range:R.string.advisor_reason_unmeasured;
+        return header+"\n"+memory+"\n"+getString(reason);
+    }
     private String suitabilityOverview(){
-        StringBuilder display=new StringBuilder();
-        display.append("기기: ").append(deviceProfile.device)
-           .append("  ·  RAM ").append(String.format(Locale.KOREA,"%.1f",deviceProfile.ramGb))
-           .append("GB · CPU ").append(deviceProfile.cores).append("코어\n");
+        StringBuilder display=new StringBuilder(getString(R.string.advisor_device,deviceProfile.device,localeDecimal(deviceProfile.ramGb),deviceProfile.cores)).append('\n');
         if(!currentModel.isEmpty()&&modelBytes.containsKey(currentModel)){
             long weight=modelBytes.getOrDefault(currentModel,0L);
-            ModelPerformanceAdvisor.Result current=advise(currentModel,
-                weight/(1024.0*1024.0*1024.0));
-            display.append("\n현재 모델: ").append(currentModel).append("\n")
-                .append(current.summary()).append("\n");
-        }else display.append("\n설치된 모델을 선택하면 적합도가 표시됩니다.\n");
-        display.append("\n추천 후보 (CPU 단독 기준):");
+            ModelPerformanceAdvisor.Result current=advise(currentModel,weight/(1024.0*1024.0*1024.0));
+            display.append('\n').append(getString(R.string.advisor_current,currentModel)).append('\n').append(advisorSummary(current)).append('\n');
+        }else display.append('\n').append(getString(R.string.advisor_choose)).append('\n');
+        display.append('\n').append(getString(R.string.advisor_recommendations));
         int shown=0;
         for(DeviceProfiler.Recommendation recommended:DeviceProfiler.recommend(deviceProfile)){
             if(!recommended.selectable)continue;
-            ModelPerformanceAdvisor.Result score=advise(recommended.model,
-                recommended.downloadGb*1_000_000_000/(1024.0*1024.0*1024.0));
-            display.append("\n • ").append(recommended.model).append(" · ")
-                .append(score.suitability).append(" · ").append(score.throughput);
+            ModelPerformanceAdvisor.Result score=advise(recommended.model,recommended.downloadGb*1_000_000_000/(1024.0*1024.0*1024.0));
+            display.append("\n • ").append(recommended.model).append(" · ").append(suitabilityLabel(score.suitability)).append(" · ").append(advisorSpeed(score));
             if(++shown>=3)break;
         }
-        if(shown==0)display.append("\n추천 가능한 모델이 없습니다.");
-        display.append("\n\n기기 스펙만으로 실제 tok/s를 정확히 알 수 없습니다."+
-            " 실측 전 숫자는 표시하지 않거나 비교 측정 기반 참고 추정치로 표기합니다.");
-        return display.toString();
+        if(shown==0)display.append('\n').append(getString(R.string.advisor_no_recommendations));
+        return display.append("\n\n").append(getString(R.string.advisor_limit)).toString();
     }
 
     private void setModelViewMode(boolean listMode){
@@ -1818,7 +1815,7 @@ public final class MainActivity extends Activity {
     }
 
     private void activateTile(ModelTileCatalog.Tile tile){
-        if(tile.id.equals(downloadingCardId)&&pullBusy){toast("다운로드 중");return;}
+        if(tile.id.equals(downloadingCardId)&&pullBusy){toast(getString(R.string.model_downloading));return;}
         if(isUiBusy()){toast(getString(R.string.busy));return;}
         ModelVariantCatalog.Variant selected=visibleVariants.get(tile.id);
         if(selected!=null){
@@ -1832,8 +1829,8 @@ public final class MainActivity extends Activity {
             String[] labels=new String[options.size()];
             for(int i=0;i<labels.length;i++){
                 ModelVariantCatalog.Variant v=options.get(i);
-                labels[i]=v.label()+"\n"+v.quant+" · "+(v.bytes>0?installedSize(v.bytes):getString(R.string.storage_unknown))+
-                    (best.get(v.group())==v?" (추천)":"")+(knownModels.contains(v.model)?" · 설치됨":"");
+                labels[i]=v.label()+"\n"+filterDisplay(v.quant)+" · "+(v.bytes>0?installedSize(v.bytes):getString(R.string.storage_unknown))+
+                    (best.get(v.group())==v?" "+getString(R.string.model_recommend_mark):"")+(knownModels.contains(v.model)?" · "+getString(R.string.model_installed):"");
             }
             new AlertDialog.Builder(this).setTitle(getString(R.string.model_quant_title))
                 .setItems(labels,(d,i)->{
@@ -1859,8 +1856,7 @@ public final class MainActivity extends Activity {
         Double gpu=ModelPerformanceAdvisor.measuredGpuTps(report);
         double speed=BenchmarkRecommendation.bestMeasured(cpu,gpu);
         if(speed<=0)return "";
-        return String.format(Locale.KOREA," · 실측 %.1f tok/s%s",
-            speed,gpu!=null&&(cpu==null||gpu>cpu)?" GPU":" CPU");
+        return " · "+getString(R.string.model_measured_badge,localeDecimal(speed),gpu!=null&&(cpu==null||gpu>cpu)?"GPU":"CPU");
     }
 
     /** Compact contents fit inside an actual square at narrow phone widths. */
@@ -1873,9 +1869,9 @@ public final class MainActivity extends Activity {
         card.setClickable(true);
         card.setFocusable(true);
         card.setElevation(0);
-        card.setContentDescription(item.title+", "+item.id+", "+
-            ModelTileCatalog.status(item,downloadingCardId)+", "+item.description+
-            ". 터치하여 양자화 버전 선택");
+        card.setContentDescription(getString(R.string.model_card_access,item.title,item.id,
+            getString(item.id.equals(downloadingCardId)?R.string.model_downloading:item.installed?R.string.model_installed:R.string.model_not_installed),
+            filterDisplay(item.quantization)));
         TypedValue ripple=new TypedValue();
         if(getTheme().resolveAttribute(android.R.attr.selectableItemBackground,ripple,true)
                 &&ripple.resourceId!=0)
@@ -1916,7 +1912,7 @@ public final class MainActivity extends Activity {
 
         String suffix=item.bytes>0?installedSize(item.bytes):getString(R.string.storage_unknown);
         String provider=remote!=null?remote.source:item.installed?getString(R.string.own_device):"Ollama";
-        TextView details=text(item.quantization+" · "+suffix+"\n"+
+        TextView details=text(filterDisplay(item.quantization)+" · "+suffix+"\n"+
             provider+benchmarkLabel(item.id),10,secondary,false);
         details.setGravity(Gravity.CENTER);
         details.setMaxLines(2);
@@ -1954,9 +1950,9 @@ public final class MainActivity extends Activity {
         card.setClickable(true);
         card.setFocusable(true);
         card.setElevation(0);
-        card.setContentDescription(item.title+", "+item.id+", "+item.quantization+", "+
-            ModelTileCatalog.status(item,downloadingCardId)+", "+
-            (item.featured?"기기 추천, ":"")+"터치하여 양자화 버전 선택");
+        card.setContentDescription(getString(R.string.model_card_access,item.title,item.id,
+            getString(item.id.equals(downloadingCardId)?R.string.model_downloading:item.installed?R.string.model_installed:R.string.model_not_installed),
+            filterDisplay(item.quantization)+(item.featured?" · "+getString(R.string.model_recommend_mark):"")));
         TypedValue ripple=new TypedValue();
         if(getTheme().resolveAttribute(android.R.attr.selectableItemBackground,ripple,true)
                 &&ripple.resourceId!=0)card.setForeground(getDrawable(ripple.resourceId));
@@ -1975,7 +1971,7 @@ public final class MainActivity extends Activity {
         identifier.setEllipsize(TextUtils.TruncateAt.MIDDLE);
         margin(identifier,body,0,4);
         String provider=remote!=null?remote.source:item.installed?getString(R.string.own_device):"Ollama";
-        TextView details=text(item.quantization+"  ·  "+
+        TextView details=text(filterDisplay(item.quantization)+"  ·  "+
             (item.bytes>0?installedSize(item.bytes):getString(R.string.storage_unknown))+"  ·  "+provider+
             benchmarkLabel(item.id),11,secondary,false);
         details.setSingleLine(true);
@@ -2194,10 +2190,10 @@ public final class MainActivity extends Activity {
             label.setSingleLine(true);label.setEllipsize(TextUtils.TruncateAt.END);
             margin(label,details,0,4);
             String source=section.getKey().startsWith("hf:")?"Hugging Face":"Ollama";
-            String metadata=items.size()+"개 양자화 · "+best.quantization+" · "+
+            String metadata=getString(R.string.model_group_count,items.size())+" · "+filterDisplay(best.quantization)+" · "+
                 (best.bytes>0?installedSize(best.bytes):getString(R.string.storage_unknown))+" · "+source;
             if(items.stream().anyMatch(t->t.id.equals(downloadingCardId)&&pullBusy))
-                metadata+=" · 다운로드 중";
+                metadata+=" · "+getString(R.string.model_downloading);
             TextView info=text(metadata,11,MUTED,false);
             info.setSingleLine(true);info.setEllipsize(TextUtils.TruncateAt.END);
             margin(info,details,0,0);
@@ -2270,16 +2266,13 @@ public final class MainActivity extends Activity {
         sortTiles(shown);
         if(modelListHeader!=null)
             modelListHeader.setText(searching?
-                "검색 결과 "+shown.size()+"개 버전 · "+selectedSort:
-                "추천 양자화 버전 · "+shown.size()+"개");
+                getString(R.string.model_result_header,shown.size(),filterDisplay(selectedSort)):
+                getString(R.string.model_recommended_header,shown.size()));
         if(shown.isEmpty()){
             String emptyMessage=searching?
-                (onlineSearchPending?"Ollama 온라인 모델을 검색 중입니다…":
-                (filter.length()<2?"설치된 일치 모델이 없습니다. 두 글자 이상 입력하세요.":
-                "조건에 맞는 모델이 없습니다. 다른 검색어를 시도하세요.")):
-                (all.isEmpty()?
-                "현재 RAM·저장공간 조건에서 안전하게 추천할 모델이 없습니다.\n진단 탭에서 기기 상태를 확인하세요.":
-                "추천 모델이 없습니다. 필터 조건을 조정하세요.");
+                (onlineSearchPending?getString(R.string.model_online_searching):
+                getString(filter.length()<2?R.string.model_no_local_match:R.string.model_no_match)):
+                getString(all.isEmpty()?R.string.model_no_safe:R.string.model_no_filtered);
             TextView empty=text(emptyMessage,
                 14,MUTED,false);
             empty.setPadding(dp(16),dp(22),dp(16),dp(22));
@@ -2521,7 +2514,7 @@ public final class MainActivity extends Activity {
                     if(obj==null)continue;
                     String id=obj.optString("id","");
                     if(id.isEmpty()||id.length()>70)continue;
-                    String label=obj.optString("title","대화");
+                    String label=obj.optString("title",getString(R.string.chat));
                     result.add(new DrawerChat(model,id,label));
                 }
             }catch(Exception ignored){}

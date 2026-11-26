@@ -12,6 +12,8 @@ on:
       - 'tests/ChatMarkupTest.java'
       - 'tests/CloudPolicyTest.java'
       - 'tests/WorkspaceLayoutPolicyTest.java'
+      - 'tests/DiagnosticValuesTest.java'
+      - 'tests/AdvisorDisplayDataTest.java'
 
 jobs:
   compile:
@@ -60,6 +62,13 @@ jobs:
           mkdir -p /tmp/workspace-tests
           javac -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/WorkspaceLayoutPolicy.java tests/WorkspaceLayoutPolicyTest.java
           java -cp /tmp/workspace-tests com.ollamapocket.app.WorkspaceLayoutPolicyTest
+      - name: Test diagnostic formatting and advisor display data (pure Java)
+        run: |
+          mkdir -p /tmp/diagnostic-tests
+          javac -d /tmp/diagnostic-tests app/src/main/java/com/ollamapocket/app/DiagnosticValues.java app/src/main/java/com/ollamapocket/app/ModelPerformanceAdvisor.java tests/DiagnosticValuesTest.java tests/AdvisorDisplayDataTest.java tests/ModelPerformanceAdvisorTest.java
+          java -cp /tmp/diagnostic-tests com.ollamapocket.app.DiagnosticValuesTest
+          java -cp /tmp/diagnostic-tests com.ollamapocket.app.AdvisorDisplayDataTest
+          java -cp /tmp/diagnostic-tests com.ollamapocket.app.ModelPerformanceAdvisorTest
       - name: Verify OnHand AI brand and locale resource parity
         run: |
           python3 - <<'PY'

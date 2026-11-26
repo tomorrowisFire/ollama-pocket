@@ -13,9 +13,15 @@ public final class ModelPerformanceAdvisor {
         public final String throughput;
         public final String explanation;
         public final boolean measured;
-        Result(String suitability,String throughput,String explanation,boolean measured) {
+        public enum Reason { UNSUPPORTED, MEASURED, MEMORY, RANGE, UNMEASURED }
+        public final Reason reason;
+        public final double weightGiB, requiredGiB, measuredTps, lowTps, highTps;
+        Result(String suitability,String throughput,String explanation,boolean measured,Reason reason,
+               double weightGiB,double requiredGiB,double measuredTps,double lowTps,double highTps) {
             this.suitability=suitability;this.throughput=throughput;
-            this.explanation=explanation;this.measured=measured;
+            this.explanation=explanation;this.measured=measured;this.reason=reason;
+            this.weightGiB=weightGiB;this.requiredGiB=requiredGiB;this.measuredTps=measuredTps;
+            this.lowTps=lowTps;this.highTps=highTps;
         }
         public String summary() {
             return suitability+" · "+throughput+"\n"+explanation;
@@ -55,7 +61,7 @@ public final class ModelPerformanceAdvisor {
             Double sameModelMeasuredTps, Double baselineMeasuredTps,
             double baselineWeightGiB) {
         if(!arm64)return new Result("미지원","속도 산출 불가",
-            "이 앱의 추론 엔진은 ARM64 기기에서만 실행됩니다.",false);
+            "이 앱의 추론 엔진은 ARM64 기기에서만 실행됩니다.",false,Result.Reason.UNSUPPORTED,0,0,0,0,0);
 
         double total=Math.max(0,totalRamGiB);
         double free=Math.max(0,availableRamGiB);
@@ -76,10 +82,10 @@ public final class ModelPerformanceAdvisor {
             if(constrained)grade="메모리 주의";
             return new Result(grade,
                 String.format(Locale.KOREA,"실측 %.1f tok/s (지난 벤치마크)",tps),
-                memory+"\n기기 온도·백그라운드 작업·추론 장치가 바뀌면 속도가 달라집니다.",true);
+                memory+"\n기기 온도·백그라운드 작업·추론 장치가 바뀌면 속도가 달라집니다.",true,Result.Reason.MEASURED,weight,required,tps,0,0);
         }
         if(constrained)return new Result("권장하지 않음","예상 tok/s: 측정 전",
-                memory+"\n현재 RAM 용량 또는 저메모리 상태에서는 종료 위험이 큽니다.",false);
+                memory+"\n현재 RAM 용량 또는 저메모리 상태에서는 종료 위험이 큽니다.",false,Result.Reason.MEMORY,weight,required,0,0,0);
 
         String grade=pressure?"주의":"실행 여유 예상";
         if(baselineMeasuredTps!=null && baselineMeasuredTps>0 &&
@@ -94,10 +100,10 @@ public final class ModelPerformanceAdvisor {
             return new Result(grade,
                 String.format(Locale.KOREA,"참고 예상 %.1f~%.1f tok/s",lo,hi),
                 memory+"\n같은 기기의 다른 모델 실측값과 가중치 크기로 추정한 넓은 범위이며, " +
-                "실제 속도는 다를 수 있습니다.",false);
+                "실제 속도는 다를 수 있습니다.",false,Result.Reason.RANGE,weight,required,0,lo,hi);
         }
         return new Result(grade,"예상 tok/s: 측정 전",
                 memory+"\n기기 스펙만으로 속도를 신뢰성 있게 예측할 수 없습니다. " +
-                "모델 벤치마크 실행 후 실측값을 표시합니다.",false);
+                "모델 벤치마크 실행 후 실측값을 표시합니다.",false,Result.Reason.UNMEASURED,weight,required,0,0,0);
     }
 }

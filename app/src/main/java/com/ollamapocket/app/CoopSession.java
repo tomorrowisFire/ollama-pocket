@@ -204,6 +204,21 @@ public final class CoopSession {
         }catch(Exception e){return "세션 상태를 아직 수신하지 못했습니다: "+hostIp;}
     }
 
+    /** Locale-aware view of the existing peer snapshot; does not mutate the wire payload. */
+    public String peerDiagnostics(Context context){
+        if(!"guest".equals(role))return context.getString(R.string.coop_preflight_host);
+        try{
+            JSONArray all=new JSONArray(peerSnapshotJson);
+            StringBuilder out=new StringBuilder();
+            for(int i=0;i<all.length();i++){
+                JSONObject n=all.optJSONObject(i);
+                if(n==null||guestId.equals(n.optString("id")))continue;
+                if(out.length()>0)out.append("\n\n");
+                out.append("• ").append(CoopDiagnosticPresentation.peer(context,n));
+            }
+            return out.length()==0?context.getString(R.string.node_no_peers):out.toString();
+        }catch(Exception e){return context.getString(R.string.node_peer_unreceived,hostIp);}
+    }
     private CoopSession(Context context) {
         app=context;
         nsd=(NsdManager)app.getSystemService(Context.NSD_SERVICE);

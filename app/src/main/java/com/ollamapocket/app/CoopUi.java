@@ -78,7 +78,7 @@ public final class CoopUi {
             if(!dialog.isShowing())return;
             state.setText(session.status(a)+"\n"+a.getString(R.string.coop_package,a.getString(CoopSession.packaged(a)?R.string.coop_rpc_available:R.string.coop_rpc_missing)));
             if("host".equals(session.role())){
-                secret.setText(a.getString(R.string.coop_host_details,session.hostIp()+":"+CoopSession.CONTROL_PORT,session.sessionId(),session.joinCode(),formatNodes(session)));
+                secret.setText(a.getString(R.string.coop_host_details,session.hostIp()+":"+CoopSession.CONTROL_PORT,session.sessionId(),session.joinCode(),formatNodes(a,session)));
             }else secret.setText("");
             StringBuilder sb=new StringBuilder(a.getString(R.string.coop_found_hosts));
             for(Map.Entry<String,String> item:session.discovered().entrySet()) {
@@ -156,23 +156,11 @@ public final class CoopUi {
             if(!"host".equals(session.role()) && !"guest".equals(session.role()))session.stopDiscovery();});
         dialog.show();handler.post(refresh[0]);
     }
-    private static String formatNodes(CoopSession s){
+    private static String formatNodes(Activity a,CoopSession s){
         StringBuilder b=new StringBuilder();
-        for(CoopSession.Node node:s.nodes()) {
-            long age=(SystemClock.elapsedRealtime()-node.lastSeen)/1000;
-            boolean online=age<30&&node.workerOk;
-            b.append(" • ").append(node.name).append(" (").append(node.ip).append(")")
-                .append(online?" · 정상":" · 연결/워커 확인 필요")
-                .append(" · 마지막 보고 ").append(age).append("초 전\n")
-                .append("   안전 RAM ").append(node.safeRamMiB).append(" MiB")
-                .append(" / CPU ").append(node.cpuPermille<0?"조회 불가":(node.cpuPermille/10)+"%")
-                .append(" / GPU ").append(node.gpuPermille<0?"조회 불가":(node.gpuPermille/10)+"%")
-                .append("\n   배터리 ").append(node.batteryTenths<0?"조회 불가":(node.batteryTenths/10.0)+"℃")
-                .append(" · 열 단계 ").append(node.thermalStatus<0?"조회 불가":node.thermalStatus)
-                .append(" · RPC ").append(node.workerOk?"실행":"중지").append("\n");
-        }
-        if(b.length()==0)b.append("대기 중 · 최대 3대\n");
-        return b.toString();
+        for(CoopSession.Node node:s.nodes())
+            b.append("• ").append(CoopDiagnosticPresentation.host(a,node,true)).append("\n\n");
+        return b.length()==0?a.getString(R.string.node_waiting):b.toString();
     }
     private static void message(Activity a,String s){
         new AlertDialog.Builder(a).setMessage(s==null?a.getString(R.string.coop_unknown_error):s).setPositiveButton(R.string.ok,null).show();
