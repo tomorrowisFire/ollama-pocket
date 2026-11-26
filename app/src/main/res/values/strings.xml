@@ -742,4 +742,8 @@
     <string name="cloud_output_rate">Output USD per million tokens</string>
     <string name="cloud_pc_address">PC address (private IPv4:port)</string>
     <string name="cloud_pc_notice">Unencrypted LAN connection. Use only a trusted private network; messages can be read or modified on the network.</string>
+    <string name="cloud_session_usage">Session usage: %1$s requests · %2$s input / %3$s output tokens</string>
+    <string name="cloud_session_cost">Known estimated cost: $%1$s · unpriced requests: %2$s</string>
+    <string name="cloud_budget">Session estimated spending limit (USD, optional)</string>
+    <string name="cloud_budget_stop">Estimated spending limit reached or usage is unknown. Review your provider billing before changing the limit.</string>
 </resources>
