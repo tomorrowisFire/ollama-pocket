@@ -146,7 +146,7 @@ final class AutomationUi {
         ProgressBar progress=new ProgressBar(owner,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(10);l.addView(progress,new LinearLayout.LayoutParams(-1,dp(12)));
         final LocalWorkflow.Checkpoint[] checkpoint={saved};
         if(saved!=null){display(status,saved);progress.setMax(saved.steps().size());progress.setProgress(saved.results.size());}
-        Button[] buttons=new Button[5];
+        Button[] buttons=new Button[7];
         Runnable enabled=()->{boolean idle=!busy();plan.setEnabled(idle);for(Button b:buttons)if(b!=null)b.setEnabled(idle);};
         Consumer<LocalWorkflow.Checkpoint> start=c->{
             if(!c.model.equals(model)){toast(R.string.need_model);return;}
@@ -162,7 +162,7 @@ final class AutomationUi {
             if(busy())return;final String spec=plan.getText().toString();
             try{WorkflowPolicy.parse(spec);}catch(Exception e){toast(R.string.auto_invalid_plan);return;}
             if(model==null||model.isEmpty()||!OllamaForegroundService.isRunning()){toast(R.string.test_need_model);return;}
-            confirm(s(R.string.auto_start),s(R.string.auto_workflow_notice)+"\n\n"+spec,()->{
+            confirm(s(R.string.auto_start),s(R.string.auto_workflow_notice)+"\n\n"+s(R.string.auto_history_notice)+"\n\n"+spec,()->{
                 if(busy())return;
                 try{checkpoint[0]=runner.create(spec,model);start.accept(checkpoint[0]);}catch(Exception e){toast(R.string.auto_checkpoint_error);}
             });
@@ -175,9 +175,11 @@ final class AutomationUi {
         });
         buttons[3]=button(l,R.string.auto_example,()->{if(busy())return;confirm(s(R.string.auto_example),s(R.string.auto_example_text),()->plan.setText(s(R.string.auto_example_text)));});
         buttons[4]=button(l,R.string.auto_reorder,()->{if(!busy())reorder(plan);});
+        buttons[5]=button(l,R.string.auto_templates,()->{if(!busy())showTemplates(runner,plan);});
+        buttons[6]=button(l,R.string.auto_history,()->{if(!busy())showHistory(runner);});
         buttons[2]=button(l,R.string.auto_clear,()->{
             if(busy())return;
-            confirm(s(R.string.auto_clear),s(R.string.auto_clear),()->{try{runner.clear();checkpoint[0]=null;plan.setText("");status.setText("");progress.setProgress(0);}catch(Exception e){toast(R.string.auto_checkpoint_error);}});
+            confirm(s(R.string.auto_clear),s(R.string.auto_clear_current_notice),()->{try{runner.clear();checkpoint[0]=null;plan.setText("");status.setText("");progress.setProgress(0);}catch(Exception e){toast(R.string.auto_checkpoint_error);}});
         });
         button(l,R.string.auto_cancel_run,()->{
             if(checkpoint[0]==null)return;
@@ -188,6 +190,106 @@ final class AutomationUi {
         });
         button(l,R.string.auto_pause,()->{pause();});
         show(s(R.string.auto_workflow),l);
+    }
+    private String date(long millis){
+        java.util.Date value=new java.util.Date(millis);
+        return android.text.format.DateFormat.getDateFormat(owner).format(value)+" "+android.text.format.DateFormat.getTimeFormat(owner).format(value);
+    }
+    private void trackDialog(AlertDialog d){
+        confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;});d.show();secure(d);
+    }
+    private void showTemplates(LocalWorkflow runner,EditText plan){
+        final List<WorkflowLibrary.Template> items;
+        try{items=runner.templates();}catch(Exception e){toast(R.string.auto_library_error);return;}
+        String[] rows=new String[items.size()+1];rows[0]=s(R.string.auto_template_save);
+        for(int i=0;i<items.size();i++)rows[i+1]=items.get(i).name+" · "+date(items.get(i).saved);
+        final int token=epoch;
+        AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.auto_templates).setItems(rows,(x,index)->{
+            if(!valid(token)||busy())return;
+            if(index==0){saveTemplate(runner,plan);return;}
+            WorkflowLibrary.Template item=items.get(index-1);
+            LinearLayout panel=column();label(panel,s(R.string.auto_template_load_notice));
+            TextView body=output(panel);body.setText(item.plan);
+            ScrollView sc=new ScrollView(owner);sc.addView(panel);
+            AlertDialog view=new AlertDialog.Builder(owner).setTitle(item.name).setView(sc)
+                .setNegativeButton(R.string.close,null)
+                .setPositiveButton(R.string.auto_template_load,(z,w)->{if(valid(token)&&!busy())plan.setText(item.plan);})
+                .setNeutralButton(R.string.auto_delete_item,(z,w)->{
+                    if(!valid(token)||busy())return;
+                    confirm(s(R.string.auto_delete_item),item.name,()->{
+                        if(busy())return;
+                        try{runner.deleteTemplate(item.id);toast(R.string.auto_saved);}catch(Exception e){toast(R.string.auto_library_error);}
+                    });
+                }).create();
+            trackDialog(view);
+        }).setNegativeButton(R.string.close,null).create();trackDialog(d);
+    }
+    private void saveTemplate(LocalWorkflow runner,EditText plan){
+        final String captured=plan.getText().toString();
+        try{WorkflowPolicy.parse(captured);}catch(Exception e){toast(R.string.auto_invalid_plan);return;}
+        LinearLayout l=column();label(l,s(R.string.auto_template_notice));
+        EditText title=field(l,R.string.auto_template_name,"",60,false);
+        final int token=epoch;
+        AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.auto_template_save).setView(l)
+            .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,null).create();
+        trackDialog(d);d.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(v->{
+            if(!valid(token)||busy()||!captured.equals(plan.getText().toString()))return;
+            try{runner.saveTemplate(title.getText().toString(),captured);d.dismiss();toast(R.string.auto_saved);}
+            catch(Exception e){toast(R.string.auto_library_error);}
+        });
+    }
+    private void showHistory(LocalWorkflow runner){
+        final List<LocalWorkflow.ArchivedRun> rows;
+        try{rows=runner.history();}catch(Exception e){
+            confirm(s(R.string.auto_history_clear),s(R.string.auto_history_recovery),()->{
+                if(!busy())try{runner.clearHistory();toast(R.string.auto_saved);}catch(Exception ex){toast(R.string.auto_library_error);}
+            });return;
+        }
+        final int token=epoch;
+        String[] labels=new String[rows.size()];
+        for(int i=0;i<rows.size();i++){
+            LocalWorkflow.ArchivedRun r=rows.get(i);LocalWorkflow.Checkpoint c=r.checkpoint;
+            labels[i]=date(r.archived)+" · "+stateLabel(c.status)+" · "+c.results.size()+"/"+c.steps().size()+"\n"+c.model;
+        }
+        AlertDialog.Builder builder=new AlertDialog.Builder(owner).setTitle(R.string.auto_history)
+            .setNegativeButton(R.string.close,null)
+            .setNeutralButton(R.string.auto_history_clear,(x,w)->{
+                if(!valid(token)||busy())return;
+                confirm(s(R.string.auto_history_clear),s(R.string.auto_history_clear_notice),()->{
+                    if(!busy())try{runner.clearHistory();toast(R.string.auto_saved);}catch(Exception ex){toast(R.string.auto_library_error);}
+                });
+            });
+        if(rows.isEmpty())builder.setMessage(R.string.auto_history_empty);
+        else builder.setItems(labels,(x,index)->{if(valid(token)&&!busy())showArchived(runner,rows.get(index));});
+        trackDialog(builder.create());
+    }
+    private void showArchived(LocalWorkflow runner,LocalWorkflow.ArchivedRun run){
+        LocalWorkflow.Checkpoint c=run.checkpoint;
+        LinearLayout l=column();label(l,s(R.string.auto_archive_readonly));label(l,date(run.archived)+"\n"+c.model);
+        TextView record=output(l);display(record,c);
+        TextView source=output(l);source.setText(s(R.string.auto_plan)+"\n"+c.plan);
+        ScrollView sc=new ScrollView(owner);sc.addView(l);final int token=epoch;
+        AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.auto_history).setView(sc)
+            .setNegativeButton(R.string.close,null)
+            .setNeutralButton(R.string.auto_delete_item,(x,w)->{
+                if(!valid(token)||busy())return;
+                confirm(s(R.string.auto_delete_item),s(R.string.auto_archive_readonly),()->{
+                    if(!busy())try{runner.deleteHistory(c.id);toast(R.string.auto_saved);}catch(Exception e){toast(R.string.auto_library_error);}
+                });
+            }).create();trackDialog(d);
+    }
+    private String stateLabel(String state){
+        switch(state){
+            case "QUEUED":return s(R.string.auto_state_queued);
+            case "RUNNING":return s(R.string.auto_state_running);
+            case "VERIFYING":return s(R.string.auto_state_verifying);
+            case "RETRY_WAIT":return s(R.string.auto_state_retry);
+            case "PAUSED":return s(R.string.auto_state_paused);
+            case "BLOCKED":return s(R.string.auto_state_blocked);
+            case "COMPLETED":return s(R.string.auto_state_completed);
+            case "CANCELLED":return s(R.string.auto_state_cancelled);
+            default:return state;
+        }
     }
     private void reorder(EditText plan){
         final String original=plan.getText().toString();
@@ -212,9 +314,9 @@ final class AutomationUi {
         confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;});d.show();secure(d);
     }
     private String summary(LocalWorkflow.Checkpoint c){
-        long seconds=Math.max(0,Math.min(WorkflowPolicy.MAX_MILLIS,System.currentTimeMillis()-c.started))/1000;
-        return c.status+" · "+c.results.size()+"/"+c.steps().size()+" · "+c.attempts+"/"+WorkflowPolicy.MAX_ATTEMPTS+
-            "\n"+owner.getString(R.string.auto_run_stats,Long.toString(seconds),Integer.toString(c.totalAttempts),Long.toString(c.reportedTokens),Integer.toString(c.unknownAttempts))+
+        String seconds=c.updated<=0?s(R.string.metric_unavailable):Long.toString(Math.max(0,Math.min(WorkflowPolicy.MAX_MILLIS,c.updated-c.started))/1000);
+        return stateLabel(c.status)+" · "+c.results.size()+"/"+c.steps().size()+" · "+c.attempts+"/"+WorkflowPolicy.MAX_ATTEMPTS+
+            "\n"+owner.getString(R.string.auto_run_stats,seconds,Integer.toString(c.totalAttempts),Long.toString(c.reportedTokens),Integer.toString(c.unknownAttempts))+
             (c.legacyStats?"\n"+s(R.string.auto_legacy_stats):"");
     }
     private void display(TextView status,LocalWorkflow.Checkpoint c){

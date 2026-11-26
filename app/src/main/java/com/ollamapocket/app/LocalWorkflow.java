@@ -25,7 +25,7 @@ final class LocalWorkflow {
     LocalWorkflow(Context c){context=c.getApplicationContext();store=context.getSharedPreferences("onhand_workflow_v1",Context.MODE_PRIVATE);}
     static final class Checkpoint {
         String plan,model,id,status;
-        long started,reportedTokens;
+        long started,updated,reportedTokens;
         int attempts,totalAttempts,unknownAttempts,format=2;
         boolean legacyStats;
         final List<String> results=new ArrayList<>();
@@ -36,15 +36,18 @@ final class LocalWorkflow {
     Checkpoint load()throws Exception{
         String raw=store.getString("checkpoint",null);
         if(raw==null)return null;
-        if(raw.length()>180000)throw new IOException("Checkpoint limit");
+        return decode(raw,store.getString("checkpoint_digest",""));
+    }
+    private static Checkpoint decode(String raw,String digest)throws Exception{
+        if(raw.length()>WorkflowLibrary.MAX_SNAPSHOT)throw new IOException("Checkpoint limit");
         JSONObject j=new JSONObject(raw);int schema=j.getInt("schema");
         if(schema!=1&&schema!=2)throw new IOException("Checkpoint schema");
-        if(schema==2&&!LocalChatLibrary.digest(raw).equals(store.getString("checkpoint_digest","")))throw new IOException("Checkpoint checksum mismatch");
+        if(schema==2&&!LocalChatLibrary.digest(raw).equals(digest))throw new IOException("Checkpoint checksum mismatch");
         Checkpoint c=new Checkpoint();c.plan=j.getString("plan");c.model=j.getString("model");c.id=j.getString("id");
-        c.started=j.getLong("started");c.attempts=j.getInt("attempts");c.status=j.getString("status");
+        c.started=j.getLong("started");c.updated=j.optLong("updated",0);c.attempts=j.getInt("attempts");c.status=j.getString("status");
         c.format=schema==1?1:j.getInt("format");c.legacyStats=schema==1||j.optBoolean("legacyStats",false);
         c.totalAttempts=j.optInt("totalAttempts",0);c.unknownAttempts=j.optInt("unknownAttempts",0);c.reportedTokens=j.optLong("reportedTokens",0);
-        if(c.model.isEmpty()||c.model.length()>200||c.id.isEmpty()||c.id.length()>64||c.started<=0||c.attempts<0||c.attempts>WorkflowPolicy.MAX_ATTEMPTS||
+        if(c.model.isEmpty()||c.model.length()>200||c.id.isEmpty()||c.id.length()>64||c.started<=0||c.updated<0||(c.updated>0&&c.updated<c.started)||c.attempts<0||c.attempts>WorkflowPolicy.MAX_ATTEMPTS||
            c.totalAttempts<0||c.totalAttempts>30||c.unknownAttempts<0||c.unknownAttempts>c.totalAttempts||c.reportedTokens<0||
            c.reportedTokens>(long)(c.totalAttempts-c.unknownAttempts)*WorkflowPolicy.MAX_TOKENS||
            !java.util.Arrays.asList("QUEUED","RUNNING","VERIFYING","RETRY_WAIT","PAUSED","BLOCKED","COMPLETED","CANCELLED").contains(c.status))throw new IOException("Invalid checkpoint");
@@ -55,18 +58,49 @@ final class LocalWorkflow {
         if(schema==2&&!c.legacyStats&&(c.totalAttempts<c.results.size()+c.attempts||c.totalAttempts>c.results.size()*WorkflowPolicy.MAX_ATTEMPTS+c.attempts))throw new IOException("Invalid attempt count");
         return c;
     }
+    private static String encode(Checkpoint c)throws Exception{
+        String raw=new JSONObject().put("schema",2).put("format",c.format).put("plan",c.plan).put("model",c.model).put("id",c.id)
+            .put("started",c.started).put("updated",c.updated).put("attempts",c.attempts).put("status",c.status).put("results",new JSONArray(c.results))
+            .put("totalAttempts",c.totalAttempts).put("unknownAttempts",c.unknownAttempts).put("reportedTokens",c.reportedTokens).put("legacyStats",c.legacyStats).toString();
+        if(raw.length()>WorkflowLibrary.MAX_SNAPSHOT)throw new IOException("Checkpoint limit");
+        return raw;
+    }
     private void save(Checkpoint c)throws Exception{
-        JSONObject j=new JSONObject().put("schema",2).put("format",c.format).put("plan",c.plan).put("model",c.model).put("id",c.id)
-            .put("started",c.started).put("attempts",c.attempts).put("status",c.status).put("results",new JSONArray(c.results))
-            .put("totalAttempts",c.totalAttempts).put("unknownAttempts",c.unknownAttempts).put("reportedTokens",c.reportedTokens).put("legacyStats",c.legacyStats);
-        String raw=j.toString();
+        c.updated=Math.max(c.started,Math.max(c.updated,System.currentTimeMillis()));
+        String raw=encode(c);
         if(!store.edit().putString("checkpoint",raw).putString("checkpoint_digest",LocalChatLibrary.digest(raw)).commit())throw new IOException("Checkpoint write failed");
     }
+    List<WorkflowLibrary.Template> templates()throws Exception{return WorkflowLibrary.templates(store.getString("templates",null));}
+    void saveTemplate(String name,String plan)throws Exception{
+        String raw=WorkflowLibrary.saveTemplate(store.getString("templates",null),java.util.UUID.randomUUID().toString(),name,plan,System.currentTimeMillis());
+        if(!store.edit().putString("templates",raw).commit())throw new IOException("Template write failed");
+    }
+    void deleteTemplate(String id)throws Exception{
+        if(!store.edit().putString("templates",WorkflowLibrary.deleteTemplate(store.getString("templates",null),id)).commit())throw new IOException("Template write failed");
+    }
+    static final class ArchivedRun {
+        final Checkpoint checkpoint;final long archived;
+        ArchivedRun(Checkpoint c,long archived){checkpoint=c;this.archived=archived;}
+    }
+    List<ArchivedRun> history()throws Exception{
+        List<ArchivedRun> result=new ArrayList<>();
+        for(WorkflowLibrary.Archive a:WorkflowLibrary.history(store.getString("history",null)))
+            result.add(new ArchivedRun(decode(a.snapshot,a.digest),a.archived));
+        return result;
+    }
+    void deleteHistory(String id)throws Exception{
+        if(!store.edit().putString("history",WorkflowLibrary.deleteHistory(store.getString("history",null),id)).commit())throw new IOException("History write failed");
+    }
+    void clearHistory()throws Exception{if(!store.edit().remove("history").commit())throw new IOException("History removal failed");}
     Checkpoint create(String plan,String model)throws Exception{
         WorkflowPolicy.parse(plan);
         if(model==null||model.isEmpty()||model.length()>200)throw new IOException("Model required");
         Checkpoint c=new Checkpoint();c.plan=plan;c.model=model;c.id=java.util.UUID.randomUUID().toString();
-        c.started=System.currentTimeMillis();c.status="QUEUED";save(c);return c;
+        c.started=System.currentTimeMillis();c.updated=c.started;c.status="QUEUED";
+        Checkpoint prior=load();String raw=encode(c);
+        SharedPreferences.Editor transaction=store.edit().putString("checkpoint",raw).putString("checkpoint_digest",LocalChatLibrary.digest(raw));
+        if(prior!=null)transaction.putString("history",WorkflowLibrary.archive(store.getString("history",null),encode(prior),c.started));
+        if(!transaction.commit())throw new IOException("Checkpoint/archive write failed");return c;
     }
     void clear()throws Exception{if(!store.edit().remove("checkpoint").remove("checkpoint_digest").commit())throw new IOException("Checkpoint removal failed");}
     void prepare(){paused=false;cancelled=false;}

@@ -1,0 +1,12 @@
+# Stage 08-E/F workflow library and final candidate scope
+
+Baseline a002a72f87d70dceab14dc7ee569582195e39948. Stage 08-C/D Java workflow run 45780326355 PASS; first Stage 08-A/B APK run 45779770851 PASS. Latest changes require own CI, native APK and physical-device acceptance.
+
+- Save and load up to 12 named format-2 workflow templates. Case-insensitive duplicate names refused; editor load does not modify a checkpoint or start a task. Explicit item deletion. Maximum serialized template payload 420000 characters.
+- A new run atomically archives the prior valid checkpoint and replaces the active checkpoint. Retain the 8 newest archived runs subject to 1500000-character history limit; oldest records evicted when needed, disclosed before starting. Archives are read-only and are not resumable; they include the previous plan, model, last saved state, verified outputs, attempt/token counters and archive timestamp. No invented completion; an archived interrupted run may have last status RUNNING. Active checkpoint clearing, archived history deletion, and template deletion are separate user actions.
+- SHA-256 corruption detection for archived snapshots, duplicate-run prevention and schema validation before rendering. This is not encryption or authentication. Data remains in app-private preferences. A malformed history can be cleared only after explicit confirmation. Existing checkpoints migrate without guessing old timestamps; elapsed time reflects last saved checkpoint, not time since archive.
+- Localized controls in five supported locales. 23 new pure JVM library assertions, plus previous 48 workflow and MCP policy checks.
+- Real MCP endpoint, model inference, actual ten-step workflow, process death recovery, pause/cancel latency, thermal behavior, on-device usability/accessibility, and verified external test/file validators remain NOT_RUN. MCP remains manual, approved private-LAN HTTP compatibility mode, not arbitrary external OAuth or tool execution by the model. Automation is foreground local CPU only and structural validation is not an independent quality assessment.
+- Stage 08 formal acceptance remains BLOCKED pending evidence. Earlier gates remain unchanged. No new empirical 10-person score. First-run ad and production lock unchanged, no main merge, release signing, live ads or Play Store submission.
+
+Next candidate: release/security work (09) may be prepared, not formally accepted until required gates are satisfied.
