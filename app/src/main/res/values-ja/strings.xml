@@ -767,7 +767,7 @@
     <string name="auto_schema_notice">対応する入力スキーマと読み取り専用と申告されたツールのみ利用できます。引数は宣言された項目、型、制限に適合する必要があります。</string>
     <string name="auto_tool_allow">この接続でツールを許可</string>
     <string name="auto_tool_revoke">権限を取り消す</string>
-    <string name="auto_verifier_help">各行は プロンプト | 検証条件。通常の文字列、@contains:text、@exact:text、@minchars:10、@jsonkeys:a,b を使用できます。事実性や品質は保証しません。</string>
+    <string name="auto_verifier_help">各行は プロンプト | 検証条件。通常の文字列、@contains:text、@exact:text、@minchars:10、@jsonkeys:a,b を使用できます。事実性や品質は保証しません。 厳密な型：@jsonfields:title:string,items:array。</string>
     <string name="auto_example">例を読み込む（編集内容を置換）</string>
     <string name="auto_example_text">READY のみ回答してください。 | @exact:READY\n前の結果を要約する result を持つ JSON オブジェクトを出力してください。 | @jsonkeys:result</string>
     <string name="auto_reorder">手順を並べ替える</string>
@@ -829,4 +829,41 @@
     <string name="bench_auto_no_profile">自動：条件を満たす最近のCPU/GPU比較がないため、従来のエンジン確認方式を使用します。</string>
     <string name="coop_copy_code">接続コードをコピー</string>
     <string name="coop_share_sensitive">このコードで現在の協力セッションにアクセスできます。信頼できる端末やアプリにのみ共有または貼り付けてください。コードが漏れた場合はセッションを終了してください。</string>
+    <string name="auto_visual_editor">手順別エディター</string>
+    <string name="auto_business_templates">業務テンプレート</string>
+    <string name="auto_visual_notice">手順ごとに編集します。プロンプトと条件は各1行です。適用は下書きのみを変更し、実行開始や保存済み実行の変更は行いません。</string>
+    <string name="auto_step_prompt">手順プロンプト</string>
+    <string name="auto_verification_type">検証の種類</string>
+    <string name="auto_step_condition">検証条件</string>
+    <string name="auto_gate_contains">文字列を含む</string>
+    <string name="auto_gate_exact">完全一致</string>
+    <string name="auto_gate_minchars">最小文字数</string>
+    <string name="auto_gate_jsonkeys">JSON必須キー</string>
+    <string name="auto_gate_jsonfields">厳密なJSONフィールド型</string>
+    <string name="auto_gate_exact_hint">一致する文字列</string>
+    <string name="auto_gate_contains_hint">含める文字列</string>
+    <string name="auto_editor_index">手順 %1$s / %2$s</string>
+    <string name="auto_editor_previous">前の手順</string>
+    <string name="auto_editor_next">次の手順</string>
+    <string name="auto_editor_add">この後に追加</string>
+    <string name="auto_editor_remove">この手順を削除</string>
+    <string name="auto_apply_draft">下書きに適用</string>
+    <string name="auto_editor_invalid">手順%1$sが無効です。入力と条件を確認してください。</string>
+    <string name="auto_legacy_convert">新規実行前に旧形式を手順エディターで変換してください。保存済み実行は変更せず再開できます。</string>
+    <string name="auto_business_notice">目標を入力し3手順の下書きを確認します。各手順には目標と直前の検証済み結果のみを渡します。構造検証は事実の正確性、コード実行、品質を保証しません。適用は下書きのみです。</string>
+    <string name="auto_preset_report">報告書作成</string>
+    <string name="auto_preset_actions">実行計画</string>
+    <string name="auto_preset_code">コード作成とレビュー</string>
+    <string name="auto_preset_goal">目標（1行、秘密情報なし）</string>
+    <string name="auto_preview_plan">計画をプレビュー</string>
+    <string name="auto_preview_first">現在の目標とテンプレートを先にプレビューしてください。</string>
+    <string name="auto_report_step1" formatted="false">目標：%GOAL%。構成案と不足情報を整理し、根拠を捏造しないでください。outline と missing 配列を返してください。</string>
+    <string name="auto_report_step2" formatted="false">目標：%GOAL%。直前の構成案と不足情報から簡潔な草稿を作成し、draft と uncertainties を返してください。</string>
+    <string name="auto_report_step3" formatted="false">目標：%GOAL%。直前の草稿の欠落と根拠不足を確認し、修正版 report と未確認事項 checklist を返してください。</string>
+    <string name="auto_actions_step1" formatted="false">目標：%GOAL%。具体的な tasks と dependencies を整理し、実行したとは主張しないでください。</string>
+    <string name="auto_actions_step2" formatted="false">目標：%GOAL%。直前のタスクと依存関係から順序付き plan と risks を作成してください。</string>
+    <string name="auto_actions_step3" formatted="false">目標：%GOAL%。計画を確認し優先 actions と open_questions を返してください。実行したとは主張しないでください。</string>
+    <string name="auto_code_step1" formatted="false">目標：%GOAL%。コード解決案の requirements と tests を整理してください。</string>
+    <string name="auto_code_step2" formatted="false">目標：%GOAL%。直前の要件とテストから code を作成し limitations を示してください。実行したとは主張しないでください。</string>
+    <string name="auto_code_step3" formatted="false">目標：%GOAL%。直前のコードの正確性と安全性を確認し、修正版 code と test_plan を返してください。テスト実行は主張しないでください。</string>
 </resources>

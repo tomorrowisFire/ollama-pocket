@@ -767,7 +767,7 @@
     <string name="auto_schema_notice">지원되는 입력 스키마와 읽기 전용으로 표시된 도구만 사용할 수 있습니다. 인수는 선언된 필드·자료형·제한에 맞아야 합니다.</string>
     <string name="auto_tool_allow">이 연결에서 해당 도구 허용</string>
     <string name="auto_tool_revoke">권한 철회</string>
-    <string name="auto_verifier_help">각 줄은 프롬프트 | 검증 조건 형식입니다. 일반 문구, @contains:문구, @exact:문구, @minchars:10, @jsonkeys:a,b를 사용할 수 있습니다. 이러한 검사는 사실성이나 품질을 보장하지 않습니다.</string>
+    <string name="auto_verifier_help">각 줄은 프롬프트 | 검증 조건 형식입니다. 일반 문구, @contains:문구, @exact:문구, @minchars:10, @jsonkeys:a,b를 사용할 수 있습니다. 이러한 검사는 사실성이나 품질을 보장하지 않습니다. 엄격한 자료형: @jsonfields:title:string,items:array.</string>
     <string name="auto_example">예제 불러오기 (편집 내용 교체)</string>
     <string name="auto_example_text">READY만 답하세요. | @exact:READY\n이전 결과를 요약한 result 항목을 JSON 객체로 출력하세요. | @jsonkeys:result</string>
     <string name="auto_reorder">단계 순서 변경</string>
@@ -829,4 +829,41 @@
     <string name="bench_auto_no_profile">자동: 조건을 충족하는 최근 CPU/GPU 비교 결과가 없어 기존 엔진 확인 방식을 적용합니다.</string>
     <string name="coop_copy_code">연결 코드 복사</string>
     <string name="coop_share_sensitive">이 코드로 현재 협력 세션에 접근할 수 있습니다. 신뢰할 수 있는 기기와 앱에만 공유하거나 붙여넣으세요. 코드가 노출되면 세션을 종료하세요.</string>
+    <string name="auto_visual_editor">단계별 편집기</string>
+    <string name="auto_business_templates">업무 템플릿</string>
+    <string name="auto_visual_notice">한 단계씩 편집하세요. 프롬프트와 조건은 각각 한 줄로 입력합니다. 적용은 초안만 변경하며 실행을 시작하거나 기존 실행 기록을 변경하지 않습니다.</string>
+    <string name="auto_step_prompt">단계 프롬프트</string>
+    <string name="auto_verification_type">검증 유형</string>
+    <string name="auto_step_condition">검증 조건</string>
+    <string name="auto_gate_contains">문구 포함</string>
+    <string name="auto_gate_exact">정확한 문구</string>
+    <string name="auto_gate_minchars">최소 글자 수</string>
+    <string name="auto_gate_jsonkeys">JSON 필수 키</string>
+    <string name="auto_gate_jsonfields">엄격한 JSON 필드 자료형</string>
+    <string name="auto_gate_exact_hint">일치해야 하는 문구</string>
+    <string name="auto_gate_contains_hint">포함해야 하는 문구</string>
+    <string name="auto_editor_index">%1$s / %2$s 단계</string>
+    <string name="auto_editor_previous">이전 단계</string>
+    <string name="auto_editor_next">다음 단계</string>
+    <string name="auto_editor_add">이 단계 뒤에 추가</string>
+    <string name="auto_editor_remove">이 단계 삭제</string>
+    <string name="auto_apply_draft">초안에 적용</string>
+    <string name="auto_editor_invalid">%1$s단계가 유효하지 않습니다. 프롬프트와 조건을 확인하세요.</string>
+    <string name="auto_legacy_convert">새 실행 전 단계별 편집기로 이전 형식 계획을 변환하세요. 저장된 기존 실행은 그대로 재개할 수 있습니다.</string>
+    <string name="auto_business_notice">목표를 입력하고 3단계 초안을 미리보세요. 각 단계에는 목표와 직전 검증 결과만 전달됩니다. 구조 검증은 사실의 정확성, 코드 실행 또는 품질을 보장하지 않습니다. 적용하면 편집 초안만 교체됩니다.</string>
+    <string name="auto_preset_report">보고서 작성</string>
+    <string name="auto_preset_actions">실행계획 수립</string>
+    <string name="auto_preset_code">코드 작성 및 검토</string>
+    <string name="auto_preset_goal">목표 (한 줄, 비밀정보 제외)</string>
+    <string name="auto_preview_plan">계획 미리보기</string>
+    <string name="auto_preview_first">현재 목표와 템플릿을 먼저 미리보세요.</string>
+    <string name="auto_report_step1" formatted="false">목표: %GOAL%. 보고서 목차와 부족한 정보를 정리하고 근거를 만들어내지 마세요. outline 및 missing 배열을 반환하세요.</string>
+    <string name="auto_report_step2" formatted="false">목표: %GOAL%. 직전 목차와 부족한 정보에 따라 간결한 초안을 작성하세요. draft 및 uncertainties를 반환하세요.</string>
+    <string name="auto_report_step3" formatted="false">목표: %GOAL%. 직전 초안의 누락과 근거 없는 주장을 검토하세요. 수정 보고서 report와 미확인 사항 checklist를 반환하세요.</string>
+    <string name="auto_actions_step1" formatted="false">목표: %GOAL%. 구체적인 업무 tasks와 의존관계 dependencies를 정리하세요. 실행했다고 주장하지 마세요.</string>
+    <string name="auto_actions_step2" formatted="false">목표: %GOAL%. 직전 업무와 의존관계를 바탕으로 순서가 있는 plan과 위험 risks를 정리하세요.</string>
+    <string name="auto_actions_step3" formatted="false">목표: %GOAL%. 계획을 검토하여 우선순위가 있는 actions와 미해결 질문 open_questions를 반환하세요. 실제 수행을 주장하지 마세요.</string>
+    <string name="auto_code_step1" formatted="false">목표: %GOAL%. 코드 해결안의 requirements와 tests를 정리하세요.</string>
+    <string name="auto_code_step2" formatted="false">목표: %GOAL%. 직전 요구사항과 테스트를 바탕으로 code를 작성하고 limitations를 명시하세요. 실행했다고 주장하지 마세요.</string>
+    <string name="auto_code_step3" formatted="false">목표: %GOAL%. 직전 코드의 정확성과 안전성을 검토하세요. 수정 code와 test_plan을 반환하고 실제 테스트 실행을 주장하지 마세요.</string>
 </resources>

@@ -767,7 +767,7 @@
     <string name="auto_schema_notice">僅支援符合輸入結構且宣告為唯讀的工具。參數必須符合宣告的欄位、型別及限制。</string>
     <string name="auto_tool_allow">在目前連線中允許此工具</string>
     <string name="auto_tool_revoke">撤銷權限</string>
-    <string name="auto_verifier_help">每列：提示詞 | 驗證條件。支援普通文字、@contains:text、@exact:text、@minchars:10、@jsonkeys:a,b。檢查不代表事實準確或品質達標。</string>
+    <string name="auto_verifier_help">每列：提示詞 | 驗證條件。支援普通文字、@contains:text、@exact:text、@minchars:10、@jsonkeys:a,b。檢查不代表事實準確或品質達標。 嚴格型別：@jsonfields:title:string,items:array。</string>
     <string name="auto_example">載入範例（取代編輯內容）</string>
     <string name="auto_example_text">只回答 READY。 | @exact:READY\n輸出含有 result 欄位的 JSON 物件，摘要前一步結果。 | @jsonkeys:result</string>
     <string name="auto_reorder">調整步驟順序</string>
@@ -829,4 +829,41 @@
     <string name="bench_auto_no_profile">自動：沒有符合條件的近期 CPU/GPU 比較結果，沿用現有引擎檢查方式。</string>
     <string name="coop_copy_code">複製連線碼</string>
     <string name="coop_share_sensitive">此連線碼可用於存取目前的協作工作階段。僅向可信裝置或應用程式分享或貼上。若連線碼外洩，請結束工作階段。</string>
+    <string name="auto_visual_editor">逐步編輯器</string>
+    <string name="auto_business_templates">業務範本</string>
+    <string name="auto_visual_notice">逐步編輯。每個提示詞和條件各占一列。套用僅修改草稿，不啟動或修改已儲存的執行。</string>
+    <string name="auto_step_prompt">步驟提示詞</string>
+    <string name="auto_verification_type">驗證類型</string>
+    <string name="auto_step_condition">驗證條件</string>
+    <string name="auto_gate_contains">包含文字</string>
+    <string name="auto_gate_exact">完全符合</string>
+    <string name="auto_gate_minchars">最少字元數</string>
+    <string name="auto_gate_jsonkeys">JSON 必要鍵</string>
+    <string name="auto_gate_jsonfields">嚴格 JSON 欄位型別</string>
+    <string name="auto_gate_exact_hint">必須符合的文字</string>
+    <string name="auto_gate_contains_hint">必須包含的文字</string>
+    <string name="auto_editor_index">步驟 %1$s / %2$s</string>
+    <string name="auto_editor_previous">上一步</string>
+    <string name="auto_editor_next">下一步</string>
+    <string name="auto_editor_add">在此步驟後新增</string>
+    <string name="auto_editor_remove">刪除此步驟</string>
+    <string name="auto_apply_draft">套用到草稿</string>
+    <string name="auto_editor_invalid">步驟 %1$s 無效，請檢查提示詞和條件。</string>
+    <string name="auto_legacy_convert">新執行前請使用逐步編輯器轉換舊格式計畫。已儲存的舊執行仍可原樣恢復。</string>
+    <string name="auto_business_notice">輸入目標並預覽三步草稿。每步僅接收目標與上一步已驗證結果。結構檢查不保證事實正確、程式碼執行或品質。套用僅取代編輯草稿。</string>
+    <string name="auto_preset_report">報告撰寫</string>
+    <string name="auto_preset_actions">行動規劃</string>
+    <string name="auto_preset_code">程式碼起草與審查</string>
+    <string name="auto_preset_goal">目標（單列，不含秘密）</string>
+    <string name="auto_preview_plan">預覽計畫</string>
+    <string name="auto_preview_first">套用前請先預覽目前目標與範本。</string>
+    <string name="auto_report_step1" formatted="false">目標：%GOAL%。整理報告大綱與缺失資訊，不捏造證據。回傳 outline 和 missing 陣列。</string>
+    <string name="auto_report_step2" formatted="false">目標：%GOAL%。依據上一步大綱與缺失資訊撰寫簡明草稿，回傳 draft 和 uncertainties。</string>
+    <string name="auto_report_step3" formatted="false">目標：%GOAL%。審查上一步草稿的遺漏與無依據論述，回傳修訂 report 與待確認 checklist。</string>
+    <string name="auto_actions_step1" formatted="false">目標：%GOAL%。列出具體 tasks 和 dependencies，不聲稱已執行。</string>
+    <string name="auto_actions_step2" formatted="false">目標：%GOAL%。依據上一步任務與相依關係制定有序 plan 並列出 risks。</string>
+    <string name="auto_actions_step3" formatted="false">目標：%GOAL%。審核計畫，回傳優先 actions 和 open_questions，不聲稱已完成任務。</string>
+    <string name="auto_code_step1" formatted="false">目標：%GOAL%。整理程式碼方案的 requirements 和 tests。</string>
+    <string name="auto_code_step2" formatted="false">目標：%GOAL%。依據上一步需求與測試起草 code，說明 limitations，不聲稱已執行。</string>
+    <string name="auto_code_step3" formatted="false">目標：%GOAL%。審查上一步程式碼的正確性和安全性，回傳修訂 code 和 test_plan，不聲稱實際執行測試。</string>
 </resources>

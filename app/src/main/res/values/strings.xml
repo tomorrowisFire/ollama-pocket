@@ -767,7 +767,7 @@
     <string name="auto_schema_notice">Only supported input schemas and declared read-only tools are eligible. Arguments must match the declared fields, types and limits.</string>
     <string name="auto_tool_allow">Allow this tool for this connection</string>
     <string name="auto_tool_revoke">Revoke permission</string>
-    <string name="auto_verifier_help">Each line: prompt | verifier. Use a literal, @contains:text, @exact:text, @minchars:10 or @jsonkeys:a,b. These checks do not establish factual accuracy or quality.</string>
+    <string name="auto_verifier_help">Each line: prompt | verifier. Use a literal, @contains:text, @exact:text, @minchars:10 or @jsonkeys:a,b. These checks do not establish factual accuracy or quality. Strict typed fields: @jsonfields:title:string,items:array.</string>
     <string name="auto_example">Load example (replace editor)</string>
     <string name="auto_example_text">Reply with READY only. | @exact:READY\nReturn a JSON object with a result field summarizing the prior output. | @jsonkeys:result</string>
     <string name="auto_reorder">Reorder steps</string>
@@ -829,4 +829,41 @@
     <string name="bench_auto_no_profile">Auto: no eligible recent CPU/GPU comparison; existing engine checks apply.</string>
     <string name="coop_copy_code">Copy connection code</string>
     <string name="coop_share_sensitive">This code grants access to your current cooperative session. Share or paste it only on a trusted device or in a trusted app. End the session if the code is exposed.</string>
+    <string name="auto_visual_editor">Step-by-step editor</string>
+    <string name="auto_business_templates">Business templates</string>
+    <string name="auto_visual_notice">Edit one step at a time. Keep each prompt and condition on one line. Applying changes only the draft; it does not start or change a saved run.</string>
+    <string name="auto_step_prompt">Step prompt</string>
+    <string name="auto_verification_type">Verification type</string>
+    <string name="auto_step_condition">Condition</string>
+    <string name="auto_gate_contains">Contains text</string>
+    <string name="auto_gate_exact">Exact text</string>
+    <string name="auto_gate_minchars">Minimum characters</string>
+    <string name="auto_gate_jsonkeys">JSON required keys</string>
+    <string name="auto_gate_jsonfields">Strict JSON field types</string>
+    <string name="auto_gate_exact_hint">Exact expected text</string>
+    <string name="auto_gate_contains_hint">Required text</string>
+    <string name="auto_editor_index">Step %1$s of %2$s</string>
+    <string name="auto_editor_previous">Previous step</string>
+    <string name="auto_editor_next">Next step</string>
+    <string name="auto_editor_add">Add step after this</string>
+    <string name="auto_editor_remove">Remove this step</string>
+    <string name="auto_apply_draft">Apply to draft</string>
+    <string name="auto_editor_invalid">Step %1$s is invalid. Review the prompt and condition.</string>
+    <string name="auto_legacy_convert">Convert the older plan in the step editor before starting a new run. The old saved run can still be resumed unchanged.</string>
+    <string name="auto_business_notice">Enter a goal and preview a three-step draft. Each step receives the goal and the previous verified output only. Structural checks do not prove factual accuracy, code execution or quality. Applying replaces the editor, not a saved run.</string>
+    <string name="auto_preset_report">Report drafting</string>
+    <string name="auto_preset_actions">Action planning</string>
+    <string name="auto_preset_code">Code draft and review</string>
+    <string name="auto_preset_goal">Goal (one line, no secrets)</string>
+    <string name="auto_preview_plan">Preview plan</string>
+    <string name="auto_preview_first">Preview the current goal and template before applying.</string>
+    <string name="auto_report_step1" formatted="false">Goal: %GOAL%. Propose an outline and list missing information; do not invent evidence. Use outline and missing arrays.</string>
+    <string name="auto_report_step2" formatted="false">Goal: %GOAL%. Based on the previous outline and missing information, write a concise draft. Return draft and uncertainties.</string>
+    <string name="auto_report_step3" formatted="false">Goal: %GOAL%. Review the previous draft for gaps and unsupported claims. Return a revised report and a checklist of unresolved checks.</string>
+    <string name="auto_actions_step1" formatted="false">Goal: %GOAL%. Break the goal into concrete tasks and dependencies. Do not claim execution.</string>
+    <string name="auto_actions_step2" formatted="false">Goal: %GOAL%. Use the preceding tasks and dependencies to draft an ordered plan and list risks.</string>
+    <string name="auto_actions_step3" formatted="false">Goal: %GOAL%. Review the plan and return prioritized actions and open questions. Do not claim tasks were performed.</string>
+    <string name="auto_code_step1" formatted="false">Goal: %GOAL%. Identify requirements and test cases for a possible code solution.</string>
+    <string name="auto_code_step2" formatted="false">Goal: %GOAL%. Draft code based on the previous requirements and tests, and state limitations. Do not claim to have executed it.</string>
+    <string name="auto_code_step3" formatted="false">Goal: %GOAL%. Review the previous code for correctness and safety. Return revised code and a test plan, without claiming any tests ran.</string>
 </resources>

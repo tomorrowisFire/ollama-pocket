@@ -767,7 +767,7 @@
     <string name="auto_schema_notice">仅支持符合输入架构且声明为只读的工具。参数必须符合声明的字段、类型和限制。</string>
     <string name="auto_tool_allow">在当前连接中允许此工具</string>
     <string name="auto_tool_revoke">撤销权限</string>
-    <string name="auto_verifier_help">每行：提示词 | 验证条件。支持普通文字、@contains:text、@exact:text、@minchars:10、@jsonkeys:a,b。检查不代表事实准确或质量达标。</string>
+    <string name="auto_verifier_help">每行：提示词 | 验证条件。支持普通文字、@contains:text、@exact:text、@minchars:10、@jsonkeys:a,b。检查不代表事实准确或质量达标。 严格类型：@jsonfields:title:string,items:array。</string>
     <string name="auto_example">加载示例（替换编辑内容）</string>
     <string name="auto_example_text">仅回复 READY。 | @exact:READY\n输出包含 result 字段的 JSON 对象，总结上一步结果。 | @jsonkeys:result</string>
     <string name="auto_reorder">调整步骤顺序</string>
@@ -829,4 +829,41 @@
     <string name="bench_auto_no_profile">自动：没有符合条件的近期 CPU/GPU 比较结果，沿用现有引擎检查方式。</string>
     <string name="coop_copy_code">复制连接码</string>
     <string name="coop_share_sensitive">此连接码可用于访问当前协作会话。仅向可信设备或应用共享或粘贴。如果连接码泄露，请结束会话。</string>
+    <string name="auto_visual_editor">逐步编辑器</string>
+    <string name="auto_business_templates">业务模板</string>
+    <string name="auto_visual_notice">逐步编辑。每个提示词和条件各占一行。应用仅修改草稿，不启动或修改已保存的运行。</string>
+    <string name="auto_step_prompt">步骤提示词</string>
+    <string name="auto_verification_type">验证类型</string>
+    <string name="auto_step_condition">验证条件</string>
+    <string name="auto_gate_contains">包含文字</string>
+    <string name="auto_gate_exact">完全匹配</string>
+    <string name="auto_gate_minchars">最少字符数</string>
+    <string name="auto_gate_jsonkeys">JSON 必需键</string>
+    <string name="auto_gate_jsonfields">严格 JSON 字段类型</string>
+    <string name="auto_gate_exact_hint">必须匹配的文字</string>
+    <string name="auto_gate_contains_hint">必须包含的文字</string>
+    <string name="auto_editor_index">步骤 %1$s / %2$s</string>
+    <string name="auto_editor_previous">上一步</string>
+    <string name="auto_editor_next">下一步</string>
+    <string name="auto_editor_add">在此步骤后添加</string>
+    <string name="auto_editor_remove">删除此步骤</string>
+    <string name="auto_apply_draft">应用到草稿</string>
+    <string name="auto_editor_invalid">步骤 %1$s 无效，请检查提示词和条件。</string>
+    <string name="auto_legacy_convert">新运行前请使用逐步编辑器转换旧格式计划。已保存的旧运行仍可原样恢复。</string>
+    <string name="auto_business_notice">输入目标并预览三步草稿。每步仅接收目标和上一步已验证结果。结构检查不保证事实准确、代码执行或质量。应用仅替换编辑草稿。</string>
+    <string name="auto_preset_report">报告撰写</string>
+    <string name="auto_preset_actions">行动规划</string>
+    <string name="auto_preset_code">代码起草与审查</string>
+    <string name="auto_preset_goal">目标（单行，不含秘密）</string>
+    <string name="auto_preview_plan">预览计划</string>
+    <string name="auto_preview_first">应用前请先预览当前目标和模板。</string>
+    <string name="auto_report_step1" formatted="false">目标：%GOAL%。整理报告大纲和缺失信息，不编造证据。返回 outline 和 missing 数组。</string>
+    <string name="auto_report_step2" formatted="false">目标：%GOAL%。依据上一步大纲和缺失信息撰写简明草稿，返回 draft 和 uncertainties。</string>
+    <string name="auto_report_step3" formatted="false">目标：%GOAL%。审查上一步草稿的遗漏与无依据论断，返回修改后的 report 和待确认 checklist。</string>
+    <string name="auto_actions_step1" formatted="false">目标：%GOAL%。列出具体 tasks 和 dependencies，不声称已执行。</string>
+    <string name="auto_actions_step2" formatted="false">目标：%GOAL%。依据上一步任务与依赖制定有序 plan 并列出 risks。</string>
+    <string name="auto_actions_step3" formatted="false">目标：%GOAL%。审核计划，返回优先 actions 和 open_questions，不声称已完成任务。</string>
+    <string name="auto_code_step1" formatted="false">目标：%GOAL%。整理代码方案的 requirements 和 tests。</string>
+    <string name="auto_code_step2" formatted="false">目标：%GOAL%。依据上一步需求和测试起草 code，说明 limitations，不声称已执行。</string>
+    <string name="auto_code_step3" formatted="false">目标：%GOAL%。审查上一步代码的正确性和安全性，返回修订 code 和 test_plan，不声称实际运行测试。</string>
 </resources>

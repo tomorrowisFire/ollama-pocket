@@ -68,9 +68,9 @@ final class AutomationUi {
         Thread t=new Thread(()->{
             T result=null;boolean ok=false;
             try{result=task.call();ok=true;}catch(Exception ignored){}
-            finally{worker=null;BUSY.set(false);}
+            finally{worker=null;}
             final T value=result;final boolean done=ok;
-            owner.runOnUiThread(()->{if(valid(token)){if(done)success.accept(value);else failure.run();}});
+            owner.runOnUiThread(()->{BUSY.set(false);if(valid(token)){if(done)success.accept(value);else failure.run();}});
         },"onhand-automation");
         worker=t;t.start();
     }
@@ -141,12 +141,18 @@ final class AutomationUi {
         final LocalWorkflow runner=new LocalWorkflow(owner);workflow=runner;
         LocalWorkflow.Checkpoint saved=null;
         try{saved=runner.load();}catch(Exception e){toast(R.string.auto_checkpoint_error);}
+        Button[] buttons=new Button[10];
         EditText plan=field(l,R.string.auto_plan,saved==null?"":saved.plan,24000,true);
+        final LocalWorkflow.Checkpoint[] checkpoint={saved};
+        buttons[8]=button(l,R.string.auto_visual_editor,()->{
+            if(!busy())showVisualEditor(plan,checkpoint[0]);
+        });
+        buttons[9]=button(l,R.string.auto_business_templates,()->{
+            if(!busy())showBusinessTemplates(plan);
+        });
         TextView status=output(l);status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         ProgressBar progress=new ProgressBar(owner,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(10);l.addView(progress,new LinearLayout.LayoutParams(-1,dp(12)));
-        final LocalWorkflow.Checkpoint[] checkpoint={saved};
         if(saved!=null){display(status,saved);progress.setMax(saved.steps().size());progress.setProgress(saved.results.size());}
-        Button[] buttons=new Button[8];
         Runnable enabled=()->{boolean idle=!busy();plan.setEnabled(idle);for(Button b:buttons)if(b!=null)b.setEnabled(idle);};
         Consumer<LocalWorkflow.Checkpoint> start=c->{
             if(!c.model.equals(model)){toast(R.string.need_model);return;}
@@ -160,10 +166,11 @@ final class AutomationUi {
         };
         buttons[0]=button(l,R.string.auto_start,()->{
             if(busy())return;final String spec=plan.getText().toString();
+            if(checkpoint[0]!=null&&checkpoint[0].format==1&&checkpoint[0].plan.equals(spec)){toast(R.string.auto_legacy_convert);return;}
             try{WorkflowPolicy.parse(spec);}catch(Exception e){toast(R.string.auto_invalid_plan);return;}
             if(model==null||model.isEmpty()||!OllamaForegroundService.isRunning()){toast(R.string.test_need_model);return;}
             confirm(s(R.string.auto_start),s(R.string.auto_workflow_notice)+"\n\n"+s(R.string.auto_history_notice)+"\n\n"+spec,()->{
-                if(busy())return;
+                if(busy()||!spec.equals(plan.getText().toString()))return;
                 try{checkpoint[0]=runner.create(spec,model);start.accept(checkpoint[0]);}catch(Exception e){toast(R.string.auto_checkpoint_error);}
             });
         });
@@ -197,6 +204,135 @@ final class AutomationUi {
         });
         button(l,R.string.auto_pause,()->{pause();});
         show(s(R.string.auto_workflow),l);
+    }
+    private String gateLabel(WorkflowPolicy.Gate gate){
+        switch(gate){
+            case EXACT:return s(R.string.auto_gate_exact);
+            case MIN_CHARS:return s(R.string.auto_gate_minchars);
+            case JSON_KEYS:return s(R.string.auto_gate_jsonkeys);
+            case JSON_FIELDS:return s(R.string.auto_gate_jsonfields);
+            default:return s(R.string.auto_gate_contains);
+        }
+    }
+    private String gateHint(WorkflowPolicy.Gate gate){
+        switch(gate){
+            case EXACT:return s(R.string.auto_gate_exact_hint);
+            case MIN_CHARS:return "80";
+            case JSON_KEYS:return "title,result";
+            case JSON_FIELDS:return "title:string,items:array";
+            default:return s(R.string.auto_gate_contains_hint);
+        }
+    }
+    private void showVisualEditor(EditText plan,LocalWorkflow.Checkpoint checkpoint){
+        final String original=plan.getText().toString();
+        final WorkflowPlanEditor editor;
+        try{
+            editor=new WorkflowPlanEditor(original,checkpoint!=null&&checkpoint.plan.equals(original)?checkpoint.format:2);
+        }catch(IllegalArgumentException e){toast(R.string.auto_invalid_plan);return;}
+        final int token=epoch;
+        LinearLayout l=column();
+        label(l,s(R.string.auto_visual_notice));
+        TextView stepLabel=output(l);
+        EditText prompt=field(l,R.string.auto_step_prompt,"",WorkflowPolicy.MAX_STEP_CHARS,true);
+        prompt.setMinLines(3);prompt.setMaxLines(6);
+        label(l,s(R.string.auto_verification_type));
+        Spinner picker=new Spinner(owner);
+        WorkflowPolicy.Gate[] gates=WorkflowPolicy.Gate.values();
+        String[] labels=new String[gates.length];
+        for(int i=0;i<gates.length;i++)labels[i]=gateLabel(gates[i]);
+        ArrayAdapter<String> adapter=new ArrayAdapter<>(owner,android.R.layout.simple_spinner_item,labels);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);picker.setAdapter(adapter);
+        picker.setMinimumHeight(dp(48));l.addView(picker,new LinearLayout.LayoutParams(-1,-2));
+        EditText required=field(l,R.string.auto_step_condition,"",200,false);
+        TextView error=output(l);
+        error.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        final int[] index={0};
+        final Button[] controls=new Button[6];
+        Runnable capture=()->{
+            WorkflowPlanEditor.Row row=editor.row(index[0]);
+            row.prompt=prompt.getText().toString();
+            row.required=required.getText().toString();
+            row.gate=gates[Math.max(0,picker.getSelectedItemPosition())];
+        };
+        Runnable render=()->{
+            WorkflowPlanEditor.Row row=editor.row(index[0]);
+            stepLabel.setText(owner.getString(R.string.auto_editor_index,Integer.toString(index[0]+1),Integer.toString(editor.size())));
+            prompt.setText(row.prompt);required.setText(row.required);picker.setSelection(row.gate.ordinal());
+            required.setHint(gateHint(row.gate));error.setText("");
+            if(controls[0]!=null)controls[0].setEnabled(index[0]>0);
+            if(controls[1]!=null)controls[1].setEnabled(index[0]+1<editor.size());
+            if(controls[2]!=null)controls[2].setEnabled(editor.size()<WorkflowPolicy.MAX_STEPS);
+            if(controls[3]!=null)controls[3].setEnabled(editor.size()>1);
+            if(controls[4]!=null)controls[4].setEnabled(index[0]>0);
+            if(controls[5]!=null)controls[5].setEnabled(index[0]+1<editor.size());
+        };
+        picker.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
+            public void onItemSelected(AdapterView<?> parent,View view,int position,long id){if(position>=0&&position<gates.length)required.setHint(gateHint(gates[position]));}
+            public void onNothingSelected(AdapterView<?> parent){}
+        });
+        controls[0]=button(l,R.string.auto_editor_previous,()->{capture.run();if(index[0]>0)index[0]--;render.run();});
+        controls[1]=button(l,R.string.auto_editor_next,()->{capture.run();if(index[0]+1<editor.size())index[0]++;render.run();});
+        controls[2]=button(l,R.string.auto_editor_add,()->{capture.run();if(editor.size()<WorkflowPolicy.MAX_STEPS){editor.insertAfter(index[0]);index[0]++;render.run();}});
+        controls[3]=button(l,R.string.auto_editor_remove,()->{
+            capture.run();if(editor.size()>1){editor.remove(index[0]);index[0]=Math.min(index[0],editor.size()-1);render.run();}
+        });
+        controls[4]=button(l,R.string.auto_move_up,()->{capture.run();index[0]=editor.move(index[0],-1);render.run();});
+        controls[5]=button(l,R.string.auto_move_down,()->{capture.run();index[0]=editor.move(index[0],1);render.run();});
+        render.run();
+        ScrollView sc=new ScrollView(owner);sc.addView(l);
+        AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.auto_visual_editor).setView(sc)
+            .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.auto_apply_draft,null).create();
+        trackDialog(d);
+        d.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(v->{
+            if(!valid(token)||busy()||!original.equals(plan.getText().toString())){d.dismiss();return;}
+            capture.run();int invalid=editor.firstInvalid();
+            if(invalid>=0){index[0]=invalid;render.run();error.setText(owner.getString(R.string.auto_editor_invalid,Integer.toString(invalid+1)));return;}
+            try{plan.setText(editor.encode());d.dismiss();}
+            catch(IllegalArgumentException e){error.setText(R.string.auto_invalid_plan);}
+        });
+    }
+    private void showBusinessTemplates(EditText plan){
+        final int token=epoch;final String original=plan.getText().toString();
+        LinearLayout l=column();label(l,s(R.string.auto_business_notice));
+        Spinner type=new Spinner(owner);
+        String[] options={s(R.string.auto_preset_report),s(R.string.auto_preset_actions),s(R.string.auto_preset_code)};
+        ArrayAdapter<String> adapter=new ArrayAdapter<>(owner,android.R.layout.simple_spinner_item,options);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);type.setAdapter(adapter);
+        type.setMinimumHeight(dp(48));l.addView(type,new LinearLayout.LayoutParams(-1,-2));
+        EditText goal=field(l,R.string.auto_preset_goal,"",1000,true);
+        TextView preview=output(l);
+        final String[] candidate={null};
+        final int[][] prompts={
+            {R.string.auto_report_step1,R.string.auto_report_step2,R.string.auto_report_step3},
+            {R.string.auto_actions_step1,R.string.auto_actions_step2,R.string.auto_actions_step3},
+            {R.string.auto_code_step1,R.string.auto_code_step2,R.string.auto_code_step3}
+        };
+        final String[][] fields={
+            {"outline:array,missing:array","draft:string,uncertainties:array","report:string,checklist:array"},
+            {"tasks:array,dependencies:array","plan:string,risks:array","actions:array,open_questions:array"},
+            {"requirements:array,tests:array","code:string,limitations:array","code:string,test_plan:array"}
+        };
+        Runnable generate=()->{
+            candidate[0]=null;
+            try{
+                int i=type.getSelectedItemPosition();
+                String[] values=new String[]{s(prompts[i][0]),s(prompts[i][1]),s(prompts[i][2])};
+                candidate[0]=WorkflowPlanEditor.preset(goal.getText().toString(),values,fields[i]);
+                preview.setText(candidate[0]);
+            }catch(Exception e){preview.setText(R.string.auto_invalid_plan);}
+        };
+        button(l,R.string.auto_preview_plan,generate);
+        ScrollView sc=new ScrollView(owner);sc.addView(l);
+        AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.auto_business_templates).setView(sc)
+            .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.auto_apply_draft,null).create();
+        trackDialog(d);
+        d.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(v->{
+            if(!valid(token)||busy()||!original.equals(plan.getText().toString())){d.dismiss();return;}
+            String reviewed=candidate[0];generate.run();
+            // A change in goal or preset requires a fresh preview before replacing the editor.
+            if(candidate[0]==null||!candidate[0].equals(reviewed)){toast(R.string.auto_preview_first);return;}
+            plan.setText(candidate[0]);d.dismiss();
+        });
     }
     private String date(long millis){
         java.util.Date value=new java.util.Date(millis);
