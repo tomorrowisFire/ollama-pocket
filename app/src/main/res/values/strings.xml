@@ -827,4 +827,6 @@
     <string name="auto_reason_transport">The local inference request failed or timed out. Review before resuming.</string>
     <string name="bench_auto_profile">Auto: recent same-model comparison selects %1$s</string>
     <string name="bench_auto_no_profile">Auto: no eligible recent CPU/GPU comparison; existing engine checks apply.</string>
+    <string name="coop_copy_code">Copy connection code</string>
+    <string name="coop_share_sensitive">This code grants access to your current cooperative session. Share or paste it only on a trusted device or in a trusted app. End the session if the code is exposed.</string>
 </resources>

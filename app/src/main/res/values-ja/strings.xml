@@ -827,4 +827,6 @@
     <string name="auto_reason_transport">ローカル推論が失敗またはタイムアウトしました。確認して再開してください。</string>
     <string name="bench_auto_profile">自動：最近の同一モデル比較により %1$s を選択</string>
     <string name="bench_auto_no_profile">自動：条件を満たす最近のCPU/GPU比較がないため、従来のエンジン確認方式を使用します。</string>
+    <string name="coop_copy_code">接続コードをコピー</string>
+    <string name="coop_share_sensitive">このコードで現在の協力セッションにアクセスできます。信頼できる端末やアプリにのみ共有または貼り付けてください。コードが漏れた場合はセッションを終了してください。</string>
 </resources>

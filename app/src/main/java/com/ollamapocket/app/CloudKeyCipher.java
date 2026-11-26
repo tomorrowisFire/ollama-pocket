@@ -10,8 +10,8 @@ import javax.crypto.spec.GCMParameterSpec;
 final class CloudKeyCipher {
     private CloudKeyCipher(){}
     static byte[] encrypt(SecretKey key,String provider,String value)throws Exception{
-        if(value==null||value.isEmpty()||value.length()>4096||value.indexOf('\r')>=0||value.indexOf('\n')>=0)
-            throw new IllegalArgumentException("Invalid key");
+        if(!PrivacyPolicy.validProviderScope(provider)||!PrivacyPolicy.validApiKey(value))
+            throw new IllegalArgumentException("Invalid key or provider");
         Cipher cipher=Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(Cipher.ENCRYPT_MODE,key);
         cipher.updateAAD(provider.getBytes(StandardCharsets.UTF_8));
@@ -26,12 +26,15 @@ final class CloudKeyCipher {
         }finally{Arrays.fill(plain,(byte)0);}
     }
     static String decrypt(SecretKey key,String provider,byte[] data)throws Exception{
-        if(data==null||data.length<29||data.length>16500)throw new SecurityException("Invalid ciphertext");
+        if(!PrivacyPolicy.validProviderScope(provider)||data==null||data.length<29||data.length>16500)throw new SecurityException("Invalid ciphertext or provider");
         Cipher cipher=Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(Cipher.DECRYPT_MODE,key,new GCMParameterSpec(128,data,0,12));
         cipher.updateAAD(provider.getBytes(StandardCharsets.UTF_8));
         byte[] plain=cipher.doFinal(data,12,data.length-12);
-        try{return new String(plain,StandardCharsets.UTF_8);}
-        finally{Arrays.fill(plain,(byte)0);}
+        try{
+            String result=new String(plain,StandardCharsets.UTF_8);
+            if(!PrivacyPolicy.validApiKey(result))throw new SecurityException("Invalid stored credential");
+            return result;
+        }finally{Arrays.fill(plain,(byte)0);}
     }
 }

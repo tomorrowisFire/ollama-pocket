@@ -65,7 +65,7 @@ final class CloudApi {
         if(rows!=null)for(int i=0;i<Math.min(rows.length(),5000);i++){
             JSONObject item=rows.optJSONObject(i);if(item==null)continue;
             String id=item.optString("id","");
-            if(!id.isEmpty()&&id.length()<=200&&!id.matches(".*[\\p{Cntrl}].*"))ids.add(id);
+            if(PrivacyPolicy.validModelId(id))ids.add(id);
         }
         if(ids.isEmpty())throw new java.io.IOException("Empty catalog");
         return new java.util.ArrayList<>(ids);
@@ -90,6 +90,7 @@ final class CloudApi {
         return request(provider,model,java.util.Collections.singletonList(new CloudHistory.Message("user",text)));
     }
     static JSONObject request(Provider provider,String model,java.util.List<CloudHistory.Message> messages) throws Exception {
+        if(provider==null||!PrivacyPolicy.validModelId(model))throw new IllegalArgumentException("Invalid model ID");
         if(messages==null||messages.isEmpty()||messages.size()>25||!"user".equals(messages.get(messages.size()-1).role))
             throw new IllegalArgumentException("Invalid cloud context");
         JSONArray input=new JSONArray();int chars=0;
@@ -143,8 +144,8 @@ final class CloudApi {
         return open(provider,key,provider.url,true);
     }
     private static HttpsURLConnection open(Provider provider,String key,String url,boolean post)throws Exception{
-        if(key.isEmpty()||key.indexOf('\r')>=0||key.indexOf('\n')>=0||key.length()>4096)throw new IllegalArgumentException("Invalid key");
-        HttpsURLConnection c=(HttpsURLConnection)new URL(url).openConnection();
+        if(provider==null||provider.remote()||!PrivacyPolicy.validApiKey(key))throw new IllegalArgumentException("Invalid key");
+        HttpsURLConnection c=(HttpsURLConnection)new URL(url).openConnection(java.net.Proxy.NO_PROXY);
         c.setInstanceFollowRedirects(false);
         c.setConnectTimeout(20000);c.setReadTimeout(180000);
         c.setRequestMethod(post?"POST":"GET");c.setDoOutput(post);c.setUseCaches(false);

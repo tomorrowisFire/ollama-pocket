@@ -49,9 +49,10 @@ public final class CoopUi {
         col.setBackgroundColor(background(a));scroll.addView(col);
         add(col,label(a,a.getString(R.string.coop_intro_detail)));
         TextView state=label(a,a.getString(R.string.coop_status_check));add(col,state);
-        TextView secret=label(a,"");secret.setTextIsSelectable(true);add(col,secret);
+        TextView secret=label(a,"");secret.setTextIsSelectable(false);secret.setSaveEnabled(false);add(col,secret);
         Button host=button(a,a.getString(R.string.coop_host));add(col,host);
         Button share=button(a,a.getString(R.string.coop_share));add(col,share);
+        Button copyCode=button(a,a.getString(R.string.coop_copy_code));add(col,copyCode);
         Button stop=button(a,a.getString(R.string.guest_end));add(col,stop);
         add(col,label(a,a.getString(R.string.coop_metrics_detail)));
         add(col,label(a,a.getString(R.string.coop_guest_prompt)));
@@ -60,14 +61,15 @@ public final class CoopUi {
         EditText ip=edit(a,a.getString(R.string.guest_ip));add(col,ip);
         EditText sessionId=edit(a,a.getString(R.string.guest_id));add(col,sessionId);
         EditText code=edit(a,a.getString(R.string.guest_code));
-        code.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        code.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD|InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        code.setSaveEnabled(false);code.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
         add(col,code);
         Button join=button(a,a.getString(R.string.guest_session));add(col,join);
         Button preflight=button(a,a.getString(R.string.coop_preflight));add(col,preflight);
         Button enable=button(a,a.getString(R.string.coop_enable));add(col,enable);
         add(col,label(a,a.getString(R.string.guest_desc)));
         if(guestOnly){
-            host.setVisibility(View.GONE);share.setVisibility(View.GONE);
+            host.setVisibility(View.GONE);share.setVisibility(View.GONE);copyCode.setVisibility(View.GONE);
             preflight.setVisibility(View.GONE);enable.setVisibility(View.GONE);
         }
         AlertDialog dialog=new AlertDialog.Builder(a).setTitle(guestOnly?a.getString(R.string.guest):a.getString(R.string.coop_title))
@@ -80,6 +82,7 @@ public final class CoopUi {
             if("host".equals(session.role())){
                 secret.setText(a.getString(R.string.coop_host_details,session.hostIp()+":"+CoopSession.CONTROL_PORT,session.sessionId(),session.joinCode(),formatNodes(a,session)));
             }else secret.setText("");
+            copyCode.setEnabled("host".equals(session.role()));share.setEnabled("host".equals(session.role()));
             StringBuilder sb=new StringBuilder(a.getString(R.string.coop_found_hosts));
             for(Map.Entry<String,String> item:session.discovered().entrySet()) {
                 sb.append(item.getKey()).append(" → ").append(item.getValue()).append("\n");
@@ -116,16 +119,36 @@ public final class CoopUi {
                 .setPositiveButton(R.string.ok,(d,w)->{
                     try{CoopService.start(a,CoopService.GUEST,hostIP,sid,secretKey,
                         (Build.MANUFACTURER+" "+Build.MODEL).trim());
-                        session.stopDiscovery();
+                        code.setText("");session.stopDiscovery();
                     }catch(Exception e){message(a,e.getMessage());}
+                }).show();
+        });
+        copyCode.setOnClickListener(v->{
+            if(!"host".equals(session.role()))return;
+            final String id=session.sessionId();
+            new AlertDialog.Builder(a).setMessage(R.string.coop_share_sensitive)
+                .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.copy,(d,w)->{
+                    synchronized(session){
+                        if(!"host".equals(session.role())||!id.equals(session.sessionId()))return;
+                        ClipboardManager clipboard=(ClipboardManager)a.getSystemService(Context.CLIPBOARD_SERVICE);
+                        if(clipboard!=null)clipboard.setPrimaryClip(SensitiveClipboard.text(a.getString(R.string.coop_copy_code),session.joinCode()));
+                    }
                 }).show();
         });
         share.setOnClickListener(v->{
             if(!"host".equals(session.role())){message(a,a.getString(R.string.coop_create_first));return;}
-            String value=a.getString(R.string.coop_share_body,session.hostIp(),session.sessionId(),session.joinCode());
-            Intent send=new Intent(Intent.ACTION_SEND);
-            send.setType("text/plain");send.putExtra(Intent.EXTRA_TEXT,value);
-            a.startActivity(Intent.createChooser(send,a.getString(R.string.coop_share)));
+            final String id=session.sessionId();
+            new AlertDialog.Builder(a).setMessage(R.string.coop_share_sensitive)
+                .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.coop_share,(d,w)->{
+                    final String value;
+                    synchronized(session){
+                        if(!"host".equals(session.role())||!id.equals(session.sessionId()))return;
+                        value=a.getString(R.string.coop_share_body,session.hostIp(),session.sessionId(),session.joinCode());
+                    }
+                    Intent send=new Intent(Intent.ACTION_SEND);
+                    send.setType("text/plain");send.putExtra(Intent.EXTRA_TEXT,value);
+                    a.startActivity(Intent.createChooser(send,a.getString(R.string.coop_share)));
+                }).show();
         });
         stop.setOnClickListener(v->new AlertDialog.Builder(a).setMessage(a.getString(R.string.coop_end_question))
             .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.guest_end,(d,w)->{
@@ -152,9 +175,9 @@ public final class CoopUi {
             a.getPreferences(Context.MODE_PRIVATE).edit().putString("compute_preference","cooperative").apply();
             message(a,a.getString(R.string.coop_enabled));
         });
-        dialog.setOnDismissListener(d->{handler.removeCallbacks(refresh[0]);
+        dialog.setOnDismissListener(d->{handler.removeCallbacks(refresh[0]);code.setText("");secret.setText("");
             if(!"host".equals(session.role()) && !"guest".equals(session.role()))session.stopDiscovery();});
-        dialog.show();handler.post(refresh[0]);
+        dialog.show();if(dialog.getWindow()!=null)dialog.getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE);handler.post(refresh[0]);
     }
     private static String formatNodes(Activity a,CoopSession s){
         StringBuilder b=new StringBuilder();

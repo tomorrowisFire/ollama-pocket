@@ -13,6 +13,8 @@ on:
       - 'settings.gradle'
       - 'scripts/build_rpc_cpu.sh'
       - 'app/src/main/java/**'
+      - 'tests/RpcSocketRegistryTest.java'
+      - 'tests/SecureRpcTransportTest.java'
       - 'app/src/main/java/com/ollamapocket/app/DistributedRunner.java'
       - 'app/src/main/java/com/ollamapocket/app/SecureRpcTransport.java'
       - 'app/src/main/AndroidManifest.xml'
@@ -70,6 +72,8 @@ jobs:
             app/src/main/java/com/ollamapocket/app/SecureRpcTransport.java \
             tests/SecureRpcTransportTest.java
           java -cp /tmp/coop-tests SecureRpcTransportTest
+          javac -d /tmp/coop-tests app/src/main/java/com/ollamapocket/app/RpcSocketRegistry.java tests/RpcSocketRegistryTest.java
+          java -cp /tmp/coop-tests com.ollamapocket.app.RpcSocketRegistryTest
       - name: Test live-RAM budget and RPC split planner (pure Java)
         run: |
           mkdir -p /tmp/coop-tests
@@ -338,6 +342,7 @@ jobs:
             echo "::warning::APK uses an ephemeral debug certificate. Do not install over the user's fixed-signed app."
           fi
           "$aapt" dump badging "$apk" | grep -F "application: label='OnHand AI'"
+          "$aapt" dump badging "$apk" | grep -F "targetSdkVersion:'36'"
           unzip -l "$apk" | grep -E 'res/(mipmap|drawable)' >/dev/null
           sha256sum "$apk"
           echo "## Build-only verification" >> "$GITHUB_STEP_SUMMARY"
@@ -370,15 +375,6 @@ jobs:
           path: dist/*.apk
           if-no-files-found: error
           retention-days: 14
-      - name: Publish verified fixed-signed update APK
-        if: env.AI_POCKET_STABLE_SIGNING == '1'
-        uses: actions/upload-artifact@v4
-        with:
-          name: AI-in-Pocket-Stable-Update-APK
-          path: dist/*.apk
-          if-no-files-found: error
-          retention-days: 30
-
       - name: Audit release candidate prerequisites and complete native payload
         run: python3 -m unittest discover -s tests -p test_release_audit.py
       - name: Build unsigned QA bundle (sample ad ID, not for Play submission)
@@ -399,6 +395,8 @@ jobs:
           "$ANDROID_SDK_ROOT/build-tools/35.0.0/zipalign" -c -P 16 -v 4 app/build/outputs/apk/debug/app-debug.apk > release-audit/zipalign.txt 2>&1
           zip_result=$?
           printf 'APK=%s AAB=%s ZIPALIGN=%s\n' "$apk_result" "$aab_result" "$zip_result" | tee release-audit/status.txt
+          printf '%s\n' "$GITHUB_SHA" > release-audit/commit.txt
+          cp signature-report.txt release-audit/signature-report.txt
           test "$apk_result" = 0 && test "$aab_result" = 0 && test "$zip_result" = 0
       - name: Upload 16 KB audit evidence
         if: always()
@@ -408,6 +406,14 @@ jobs:
           path: release-audit/
           if-no-files-found: warn
           retention-days: 14
+      - name: Publish verified fixed-signed update APK
+        if: success() && env.AI_POCKET_STABLE_SIGNING == '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: AI-in-Pocket-Stable-Update-APK
+          path: dist/*.apk
+          if-no-files-found: error
+          retention-days: 30
       - name: Upload unsigned QA-only app bundle
         if: success()
         uses: actions/upload-artifact@v4

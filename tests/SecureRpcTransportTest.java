@@ -48,6 +48,37 @@ public class SecureRpcTransportTest {
             if(!rejected)throw new AssertionError("Wrong secret accepted");
             t.join(5000);
         }
-        System.out.println("SecureRpcTransport: encrypted duplex/EOF and wrong-key rejection passed");
+        // A raw TCP disconnect is not an authenticated end marker.
+        try(ServerSocket server=new ServerSocket(0,2,InetAddress.getLoopbackAddress())){
+            AtomicReference<Throwable> failure=new AtomicReference<>();
+            Thread t=new Thread(()->{
+                try(Socket socket=server.accept();SecureRpcTransport.Channel ch=SecureRpcTransport.accept(socket,key)){}
+                catch(Throwable e){failure.set(e);}
+            });t.start();
+            try(Socket socket=new Socket(InetAddress.getLoopbackAddress(),server.getLocalPort());
+                SecureRpcTransport.Channel ch=SecureRpcTransport.connect(socket,key)){
+                boolean rejected=false;
+                try{ch.receive(new byte[32768]);}catch(IOException expected){rejected=true;}
+                if(!rejected)throw new AssertionError("Unauthenticated EOF accepted");
+            }
+            t.join(5000);if(t.isAlive()||failure.get()!=null)throw new AssertionError("Guest failed",failure.get());
+        }
+        try(ServerSocket server=new ServerSocket(0,2,InetAddress.getLoopbackAddress())){
+            AtomicReference<Throwable> failure=new AtomicReference<>();
+            Thread t=new Thread(()->{
+                try(Socket socket=server.accept();SecureRpcTransport.Channel ch=SecureRpcTransport.accept(socket,key)){
+                    if(ch.receive(new byte[32768])!=-1)throw new AssertionError("Missing EOF");
+                    if(ch.receive(new byte[32768])!=-1)throw new AssertionError("EOF should remain terminal");
+                }catch(Throwable e){failure.set(e);}
+            });t.start();
+            try(Socket socket=new Socket(InetAddress.getLoopbackAddress(),server.getLocalPort());
+                SecureRpcTransport.Channel ch=SecureRpcTransport.connect(socket,key)){
+                ch.shutdownOutput();
+                boolean rejected=false;try{ch.send(new byte[]{1},0,1);}catch(IOException expected){rejected=true;}
+                if(!rejected)throw new AssertionError("Data after authenticated EOF accepted");
+            }
+            t.join(5000);if(t.isAlive()||failure.get()!=null)throw new AssertionError("Guest failed",failure.get());
+        }
+        System.out.println("PASS: encrypted duplex, wrong-key, authenticated EOF, truncation and post-EOF rejection");
     }
 }

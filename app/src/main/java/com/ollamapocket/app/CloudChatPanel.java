@@ -212,7 +212,7 @@ final class CloudChatPanel extends LinearLayout {
         if(!user){
             Button copy=button(R.string.copy);
             copy.setOnClickListener(v->{ClipboardManager cb=(ClipboardManager)owner.getSystemService(Context.CLIPBOARD_SERVICE);
-                if(cb!=null){cb.setPrimaryClip(ClipData.newPlainText(provider.title,value));toast(R.string.copied);}});
+                if(cb!=null){cb.setPrimaryClip(SensitiveClipboard.text(provider.title,value));toast(R.string.copied);}});
             actions.addView(copy,new LayoutParams(0,dp(48),1f));
         }
         transcript.addView(actions,new LayoutParams(-1,-2));
@@ -364,7 +364,7 @@ final class CloudChatPanel extends LinearLayout {
             String id=chosenModel.getText().toString().trim(),apiKey=key.getText().toString().trim();
             String target=address.getText().toString().trim();
             if(selected.remote()){try{CloudApi.remoteBase(target);}catch(RuntimeException e){toast(R.string.cloud_pc_address);return;}}
-            if(id.isEmpty()||(!selected.remote()&&apiKey.isEmpty())||apiKey.indexOf('\r')>=0||apiKey.indexOf('\n')>=0){toast(R.string.cloud_fields);return;}
+            if(!PrivacyPolicy.validModelId(id)||(!selected.remote()&&!PrivacyPolicy.validApiKey(apiKey))){toast(R.string.cloud_fields);return;}
             try{history.session(selected.remote()?selected.name()+"@"+target:selected.name(),id);}catch(IllegalStateException e){toast(R.string.cloud_session_capacity);return;}
             catch(IllegalArgumentException e){toast(R.string.cloud_fields);return;}
             double ir,or,limit;try{ir=rate(inRate.getText().toString());or=rate(outRate.getText().toString());limit=rate(spending.getText().toString());}catch(RuntimeException e){toast(R.string.cloud_fields);return;}

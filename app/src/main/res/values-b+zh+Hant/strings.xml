@@ -827,4 +827,6 @@
     <string name="auto_reason_transport">本機推論失敗或逾時，請檢查後繼續。</string>
     <string name="bench_auto_profile">自動：近期同模型比較選擇 %1$s</string>
     <string name="bench_auto_no_profile">自動：沒有符合條件的近期 CPU/GPU 比較結果，沿用現有引擎檢查方式。</string>
+    <string name="coop_copy_code">複製連線碼</string>
+    <string name="coop_share_sensitive">此連線碼可用於存取目前的協作工作階段。僅向可信裝置或應用程式分享或貼上。若連線碼外洩，請結束工作階段。</string>
 </resources>

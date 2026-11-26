@@ -82,6 +82,8 @@ public final class SecureRpcTransport {
         private final DataOutputStream out;
         private final byte[] sendKey, receiveKey;
         private long sent, received;
+        private boolean sendEnded,receiveEnded;
+        private volatile boolean closed;
         private final Object sendLock=new Object();
         private final Object recvLock=new Object();
         private Channel(Socket socket, byte[] sendKey, byte[] receiveKey) throws IOException {
@@ -99,21 +101,25 @@ public final class SecureRpcTransport {
         /** Caller owns source stream. Sending zero bytes signals EOF. */
         public void send(byte[] data, int off, int length) throws IOException {
             synchronized(sendLock) {
-            if (length < 0 || length > MAX_FRAME) throw new IOException("Invalid plaintext size");
+            if(closed||sendEnded||sent==Long.MAX_VALUE)throw new IOException("RPC send channel closed");
+            if(data==null||off<0||length<0||length>MAX_FRAME||off>data.length-length)throw new IOException("Invalid plaintext size");
             try {
                 Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
                 cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(sendKey, "AES"),
                     new GCMParameterSpec(128, nonce(sendKey, sent++)));
                 byte[] encoded = cipher.doFinal(data, off, length);
                 out.writeInt(encoded.length); out.write(encoded); out.flush();
+                if(length==0)sendEnded=true;
             } catch (GeneralSecurityException e) { throw new IOException(e); }
             }
         }
         /** Returns -1 on authenticated EOF, otherwise decrypted bytes. */
         public int receive(byte[] buffer) throws IOException {
             synchronized(recvLock) {
+            if(receiveEnded)return -1;
+            if(closed||received==Long.MAX_VALUE)throw new IOException("RPC receive channel closed");
             int size;
-            try { size = in.readInt(); } catch (EOFException e) { return -1; }
+            try { size = in.readInt(); } catch (EOFException e) { throw new IOException("RPC ended without authenticated EOF",e); }
             if (size < 16 || size > MAX_FRAME + 16) throw new IOException("Invalid encrypted frame length");
             byte[] bytes = new byte[size]; in.readFully(bytes);
             try {
@@ -121,15 +127,20 @@ public final class SecureRpcTransport {
                 cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(receiveKey, "AES"),
                     new GCMParameterSpec(128, nonce(receiveKey, received++)));
                 byte[] clear = cipher.doFinal(bytes);
-                if (clear.length == 0) return -1;
-                if (clear.length > buffer.length) throw new IOException("Output buffer too small");
-                System.arraycopy(clear, 0, buffer, 0, clear.length);
-                Arrays.fill(clear, (byte)0);
-                return bytes.length - 16;
+                try{
+                    if(clear.length==0){receiveEnded=true;return -1;}
+                    if(buffer==null||clear.length>buffer.length)throw new IOException("Output buffer too small");
+                    System.arraycopy(clear,0,buffer,0,clear.length);
+                    return clear.length;
+                }finally{Arrays.fill(clear,(byte)0);}
             } catch (GeneralSecurityException e) { throw new IOException("RPC relay integrity check failed", e); }
             }
         }
-        @Override public void close() { try { socket.close(); } catch (IOException ignored) { } }
+        @Override public void close() {
+            closed=true;try{socket.close();}catch(IOException ignored){}
+            synchronized(sendLock){Arrays.fill(sendKey,(byte)0);}
+            synchronized(recvLock){Arrays.fill(receiveKey,(byte)0);}
+        }
         public void shutdownOutput() throws IOException { send(new byte[0], 0, 0); }
     }
 }

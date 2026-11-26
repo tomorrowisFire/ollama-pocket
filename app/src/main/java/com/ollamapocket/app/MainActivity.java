@@ -388,6 +388,7 @@ public final class MainActivity extends Activity {
             android.R.style.Theme_Material_Light_NoActionBar);
         super.onCreate(state);
         applyUiPreferences();
+        io.execute(()->{try{PdfTextClient.cleanAbandoned(getApplicationContext());}catch(Exception ignored){}});
         guestOnly=getPreferences(MODE_PRIVATE).getBoolean("guest_compute_only",false);
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
@@ -1419,7 +1420,7 @@ public final class MainActivity extends Activity {
                             .setNegativeButton(getString(R.string.close), null)
                             .setPositiveButton(getString(R.string.copy_result), (dialog, action) -> {
                                 ClipboardManager clipboard = (ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
-                                clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.test_report), result));
+                                clipboard.setPrimaryClip(SensitiveClipboard.text(getString(R.string.test_report), result));
                                 toast(getString(R.string.diag_copied));
                             }).show();
                     });
@@ -3244,7 +3245,7 @@ public final class MainActivity extends Activity {
             copy.setOnClickListener(v->{
                 Object raw=t.getTag();if(!(raw instanceof String))return;
                 ClipboardManager cb=(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
-                if(cb!=null){cb.setPrimaryClip(ClipData.newPlainText(getString(R.string.app_name),(String)raw));toast(getString(R.string.copied));}
+                if(cb!=null){cb.setPrimaryClip(SensitiveClipboard.text(getString(R.string.app_name),(String)raw));toast(getString(R.string.copied));}
             });
             read.setOnClickListener(v->{
                 Object raw=t.getTag();if(!(raw instanceof String)||chatBusy||!foreground)return;
@@ -3715,7 +3716,7 @@ public final class MainActivity extends Activity {
                 .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,(d,w)->{
                     if(isUiBusy()||cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
                     android.content.ClipboardManager cb=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
-                    if(cb!=null)cb.setPrimaryClip(ClipData.newPlainText(preview.sourceName(),preview.sourceName()+"\n"+reviewed));
+                    if(cb!=null)cb.setPrimaryClip(SensitiveClipboard.text(preview.sourceName(),preview.sourceName()+"\n"+reviewed));
                 }).show();
         });
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{

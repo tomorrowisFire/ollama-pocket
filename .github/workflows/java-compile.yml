@@ -45,6 +45,9 @@ on:
       - 'tests/WorkflowLibraryTest.java'
       - 'tests/WorkflowRunJournalTest.java'
       - 'tests/BenchmarkProfileTest.java'
+      - 'tests/PrivacyPolicyTest.java'
+      - 'tests/RpcSocketRegistryTest.java'
+      - 'scripts/fetch_test_json.sh'
       - 'tests/CoopMemoryPlannerTest.java'
       - 'tests/CoopPlanLocaleDataTest.java'
 
@@ -93,7 +96,7 @@ jobs:
       - name: Test cloud scope and authenticated encryption (pure Java)
         run: |
           mkdir -p /tmp/cloud-tests
-          javac -d /tmp/cloud-tests app/src/main/java/com/ollamapocket/app/CloudHistory.java app/src/main/java/com/ollamapocket/app/CloudKeyCipher.java tests/CloudPolicyTest.java tests/CloudBranchTest.java
+          javac -d /tmp/cloud-tests app/src/main/java/com/ollamapocket/app/CloudHistory.java app/src/main/java/com/ollamapocket/app/CloudKeyCipher.java app/src/main/java/com/ollamapocket/app/PrivacyPolicy.java tests/CloudPolicyTest.java tests/CloudBranchTest.java
           java -cp /tmp/cloud-tests com.ollamapocket.app.CloudPolicyTest
           java -cp /tmp/cloud-tests com.ollamapocket.app.CloudBranchTest
       - name: Test responsive workspace policy (pure Java)
@@ -149,11 +152,32 @@ jobs:
           mkdir -p /tmp/cloud-usage-tests
           javac -d /tmp/cloud-usage-tests app/src/main/java/com/ollamapocket/app/CloudUsageLedger.java tests/CloudUsageLedgerTest.java
           java -cp /tmp/cloud-usage-tests com.ollamapocket.app.CloudUsageLedgerTest
+      - name: Test credential, PDF cache and RPC socket ownership policies
+        run: |
+          mkdir -p /tmp/privacy-tests
+          javac -d /tmp/privacy-tests app/src/main/java/com/ollamapocket/app/PrivacyPolicy.java app/src/main/java/com/ollamapocket/app/RpcSocketRegistry.java tests/PrivacyPolicyTest.java tests/RpcSocketRegistryTest.java
+          java -cp /tmp/privacy-tests com.ollamapocket.app.PrivacyPolicyTest
+          java -cp /tmp/privacy-tests com.ollamapocket.app.RpcSocketRegistryTest
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          root=Path("app/src/main")
+          ns="{http://schemas.android.com/apk/res/android}"
+          app=ET.parse(root/"AndroidManifest.xml").getroot().find("application")
+          assert app.get(ns+"allowBackup")=="false"
+          assert app.get(ns+"fullBackupContent")=="false"
+          assert app.get(ns+"dataExtractionRules")=="@xml/onhand_data_extraction_rules"
+          rules=ET.parse(root/"res/xml/onhand_data_extraction_rules.xml").getroot()
+          expected={"root","file","database","sharedpref","external","device_root","device_file","device_database","device_sharedpref"}
+          for section in ("cloud-backup","device-transfer"):
+              assert {e.get("domain") for e in rules.find(section).findall("exclude") if e.get("path")=="."}==expected
+          print("PASS: explicit backup and transfer exclusion rules")
+          PY
       - name: Test offline SSE protocol fixtures
         run: |
           mkdir -p /tmp/cloud-stream-tests
-          curl --fail --silent --show-error --location --max-time 60 https://repo.maven.apache.org/maven2/org/json/json/20240303/json-20240303.jar -o /tmp/cloud-stream-tests/json.jar
-          javac -cp /tmp/cloud-stream-tests/json.jar -d /tmp/cloud-stream-tests app/src/main/java/com/ollamapocket/app/CloudApi.java app/src/main/java/com/ollamapocket/app/CloudHistory.java tests/CloudStreamTest.java
+          bash scripts/fetch_test_json.sh /tmp/cloud-stream-tests/json.jar
+          javac -cp /tmp/cloud-stream-tests/json.jar -d /tmp/cloud-stream-tests app/src/main/java/com/ollamapocket/app/CloudApi.java app/src/main/java/com/ollamapocket/app/CloudHistory.java app/src/main/java/com/ollamapocket/app/PrivacyPolicy.java tests/CloudStreamTest.java
           java -cp /tmp/cloud-stream-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.CloudStreamTest
       - name: Test bounded local inference protocol
         run: |

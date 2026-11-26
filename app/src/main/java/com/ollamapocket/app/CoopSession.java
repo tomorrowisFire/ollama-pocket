@@ -90,7 +90,7 @@ public final class CoopSession {
     private volatile PowerManager.WakeLock wakeLock;
     private volatile WifiManager.WifiLock wifiLock;
     private volatile WifiManager.MulticastLock multicastLock;
-    private final Semaphore gatewayCapacity = new Semaphore(3);
+    private RpcSocketRegistry controlSockets,guestSockets;
 
     public static final class Node {
         public final String id, name, ip;
@@ -234,7 +234,7 @@ public final class CoopSession {
     public void setError(String value) { lastError=value==null?"unknown":value; }
     public String hostIp() { return hostIp; }
     public String sessionId() { return sessionId; }
-    public String joinCode() {
+    public synchronized String joinCode() {
         return secret == null ? "" : Base64.encodeToString(secret, Base64.URL_SAFE|Base64.NO_PADDING|Base64.NO_WRAP);
     }
     public List<Node> nodes() { return new ArrayList<>(nodes.values()); }
@@ -382,21 +382,28 @@ public final class CoopSession {
         holdResources();
         controlListener=new ServerSocket(CONTROL_PORT,8,InetAddress.getByName(hostIp));
         final ServerSocket s=controlListener;
+        final RpcSocketRegistry sockets=new RpcSocketRegistry(12);controlSockets=sockets;
         threads.execute(()-> {
-            while(!s.isClosed() && "host".equals(role)) {
-                try { Socket peer=s.accept();threads.execute(()->handleControl(peer)); }
-                catch(IOException e){if(!s.isClosed())lastError=e.getMessage();}
+            while(!s.isClosed() && controlListener==s && sockets.active()) {
+                try {
+                    Socket peer=s.accept();
+                    if(!sockets.track(peer))continue;
+                    try{threads.execute(()->{try{handleControl(peer,s);}finally{sockets.untrack(peer);}});}
+                    catch(RuntimeException e){sockets.untrack(peer);try{peer.close();}catch(IOException ignored){}}
+                }catch(IOException e){if(!s.isClosed()&&controlListener==s)lastError=e.getMessage();}
             }
         });
         registerHost();
         threads.execute(()->{
-            while("host".equals(role)){
+            while(controlListener==s){
                 try{Thread.sleep(5000);}catch(InterruptedException e){return;}
-                if(SystemClock.elapsedRealtime()-startedAt>SESSION_MS){stop();return;}
-                long now=SystemClock.elapsedRealtime();
-                for(Node n:nodes.values())if(now-n.lastSeen>NODE_TIMEOUT_MS){
-                    nodes.remove(n.id);
-                    if(n.relay!=null)n.relay.close();
+                synchronized(CoopSession.this){
+                    if(controlListener!=s||!"host".equals(role))return;
+                    if(SystemClock.elapsedRealtime()-startedAt>SESSION_MS){stop();return;}
+                    long now=SystemClock.elapsedRealtime();
+                    for(Node n:nodes.values())if(now-n.lastSeen>NODE_TIMEOUT_MS&&nodes.remove(n.id,n)){
+                        if(n.relay!=null)n.relay.close();
+                    }
                 }
             }
         });
@@ -462,7 +469,7 @@ public final class CoopSession {
         if(c==-1 && b.length()==0)throw new IOException("Connection closed");
         return b.toString();
     }
-    private void handleControl(Socket socket) {
+    private void handleControl(Socket socket,ServerSocket owner) {
         try(Socket s=socket){
             s.setSoTimeout(5000);
             BufferedReader reader=new BufferedReader(new InputStreamReader(s.getInputStream(),StandardCharsets.UTF_8));
@@ -481,9 +488,11 @@ public final class CoopSession {
             boolean worker=req.optBoolean("worker_ok",false);
             String hardwareString=req.optString("device_info","");
             String telemetry="|"+cpu+"|"+gpu+"|"+battery+"|"+thermal+"|"+worker;
+            JSONObject response=new JSONObject();
+            synchronized(this){
+            if(owner!=controlListener||!"host".equals(role)||owner.isClosed())return;
             String command=type+"|"+sessionId+"|"+nonce+"|"+id+"|"+port+"|"+build+"|"+reportedRam+
                 telemetry+"|"+hardwareString;
-            JSONObject response=new JSONObject();
             if(!"host".equals(role) || !id.matches("[A-Za-z0-9_-]{8,40}") ||
                 !nonce.matches("[A-Za-z0-9_-]{16,32}") || !name.matches("[\\p{L}\\p{N} _.-]{1,45}") ||
                 !("join".equals(type)||"ping".equals(type)) || port<1024 || port>65535 ||
@@ -522,6 +531,7 @@ public final class CoopSession {
                     .put("auth",SecureRpcTransport.hmacHex(secret,
                         "ACK|"+nonce+"|"+sessionId+"|"+membership));
             }
+            }
             writer.write(response.toString()+"\n");writer.flush();
         }catch(Exception e){ Log.w(TAG,"Control channel rejected",e); }
         if(seenNonces.size()>300) {
@@ -542,9 +552,12 @@ public final class CoopSession {
         try { decoded=Base64.decode(code.replace(" ",""),Base64.URL_SAFE|Base64.NO_WRAP); }
         catch(Exception e){throw new IOException("호스트의 연결 코드를 확인하세요");}
         if(decoded.length!=32)throw new IOException("32바이트 세션 키가 필요합니다. 호스트 코드를 그대로 붙여넣으세요");
-        this.secret=decoded;this.hostIp=host;this.sessionId=(id==null ? "" : id.trim());
-        if(this.sessionId.isEmpty())this.sessionId=resolveSessionId(host);
-        if(!this.sessionId.matches("[A-Za-z0-9_-]{10,32}"))throw new IOException("호스트 세션 ID를 확인하세요");
+        String targetId=id==null?"":id.trim();
+        if(targetId.isEmpty())targetId=resolveSessionId(host);
+        if(!targetId.matches("[A-Za-z0-9_-]{10,32}")){
+            java.util.Arrays.fill(decoded,(byte)0);throw new IOException("호스트 세션 ID를 확인하세요");
+        }
+        this.secret=decoded;this.hostIp=host;this.sessionId=targetId;
         this.guestName=deviceName.replaceAll("[^\\p{L}\\p{N} _.-]","").trim();
         if(this.guestName.isEmpty())this.guestName="Android Node";
         this.guestId=randomId(14);this.startedAt=SystemClock.elapsedRealtime();this.workerDigest=digest();
@@ -558,45 +571,57 @@ public final class CoopSession {
             guestListener=new ServerSocket(0,4,InetAddress.getByName(localAddress));
             int guestPort=guestListener.getLocalPort();
             final ServerSocket l=guestListener;
-            threads.execute(()->runGateway(l,hostAddress));
-            JSONObject response=exchange("join",guestPort);
+            final RpcSocketRegistry sockets=new RpcSocketRegistry(7);guestSockets=sockets;
+            threads.execute(()->runGateway(l,hostAddress,sockets));
+            JSONObject response=exchange("join",guestPort,l,sockets);
             sessionId=response.getString("session");
             holdResources();
             threads.execute(()->{
-                while("guest".equals(role)) {
+                while(guestListener==l&&sockets.active()) {
                     try {Thread.sleep(10000);}catch(InterruptedException e){return;}
-                    if(SystemClock.elapsedRealtime()-startedAt>SESSION_MS){stop();return;}
-                    InferenceSafetyPolicy.Reason risk=InferenceSafety.check(app);
-                    if(risk!=InferenceSafetyPolicy.Reason.NONE){stop();setError(OnHandsLocale.wrap(app).getString(InferenceSafety.label(risk)));return;}
-                    try{exchange("ping",guestPort);}catch(Exception e){lastError="호스트 연결 확인 실패: "+e.getMessage();}
+                    synchronized(CoopSession.this){
+                        if(guestListener!=l||!"guest".equals(role))return;
+                        if(SystemClock.elapsedRealtime()-startedAt>SESSION_MS){stop();return;}
+                        InferenceSafetyPolicy.Reason risk=InferenceSafety.check(app);
+                        if(risk!=InferenceSafetyPolicy.Reason.NONE){stop();setError(OnHandsLocale.wrap(app).getString(InferenceSafety.label(risk)));return;}
+                    }
+                    try{exchange("ping",guestPort,l,sockets);}catch(Exception e){
+                        if(guestListener==l)lastError="호스트 연결 확인 실패: "+e.getMessage();
+                    }
                 }
             });
         }catch(Exception e){stop();throw e;}
     }
-    private JSONObject exchange(String type,int port) throws Exception {
+    private JSONObject exchange(String type,int port,ServerSocket owner,RpcSocketRegistry sockets) throws Exception {
         String nonce=randomId(16);
-        // The host's public session identifier is advertised via mDNS service name.
-        // For initial join it is sent as a non-secret explicit field.
-        String id=sessionId;
-        if(id.isEmpty() && "join".equals(type)) id=resolveSessionId(hostIp);
+        final String id,target,nodeId,nodeName,build;
+        final byte[] key;
+        final boolean workerOk;
+        synchronized(this){
+            if(guestListener!=owner||!"guest".equals(role)||secret==null)throw new IOException("Guest session ended");
+            id=sessionId;target=hostIp;nodeId=guestId;nodeName=guestName;build=workerDigest;
+            workerOk=worker!=null&&worker.isAlive();key=secret.clone();
+        }
+        try{
         if(id.isEmpty())throw new IOException("호스트 세션을 발견하지 못했습니다. 검색 후 선택하세요");
         JSONObject request=new JSONObject();
         long safe=safeRamMiB();
         PerformanceHud.Sample snapshot=PerformanceHud.sample(app);
         int cpu=snapshot.cpuPermille(),gpu=snapshot.gpuPermille();
         int battery=snapshot.batteryTenths,thermal=snapshot.thermalStatus;
-        boolean workerOk=worker!=null && worker.isAlive();
         String deviceInfo=localHardware().toString();
-        String payload=type+"|"+id+"|"+nonce+"|"+guestId+"|"+port+"|"+workerDigest+"|"+safe+
+        String payload=type+"|"+id+"|"+nonce+"|"+nodeId+"|"+port+"|"+build+"|"+safe+
             "|"+cpu+"|"+gpu+"|"+battery+"|"+thermal+"|"+workerOk+"|"+deviceInfo;
-        request.put("type",type).put("id",guestId).put("name",guestName)
-            .put("nonce",nonce).put("port",port).put("build",workerDigest)
+        request.put("type",type).put("id",nodeId).put("name",nodeName)
+            .put("nonce",nonce).put("port",port).put("build",build)
             .put("safe_ram_mib",safe).put("cpu_permille",cpu).put("gpu_permille",gpu)
             .put("battery_tenths",battery).put("thermal_status",thermal).put("worker_ok",workerOk)
             .put("device_info",deviceInfo)
-            .put("mac",SecureRpcTransport.hmacHex(secret,payload));
-        try(Socket s=new Socket()){
-            s.connect(new java.net.InetSocketAddress(hostIp,CONTROL_PORT),4000);
+            .put("mac",SecureRpcTransport.hmacHex(key,payload));
+        Socket s=new Socket();
+        try(Socket socket=s){
+            if(!sockets.track(s))throw new IOException("Guest session ended");
+            s.connect(new java.net.InetSocketAddress(target,CONTROL_PORT),4000);
             s.setSoTimeout(4000);
             OutputStreamWriter writer=new OutputStreamWriter(s.getOutputStream(),StandardCharsets.UTF_8);
             writer.write(request.toString()+"\n");writer.flush();
@@ -605,11 +630,15 @@ public final class CoopSession {
             String membership=result.optString("members_json","");
             if(membership.length()>6000 || !id.equals(result.optString("session")) ||
                 !SecureRpcTransport.constantEquals(result.optString("auth"),
-                    SecureRpcTransport.hmacHex(secret,"ACK|"+nonce+"|"+id+"|"+membership)))
+                    SecureRpcTransport.hmacHex(key,"ACK|"+nonce+"|"+id+"|"+membership)))
                 throw new IOException("호스트 인증 또는 기기 상태 서명 검증에 실패했습니다");
-            peerSnapshotJson=membership;
+            synchronized(this){
+                if(guestListener!=owner||!"guest".equals(role))throw new IOException("Guest session ended");
+                peerSnapshotJson=membership;
+            }
             return result;
-        }
+        }finally{sockets.untrack(s);}
+        }finally{java.util.Arrays.fill(key,(byte)0);}
     }
     private String resolveSessionId(String host){
         for(Map.Entry<String,String> entry:discovered.entrySet())if(host.equals(entry.getValue())){
@@ -643,22 +672,34 @@ public final class CoopSession {
         }
         throw new IOException("RPC worker가 시작되지 않았습니다. 기기 호환성 또는 로그 확인 필요");
     }
-    private void runGateway(ServerSocket listener,InetAddress approvedHost){
-        while(!listener.isClosed() && "guest".equals(role)){
+    private void runGateway(ServerSocket listener,InetAddress approvedHost,RpcSocketRegistry sockets){
+        Semaphore capacity=new Semaphore(3);
+        while(!listener.isClosed()&&guestListener==listener&&sockets.active()){
             try{
                 Socket socket=listener.accept();
-                if(!socket.getInetAddress().equals(approvedHost) || !gatewayCapacity.tryAcquire()){
+                if(!socket.getInetAddress().equals(approvedHost)||!capacity.tryAcquire()){
                     socket.close();continue;
                 }
-                threads.execute(()->{
-                    try(Socket remote=socket;
-                        SecureRpcTransport.Channel channel=SecureRpcTransport.accept(remote,secret);
-                        Socket local=new Socket("127.0.0.1",50052)){
-                        bridge(local,channel);
-                    }catch(Exception e){Log.w(TAG,"Secure RPC channel closed",e);}
-                    finally{gatewayCapacity.release();}
-                });
-            }catch(IOException e){if(!listener.isClosed())lastError=e.getMessage();}
+                if(!sockets.track(socket)){capacity.release();continue;}
+                try{threads.execute(()->{
+                    Socket local=new Socket();byte[] key=null;
+                    try(Socket remote=socket;Socket loopback=local){
+                        synchronized(CoopSession.this){
+                            if(guestListener!=listener||!"guest".equals(role)||secret==null)return;
+                            key=secret.clone();
+                        }
+                        try(SecureRpcTransport.Channel channel=SecureRpcTransport.accept(remote,key)){
+                            if(!sockets.track(loopback))return;
+                            loopback.connect(new java.net.InetSocketAddress("127.0.0.1",50052),4000);
+                            bridge(loopback,channel);
+                        }
+                    }catch(Exception e){Log.w(TAG,"Secure RPC channel closed");}
+                    finally{
+                        if(key!=null)java.util.Arrays.fill(key,(byte)0);
+                        sockets.untrack(socket);sockets.untrack(local);capacity.release();
+                    }
+                });}catch(RuntimeException e){sockets.untrack(socket);capacity.release();try{socket.close();}catch(IOException ignored){}}
+            }catch(IOException e){if(!listener.isClosed()&&guestListener==listener)lastError=e.getMessage();}
         }
     }
     /** Single-use bidirectional encrypted tunnel; raw TCP never leaves loopback. */
@@ -720,11 +761,16 @@ public final class CoopSession {
             try{if(localListener!=null)localListener.close();}catch(Exception ignored){}
             for(Socket socket:activeSockets)try{socket.close();}catch(Exception ignored){}
             activeSockets.clear();
+            java.util.Arrays.fill(key,(byte)0);
         }
     }
 
     public synchronized void stop(){
-        role="off";sessionId="";lastError="";secret=null;
+        role="off";sessionId="";lastError="";
+        byte[] previousSecret=secret;secret=null;
+        if(previousSecret!=null)java.util.Arrays.fill(previousSecret,(byte)0);
+        if(controlSockets!=null){controlSockets.close();controlSockets=null;}
+        if(guestSockets!=null){guestSockets.close();guestSockets=null;}
         if(controlListener!=null){try{controlListener.close();}catch(Exception ignored){}controlListener=null;}
         if(guestListener!=null){try{guestListener.close();}catch(Exception ignored){}guestListener=null;}
         if(registration!=null){try{nsd.unregisterService(registration);}catch(Exception ignored){}registration=null;}

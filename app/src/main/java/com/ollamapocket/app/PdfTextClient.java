@@ -13,6 +13,10 @@ import java.util.concurrent.atomic.*;
 /** A bounded seekable descriptor is passed to a unique isolated process. No original document is retained. */
 final class PdfTextClient {
     private PdfTextClient(){}
+    private static final AtomicBoolean CLEANED=new AtomicBoolean();
+    static void cleanAbandoned(Context context)throws IOException{
+        if(CLEANED.compareAndSet(false,true))PrivacyPolicy.cleanAbandonedPdf(context.getCacheDir(),System.currentTimeMillis());
+    }
     private static AttachmentText.Failure failure(AttachmentText.Problem p){return new AttachmentText.Failure(p);}
     static AttachmentText.Result read(Context context,String name,InputStream source)throws IOException{return read(context,name,source,1);}
     static AttachmentText.Result read(Context context,String name,InputStream source,int first)throws IOException {
@@ -52,6 +56,7 @@ final class PdfTextClient {
     private static Bundle readBundle(Context context,InputStream source,int page,boolean raster)throws IOException{
         if(Build.VERSION.SDK_INT<35)throw failure(AttachmentText.Problem.PDF_VERSION);
         if(source==null)throw failure(AttachmentText.Problem.INVALID);
+        try{cleanAbandoned(context);}catch(IOException ignored){}
         File temporary=null;
         try{
             temporary=File.createTempFile("pdf-excerpt-",".pdf",context.getCacheDir());

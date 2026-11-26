@@ -30,16 +30,20 @@ final class CloudKeyVault {
         return generator.generateKey();
     }
     synchronized void save(CloudApi.Provider p,String value)throws Exception{
+        if(p==null||p.remote()||!PrivacyPolicy.validApiKey(value))throw new IllegalArgumentException("Invalid hosted credential");
         byte[] ciphertext=CloudKeyCipher.encrypt(secret(p,true),p.name(),value);
         if(!prefs.edit().putString(p.name(),Base64.encodeToString(ciphertext,Base64.NO_WRAP)).commit())
             throw new java.io.IOException("Key storage failed");
     }
     synchronized String load(CloudApi.Provider p)throws Exception{
+        if(p==null||p.remote())throw new IllegalArgumentException("Hosted credential required");
         String encoded=prefs.getString(p.name(),null);
         if(encoded==null)return "";
+        if(encoded.length()>22000)throw new SecurityException("Invalid stored credential");
         return CloudKeyCipher.decrypt(secret(p,false),p.name(),Base64.decode(encoded,Base64.NO_WRAP));
     }
     synchronized void delete(CloudApi.Provider p)throws Exception{
+        if(p==null||p.remote())throw new IllegalArgumentException("Hosted credential required");
         if(!prefs.edit().remove(p.name()).commit())throw new java.io.IOException("Key removal failed");
         KeyStore ks=store();if(ks.containsAlias(alias(p)))ks.deleteEntry(alias(p));
     }
