@@ -938,4 +938,13 @@
     <string name="chat_wrap_code">代码自动换行</string>
     <string name="chat_unwrap_code">代码横向滚动</string>
     <string name="chat_block_copy_failed">复制失败。</string>
+    <string name="batch_inspect_excerpt">查看已完成片段</string>
+    <string name="batch_copy_json">复制JSON报告</string>
+    <string name="batch_json_notice">JSON包含分析目标、文件名、生成笔记和分析结果。没有单独的原文字段，但生成文本可能引用原文。分享前请检查。</string>
+    <string name="batch_export_failed">无法生成或复制报告。</string>
+    <string name="batch_inspect_notice">仅显示已完成的片段记录。文本来自提取，并非经过验证的完整原文。ID匹配不代表事实已验证。</string>
+    <string name="batch_extracted_excerpt">提取的原文片段</string>
+    <string name="batch_generated_note">生成笔记（未验证）</string>
+    <string name="batch_whitespace_record">仅含空白的片段，没有证据或生成笔记。</string>
+    <string name="batch_report_status">分析状态</string>
 </resources>

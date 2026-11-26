@@ -39,6 +39,7 @@ on:
       - 'tests/OcrPolicyTest.java'
       - 'tests/DocumentWindowTest.java'
       - 'tests/DocumentBatchPolicyTest.java'
+      - 'tests/DocumentBatchReportTest.java'
       - 'tests/VoiceQueuePolicyTest.java'
       - 'tests/VoiceInteractionPolicyTest.java'
       - 'tests/CloudUsageLedgerTest.java'
@@ -188,6 +189,10 @@ jobs:
           bash scripts/fetch_test_json.sh /tmp/cloud-stream-tests/json.jar
           javac -cp /tmp/cloud-stream-tests/json.jar -d /tmp/cloud-stream-tests app/src/main/java/com/ollamapocket/app/CloudApi.java app/src/main/java/com/ollamapocket/app/CloudHistory.java app/src/main/java/com/ollamapocket/app/PrivacyPolicy.java tests/CloudStreamTest.java
           java -cp /tmp/cloud-stream-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.CloudStreamTest
+      - name: Test document snapshot and structured report
+        run: |
+          javac -cp /tmp/attachment-tests:/tmp/cloud-stream-tests/json.jar -d /tmp/attachment-tests app/src/main/java/com/ollamapocket/app/DocumentBatchReport.java tests/DocumentBatchReportTest.java
+          java -cp /tmp/attachment-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.DocumentBatchReportTest
       - name: Test bounded local inference protocol
         run: |
           mkdir -p /tmp/local-stream-tests

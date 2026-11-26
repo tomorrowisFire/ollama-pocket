@@ -37,10 +37,12 @@ final class DocumentBatchUi {
     private DocumentBatchPolicy.Plan analyzed;
     private int reportRequests;
     private long reportElapsedMillis;
+    private int reportStatus;
+    private String reportStopReason;
     private TextView status,output;
     private EditText goal;
     private ProgressBar progress;
-    private Button preview,copy;
+    private Button preview,copy,inspect,copyJson;
     static boolean busy(){return BUSY.get();}
     DocumentBatchUi(Activity owner,String model,AttachmentText.Encoding encoding,BooleanSupplier eligible){
         this.owner=owner;this.model=model;this.encoding=encoding;this.eligible=eligible;
@@ -68,6 +70,7 @@ final class DocumentBatchUi {
         if(!visible())return;
         boolean idle=!busy();
         goal.setEnabled(idle);preview.setEnabled(idle&&sources!=null);copy.setEnabled(idle&&result!=null);
+        inspect.setEnabled(idle&&result!=null&&!result.notes.isEmpty());copyJson.setEnabled(idle&&result!=null);
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(idle&&sources!=null);
         dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setEnabled(!idle&&!cancelRequested);
     }
@@ -120,13 +123,15 @@ final class DocumentBatchUi {
         goal.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(DocumentBatchPolicy.MAX_GOAL)});
         panel.addView(goal,new LinearLayout.LayoutParams(-1,-2));
         preview=button(panel,R.string.batch_preview,this::showSourcePreview);
+        inspect=button(panel,R.string.batch_inspect_excerpt,this::inspectCompleted);
         copy=button(panel,R.string.batch_copy,()->{
             if(result==null||analyzed==null||busy())return;
-            final String report=report(analyzed,result);
-            confirm(R.string.batch_copy,s(R.string.attachment_copy_notice),()->{
-                ClipboardManager clipboard=(ClipboardManager)owner.getSystemService(Context.CLIPBOARD_SERVICE);
-                if(clipboard!=null){clipboard.setPrimaryClip(SensitiveClipboard.text(s(R.string.batch_title),report));toast(R.string.copied);}
-            });
+            copyReport(R.string.batch_copy,s(R.string.attachment_copy_notice),report(analyzed,result));
+        });
+        copyJson=button(panel,R.string.batch_copy_json,()->{
+            if(result==null||analyzed==null||busy())return;
+            try{copyReport(R.string.batch_copy_json,s(R.string.attachment_copy_notice)+"\n\n"+s(R.string.batch_json_notice),snapshot().json());}
+            catch(Exception e){toast(R.string.batch_export_failed);}
         });
         output=label(panel,"",true);
         ScrollView scroll=new ScrollView(owner);scroll.addView(panel);
@@ -233,6 +238,60 @@ final class DocumentBatchUi {
         AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.batch_preview).setView(scroll).setPositiveButton(R.string.close,null).create();
         confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;});d.show();secure(d);
     }
+    private DocumentBatchReport snapshot(){
+        return new DocumentBatchReport(analyzed,result,model,reportStopReason,reportRequests,reportElapsedMillis);
+    }
+    private void copyReport(int title,String notice,String value){
+        final DocumentBatchPolicy.Result reviewed=result;
+        confirm(title,notice,()->{
+            if(busy()||result!=reviewed||reviewed==null)return;
+            try{
+                ClipboardManager clipboard=(ClipboardManager)owner.getSystemService(Context.CLIPBOARD_SERVICE);
+                if(clipboard==null)throw new IllegalStateException("Clipboard unavailable");
+                clipboard.setPrimaryClip(SensitiveClipboard.text(s(R.string.batch_title),value));toast(R.string.copied);
+            }catch(RuntimeException e){toast(R.string.batch_export_failed);}
+        });
+    }
+    private void inspectCompleted(){
+        if(!visible()||busy()||result==null||result.notes.isEmpty())return;
+        final DocumentBatchReport snapshot;
+        try{snapshot=snapshot();}catch(IllegalArgumentException e){toast(R.string.batch_export_failed);return;}
+        if(confirmation!=null)confirmation.dismiss();
+        LinearLayout panel=column();
+        label(panel,s(R.string.batch_inspect_notice),false);
+        Spinner selector=new Spinner(owner);
+        List<String> labels=new ArrayList<>();
+        for(DocumentBatchPolicy.Note note:snapshot.completed){
+            DocumentBatchPolicy.Unit u=note.unit;
+            labels.add(u.id()+" · "+snapshot.plan.sources.get(u.source).name+" ["+(u.start+1)+"–"+u.end+"]");
+        }
+        ArrayAdapter<String> adapter=new ArrayAdapter<>(owner,android.R.layout.simple_spinner_item,labels);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        selector.setAdapter(adapter);selector.setMinimumHeight(dp(48));
+        selector.setContentDescription(s(R.string.batch_inspect_excerpt));
+        panel.addView(selector,new LinearLayout.LayoutParams(-1,-2));
+        TextView range=label(panel,"",false);
+        label(panel,s(R.string.batch_extracted_excerpt),false);
+        TextView excerpt=label(panel,"",true);
+        label(panel,s(R.string.batch_generated_note),false);
+        TextView generated=label(panel,"",true);
+        Runnable update=()->{
+            int index=selector.getSelectedItemPosition();
+            if(index<0||index>=snapshot.completed.size())return;
+            DocumentBatchPolicy.Note note=snapshot.completed.get(index);
+            range.setText(labels.get(index));
+            excerpt.setText(snapshot.extracted(note));
+            generated.setText(snapshot.hasExtractedEvidence(note)?note.text:s(R.string.batch_whitespace_record));
+        };
+        selector.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
+            public void onItemSelected(android.widget.AdapterView<?> parent,View view,int position,long id){update.run();}
+            public void onNothingSelected(android.widget.AdapterView<?> parent){range.setText("");excerpt.setText("");generated.setText("");}
+        });
+        update.run();
+        ScrollView scroll=new ScrollView(owner);scroll.addView(panel);
+        AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.batch_inspect_excerpt).setView(scroll).setPositiveButton(R.string.close,null).create();
+        confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;});d.show();secure(d);
+    }
     private void start(){
         if(!visible()||busy()||sources==null||!eligible.getAsBoolean())return;
         final DocumentBatchPolicy.Plan plan;
@@ -242,7 +301,7 @@ final class DocumentBatchUi {
             if(busy()||!eligible.getAsBoolean()||!reviewed.equals(goal.getText().toString()))return;
             if(!OllamaForegroundService.isRunning()){toast(R.string.test_need_server);return;}
             if(!"off".equals(CoopSession.get(owner).role())){toast(R.string.guest_stop_first);return;}
-            result=null;analyzed=null;reportRequests=0;reportElapsedMillis=0;output.setText(coverage(sources)+"\n\n"+plannedCoverage(plan));status.setText(R.string.thinking);progress.setMax(plan.maxTotal());progress.setProgress(0);
+            result=null;analyzed=null;reportRequests=0;reportElapsedMillis=0;reportStopReason=null;reportStatus=R.string.thinking;output.setText(coverage(sources)+"\n\n"+plannedCoverage(plan));status.setText(R.string.thinking);progress.setMax(plan.maxTotal());progress.setProgress(0);
             final DocumentBatchRunner active=new DocumentBatchRunner(owner,model);runner=active;
             work(()->active.run(plan,done->owner.runOnUiThread(()->{
                 if(visible()&&!cancelRequested){
@@ -251,9 +310,12 @@ final class DocumentBatchUi {
             })),finished->{
                 runner=null;analyzed=plan;result=finished;
                 reportRequests=active.requests();reportElapsedMillis=active.elapsedMillis();
-                status.setText(finished.status==DocumentBatchPolicy.Status.COMPLETED?R.string.batch_completed:
+                reportStopReason=finished.status==DocumentBatchPolicy.Status.STOPPED?
+                    (active.reason()==DocumentBatchRunner.Stop.NONE?"UNKNOWN":active.reason().name()):null;
+                reportStatus=finished.status==DocumentBatchPolicy.Status.COMPLETED?R.string.batch_completed:
                     finished.status==DocumentBatchPolicy.Status.STOPPED?stopLabel(active.reason()):
-                    finished.contextLimited?R.string.batch_context_limit:R.string.batch_failed);
+                    finished.contextLimited?R.string.batch_context_limit:R.string.batch_failed;
+                status.setText(reportStatus);
                 if(finished.status==DocumentBatchPolicy.Status.COMPLETED)progress.setProgress(progress.getMax());
                 output.setText(report(plan,finished));
             },error->{runner=null;status.setText(R.string.batch_failed);});
@@ -270,7 +332,10 @@ final class DocumentBatchUi {
         }
     }
     private String report(DocumentBatchPolicy.Plan plan,DocumentBatchPolicy.Result result){
-        StringBuilder b=new StringBuilder(coverage(plan.sources)).append("\n\n").append(plannedCoverage(plan)).append("\n\n").append(s(R.string.batch_goal)).append(": ").append(plan.goal);
+        StringBuilder b=new StringBuilder(s(R.string.batch_report_status)).append(": ").append(result.status.name())
+            .append(" · ").append(s(reportStatus)).append("\n").append(s(R.string.model_label)).append(": ").append(model);
+        if(reportStopReason!=null)b.append(" [").append(reportStopReason).append("]");
+        b.append("\n\n").append(coverage(plan.sources)).append("\n\n").append(plannedCoverage(plan)).append("\n\n").append(s(R.string.batch_goal)).append(": ").append(plan.goal);
         b.append("\n\n").append(owner.getString(R.string.batch_processed,Integer.toString(result.notes.size()),Integer.toString(plan.units.size())));
         b.append('\n').append(s(R.string.batch_quality_notice));
         b.append("\n\n").append(s(R.string.batch_actual_scope));

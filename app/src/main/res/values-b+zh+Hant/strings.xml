@@ -938,4 +938,13 @@
     <string name="chat_wrap_code">程式碼自動換行</string>
     <string name="chat_unwrap_code">程式碼橫向捲動</string>
     <string name="chat_block_copy_failed">複製失敗。</string>
+    <string name="batch_inspect_excerpt">查看已完成片段</string>
+    <string name="batch_copy_json">複製JSON報告</string>
+    <string name="batch_json_notice">JSON包含分析目標、檔名、生成筆記和分析結果。沒有獨立的原文欄位，但生成文字可能引用原文。分享前請檢查。</string>
+    <string name="batch_export_failed">無法產生或複製報告。</string>
+    <string name="batch_inspect_notice">僅顯示已完成的片段記錄。文字來自擷取，並非經過驗證的完整原文。ID相符不代表事實已驗證。</string>
+    <string name="batch_extracted_excerpt">擷取的原文片段</string>
+    <string name="batch_generated_note">生成筆記（未驗證）</string>
+    <string name="batch_whitespace_record">僅含空白的片段，沒有證據或生成筆記。</string>
+    <string name="batch_report_status">分析狀態</string>
 </resources>

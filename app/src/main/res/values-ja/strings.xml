@@ -938,4 +938,13 @@
     <string name="chat_wrap_code">コードを折り返す</string>
     <string name="chat_unwrap_code">コードを横スクロール</string>
     <string name="chat_block_copy_failed">コピーできませんでした。</string>
+    <string name="batch_inspect_excerpt">完了した区間を確認</string>
+    <string name="batch_copy_json">JSONレポートをコピー</string>
+    <string name="batch_json_notice">JSONには目的、ファイル名、生成メモ、分析結果が含まれます。独立した原文フィールドはありませんが、生成文に原文の引用が含まれることがあります。共有前に確認してください。</string>
+    <string name="batch_export_failed">レポートの作成またはコピーに失敗しました。</string>
+    <string name="batch_inspect_notice">記録が完了した区間だけを表示します。抽出テキストであり、原本全体を検証したものではありません。IDの一致は事実の検証ではありません。</string>
+    <string name="batch_extracted_excerpt">抽出した原文区間</string>
+    <string name="batch_generated_note">生成メモ（未検証）</string>
+    <string name="batch_whitespace_record">空白のみの区間です。根拠や生成メモはありません。</string>
+    <string name="batch_report_status">分析状態</string>
 </resources>

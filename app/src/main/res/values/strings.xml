@@ -938,4 +938,13 @@
     <string name="chat_wrap_code">Wrap code</string>
     <string name="chat_unwrap_code">Scroll code</string>
     <string name="chat_block_copy_failed">Copy failed.</string>
+    <string name="batch_inspect_excerpt">Inspect completed excerpts</string>
+    <string name="batch_copy_json">Copy JSON report</string>
+    <string name="batch_json_notice">The JSON includes your goal, file names, generated notes and analysis. It excludes a separate raw-source field, but generated text may quote the source. Review before sharing.</string>
+    <string name="batch_export_failed">Could not prepare or copy the report.</string>
+    <string name="batch_inspect_notice">Only completed excerpt records are listed. Source text is extracted, not a verified full original. Matching an ID does not verify a claim.</string>
+    <string name="batch_extracted_excerpt">Extracted source excerpt</string>
+    <string name="batch_generated_note">Generated note (unverified)</string>
+    <string name="batch_whitespace_record">Whitespace-only range; no evidence or generated note.</string>
+    <string name="batch_report_status">Analysis status</string>
 </resources>
