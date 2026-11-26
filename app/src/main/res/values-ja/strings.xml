@@ -740,4 +740,6 @@
     <string name="cloud_estimated_cost">推定費用（USD）: %1$s</string>
     <string name="cloud_input_rate">入力100万トークンあたりUSD</string>
     <string name="cloud_output_rate">出力100万トークンあたりUSD</string>
+    <string name="cloud_pc_address">PCアドレス（プライベートIPv4:ポート）</string>
+    <string name="cloud_pc_notice">暗号化されていないLAN接続です。信頼できるネットワークのみで使用してください。通信内容が読み取られたり改変されたりする可能性があります。</string>
 </resources>
