@@ -668,4 +668,13 @@
     <string name="cloud_remove_confirm">Remove this in-memory cloud conversation and its draft? Other conversations and local history are not affected.</string>
     <string name="cloud_session_capacity">Up to 16 in-memory conversations across all providers and models. Remove a conversation to create more.</string>
     <string name="cloud_context_changed">The conversation or provider changed. Review and send again.</string>
+    <string name="chat_manage">Manage conversation</string>
+    <string name="chat_rename">Rename</string>
+    <string name="chat_pin">Pin to top</string>
+    <string name="chat_unpin">Unpin</string>
+    <string name="chat_pinned">Pinned</string>
+    <string name="chat_title_hint">Conversation title</string>
+    <string name="chat_title_invalid">Enter a title of 1–80 characters.</string>
+    <string name="chat_manage_failed">Could not update the conversation list. Saved messages were not changed.</string>
+    <string name="chat_manage_done">Conversation updated</string>
 </resources>

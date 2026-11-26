@@ -2564,11 +2564,12 @@ public final class MainActivity extends Activity {
     }
     private static final class DrawerChat {
         final String model,id,title,excerpt;
+        final boolean pinned;
         final int matchIndex;
         final long created;
-        DrawerChat(String model,String id,String title){this(model,id,title,"",-1);}
-        DrawerChat(String model,String id,String title,String excerpt,int matchIndex) {
-            this.model=model;this.id=id;this.title=title;this.excerpt=excerpt;this.matchIndex=matchIndex;
+        DrawerChat(String model,String id,String title,boolean pinned){this(model,id,title,pinned,"",-1);}
+        DrawerChat(String model,String id,String title,boolean pinned,String excerpt,int matchIndex) {
+            this.model=model;this.id=id;this.title=title;this.pinned=pinned;this.excerpt=excerpt;this.matchIndex=matchIndex;
             long timestamp=0;
             try {timestamp=Long.parseLong(id);}catch(Exception ignored){}
             created=timestamp;
@@ -2591,11 +2592,12 @@ public final class MainActivity extends Activity {
                     String id=obj.optString("id","");
                     if(id.isEmpty()||id.length()>70)continue;
                     String label=obj.optString("title",getString(R.string.chat));
-                    result.add(new DrawerChat(model,id,label));
+                    result.add(new DrawerChat(model,id,label,obj.optBoolean("pinned",false)));
                 }
             }catch(Exception ignored){}
         }
-        Collections.sort(result,(a,b)->Long.compare(b.created,a.created));
+        Collections.sort(result,(a,b)->ChatOrganization.compare(a.pinned,a.created,a.model+"\0"+a.id,
+            b.pinned,b.created,b.model+"\0"+b.id));
         return result;
     }
 
@@ -2668,7 +2670,7 @@ public final class MainActivity extends Activity {
                                 JSONObject item=saved.optJSONObject(i);if(item==null)continue;
                                 String content=item.optString("content","");
                                 if(LocalChatLibrary.matches(content,search)){
-                                    hit=new DrawerChat(entry.model,entry.id,entry.title,LocalChatLibrary.excerpt(content,search),i);break;
+                                    hit=new DrawerChat(entry.model,entry.id,entry.title,entry.pinned,LocalChatLibrary.excerpt(content,search),i);break;
                                 }
                             }
                         }catch(Exception e){incomplete=true;}
@@ -2695,16 +2697,25 @@ public final class MainActivity extends Activity {
             count++;
             boolean active=!cloudMode&&entry.model.equals(currentModel)&&entry.id.equals(
                 getPreferences(MODE_PRIVATE).getString("active_chat_"+entry.model,""));
-            TextView item=drawerRow(entry.title,"",active);
+            String display=(entry.pinned?"★  ":"")+entry.title;
+            TextView item=drawerRow(display,"",active);
             if(!entry.excerpt.isEmpty()){
                 item.setSingleLine(false);item.setMaxLines(3);
-                item.setText(entry.title+"\n"+entry.excerpt);
+                item.setText(display+"\n"+entry.excerpt);
             }
             item.setContentDescription(getString(R.string.workspace_chat_model,entry.title,entry.model)+
+                (entry.pinned?" · "+getString(R.string.chat_pinned):"")+
                 (entry.excerpt.isEmpty()?"":". "+entry.excerpt));
             item.setSelected(active);item.setFocusable(true);item.setClickable(true);item.setMinHeight(dp(48));
-            LinearLayout.LayoutParams p=lp(-1,-2);p.bottomMargin=dp(3);list.addView(item,p);
+            LinearLayout line=row();
+            rowItem(line,item,1,3);
+            Button manage=button("⋯",false);manage.setTextSize(19);
+            manage.setMinimumWidth(dp(48));manage.setMinWidth(dp(48));manage.setMinimumHeight(dp(48));
+            manage.setContentDescription(getString(R.string.chat_manage)+" · "+entry.title);
+            rowItem(line,manage,0,0);
+            LinearLayout.LayoutParams p=lp(-1,-2);p.bottomMargin=dp(3);list.addView(line,p);
             item.setOnClickListener(v->openSavedConversation(entry,drawer));
+            manage.setOnClickListener(v->manageConversation(entry,drawer));
         }
         if(count==0){
             TextView empty=text(getString(emptyQuery?R.string.workspace_no_history:R.string.workspace_no_results),13,MUTED,false);
@@ -2712,6 +2723,52 @@ public final class MainActivity extends Activity {
         }
         if(limited)margin(text(getString(R.string.chat_search_limited),11,MUTED,false),list,6,5);
         if(incomplete)margin(text(getString(R.string.chat_search_partial),11,MUTED,false),list,5,5);
+    }
+
+    /** Only updates title/pin metadata in the existing per-model index, never chat content. */
+    private void updateConversationMetadata(DrawerChat entry,String title,Boolean pin,Dialog drawer){
+        if(guestOnly||isUiBusy())return;
+        if(title!=null&&!ChatOrganization.validTitle(title)){toast(getString(R.string.chat_title_invalid));return;}
+        try{
+            android.content.SharedPreferences prefs=getPreferences(MODE_PRIVATE);
+            String key="chat_list_"+entry.model,raw=prefs.getString(key,"[]");
+            JSONArray index=new JSONArray(raw);
+            JSONObject selected=null;
+            for(int i=0;i<index.length();i++){
+                JSONObject obj=index.optJSONObject(i);
+                if(obj!=null&&entry.id.equals(obj.optString("id"))){
+                    if(selected!=null)throw new IllegalStateException("Duplicate conversation ID");
+                    selected=obj;
+                }
+            }
+            if(selected==null)throw new IllegalStateException("Conversation no longer exists");
+            if(title!=null)selected.put("title",ChatOrganization.title(title));
+            if(pin!=null)selected.put("pinned",pin);
+            if(!raw.equals(prefs.getString(key,"[]")))throw new IllegalStateException("Conversation list changed");
+            prefs.edit().putString(key,index.toString()).apply();
+            if(drawer!=null)drawer.dismiss();
+            refreshTabletRail();toast(getString(R.string.chat_manage_done));
+        }catch(Exception e){toast(getString(R.string.chat_manage_failed));}
+    }
+    private void manageConversation(DrawerChat entry,Dialog drawer){
+        if(guestOnly||isUiBusy()){toast(getString(R.string.busy));return;}
+        String[] choices={getString(R.string.chat_rename),getString(entry.pinned?R.string.chat_unpin:R.string.chat_pin)};
+        new AlertDialog.Builder(this).setTitle(entry.title).setItems(choices,(d,w)->{
+            if(isUiBusy()||isFinishing()||isDestroyed())return;
+            if(w==1){updateConversationMetadata(entry,null,!entry.pinned,drawer);return;}
+            EditText title=edit(getString(R.string.chat_title_hint),entry.title,false);
+            title.setSingleLine(true);
+            title.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(ChatOrganization.MAX_TITLE)});
+            LinearLayout form=column();form.setPadding(dp(16),dp(6),dp(16),dp(6));form.addView(title,lp(-1,-2));
+            AlertDialog dialog=new AlertDialog.Builder(this).setTitle(R.string.chat_rename).setView(form)
+                .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,null).create();
+            dialog.show();
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
+                String value=title.getText().toString();
+                if(!ChatOrganization.validTitle(value)){toast(getString(R.string.chat_title_invalid));return;}
+                dialog.dismiss();updateConversationMetadata(entry,value,null,drawer);
+            });
+        }).setNegativeButton(R.string.cancel,null).show();
     }
 
     private TextView drawerNavigationItem(String title){

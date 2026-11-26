@@ -668,4 +668,13 @@
     <string name="cloud_remove_confirm">删除此内存中的云端对话及草稿？不影响其他对话和本地记录。</string>
     <string name="cloud_session_capacity">所有服务商和模型合计最多 16 个内存对话，删除对话后可新建。</string>
     <string name="cloud_context_changed">对话或服务商已变化，请检查后重新发送。</string>
+    <string name="chat_manage">管理对话</string>
+    <string name="chat_rename">重命名</string>
+    <string name="chat_pin">置顶</string>
+    <string name="chat_unpin">取消置顶</string>
+    <string name="chat_pinned">已置顶</string>
+    <string name="chat_title_hint">对话标题</string>
+    <string name="chat_title_invalid">请输入 1–80 个字符的标题。</string>
+    <string name="chat_manage_failed">无法更新对话列表，已保存消息未更改。</string>
+    <string name="chat_manage_done">对话已更新</string>
 </resources>

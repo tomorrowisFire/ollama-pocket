@@ -668,4 +668,13 @@
     <string name="cloud_remove_confirm">刪除此記憶體中的雲端對話及草稿？不影響其他對話及本機記錄。</string>
     <string name="cloud_session_capacity">所有提供者及模型合計最多 16 個記憶體對話，刪除對話後可建立。</string>
     <string name="cloud_context_changed">對話或提供者已變更，請檢查後重新傳送。</string>
+    <string name="chat_manage">管理對話</string>
+    <string name="chat_rename">重新命名</string>
+    <string name="chat_pin">置頂</string>
+    <string name="chat_unpin">取消置頂</string>
+    <string name="chat_pinned">已置頂</string>
+    <string name="chat_title_hint">對話標題</string>
+    <string name="chat_title_invalid">請輸入 1–80 個字元的標題。</string>
+    <string name="chat_manage_failed">無法更新對話清單，已儲存訊息未變更。</string>
+    <string name="chat_manage_done">對話已更新</string>
 </resources>

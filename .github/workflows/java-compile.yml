@@ -20,6 +20,7 @@ on:
       - 'tests/locale_ui_audit.py'
       - 'tests/LocalChatTurnsTest.java'
       - 'tests/LocalChatLibraryTest.java'
+      - 'tests/ChatOrganizationTest.java'
 
 jobs:
   compile:
@@ -97,6 +98,11 @@ jobs:
           mkdir -p /tmp/chat-library-tests
           javac -d /tmp/chat-library-tests app/src/main/java/com/ollamapocket/app/LocalChatTurns.java app/src/main/java/com/ollamapocket/app/LocalChatLibrary.java tests/LocalChatLibraryTest.java
           java -cp /tmp/chat-library-tests com.ollamapocket.app.LocalChatLibraryTest
+      - name: Test chat title and pin ordering
+        run: |
+          mkdir -p /tmp/chat-organization-tests
+          javac -d /tmp/chat-organization-tests app/src/main/java/com/ollamapocket/app/ChatOrganization.java tests/ChatOrganizationTest.java
+          java -cp /tmp/chat-organization-tests com.ollamapocket.app.ChatOrganizationTest
       - name: Audit direct Hangul UI literals
         run: python3 tests/locale_ui_audit.py
       - name: Verify OnHand AI brand and locale resource parity

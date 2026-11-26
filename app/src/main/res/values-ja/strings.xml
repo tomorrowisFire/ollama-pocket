@@ -668,4 +668,13 @@
     <string name="cloud_remove_confirm">メモリ内のこのクラウド会話と下書きを削除しますか？他の会話やローカル履歴には影響しません。</string>
     <string name="cloud_session_capacity">全提供元・モデルでメモリ内会話は最大16件です。会話を削除すると新規作成できます。</string>
     <string name="cloud_context_changed">会話または提供元が変わりました。確認してから再送信してください。</string>
+    <string name="chat_manage">会話を管理</string>
+    <string name="chat_rename">名前を変更</string>
+    <string name="chat_pin">上部に固定</string>
+    <string name="chat_unpin">固定を解除</string>
+    <string name="chat_pinned">固定済み</string>
+    <string name="chat_title_hint">会話タイトル</string>
+    <string name="chat_title_invalid">1〜80文字のタイトルを入力してください。</string>
+    <string name="chat_manage_failed">会話一覧を更新できませんでした。保存済みメッセージは変更していません。</string>
+    <string name="chat_manage_done">会話を更新しました</string>
 </resources>
