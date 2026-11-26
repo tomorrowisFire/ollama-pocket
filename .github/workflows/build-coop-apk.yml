@@ -226,9 +226,20 @@ jobs:
           src=Path('app/src/main/java/com/ollamapocket/app/MainActivity.java').read_text()
           assert 'showNavigationDrawer()' in src
           assert 'allSavedConversations()' in src
-          assert 'drawerNavigationItem("모델 선택")' in src
-          assert 'drawerNavigationItem("설정")' in src
-          assert 'drawerNavigationItem("기기 연결 진단")' in src
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          resource_root=Path("app/src/main/res")
+          locales=["values","values-ko","values-b+zh+Hans","values-b+zh+Hant","values-ja"]
+          keys=None
+          for locale in locales:
+              entries={e.attrib["name"]:e.text for e in ET.parse(resource_root/locale/"strings.xml").getroot().findall("string")}
+              assert all(entries.values()), locale
+              assert entries["app_name"] == "On Hands AI", locale
+              assert keys is None or keys == set(entries), locale
+              keys=set(entries)
+              for key in ("models","settings","devices"):
+                  assert 'drawerNavigationItem(getString(R.string.'+key+'))' in src, key
+                  assert key in keys, locale
           assert 'drawerNavigationItem(String title)' in src
           drawer_fn=src.split('private TextView drawerNavigationItem(String title)',1)[1].split('private void showNavigationDrawer()',1)[0]
           assert 'TextView item=text(title,14,WHITE,active)' in drawer_fn
@@ -306,7 +317,9 @@ jobs:
           "$signer" verify --verbose --print-certs "$apk" | tee signature-report.txt
           grep -Eq '^Verified using v2 scheme.*: true' signature-report.txt
           "$aapt" dump badging "$apk" | grep -F "package: name='io.github.tomorrowisfire.aiinpocket'"
-          "$aapt" dump badging "$apk" | grep -F "versionCode='24'"
+          expected_version=$(sed -nE 's/^[[:space:]]*versionCode[[:space:]]+([0-9]+)[[:space:]]*$/\1/p' app/build.gradle)
+          test -n "$expected_version"
+          "$aapt" dump badging "$apk" | grep -F "versionCode='$expected_version'"
           # The installed app retains its existing package ID; never silently reinstall.
           grep -F "applicationId 'io.github.tomorrowisfire.aiinpocket'" app/build.gradle
           grep -F 'android:allowBackup="false"' app/src/main/AndroidManifest.xml
@@ -321,7 +334,7 @@ jobs:
           else
             echo "::warning::APK uses an ephemeral debug certificate. Do not install over the user's fixed-signed app."
           fi
-          "$aapt" dump badging "$apk" | grep -F "application: label="
+          "$aapt" dump badging "$apk" | grep -F "application: label='On Hands AI'"
           unzip -l "$apk" | grep -E 'res/(mipmap|drawable)' >/dev/null
           sha256sum "$apk"
           echo "## Build-only verification" >> "$GITHUB_STEP_SUMMARY"
@@ -333,7 +346,7 @@ jobs:
           version=$(sed -nE "s/^[[:space:]]*versionName[[:space:]]+'([0-9]+\.[0-9]+\.[0-9]+).*'/\1/p" app/build.gradle | head -1)
           test -n "$version"
           cp app/build/outputs/apk/debug/app-debug.apk \
-            "dist/AI-in-Pocket-v${version}-Cooperative-ARM64.apk"
+            "dist/On-Hands-AI-v${version}-Cooperative-ARM64.apk"
           cp signature-report.txt dist/signature-report.txt
       - name: Make official Android apksigner available for offline stable re-signing
         shell: bash
