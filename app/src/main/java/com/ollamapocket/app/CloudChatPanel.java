@@ -81,6 +81,7 @@ final class CloudChatPanel extends LinearLayout {
     private double inputRate=-1,outputRate=-1;
     private volatile HttpURLConnection catalogRequest;
     private int errorLabel(Exception e){
+        if(e instanceof CloudApi.StreamFailure)return R.string.chat_stream_incomplete;
         if(e instanceof java.net.SocketTimeoutException)return R.string.cloud_timeout;
         if(e instanceof CloudApi.HttpFailure){int code=((CloudApi.HttpFailure)e).status;
             if(code==401||code==403)return R.string.cloud_auth_error;
@@ -426,7 +427,9 @@ final class CloudChatPanel extends LinearLayout {
                 if(closed||request!=serial||!active)return;
                 setBusy(false);
                 if(!current(p,id,s,revision)){status.setText(R.string.cloud_context_changed);return;}
-                if(output==null){ledger.record(ledgerScope,-1,-1,ir,or);render();status.setText(failure);return;}
+                if(output==null){ledger.record(ledgerScope,-1,-1,ir,or);String recovered=partial.getText().toString();render();prompt.setText(q);
+                    if(!recovered.trim().isEmpty()){TextView fragment=new TextView(owner);fragment.setText(getResources().getString(R.string.chat_stream_incomplete)+"\n\n"+recovered);fragment.setTextIsSelectable(true);fragment.setAutoLinkMask(0);transcript.addView(fragment,new LayoutParams(-1,-2));}
+                    status.setText(getResources().getString(failure)+"\n"+getResources().getString(R.string.chat_draft_recovered)+"\n"+getResources().getString(R.string.cloud_cancel_cost));return;}
                 ledger.record(ledgerScope,output.inputTokens,output.outputTokens,ir,or);
                 try{s.complete(q,output.text);prompt.setText("");status.setText(usageLabel(output));render();}
                 catch(IllegalArgumentException e){status.setText(R.string.cloud_fail);}
