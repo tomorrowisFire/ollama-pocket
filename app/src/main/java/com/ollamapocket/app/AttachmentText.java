@@ -7,7 +7,7 @@ import java.util.*;
 /** Bounded text excerpt extraction. No networking, persistence or execution. */
 final class AttachmentText {
     static final int MAX_BYTES=1024*1024,MAX_EXCERPT=6000;
-    enum Problem { UNSUPPORTED, TOO_LARGE, INVALID, EMPTY, PDF_VERSION, PDF_NO_TEXT, PDF_PROTECTED, PDF_TIMEOUT, OCR_NO_TEXT, OCR_FAILED, OCR_BUSY, OCR_TIMEOUT, OCR_PAGE }
+    enum Problem { UNSUPPORTED, TOO_LARGE, INVALID, EMPTY, PDF_VERSION, PDF_NO_TEXT, PDF_PROTECTED, PDF_TIMEOUT, OCR_NO_TEXT, OCR_FAILED, OCR_BUSY, OCR_TIMEOUT, OCR_PAGE, RANGE }
     static final class Failure extends IOException {
         final Problem problem;
         Failure(Problem p){super(p.name());problem=p;}
@@ -16,6 +16,7 @@ final class AttachmentText {
         final String name,text;final boolean partial,office,pdf;
         final int pdfPages,pdfExamined,pdfTextPages;
         final boolean ocr;final int ocrPage,ocrPages;
+        final int segment,rangeStart,rangeEnd,pdfFirst;
         Result(String name,String text,boolean partial){this(name,text,partial,false);}
         Result(String name,String text,boolean partial,boolean office){this(name,text,partial,office,false,0,0,0);}
         Result(String name,String text,boolean partial,boolean office,boolean pdf,int total,int examined,int withText){
@@ -23,9 +24,24 @@ final class AttachmentText {
         }
         Result(String name,String text,boolean partial,boolean office,boolean pdf,int total,int examined,int withText,
                 boolean ocr,int ocrPage,int ocrPages){
+            this(name,text,partial,office,pdf,total,examined,withText,ocr,ocrPage,ocrPages,0,0,0,pdf?1:0);
+        }
+        Result(String name,String text,boolean partial,boolean office,boolean pdf,int total,int examined,int withText,
+                boolean ocr,int ocrPage,int ocrPages,int segment,int rangeStart,int rangeEnd,int pdfFirst){
             this.name=name;this.text=text;this.partial=partial;this.office=office;this.pdf=pdf;
             this.pdfPages=total;this.pdfExamined=examined;this.pdfTextPages=withText;
             this.ocr=ocr;this.ocrPage=ocrPage;this.ocrPages=ocrPages;
+            this.segment=segment;this.rangeStart=rangeStart;this.rangeEnd=rangeEnd;this.pdfFirst=pdfFirst;
+        }
+        static Result window(String name,DocumentWindow.Slice w,boolean office){
+            return new Result(safeName(name),w.text,w.partial,office,false,0,0,0,false,0,0,
+                w.segment,w.start,w.end,0);
+        }
+        String sourceName(){
+            if(segment>0)return name+" [segment "+segment+", extracted UTF-16 "+(rangeStart+1)+"–"+rangeEnd+"]";
+            if(pdf)return name+" [pages "+pdfFirst+"–"+(pdfFirst+pdfExamined-1)+"]";
+            if(ocr&&ocrPage>0)return name+" [OCR page "+ocrPage+"]";
+            return name;
         }
     }
     private AttachmentText(){}
@@ -36,8 +52,10 @@ final class AttachmentText {
         return clean.isEmpty()?"file":clean;
     }
     static int maxBytes(String name){return OcrPolicy.image(name)?OcrPolicy.MAX_BYTES:PdfExcerpt.supports(name)?PdfExcerpt.MAX_BYTES:OfficeText.supports(name)?OfficeText.MAX_BYTES:MAX_BYTES;}
-    static Result read(String name,InputStream source)throws IOException{
-        if(OfficeText.supports(name))return OfficeText.read(name,source);
+    static Result read(String name,InputStream source)throws IOException{return read(name,source,1);}
+    static Result read(String name,InputStream source,int segment)throws IOException{
+        if(!DocumentWindow.validSegment(segment))throw new Failure(Problem.RANGE);
+        if(OfficeText.supports(name))return OfficeText.read(name,source,segment);
         if(name==null||!name.toLowerCase(Locale.ROOT).matches("(?s).+\\.(txt|md|csv|tsv|json|log)"))
             throw new Failure(Problem.UNSUPPORTED);
         if(source==null)throw new Failure(Problem.INVALID);
@@ -58,9 +76,7 @@ final class AttachmentText {
         catch(CharacterCodingException e){throw new Failure(Problem.INVALID);}
         for(int i=0;i<text.length();i++){char c=text.charAt(i);if(c<32&&c!='\t'&&c!='\n'&&c!='\r')throw new Failure(Problem.INVALID);}
         if(text.trim().isEmpty())throw new Failure(Problem.EMPTY);
-        boolean partial=text.length()>MAX_EXCERPT;
-        if(partial){int end=MAX_EXCERPT;if(Character.isHighSurrogate(text.charAt(end-1)))end--;text=text.substring(0,end);}
-        return new Result(safeName(name),text,partial);
+        return Result.window(name,DocumentWindow.select(text,segment,false),false);
     }
     static String include(String question,String name,String excerpt){
         if(excerpt==null||excerpt.trim().isEmpty()||excerpt.length()>MAX_EXCERPT)throw new IllegalArgumentException("Invalid excerpt");

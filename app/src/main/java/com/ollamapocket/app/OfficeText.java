@@ -29,12 +29,14 @@ final class OfficeText {
         String lower=name.toLowerCase(Locale.ROOT);
         return lower.endsWith(".docx")||lower.endsWith(".xlsx");
     }
-    static AttachmentText.Result read(String name,InputStream source)throws IOException{
+    static AttachmentText.Result read(String name,InputStream source)throws IOException{return read(name,source,1);}
+    static AttachmentText.Result read(String name,InputStream source,int segment)throws IOException{
+        if(!DocumentWindow.validSegment(segment))throw bad(AttachmentText.Problem.RANGE);
         if(!supports(name))throw bad(AttachmentText.Problem.UNSUPPORTED);
         if(source==null)throw invalid();
         try{
             Map<String,byte[]> parts=archive(bounded(source,MAX_BYTES));
-            Excerpt out=new Excerpt();
+            Excerpt out=new Excerpt(DocumentWindow.prefixLimit(segment));
             if(name.toLowerCase(Locale.ROOT).endsWith(".docx")){
                 byte[] document=parts.get("word/document.xml");
                 if(document==null)throw invalid();
@@ -49,14 +51,14 @@ final class OfficeText {
                 if(workbook.sheets.isEmpty())throw invalid();
                 int seen=0;
                 for(SheetRef sheet:workbook.sheets){
-                    if(seen++>=MAX_SHEETS||out.text.length()>=AttachmentText.MAX_EXCERPT){out.partial=true;break;}
+                    if(seen++>=MAX_SHEETS||out.text.length()>=out.limit){out.partial=true;break;}
                     String path=relations.paths.get(sheet.id);
                     if(path==null||!parts.containsKey(path)){out.partial=true;continue;}
                     parse(parts.get(path),new Cells(out,sheet.name,shared.values));
                 }
             }
             if(!out.hasData)throw bad(AttachmentText.Problem.EMPTY);
-            return new AttachmentText.Result(AttachmentText.safeName(name),out.text.toString(),out.partial,true);
+            return AttachmentText.Result.window(name,DocumentWindow.select(out.text.toString(),segment,out.partial),true);
         }catch(AttachmentText.Failure e){throw e;}
         catch(InterruptedIOException e){throw e;}
         catch(Exception e){
@@ -156,8 +158,10 @@ final class OfficeText {
     }
     private static final class Excerpt{
         final StringBuilder text=new StringBuilder();boolean partial,hasData;
+        final int limit;
+        Excerpt(int limit){this.limit=limit;}
         void add(String value){
-            int room=AttachmentText.MAX_EXCERPT-text.length();
+            int room=limit-text.length();
             if(value.length()<=room){text.append(value);return;}
             int end=Math.max(room,0);
             if(end>0&&Character.isHighSurrogate(value.charAt(end-1)))end--;
@@ -185,7 +189,7 @@ final class OfficeText {
         }
         void append(String value){
             if(paragraph==null)return;
-            int room=AttachmentText.MAX_EXCERPT-paragraph.length();
+            int room=out.limit-paragraph.length();
             if(value.length()>room){
                 int take=Math.max(room,0);
                 if(take>0&&Character.isHighSurrogate(value.charAt(take-1)))take--;
