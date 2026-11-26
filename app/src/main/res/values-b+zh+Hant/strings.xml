@@ -678,7 +678,7 @@
     <string name="chat_manage_failed">無法更新對話清單，已儲存訊息未變更。</string>
     <string name="chat_manage_done">對話已更新</string>
     <string name="attachment_pick">附加檔案</string>
-    <string name="attachment_formats">請選擇 TXT、MD、CSV、TSV、JSON、LOG、DOCX 或 XLSX。文字支援 UTF-8 或含 BOM 的 UTF-16。暫不支援 PDF、圖片及舊版 DOC/XLS。</string>
+    <string name="attachment_formats">請選擇 TXT、MD、CSV、TSV、JSON、LOG、DOCX、XLSX 或 PDF。PDF 文字擷取需要 Android 15 或以上版本。暫不支援 OCR、圖片及舊版 DOC/XLS。</string>
     <string name="attachment_reading">正在擷取檔案文字…</string>
     <string name="attachment_preview">預覽擷取文字</string>
     <string name="attachment_notice">加入本機問題前請檢查或編輯摘錄。摘錄將成為草稿及已儲存問題的一部分，可能用於後續本機文脈。不儲存原檔案。文件服務可能透過網路取得檔案。</string>
@@ -686,11 +686,17 @@
     <string name="attachment_insert">將摘錄加入問題</string>
     <string name="attachment_added">已加入摘錄，傳送前可在本機輸入框編輯或移除。</string>
     <string name="attachment_unsupported">不支援的檔案格式。</string>
-    <string name="attachment_too_large">檔案或解壓文件超出大小限制（文字 1 MiB，Office 壓縮 8 MiB、解壓 16 MiB）。</string>
+    <string name="attachment_too_large">檔案或解壓文件超出大小限制（文字 1 MiB、PDF 8 MiB、Office 壓縮 8 MiB、解壓 16 MiB）。</string>
     <string name="attachment_invalid">無法擷取支援的文字。檔案可能損壞、加密、為二進位或使用不支援的格式或編碼。</string>
     <string name="attachment_empty">未找到可讀文字。</string>
     <string name="attachment_context_limit">請縮短摘錄或問題。模型權杖上限可能小於字元限制。</string>
     <string name="attachment_scope_changed">對話已變更，請重新選擇檔案。</string>
     <string name="attachment_rpc_notice">加入摘錄不會傳送資料。之後選擇協作推論時，可信訪客裝置可能參與處理。</string>
     <string name="attachment_office_note">Office 預覽為唯讀：顯示 Word 正文段落編號、Excel 工作表名稱、儲存格位址及儲存值。不重新計算公式；格式、圖片、頁首頁尾及部分工作表可能省略。請勿將快取值視為最新結果。</string>
+    <string name="attachment_pdf_version">PDF 文字擷取需要 Android 15 或以上版本。其他支援的檔案格式仍可使用。</string>
+    <string name="attachment_pdf_no_text">在已檢查的 PDF 頁面中未找到可讀文字。掃描頁或不支援的文字編碼可能需要 OCR。尚未實作 OCR。</string>
+    <string name="attachment_pdf_protected">此 PDF 需要密碼或使用不支援的安全機制。不擷取受保護的文件。</string>
+    <string name="attachment_pdf_timeout">PDF 擷取達到時間限制後停止。請嘗試較小的文件。</string>
+    <string name="attachment_pdf_note">僅擷取 PDF 文字。已檢查 %2$d 頁中的 %1$d 頁，其中 %3$d 頁含可讀文字。最多處理前 12 頁及 6,000 字元。不包含圖片、表格視覺配置或 OCR；閱讀順序可能與頁面顯示不同。</string>
+    <string name="attachment_pdf_privacy">PDF 擷取時建立暫時私人副本以取得可定位檔案描述符，並在解析前移除。複製期間異常中斷可能留下私人快取檔案。</string>
 </resources>

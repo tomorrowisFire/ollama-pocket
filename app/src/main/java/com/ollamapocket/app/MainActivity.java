@@ -3333,7 +3333,7 @@ public final class MainActivity extends Activity {
                     picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                     picker.putExtra(Intent.EXTRA_MIME_TYPES,new String[]{"text/*","application/json","application/octet-stream",
                         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","application/pdf"});
                     startActivityForResult(picker,PICK_ATTACHMENT);
                 }catch(Exception e){attachmentScope="";toast(getString(R.string.chat_export_unavailable));}
             }).show();
@@ -3360,12 +3360,20 @@ public final class MainActivity extends Activity {
                         if(si>=0&&!cursor.isNull(si))bytes=cursor.getLong(si);
                     }
                 }
+                boolean pdf=PdfExcerpt.supports(name);
+                if(pdf&&Build.VERSION.SDK_INT<35)throw new AttachmentText.Failure(AttachmentText.Problem.PDF_VERSION);
                 if(bytes>AttachmentText.maxBytes(name))throw new AttachmentText.Failure(AttachmentText.Problem.TOO_LARGE);
-                try(InputStream in=getContentResolver().openInputStream(uri)){extracted=AttachmentText.read(name,in);}
+                try(InputStream in=getContentResolver().openInputStream(uri)){
+                    extracted=pdf?PdfTextClient.read(this,name,in):AttachmentText.read(name,in);
+                }
             }catch(AttachmentText.Failure e){
                 error=e.problem==AttachmentText.Problem.UNSUPPORTED?R.string.attachment_unsupported:
                     e.problem==AttachmentText.Problem.TOO_LARGE?R.string.attachment_too_large:
-                    e.problem==AttachmentText.Problem.EMPTY?R.string.attachment_empty:R.string.attachment_invalid;
+                    e.problem==AttachmentText.Problem.EMPTY?R.string.attachment_empty:
+                    e.problem==AttachmentText.Problem.PDF_VERSION?R.string.attachment_pdf_version:
+                    e.problem==AttachmentText.Problem.PDF_NO_TEXT?R.string.attachment_pdf_no_text:
+                    e.problem==AttachmentText.Problem.PDF_PROTECTED?R.string.attachment_pdf_protected:
+                    e.problem==AttachmentText.Problem.PDF_TIMEOUT?R.string.attachment_pdf_timeout:R.string.attachment_invalid;
             }catch(Exception ignored){}
             final AttachmentText.Result preview=extracted;final int fail=error;
             ui.post(()->{
@@ -3386,6 +3394,10 @@ public final class MainActivity extends Activity {
         margin(text(getString(R.string.attachment_notice),12,WHITE,false),panel,0,6);
         margin(text(getString(R.string.attachment_rpc_notice),12,MUTED,false),panel,0,6);
         if(preview.office)margin(text(getString(R.string.attachment_office_note),12,MUTED,false),panel,0,6);
+        if(preview.pdf){
+            margin(text(getString(R.string.attachment_pdf_note,preview.pdfExamined,preview.pdfPages,preview.pdfTextPages),12,MUTED,false),panel,0,6);
+            margin(text(getString(R.string.attachment_pdf_privacy),12,MUTED,false),panel,0,6);
+        }
         if(preview.partial)margin(text(getString(R.string.attachment_partial),12,MUTED,true),panel,0,6);
         EditText excerpt=edit(getString(R.string.attachment_preview),preview.text,true);
         excerpt.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(AttachmentText.MAX_EXCERPT)});

@@ -678,7 +678,7 @@
     <string name="chat_manage_failed">Could not update the conversation list. Saved messages were not changed.</string>
     <string name="chat_manage_done">Conversation updated</string>
     <string name="attachment_pick">Attach file</string>
-    <string name="attachment_formats">Select TXT, MD, CSV, TSV, JSON, LOG, DOCX or XLSX. Text supports UTF-8 or BOM UTF-16. PDF, images and legacy DOC/XLS are not yet supported.</string>
+    <string name="attachment_formats">Select TXT, MD, CSV, TSV, JSON, LOG, DOCX, XLSX or PDF. PDF text extraction requires Android 15 or later. OCR, images and legacy DOC/XLS are not yet supported.</string>
     <string name="attachment_reading">Extracting file text…</string>
     <string name="attachment_preview">Preview extracted text</string>
     <string name="attachment_notice">Review or edit the excerpt before adding it to the local question. It becomes part of the draft and saved question, and may be used in later local context. The original file is not stored. Your document provider may fetch files over the network.</string>
@@ -686,11 +686,17 @@
     <string name="attachment_insert">Add excerpt to question</string>
     <string name="attachment_added">Excerpt added. Edit or remove it in the local input box before sending.</string>
     <string name="attachment_unsupported">Unsupported file format.</string>
-    <string name="attachment_too_large">File or expanded document exceeds the size limit (text 1 MiB, Office 8 MiB compressed, 16 MiB expanded).</string>
+    <string name="attachment_too_large">File or expanded document exceeds the size limit (text 1 MiB, PDF 8 MiB, Office 8 MiB compressed / 16 MiB expanded).</string>
     <string name="attachment_invalid">Could not extract supported text. The file may be damaged, encrypted, binary or use an unsupported format or encoding.</string>
     <string name="attachment_empty">No readable text found.</string>
     <string name="attachment_context_limit">Shorten the excerpt or question. Model token limits may be smaller than the character limit.</string>
     <string name="attachment_scope_changed">The conversation changed. Select the file again.</string>
     <string name="attachment_rpc_notice">Adding the excerpt does not send it. Cooperative inference, if selected later, may process it with trusted guest devices.</string>
     <string name="attachment_office_note">Office preview is read-only: Word main-body paragraph references, Excel sheet names, cell references and stored values. Formulas are not recalculated; formatting, images, headers/footers and some sheets may be omitted. Do not treat cached values as current results.</string>
+    <string name="attachment_pdf_version">PDF text extraction requires Android 15 or later. Other supported file formats are available.</string>
+    <string name="attachment_pdf_no_text">No readable text was found in the examined PDF pages. Scanned pages or unsupported text encodings may require OCR. OCR is not implemented yet.</string>
+    <string name="attachment_pdf_protected">This PDF requires a password or uses an unsupported security scheme. Protected documents are not extracted.</string>
+    <string name="attachment_pdf_timeout">PDF extraction stopped after the time limit. Try a smaller document.</string>
+    <string name="attachment_pdf_note">PDF text only. Examined %1$d of %2$d pages; %3$d contained readable text. The first 12 pages and up to 6,000 characters are considered. Images, visual table layout and OCR are not included; reading order can differ from the displayed page.</string>
+    <string name="attachment_pdf_privacy">For PDF extraction, a temporary private copy is created for the seekable file descriptor and removed before parsing. An unexpected interruption during copying may leave a private cache file.</string>
 </resources>
