@@ -48,8 +48,9 @@
     <string name="voice">音声</string>
     <string name="voice_options">音声入力</string>
     <string name="dictate">音声入力 · 確認して送信</string>
-    <string name="voice_turn">音声会話 · 送信して回答を読み上げ</string>
-    <string name="voice_notice">タップしたときだけマイクを使用します。認識と読み上げにはインストール済みのオフライン言語が必要です。</string>
+    <string name="voice_turn">連続音声会話 · 回答後に自動で聞き取り</string>
+    <string name="voice_playback">読み上げ中… マイクをタップして割り込めます。</string>
+    <string name="voice_notice">タップして開始します。停止するまで回答の読み上げ後に自動で聞き取りを再開します。オフライン言語のインストールが必要です。</string>
     <string name="voice_permission">マイクの権限を許可してから音声ボタンを再度タップしてください。</string>
     <string name="voice_unavailable">オフライン音声認識を使用できません。対応言語をインストールするか、文字で入力してください。</string>
     <string name="voice_error">音声認識に失敗したか、キャンセルされました。</string>
