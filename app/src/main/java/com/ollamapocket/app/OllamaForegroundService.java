@@ -67,13 +67,15 @@ public final class OllamaForegroundService extends Service {
         pb.redirectErrorStream(true);
     }
 
+    @Override protected void attachBaseContext(Context base){super.attachBaseContext(OnHandsLocale.wrap(base));}
+
     @Override public void onCreate() {
         super.onCreate();
         NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
-                CHANNEL, "Ollama 로컬 실행", NotificationManager.IMPORTANCE_LOW);
-            channel.setDescription("스마트폰에서 실행되는 Ollama 추론 서버");
+                CHANNEL, getString(R.string.ollama_channel), NotificationManager.IMPORTANCE_LOW);
+            channel.setDescription(getString(R.string.ollama_channel_desc));
             manager.createNotificationChannel(channel);
         }
     }
@@ -100,11 +102,11 @@ public final class OllamaForegroundService extends Service {
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         return new Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.stat_notify_sync)
-            .setContentTitle("On Hands AI")
-            .setContentText("이 기기에서 로컬 LLM 서버 실행 중 · 127.0.0.1")
+            .setContentTitle(getString(R.string.app_name))
+            .setContentText(getString(R.string.ollama_notification))
             .setContentIntent(pi)
             .setOngoing(true)
-            .addAction(android.R.drawable.ic_media_pause, "중지", stopPi)
+            .addAction(android.R.drawable.ic_media_pause, getString(R.string.stop), stopPi)
             .build();
     }
 

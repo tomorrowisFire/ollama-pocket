@@ -1,3 +1,7 @@
+# OnHand AI
+
+> 현재 개발 브랜치의 앱 표시 이름은 **OnHand AI**입니다. 아래 기존 AI in Pocket / On Hands AI 관련 버전 기록은 이력으로 유지합니다. 앱 패키지 ID와 기존 모델·대화 저장소는 유지합니다.
+
 # AI in Pocket - Client for Ollama (v0.11.1 / Cleaner UI)
 
 안드로이드 기기 자체에서 **Ollama Android ARM64 엔진**을 실행하는 비공식 독립 클라이언트입니다. PC·Termux·원격 서버 없이 기기에서 모델 다운로드와 로컬 텍스트 대화를 수행하도록 개발했습니다. 실행용 바이너리는 공개 커뮤니티 포크(Rllama) 소스에서 빌드합니다. 이미지/영상 탭은 요청에 따라 제거했습니다.

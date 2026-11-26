@@ -60,6 +60,29 @@ jobs:
           mkdir -p /tmp/workspace-tests
           javac -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/WorkspaceLayoutPolicy.java tests/WorkspaceLayoutPolicyTest.java
           java -cp /tmp/workspace-tests com.ollamapocket.app.WorkspaceLayoutPolicyTest
+      - name: Verify OnHand AI brand and locale resource parity
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, xml.etree.ElementTree as ET
+          root=Path('app/src/main/res')
+          baseline=None
+          for name in ['values','values-ko','values-b+zh+Hans','values-b+zh+Hant','values-ja']:
+              items=ET.parse(root/name/'strings.xml').getroot().findall('string')
+              values={e.attrib['name']:e.text for e in items}
+              assert len(values)==len(items) and all(values.values()),name
+              assert values['app_name']=='OnHand AI',name
+              tokens={k:sorted(re.findall(r'%\d+\$[ds]',v)) for k,v in values.items()}
+              assert baseline is None or baseline==tokens,name
+              baseline=tokens
+          src=Path('app/src/main/java/com/ollamapocket/app')
+          for path in src.glob('*.java'):
+              assert 'On Hands AI' not in path.read_text(),path
+              for k in re.findall(r'(?<!android\.)R\.string\.([a-z_]+)',path.read_text()):
+                  assert k in baseline,(path,k)
+          assert "applicationId 'io.github.tomorrowisfire.aiinpocket'" in Path('app/build.gradle').read_text()
+          print('PASS: exact OnHand AI display name, five-locale parity and format arguments; application ID retained')
+          PY
       - name: Android SDK
         shell: bash
         run: |

@@ -234,7 +234,7 @@ jobs:
           for locale in locales:
               entries={e.attrib["name"]:e.text for e in ET.parse(resource_root/locale/"strings.xml").getroot().findall("string")}
               assert all(entries.values()), locale
-              assert entries["app_name"] == "On Hands AI", locale
+              assert entries["app_name"] == "OnHand AI", locale
               assert keys is None or keys == set(entries), locale
               keys=set(entries)
               for key in ("models","settings","devices"):
@@ -283,7 +283,7 @@ jobs:
           assert 'ModelVariantCatalog.compareSize(' in src
           assert 'OllamaQuantPicker.show(' in src
           assert '모델 받기 ↓' not in src
-          assert 'text("(추천)",10,secondary,true)' in src
+          assert 'text(getString(R.string.model_recommend_mark),10,secondary,true)' in src
           assert 'bestQuantizations(' in src
           assert 'allSearchTiles(filter)' in src
           assert 'onlineSearchSerial' in src
@@ -334,7 +334,7 @@ jobs:
           else
             echo "::warning::APK uses an ephemeral debug certificate. Do not install over the user's fixed-signed app."
           fi
-          "$aapt" dump badging "$apk" | grep -F "application: label='On Hands AI'"
+          "$aapt" dump badging "$apk" | grep -F "application: label='OnHand AI'"
           unzip -l "$apk" | grep -E 'res/(mipmap|drawable)' >/dev/null
           sha256sum "$apk"
           echo "## Build-only verification" >> "$GITHUB_STEP_SUMMARY"
@@ -346,7 +346,7 @@ jobs:
           version=$(sed -nE "s/^[[:space:]]*versionName[[:space:]]+'([0-9]+\.[0-9]+\.[0-9]+).*'/\1/p" app/build.gradle | head -1)
           test -n "$version"
           cp app/build/outputs/apk/debug/app-debug.apk \
-            "dist/On-Hands-AI-v${version}-Cooperative-ARM64.apk"
+            "dist/OnHand-AI-v${version}-Cooperative-ARM64.apk"
           cp signature-report.txt dist/signature-report.txt
       - name: Make official Android apksigner available for offline stable re-signing
         shell: bash

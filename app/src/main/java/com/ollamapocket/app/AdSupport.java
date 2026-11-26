@@ -90,16 +90,16 @@ public final class AdSupport {
             layoutListeners.put(parent,listener);
             parent.addOnLayoutChangeListener(listener);
         }
-        status(parent, "광고 영역 · 데이터 사용 가능" + (BuildConfig.DEBUG ? " · 테스트 광고" : ""));
+        status(parent, activity.getString(R.string.ad_area) + (BuildConfig.DEBUG ? " · "+activity.getString(R.string.ad_test) : ""));
     }
 
     public void showBanner(FrameLayout parent) {
         if (disposed || parent == null || !placements.containsKey(parent)) return;
         if (!requested.contains(parent)) requested.add(parent);
-        if (!isEnabled()) { status(parent, "광고 표시 꺼짐"); return; }
+        if (!isEnabled()) { status(parent, activity.getString(R.string.ad_off)); return; }
         if (consent.canRequestAds() && adsInitialized) load(parent);
         else {
-            status(parent, "광고 개인정보 확인 중 · 표시되지 않을 수 있습니다");
+            status(parent, activity.getString(R.string.ad_consent_check));
             prepareConsent();
         }
     }
@@ -123,7 +123,7 @@ public final class AdSupport {
     private void maybeLoadAfterConsent() {
         if (!consent.canRequestAds()) {
             for (FrameLayout parent : new ArrayList<>(requested))
-                status(parent, "광고 개인정보 선택 또는 네트워크 확인 필요");
+                status(parent, activity.getString(R.string.ad_consent_required));
             return;
         }
         if (!isEnabled())return;
@@ -164,7 +164,7 @@ public final class AdSupport {
                 if (live.get(parent) == banner) {
                     live.remove(parent);
                     banner.destroy();
-                    status(parent, "테스트 광고 표시 불가 · 네트워크 또는 동의 상태 확인");
+                    status(parent, activity.getString(R.string.ad_load_failed));
                 }
             }
         });
@@ -233,11 +233,10 @@ public final class AdSupport {
             });
         } else {
             new AlertDialog.Builder(activity)
-                .setTitle("광고 개인정보 설정")
-                .setMessage("현재 Google 동의 관리에서 별도 개인정보 선택 화면을 요청하지 않았습니다. " +
-                    "아래에서 앱 내 테스트 광고 표시를 끌 수 있습니다.")
-                .setNegativeButton("취소", null)
-                .setPositiveButton(isEnabled() ? "광고 끄기" : "광고 켜기", (d,w) -> {
+                .setTitle(R.string.privacy_settings)
+                .setMessage(activity.getString(R.string.ad_privacy_fallback))
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(isEnabled() ? activity.getString(R.string.ad_turn_off) : activity.getString(R.string.ad_turn_on), (d,w) -> {
                     if (isEnabled()) disable(); else enable();
                 }).show();
         }
@@ -249,7 +248,7 @@ public final class AdSupport {
         for (FrameLayout parent : new ArrayList<>(requested)) {
             AdView view = live.remove(parent);
             if (view != null) view.destroy();
-            status(parent, "광고 표시 꺼짐");
+            status(parent, activity.getString(R.string.ad_off));
         }
     }
 

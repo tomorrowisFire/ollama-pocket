@@ -1,4 +1,4 @@
-# On Hands AI — 10단계 개발·보완계획 v1.0
+# OnHand AI — 10단계 개발·보완계획 v1.0
 
 기준: v0.13-B 모의평가 평균 68.8/100, 최저 60. 태블릿 구현 커밋 6f8afc392afe25f742b5fa4d8dc43d9b0aa2e0be. 현재 작업 브랜치 `dev/on-hands-ai-v012`. 실제 평가자 10명을 모집하거나 별도 AI 에이전트 10개를 독립 실행한 기록은 없으므로 A~J는 고정된 사용자 관점의 모의평가이다.
 
@@ -59,3 +59,6 @@
 - Tablet code static checks: 15/15; 178 keys per locale across five language sets.
 - Tablet/phone real device screenshots, keyboard/rotation/split-screen, signed update, actual API/voice and RPC tests: NOT_RUN.
 - Main head verified: cd12614132c6951e215be387738b0beafa4e7599; no release or live advertising enabled.
+
+## Stage 02 preparatory scope
+The program display name is now OnHand AI. Stage 01 remains pending real-device verification; Stage 02 localization source work is a candidate, not formal advancement. Do not mark remaining translated screens complete from resource count alone.

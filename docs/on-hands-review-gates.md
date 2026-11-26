@@ -1,4 +1,4 @@
-# On Hands AI — independent-perspective review and release gate
+# OnHand AI — independent-perspective review and release gate
 
 ## User-directed review contract
 Each improvement stage must be followed by ten independent-perspective *simulated* reviews. They are not ten real users or independently executed agents unless separately demonstrated. No fabricated hands-on evaluations, test passes, or approval claims.
@@ -26,3 +26,6 @@ First-run onboarding banner must be retained at the original placement and origi
 
 ## Tablet layout gate
 Preserve user-selectable Auto / Phone / Tablet layout. Wide windows must show an actual persistent navigation/history pane; compact and split-screen windows must retain the drawer, without forcing undersized content. Settings must persist without touching model/history keys or stopping engines. Test 360/600/720/840/1024dp, portrait/landscape, resize and 126%+ font scaling, keyboard and cutout handling; include first-run ads, local/cloud separation, guest mode and model grid regression. Do not award UI usability PASS from width policy alone.
+
+## Branding change
+User-directed display name: **OnHand AI** (no space between On and Hand, singular Hand). Preserve package ID, legacy preference keys, signing identity, RPC wire protocol, and all three original ad placements/IDs. Historic names in prior reports are evidence, not identifiers to migrate.

@@ -21,11 +21,13 @@ public final class CoopService extends Service {
     private static final int NOTIFY=58;
     private final ExecutorService jobs=Executors.newSingleThreadExecutor();
 
+    @Override protected void attachBaseContext(Context base){super.attachBaseContext(OnHandsLocale.wrap(base));}
+
     @Override public void onCreate(){
         super.onCreate();
         NotificationManager mgr=(NotificationManager)getSystemService(NOTIFICATION_SERVICE);
-        NotificationChannel ch=new NotificationChannel(CHANNEL,"On Hands AI 협력 추론", NotificationManager.IMPORTANCE_LOW);
-        ch.setDescription("사용자가 켠 협력 노드 세션을 유지합니다");
+        NotificationChannel ch=new NotificationChannel(CHANNEL,getString(R.string.coop_channel), NotificationManager.IMPORTANCE_LOW);
+        ch.setDescription(getString(R.string.coop_channel_desc));
         mgr.createNotificationChannel(ch);
     }
     @Override public int onStartCommand(Intent intent,int flags,int startId){
@@ -59,10 +61,10 @@ public final class CoopService extends Service {
             PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
         return new Notification.Builder(this,CHANNEL)
             .setSmallIcon(android.R.drawable.stat_notify_sync)
-            .setContentTitle("On Hands AI · 협력 노드 연결")
-            .setContentText("신뢰할 수 있는 동일 Wi-Fi에서 일시적으로 분산 추론을 준비합니다")
+            .setContentTitle(getString(R.string.coop_notification))
+            .setContentText(getString(R.string.coop_notification_desc))
             .setContentIntent(pending).setOngoing(true)
-            .addAction(android.R.drawable.ic_media_pause,"세션 종료",stop).build();
+            .addAction(android.R.drawable.ic_media_pause,getString(R.string.guest_end),stop).build();
     }
     @Override public void onDestroy(){
         DistributedRunner.stop();CoopSession.get(this).stop();jobs.shutdownNow();super.onDestroy();

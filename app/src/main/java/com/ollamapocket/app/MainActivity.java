@@ -193,7 +193,7 @@ public final class MainActivity extends Activity {
                 }catch(Exception e){
                     ui.post(()->{
                         if(performanceHudView!=null&&!isFinishing())
-                            performanceHudView.setText("성능 HUD 다시 측정 중… · 진단 탭에서 확인");
+                            performanceHudView.setText(getString(R.string.hud_retry));
                     });
                 }
             });
@@ -570,7 +570,7 @@ public final class MainActivity extends Activity {
         rowItem(header, menu, 0, 9);
         menu.setOnClickListener(v -> showNavigationDrawer());
         LinearLayout branding = column();
-        topPageTitle = text("On Hands AI", 19, WHITE, true);
+        topPageTitle = text("OnHand AI", 19, WHITE, true);
         branding.addView(topPageTitle);
         topPageSubtitle=text(getString(R.string.chat)+"  ·  "+getString(R.string.local), 10, MUTED, false);
         branding.addView(topPageSubtitle);
@@ -896,33 +896,33 @@ public final class MainActivity extends Activity {
             intent.setType("*/*");startActivityForResult(intent,PICK_GGUF);
         });
         // Keep the legacy direct-tag fallback, but do not duplicate the main search UI.
-        Button manualToggle=button("고급 옵션 · 모델명 직접 입력 ▾",false);
+        Button manualToggle=button(getString(R.string.advanced_closed),false);
         margin(manualToggle,content,0,7);
         LinearLayout manualDownloadPanel=column();
         manualDownloadPanel.setVisibility(View.GONE);
-        margin(text("통합 검색에서 찾지 못한 Ollama 태그만 직접 입력하세요.",
+        margin(text(getString(R.string.manual_tag_help),
             12,MUTED,false),manualDownloadPanel,0,7);
         String recommendedDefault="qwen2.5:0.5b";
         for(DeviceProfiler.Recommendation rec:DeviceProfiler.recommend(deviceProfile)){
             if(rec.selectable){recommendedDefault=rec.model;break;}
         }
-        modelInput=edit("모델 태그 예: qwen2.5:1.5b",recommendedDefault,false);
+        modelInput=edit(getString(R.string.model_tag_example),recommendedDefault,false);
         margin(modelInput,manualDownloadPanel,0,7);
-        pullButton=button("태그로 다운로드",true);
+        pullButton=button(getString(R.string.download_tag),true);
         margin(pullButton,manualDownloadPanel,0,8);
         pullButton.setOnClickListener(v->pullModel());
         margin(manualDownloadPanel,content,0,6);
         manualToggle.setOnClickListener(v->{
             boolean expanded=manualDownloadPanel.getVisibility()==View.VISIBLE;
             manualDownloadPanel.setVisibility(expanded?View.GONE:View.VISIBLE);
-            manualToggle.setText(expanded?"고급 옵션 · 모델명 직접 입력 ▾":
-                "고급 옵션 · 모델명 직접 입력 ▴");
+            manualToggle.setText(expanded?getString(R.string.advanced_closed):
+                getString(R.string.advanced_open));
         });
 
         LinearLayout downloadStatusRow=row();
-        progressStatus=text("모델 선택 후 다운로드 진행 상황이 여기에 표시됩니다.",12,MUTED,false);
+        progressStatus=text(getString(R.string.download_status_hint),12,MUTED,false);
         rowItem(downloadStatusRow,progressStatus,1,6);
-        downloadRetryButton=button("재시도",false);
+        downloadRetryButton=button(getString(R.string.retry),false);
         rowItem(downloadStatusRow,downloadRetryButton,0,6);
         downloadRetryButton.setVisibility(View.GONE);
         downloadRetryButton.setOnClickListener(v->{
@@ -930,7 +930,7 @@ public final class MainActivity extends Activity {
             modelInput.setText(lastFailedPullModel);
             pullModel();
         });
-        cancelPullButton=button("다운로드 취소",false);
+        cancelPullButton=button(getString(R.string.cancel_download),false);
         rowItem(downloadStatusRow,cancelPullButton,0,0);
         cancelPullButton.setVisibility(View.GONE);
         cancelPullButton.setEnabled(false);
@@ -942,10 +942,10 @@ public final class MainActivity extends Activity {
         downloadProgress.setMax(100);downloadProgress.setProgress(0);
         downloadProgress.setVisibility(View.GONE);
         margin(downloadProgress,content,0,8);
-        margin(text("광고"+(BuildConfig.DEBUG?" · 테스트":""),11,MUTED,false),content,0,3);
+        margin(text(getString(BuildConfig.DEBUG?R.string.ad_test:R.string.ad_label),11,MUTED,false),content,0,3);
         downloadAdSlot=new FrameLayout(this);margin(downloadAdSlot,content,0,4);
         ads.register(downloadAdSlot,AdSupport.PLACEMENT_DOWNLOAD);
-        margin(text("모델 다운로드와 광고에는 데이터가 사용되며 통신료가 발생할 수 있습니다.",
+        margin(text(getString(R.string.network_data_notice),
             11,MUTED,false),content,0,15);
         // Lower duplicate "recommended models" section deliberately removed.
         // GGUF import stays visible; manual Ollama tags are a collapsed advanced option.
@@ -1082,21 +1082,21 @@ public final class MainActivity extends Activity {
         LinearLayout content=column();content.setPadding(dp(4),dp(8),dp(4),dp(20));
         scroll.addView(content);
         diagnosticPage.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-        margin(text("기기 / 연결 진단",23,WHITE,true),content,0,5);
-        margin(text("현재 기기와 같은 세션에 참가한 기기를 확인합니다.",13,MUTED,false),
+        margin(text(getString(R.string.diag_title),23,WHITE,true),content,0,5);
+        margin(text(getString(R.string.diag_intro),13,MUTED,false),
             content,0,12);
 
         LinearLayout ownTitle=row();
-        rowItem(ownTitle,text("내 기기",18,WHITE,true),1,5);
-        Button refresh=button("진단 새로고침",false);
+        rowItem(ownTitle,text(getString(R.string.own_device),18,WHITE,true),1,5);
+        Button refresh=button(getString(R.string.diag_refresh),false);
         rowItem(ownTitle,refresh,0,0);
         margin(ownTitle,content,0,7);
         deviceSummary=text(deviceProfile.description(),13,WHITE,false);
         deviceSummary.setPadding(dp(14),dp(13),dp(14),dp(13));
         deviceSummary.setBackground(bg(CARD,14));
         margin(deviceSummary,content,0,7);
-        margin(text("모델 구동 적합도",18,WHITE,true),content,0,7);
-        suitabilitySummary=text("설치 모델 확인 중…",13,WHITE,false);
+        margin(text(getString(R.string.diag_suitability),18,WHITE,true),content,0,7);
+        suitabilitySummary=text(getString(R.string.diag_models_check),13,WHITE,false);
         suitabilitySummary.setPadding(dp(14),dp(13),dp(14),dp(13));
         suitabilitySummary.setBackground(bg(CARD,14));
         margin(suitabilitySummary,content,0,10);
@@ -1104,7 +1104,7 @@ public final class MainActivity extends Activity {
         computeSummary.setPadding(dp(14),dp(12),dp(14),dp(12));
         computeSummary.setBackground(bg(CARD,14));
         margin(computeSummary,content,0,8);
-        localConnectionStatus=text("연결 상태 확인 중",12,MUTED,false);
+        localConnectionStatus=text(getString(R.string.connection_check),12,MUTED,false);
         margin(localConnectionStatus,content,0,10);
         refresh.setOnClickListener(v->{
             deviceProfile=DeviceProfiler.scan(this);
@@ -1113,40 +1113,40 @@ public final class MainActivity extends Activity {
             populateModelFilters();
             renderInstalledModels();
         });
-        margin(text("권한 안내",16,WHITE,true),content,0,6);
+        margin(text(getString(R.string.permissions),16,WHITE,true),content,0,6);
         margin(text("기기 모델·CPU·RAM·저장공간 진단은 Android 시스템에서 " +
             "공개하는 정보로 수행하며 별도 위치 권한은 요청하지 않습니다. " +
             "일부 GPU 사용률·NPU 정보는 제조사 제한으로 조회할 수 없습니다. " +
             "Wi-Fi 세션 검색에는 네트워크·멀티캐스트 권한을 사용합니다.",
             12,MUTED,false),content,0,7);
-        Button notification=button("알림 권한 확인 / 요청",false);
+        Button notification=button(getString(R.string.notification_permission),false);
         margin(notification,content,0,14);
         notification.setOnClickListener(v->{
             if(Build.VERSION.SDK_INT<33){
-                toast("Android 12 이하: 알림 권한 별도 요청 불필요");return;
+                toast(getString(R.string.notification_legacy));return;
             }
             if(checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
                     ==PackageManager.PERMISSION_GRANTED){
-                toast("알림 권한이 허용되어 있습니다.");return;
+                toast(getString(R.string.notification_allowed));return;
             }
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},3);
         });
 
-        margin(text("세션 연결 진단",18,WHITE,true),content,0,6);
-        connectionSessionStatus=text("협력 세션 상태 확인 중",13,WHITE,false);
+        margin(text(getString(R.string.session_diagnostics),18,WHITE,true),content,0,6);
+        connectionSessionStatus=text(getString(R.string.session_check),13,WHITE,false);
         connectionSessionStatus.setPadding(dp(14),dp(12),dp(14),dp(12));
         connectionSessionStatus.setBackground(bg(CARD,14));
         margin(connectionSessionStatus,content,0,8);
-        Button coop=button("호스트 세션 생성 · 주변 기기 참가",true);
+        Button coop=button(getString(R.string.session_join_host),true);
         margin(coop,content,0,9);
         coop.setOnClickListener(v->CoopUi.show(this));
         nodeRows=column();margin(nodeRows,content,0,10);
 
-        margin(text("성능 및 실제 추론 테스트",18,WHITE,true),content,5,7);
-        Button benchmark=button("모델 최적화 벤치마크 · tok/s",true);
+        margin(text(getString(R.string.performance_tests),18,WHITE,true),content,5,7);
+        Button benchmark=button(getString(R.string.model_benchmark),true);
         margin(benchmark,content,0,7);
         benchmark.setOnClickListener(v->{
-            if(isUiBusy()){toast("진행 중인 작업이 끝난 뒤 측정하세요");return;}
+            if(isUiBusy()){toast(getString(R.string.busy));return;}
             ModelBenchmark.show(this,currentModel,
                 ()->benchmarkBusy=true,()->{
                     benchmarkBusy=false;
@@ -1154,15 +1154,15 @@ public final class MainActivity extends Activity {
                     if(activeTab==3)refreshDiagnosticViews();
                 });
         });
-        Button test=button("CPU · Vulkan GPU 실측 검사",false);
+        Button test=button(getString(R.string.hardware_test),false);
         margin(test,content,0,6);
-        diagnosticStatus=text("설치 모델을 CPU/GPU에서 실행해 추론 성공 여부를 확인합니다.",
+        diagnosticStatus=text(getString(R.string.hardware_test_help),
             12,MUTED,false);
         margin(diagnosticStatus,content,0,10);
         test.setOnClickListener(v->beginHardwareSelfTest());
 
-        margin(text("엔진 실행 로그",16,WHITE,true),content,0,6);
-        logText=text("로그 로딩 중",11,MUTED,false);
+        margin(text(getString(R.string.engine_logs),16,WHITE,true),content,0,6);
+        logText=text(getString(R.string.logs_loading),11,MUTED,false);
         logText.setTextIsSelectable(true);
         logText.setPadding(dp(12),dp(10),dp(12),dp(10));
         logText.setBackground(bg(CARD,12));
@@ -1226,7 +1226,7 @@ public final class MainActivity extends Activity {
             text.setPadding(dp(14),dp(12),dp(14),dp(12));
             text.setBackground(bg(CARD,14));margin(text,nodeRows,0,7);
         }else{
-            TextView none=text("참가 중인 보조 기기가 없습니다.\n동일 Wi-Fi에서 세션을 만들거나 참가하세요.",
+            TextView none=text(getString(R.string.session_no_nodes),
                     13,MUTED,false);
             none.setPadding(dp(14),dp(14),dp(14),dp(14));
             none.setBackground(bg(CARD,14));margin(none,nodeRows,0,5);
@@ -1235,23 +1235,23 @@ public final class MainActivity extends Activity {
 
     private void beginHardwareSelfTest() {
         if (diagnosticBusy || chatBusy || pullBusy || benchmarkBusy) {
-            toast("다른 작업이 끝난 뒤 검사하세요"); return;
+            toast(getString(R.string.busy)); return;
         }
         if (currentModel == null || currentModel.isEmpty() || knownModels.isEmpty()) {
-            toast("모델을 먼저 설치한 뒤 검사하세요"); showTab(1); return;
+            toast(getString(R.string.test_need_model)); showTab(1); return;
         }
         if (!OllamaForegroundService.isRunning()) {
-            toast("로컬 Ollama 서버가 실행 중이어야 합니다"); return;
+            toast(getString(R.string.test_need_server)); return;
         }
         new AlertDialog.Builder(this)
-            .setTitle("실제 추론 확인")
+            .setTitle(getString(R.string.verify_inference))
             .setMessage("모델: " + currentModel + "\n\n기기에서 CPU 응답을 생성하고 GPU가 지원되면 " +
                 "Vulkan 오프로드와 토큰 생성까지 확인합니다. 발열과 배터리 사용량이 증가할 수 있습니다. " +
                 "새 모델은 다운로드하지 않으며 NPU 실행은 현재 지원하지 않습니다.")
             .setNegativeButton(getString(R.string.cancel), null)
-            .setPositiveButton("검사 시작", (d,which) -> {
+            .setPositiveButton(getString(R.string.test_start), (d,which) -> {
                 diagnosticBusy = true;
-                diagnosticStatus.setText("실측 검사 시작...");
+                diagnosticStatus.setText(getString(R.string.test_running));
                 final String model = currentModel;
                 io.execute(() -> {
                     String computed;
@@ -1268,15 +1268,15 @@ public final class MainActivity extends Activity {
                     ui.post(() -> {
                         diagnosticBusy = false;
                         if (isFinishing()) return;
-                        diagnosticStatus.setText("검사가 완료됐습니다. 보고서를 확인하세요.");
+                        diagnosticStatus.setText(getString(R.string.test_finished));
                         new AlertDialog.Builder(this)
-                            .setTitle("기기 내 CPU/GPU/NPU 진단 결과")
+                            .setTitle(getString(R.string.test_report))
                             .setMessage(result)
                             .setNegativeButton(getString(R.string.close), null)
-                            .setPositiveButton("결과 복사", (dialog, action) -> {
+                            .setPositiveButton(getString(R.string.copy_result), (dialog, action) -> {
                                 ClipboardManager clipboard = (ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
-                                clipboard.setPrimaryClip(ClipData.newPlainText("On Hands AI 진단 결과", result));
-                                toast("진단 결과 복사됨");
+                                clipboard.setPrimaryClip(ClipData.newPlainText("OnHand AI 진단 결과", result));
+                                toast(getString(R.string.diag_copied));
                             }).show();
                     });
                 });
@@ -1289,32 +1289,32 @@ public final class MainActivity extends Activity {
 
     private void showComputeChoiceDialog() {
         computeReport = ComputeProfiler.scan(this);
-        String gpuInfo = !GpuRunner.packaged(this) ? "GPU · 실행 엔진이 APK에 없음" :
-            (computeReport.gpuCompute ? "GPU · Vulkan 실행 가능 여부 시도" : "GPU · Vulkan compute 감지되지 않음");
+        String gpuInfo = !GpuRunner.packaged(this) ? getString(R.string.compute_gpu_missing) :
+            (computeReport.gpuCompute ? getString(R.string.compute_gpu_try) : getString(R.string.compute_gpu_unavailable));
         String npuInfo = computeReport.nnapiAccelerators > 0 ?
-            "NPU · 가속기 후보 감지 (모델 백엔드 미지원)" :
-            "NPU · 지원되는 추론 백엔드 없음";
-        String[] options = {"자동 · GPU 확인 후 CPU 대체", "CPU · Ollama 실행", gpuInfo, npuInfo};
-        new AlertDialog.Builder(this).setTitle("추론 장치 선택")
+            getString(R.string.compute_npu_candidate) :
+            getString(R.string.compute_npu_unsupported);
+        String[] options = {getString(R.string.compute_auto), getString(R.string.compute_cpu), gpuInfo, npuInfo};
+        new AlertDialog.Builder(this).setTitle(getString(R.string.compute_select))
             .setMessage("연산 장치를 감지한 뒤 실제 추론 가능 여부를 확인합니다. " +
                 "GPU는 Vulkan runner 탑재·오프로드 확인 조건을 충족해야 사용하며, " +
                 "NPU는 전용 제조사 백엔드가 없어 선택할 수 없습니다.")
             .setSingleChoiceItems(options,
                 "cpu".equals(computePreference()) ? 1 : "gpu".equals(computePreference()) ? 2 : 0,
                 (dialog, which) -> {
-                    if (chatBusy) { toast("답변 생성 중에는 변경할 수 없습니다"); return; }
+                    if (chatBusy) { toast(getString(R.string.model_wait)); return; }
                     if (which == 3) {
-                        toast("NPU용 GGUF 추론 백엔드가 없습니다"); return;
+                        toast(getString(R.string.compute_npu_error)); return;
                     }
                     if (which == 2 && (!computeReport.gpuCompute || !GpuRunner.packaged(this))) {
-                        toast("이 기기/APK에서는 Vulkan GPU 실행을 확인할 수 없습니다"); return;
+                        toast(getString(R.string.compute_gpu_error)); return;
                     }
                     String pref = which == 1 ? "cpu" : which == 2 ? "gpu" : "auto";
                     getPreferences(MODE_PRIVATE).edit().putString("compute_preference", pref).apply();
                     if (which == 1) GpuRunner.stop();
                     if (activeEngineLabel != null)
                         activeEngineLabel.setText("선택한 모드: " + pref + " · 다음 답변부터 적용");
-                    toast("연산 모드 저장 · 다음 답변에서 확인");
+                    toast(getString(R.string.compute_saved));
                     dialog.dismiss();
                 }).setNegativeButton(getString(R.string.cancel), null).show();
     }
@@ -1352,7 +1352,7 @@ public final class MainActivity extends Activity {
             incoming.setTranslationX(0f);
         }
         if(activeTab!=0&&voice!=null)voice.cancel();
-        if(topPageTitle!=null)topPageTitle.setText("On Hands AI");
+        if(topPageTitle!=null)topPageTitle.setText("OnHand AI");
         if(topPageSubtitle!=null){
             int[] subtitles={R.string.chat,R.string.models,R.string.settings,R.string.devices};
             topPageSubtitle.setText(getString(subtitles[activeTab])+"  ·  "+getString(cloudMode?R.string.cloud_short:R.string.local));
@@ -1390,7 +1390,7 @@ public final class MainActivity extends Activity {
         try {
             if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent);
             else startService(intent);
-            toast("로컬 Ollama 실행 요청");
+            toast(getString(R.string.local_start_requested));
         } catch (Exception e) { toast("서버 시작 실패: " + e.getMessage()); }
     }
     private void stopServer() {
@@ -1451,7 +1451,7 @@ public final class MainActivity extends Activity {
         modelQuantization.clear();modelQuantization.putAll(quantizations);
         modelBytes.clear();modelBytes.putAll(sizes);
         List<String> shown=names.isEmpty()
-            ?java.util.Collections.singletonList("설치된 모델 없음"):names;
+            ?java.util.Collections.singletonList(getString(R.string.model_none_installed)):names;
         ArrayAdapter<String> adapter=new ArrayAdapter<String>(this,
                 android.R.layout.simple_spinner_item,shown){
             @Override public View getView(int position,View convertView,ViewGroup parent){
@@ -1799,7 +1799,7 @@ public final class MainActivity extends Activity {
 
     private void activateTile(ModelTileCatalog.Tile tile){
         if(tile.id.equals(downloadingCardId)&&pullBusy){toast("다운로드 중");return;}
-        if(isUiBusy()){toast("진행 중인 추론·다운로드·벤치마크를 마친 뒤 변경하세요");return;}
+        if(isUiBusy()){toast(getString(R.string.busy));return;}
         ModelVariantCatalog.Variant selected=visibleVariants.get(tile.id);
         if(selected!=null){
             List<ModelVariantCatalog.Variant> options=new ArrayList<>();
@@ -1863,8 +1863,8 @@ public final class MainActivity extends Activity {
         tilePressEffect(card);
 
         TextView statusText=text(
-            (item.id.equals(downloadingCardId)&&pullBusy)?"↓ 다운로드 중":
-            item.installed?(selected?"● 사용 중":"● 설치됨"):"○ 미설치",
+            (item.id.equals(downloadingCardId)&&pullBusy)?getString(R.string.model_downloading):
+            item.installed?(selected?getString(R.string.model_active):getString(R.string.model_installed)):getString(R.string.model_not_installed),
             10,ink,true);
         statusText.setSingleLine(true);
         statusText.setEllipsize(TextUtils.TruncateAt.END);
@@ -1872,7 +1872,7 @@ public final class MainActivity extends Activity {
         LinearLayout statusRow=row();
         rowItem(statusRow,statusText,1,3);
         if(item.featured){
-            TextView recommendation=text("(추천)",10,secondary,true);
+            TextView recommendation=text(getString(R.string.model_recommend_mark),10,secondary,true);
             recommendation.setGravity(Gravity.CENTER_VERTICAL|Gravity.END);
             recommendation.setSingleLine(true);
             rowItem(statusRow,recommendation,0,0);
@@ -1895,7 +1895,7 @@ public final class MainActivity extends Activity {
         margin(variant,card,0,1);
 
         String suffix=item.bytes>0?installedSize(item.bytes):"용량 미확인";
-        String provider=remote!=null?remote.source:item.installed?"내 기기":"Ollama";
+        String provider=remote!=null?remote.source:item.installed?getString(R.string.own_device):"Ollama";
         TextView details=text(item.quantization+" · "+suffix+"\n"+
             provider+benchmarkLabel(item.id),10,secondary,false);
         details.setGravity(Gravity.CENTER);
@@ -1915,7 +1915,7 @@ public final class MainActivity extends Activity {
         margin(progress,card,0,2);
         tileDownloadBars.put(item.id,progress);
 
-        TextView hint=text("양자화 버전 선택 ›",11,secondary,false);
+        TextView hint=text(getString(R.string.model_quant_select),11,secondary,false);
         hint.setGravity(Gravity.CENTER);
         hint.setSingleLine(true);
         margin(hint,card,1,0);
@@ -1954,7 +1954,7 @@ public final class MainActivity extends Activity {
         identifier.setSingleLine(true);
         identifier.setEllipsize(TextUtils.TruncateAt.MIDDLE);
         margin(identifier,body,0,4);
-        String provider=remote!=null?remote.source:item.installed?"내 기기":"Ollama";
+        String provider=remote!=null?remote.source:item.installed?getString(R.string.own_device):"Ollama";
         TextView details=text(item.quantization+"  ·  "+
             (item.bytes>0?installedSize(item.bytes):"용량 미확인")+"  ·  "+provider+
             benchmarkLabel(item.id),11,secondary,false);
@@ -1965,19 +1965,19 @@ public final class MainActivity extends Activity {
 
         LinearLayout trailing=column();
         trailing.setGravity(Gravity.END|Gravity.CENTER_VERTICAL);
-        TextView status=text(item.id.equals(downloadingCardId)&&pullBusy?"↓ 다운로드 중":
-            item.installed?(selected?"● 사용 중":"● 설치됨"):"○ 미설치",
+        TextView status=text(item.id.equals(downloadingCardId)&&pullBusy?getString(R.string.model_downloading):
+            item.installed?(selected?getString(R.string.model_active):getString(R.string.model_installed)):getString(R.string.model_not_installed),
             10,ink,true);
         status.setGravity(Gravity.END|Gravity.CENTER_VERTICAL);
         status.setSingleLine(true);
         margin(status,trailing,0,5);
         if(item.featured){
-            TextView recommended=text("(추천)",11,secondary,true);
+            TextView recommended=text(getString(R.string.model_recommend_mark),11,secondary,true);
             recommended.setGravity(Gravity.END|Gravity.CENTER_VERTICAL);
             recommended.setSingleLine(true);
             margin(recommended,trailing,0,5);
         }
-        TextView more=text("선택 ›",12,secondary,false);
+        TextView more=text(getString(R.string.model_select_more),12,secondary,false);
         more.setGravity(Gravity.END|Gravity.CENTER_VERTICAL);
         more.setSingleLine(true);
         margin(more,trailing,0,0);
@@ -2004,7 +2004,7 @@ public final class MainActivity extends Activity {
         if(!pullBusy||downloadingModel.isEmpty())return;
         TextView status=tileStatusLabels.get(downloadingCardId);
         if(status!=null){
-            status.setText(downloadingPercent<0?"↓ 다운로드 준비 중":
+            status.setText(downloadingPercent<0?getString(R.string.model_download_preparing):
                 "↓ 다운로드 중 · 레이어 "+downloadingPercent+"%");
         }
         ProgressBar bar=tileDownloadBars.get(downloadingCardId);
@@ -2098,11 +2098,11 @@ public final class MainActivity extends Activity {
         if(modelSearchStatus==null)return;
         String query=modelFilter==null?"":modelFilter.getText().toString().trim();
         if(query.isEmpty()){
-            modelSearchStatus.setText(recommendationLoading?"실제 등록 양자화·용량 확인 중…":
+            modelSearchStatus.setText(recommendationLoading?getString(R.string.search_check_sizes):
                 !recommendationError.isEmpty()?"온라인 추천 조회 실패 · 새로고침으로 재시도":
                 "추천은 RAM·저장공간·CPU 기준 추정이며 실제 실행은 벤치마크에서 확인하세요.");
-        }else if(query.length()<2)modelSearchStatus.setText("두 글자 이상 입력하면 자동 검색합니다.");
-        else if(query.length()>120)modelSearchStatus.setText("검색어는 120자 이내로 입력하세요.");
+        }else if(query.length()<2)modelSearchStatus.setText(getString(R.string.search_min_chars));
+        else if(query.length()>120)modelSearchStatus.setText(getString(R.string.search_max_chars));
         else if(onlineSearchPending)modelSearchStatus.setText(filterDisplay(selectedSource)+" · "+onlineVariants.size()+
             "개 우선 표시 · 나머지 검색 중… (최근 검색 10분 캐시)");
         else modelSearchStatus.setText("온라인 양자화 버전 "+onlineVariants.size()+"개 · "+
@@ -2323,15 +2323,15 @@ public final class MainActivity extends Activity {
 
     private void showAllInstalledModels() {
         if(knownModels.isEmpty()){
-            toast("설치된 모델이 없습니다. 추천 카드를 눌러 다운로드하세요.");
+            toast(getString(R.string.model_none_installed));
             return;
         }
         String[] entries=knownModels.toArray(new String[0]);
         new AlertDialog.Builder(this)
-            .setTitle("설치된 모델 선택")
+            .setTitle(getString(R.string.model_picker))
             .setItems(entries,(dialog,index)->{
                 if(chatBusy||benchmarkBusy||diagnosticBusy){
-                    toast("실행 중인 작업을 마친 뒤 모델을 바꾸세요");return;
+                    toast(getString(R.string.busy));return;
                 }
                 selectModel(entries[index]);
                 showTab(0);
@@ -2353,10 +2353,10 @@ public final class MainActivity extends Activity {
     private void pullModel() {
         String model = modelInput.getText().toString().trim();
         if (model.isEmpty() || !model.matches("[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,119}")) {
-            toast("모델명을 확인하세요"); return;
+            toast(getString(R.string.model_tag_invalid)); return;
         }
         if (pullBusy || benchmarkBusy || HuggingFaceCatalog.isDownloading()) {
-            toast("다른 모델 다운로드 또는 벤치마크 종료 후 이용하세요");return;
+            toast(getString(R.string.busy));return;
         }
         long featuredBytes=modelBytes.getOrDefault(model,0L);
         for(ModelVariantCatalog.Variant v:onlineVariants)if(v.model.equals(model)){featuredBytes=v.bytes;break;}
@@ -2371,7 +2371,7 @@ public final class MainActivity extends Activity {
                 .setMessage("필요 공간(여유분 포함): "+installedSize(reserved)+
                     "\n현재 여유 공간: "+installedSize(availableBytes)+
                     "\n다른 모델·파일을 정리한 뒤 다시 시도하세요.")
-                .setPositiveButton("확인",null).show();
+                .setPositiveButton(R.string.ok,null).show();
             return;
         }
         String storageHint=featuredBytes>0 ?
@@ -2632,7 +2632,7 @@ public final class MainActivity extends Activity {
         });
 
         LinearLayout heading=row();
-        TextView product=text("On Hands AI",17,WHITE,true);
+        TextView product=text("OnHand AI",17,WHITE,true);
         rowItem(heading,product,1,8);
         Button close=button("×",false);
         close.setTextSize(20);
@@ -2645,7 +2645,7 @@ public final class MainActivity extends Activity {
         TextView newChatItem=drawerRow("✎   "+getString(R.string.new_chat),"",false);
         margin(newChatItem,shell,0,8);
         newChatItem.setOnClickListener(v->{
-            if(chatBusy){toast("생성 중에는 새 대화를 시작할 수 없습니다");return;}
+            if(chatBusy){toast(getString(R.string.new_chat_busy));return;}
             drawer.dismiss();
             newChat();
         });
