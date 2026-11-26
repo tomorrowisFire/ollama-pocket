@@ -802,4 +802,5 @@
     <string name="auto_state_blocked">已阻止</string>
     <string name="auto_state_completed">已完成</string>
     <string name="auto_state_cancelled">已取消</string>
+    <string name="chat_actions">聊天工具</string>
 </resources>

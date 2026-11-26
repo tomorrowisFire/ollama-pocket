@@ -15,6 +15,17 @@ final class WorkspaceLayoutPolicy {
     static int minContentDp(float textScale){
         return Float.isFinite(textScale)&&textScale>1.2f?480:400;
     }
+    /** Actual chat content width after rail, insets and centered-column padding. */
+    static boolean stackedComposer(int contentDp,float textScale){
+        return contentDp<(Float.isFinite(textScale)&&textScale>1.2f?520:420);
+    }
+    static boolean directCloud(int contentDp,float textScale){
+        return contentDp>=(Float.isFinite(textScale)&&textScale>1.2f?460:320);
+    }
+    static boolean compactHeader(int widthDp,float textScale){
+        return widthDp<(Float.isFinite(textScale)&&textScale>1.2f?520:380);
+    }
+    static int readingColumnDp(int usableWidthDp){return Math.max(0,Math.min(880,usableWidthDp));}
     /** Return zero for compact layout. Input is actual usable content width, after root insets/padding. */
     static int railWidthDp(String mode,int usableWidthDp,float textScale){
         String chosen=normalize(mode);

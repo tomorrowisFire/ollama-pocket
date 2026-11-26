@@ -86,7 +86,10 @@ public final class MainActivity extends Activity {
     private Button attachFileButton;
     private boolean guestOnly, foreground, speakNextAnswer;
     private OnHandsVoice voice;
-    private Button voiceButton, cloudShortcut, exportConversation;
+    private Button voiceButton, cloudShortcut, chatActionsButton, newChatShortcut;
+    private LinearLayout chatComposer,composerActions;
+    private Boolean composerStacked;
+    private boolean keyboardVisible;
     private TextView voiceStateView;
     private final Runnable voiceStatePoll=new Runnable(){public void run(){
         if(!foreground||isFinishing()||isDestroyed())return;
@@ -99,7 +102,7 @@ public final class MainActivity extends Activity {
         voiceStateView.setVisibility(active?View.VISIBLE:View.GONE);
         if(active){String next=getString(label);if(!next.contentEquals(voiceStateView.getText()))voiceStateView.setText(next);}
         voiceButton.setContentDescription(getString(active?R.string.stop:R.string.voice));
-        voiceButton.setEnabled(!chatBusy||active);
+        voiceButton.setEnabled(!AutomationUi.busy()&&(!chatBusy||active));
     }
     private final ExecutorService chatSearchIo=Executors.newSingleThreadExecutor();
     private java.util.concurrent.Future<?> chatSearchTask;
@@ -610,7 +613,7 @@ public final class MainActivity extends Activity {
     private Button button(String label, boolean primary) {
         Button b = new Button(this); b.setText(label); b.setAllCaps(false);
         b.setTextSize(13*uiTextScale); b.setTextColor(primary ? BG : WHITE);
-        b.setPadding(dp(11), dp(6), dp(11), dp(6)); b.setMinHeight(dp(44)); b.setMinimumHeight(dp(44));
+        b.setPadding(dp(11), dp(6), dp(11), dp(6)); b.setMinHeight(dp(48)); b.setMinimumHeight(dp(48));
         b.setBackground(bg(primary ? ACCENT : FIELD, 11));
         b.setElevation(0);return b;
     }
@@ -627,21 +630,25 @@ public final class MainActivity extends Activity {
         // Android 15+ enforces edge-to-edge. Respect real status-bar/cutout
         // insets instead of allowing the menu / chat title to be drawn under it.
         root.setOnApplyWindowInsetsListener((view,insets)->{
-            int top=0,bottom=0,left=0,right=0;
+            int top=0,bottom=0,left=0,right=0,ime=0;
+            boolean typing=false;
             if(Build.VERSION.SDK_INT>=30){
                 android.graphics.Insets bars=insets.getInsets(WindowInsets.Type.statusBars()|
                     WindowInsets.Type.navigationBars()|WindowInsets.Type.displayCutout());
                 top=bars.top;bottom=bars.bottom;left=bars.left;right=bars.right;
+                typing=insets.isVisible(WindowInsets.Type.ime());
+                if(typing)ime=insets.getInsets(WindowInsets.Type.ime()).bottom;
             }else{
                 top=insets.getSystemWindowInsetTop();
                 bottom=insets.getSystemWindowInsetBottom();
             }
             boolean edge=Build.VERSION.SDK_INT>=35;
-            int safeTop=dp(15)+(edge?top:0),safeBottom=dp(10)+(edge?bottom:0);
+            int safeTop=dp(10)+(edge?top:0),safeBottom=dp(8)+(edge?Math.max(bottom,ime):0);
             int safeLeft=dp(12)+(edge?left:0),safeRight=dp(12)+(edge?right:0);
             if(view.getPaddingTop()!=safeTop||view.getPaddingBottom()!=safeBottom||
                view.getPaddingLeft()!=safeLeft||view.getPaddingRight()!=safeRight)
                 view.setPadding(safeLeft,safeTop,safeRight,safeBottom);
+            if(keyboardVisible!=typing){keyboardVisible=typing;updateTypingChrome();}
             return insets;
         });
         setContentView(root);
@@ -662,9 +669,10 @@ public final class MainActivity extends Activity {
         branding.addView(topPageSubtitle);
         rowItem(header, branding, 1, 5);
         Button fresh = button("＋ "+getString(R.string.new_chat), false);
+        newChatShortcut=fresh;fresh.setContentDescription(getString(R.string.new_chat));fresh.setTooltipText(getString(R.string.new_chat));
         rowItem(header, fresh, 0, 0);
         fresh.setOnClickListener(v -> newChat());
-        header.setMinimumHeight(dp(58));
+        header.setMinimumHeight(dp(52));
         root.addView(header, lp(-1, -2));
         miniStatus = text("● "+getString(R.string.engine_check), 11, MUTED, false);
         margin(miniStatus, root, 2, 6);
@@ -704,6 +712,7 @@ public final class MainActivity extends Activity {
             if(r-l!=or-ol)applyWorkspaceLayout();
         });
         workspace.post(this::applyWorkspaceLayout);
+        updateTypingChrome();
     }
 
     private int workspaceChoiceLabel(){
@@ -743,6 +752,29 @@ public final class MainActivity extends Activity {
             if(wide)refreshTabletRail();
         }
         refreshWorkspaceModeLabel();
+        if(newChatShortcut!=null)newChatShortcut.setText(WorkspaceLayoutPolicy.compactHeader(widthDp,scale)?"＋":"＋ "+getString(R.string.new_chat));
+        if(localChatContent!=null)localChatContent.post(this::applyChatLayout);
+    }
+    private void updateTypingChrome(){
+        if(performanceHudView!=null)performanceHudView.setVisibility(showHud&&!keyboardVisible?View.VISIBLE:View.GONE);
+        if(miniStatus!=null)miniStatus.setVisibility(keyboardVisible?View.GONE:View.VISIBLE);
+    }
+    private void applyChatLayout(){
+        if(localChatContent==null||chatComposer==null||composerActions==null||chatInput==null||isFinishing()||isDestroyed())return;
+        int usable=localChatContent.getWidth()-localChatContent.getPaddingLeft()-localChatContent.getPaddingRight();
+        if(usable<=0)return;
+        float scale=uiTextScale*Math.max(1f,getResources().getConfiguration().fontScale);
+        int width=(int)(usable/getResources().getDisplayMetrics().density);
+        boolean stacked=WorkspaceLayoutPolicy.stackedComposer(Math.max(0,width-16),scale);
+        if(composerStacked==null||composerStacked!=stacked){
+            composerStacked=stacked;
+            chatComposer.setOrientation(stacked?LinearLayout.VERTICAL:LinearLayout.HORIZONTAL);
+            LinearLayout.LayoutParams inputParams=stacked?lp(-1,-2):new LinearLayout.LayoutParams(0,-2,1f);
+            if(stacked)inputParams.bottomMargin=dp(4);else inputParams.rightMargin=dp(6);
+            chatInput.setLayoutParams(inputParams);
+            composerActions.setLayoutParams(lp(stacked?-1:-2,-2));
+        }
+        if(cloudShortcut!=null)cloudShortcut.setVisibility(WorkspaceLayoutPolicy.directCloud(width,scale)?View.VISIBLE:View.GONE);
     }
     private ScrollView createTabletRail(){
         ScrollView scroll=new ScrollView(this);
@@ -799,7 +831,7 @@ public final class MainActivity extends Activity {
         if(width<=0)width=workspace==null?getResources().getDisplayMetrics().widthPixels:workspace.getWidth()-dp(currentRailDp+(currentRailDp>0?WorkspaceLayoutPolicy.GAP_DP:0));
         if(width<=0)width=getResources().getDisplayMetrics().widthPixels;
         int padding=messages==null?dp(8):messages.getPaddingLeft()+messages.getPaddingRight();
-        return Math.max(dp(80),(int)(Math.max(0,width-padding)*0.82f));
+        return Math.max(dp(80),Math.min(dp(640),(int)(Math.max(0,width-padding)*0.86f)));
     }
     private void refreshBubbleWidths(){
         if(messages==null)return;
@@ -820,43 +852,38 @@ public final class MainActivity extends Activity {
         localChatContent.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
             if(r-l==or-ol)return;
             // Keep long conversations readable even on large external displays.
-            int side=Math.max(0,(r-l-dp(960))/2);
+            int widthDp=(int)((r-l)/getResources().getDisplayMetrics().density);
+            int side=Math.max(0,(r-l-dp(WorkspaceLayoutPolicy.readingColumnDp(widthDp)))/2);
             if(v.getPaddingLeft()!=side||v.getPaddingRight()!=side)v.setPadding(side,0,side,0);
+            applyChatLayout();
         });
         LinearLayout modelRow = row();
-        TextView modelLabel = text(getString(R.string.model_label), 12, MUTED, false);
-        rowItem(modelRow, modelLabel, 0, 12);
         modelChooser = new Spinner(this); modelChooser.setBackground(bg(FIELD, 12));
+        modelChooser.setContentDescription(getString(R.string.model_label));modelChooser.setMinimumHeight(dp(48));
         modelChooser.setPadding(dp(12), dp(4), dp(8), dp(4));
         rowItem(modelRow, modelChooser, 1, 6);
         cloudShortcut=button(getString(R.string.cloud_short),false);
         cloudShortcut.setContentDescription(getString(R.string.cloud));
-        rowItem(modelRow,cloudShortcut,0,0);
+        rowItem(modelRow,cloudShortcut,0,5);
         cloudShortcut.setOnClickListener(v->openCloud());
-        margin(modelRow, localChatContent, 2, 7);
+        chatActionsButton=button("⋯",false);
+        chatActionsButton.setTextSize(21);chatActionsButton.setMinimumWidth(dp(48));chatActionsButton.setMinWidth(dp(48));
+        chatActionsButton.setContentDescription(getString(R.string.chat_actions));chatActionsButton.setTooltipText(getString(R.string.chat_actions));
+        chatActionsButton.setOnClickListener(v->showChatActions());
+        rowItem(modelRow,chatActionsButton,0,0);
+        margin(modelRow, localChatContent, 2, 3);
         activeEngineLabel = text(getString(R.string.engine_idle), 11, MUTED, false);
-        LinearLayout chatTools=row();
-        rowItem(chatTools,activeEngineLabel,1,5);
-        attachFileButton=button("+",false);
-        attachFileButton.setContentDescription(getString(R.string.attachment_pick));
-        attachFileButton.setMinWidth(dp(48));attachFileButton.setMinimumWidth(dp(48));attachFileButton.setMinimumHeight(dp(48));
-        attachFileButton.setOnClickListener(v->pickChatAttachment());rowItem(chatTools,attachFileButton,0,3);
-        exportConversation=button(getString(R.string.chat_export),false);
-        exportConversation.setMinimumHeight(dp(48));
-        exportConversation.setEnabled(false);
-        exportConversation.setOnClickListener(v->chooseChatExport());
-        rowItem(chatTools,exportConversation,0,0);
-        margin(chatTools,localChatContent,0,7);
-        Button automation=button(getString(R.string.auto_title),false);
-        automation.setOnClickListener(v->{if(guestOnly||cloudMode||isUiBusy()){toast(getString(R.string.busy));return;}if(voice!=null)voice.cancel();if(automationUi==null)automationUi=new AutomationUi(this);automationUi.open(currentModel);});
-        margin(automation,localChatContent,0,4);
+        activeEngineLabel.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        activeEngineLabel.setOnClickListener(v->{if(!isUiBusy())showComputeChoiceDialog();});
+        activeEngineLabel.setFocusable(true);
+        margin(activeEngineLabel,localChatContent,0,3);
         modelChooser.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onNothingSelected(AdapterView<?> parent) { }
             @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 if (ignoreSelection || knownModels.isEmpty() || position >= knownModels.size()) return;
                 String model = knownModels.get(position);
                 if (model.equals(currentModel)) return;
-                if (chatBusy||attachmentReading) { toast(getString(R.string.model_wait)); return; }
+                if (isUiBusy()) { toast(getString(R.string.model_wait)); return; }
                 if(voice!=null)voice.cancel();
                 saveLocalDraft();
                 currentModel = model;
@@ -866,37 +893,43 @@ public final class MainActivity extends Activity {
         });
         messageScroll = new ScrollView(this); messageScroll.setFillViewport(true);
         messageScroll.setBackgroundColor(BG);
-        messages = column(); messages.setPadding(dp(4), dp(18), dp(4), dp(12));
+        messages = column(); messages.setPadding(dp(4), dp(10), dp(4), dp(12));
         messageScroll.addView(messages);
         messageScroll.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
             if(r-l!=or-ol)refreshBubbleWidths();
         });
         LinearLayout.LayoutParams scrollParam = new LinearLayout.LayoutParams(-1, 0, 1);
         localChatContent.addView(messageScroll, scrollParam);
-        LinearLayout composer = row();
-        composer.setPadding(dp(8), dp(7), dp(8), dp(7));
+        LinearLayout composer = row();chatComposer=composer;
+        composer.setPadding(dp(8), dp(6), dp(8), dp(6));
         composer.setBackground(bg(CARD, 22));
         chatInput = edit(getString(R.string.message_hint), "", true);
-        chatInput.setMinLines(1); chatInput.setMaxLines(4);
+        chatInput.setMinLines(1); chatInput.setMaxLines(5);chatInput.setMinimumHeight(dp(48));
         rowItem(composer, chatInput, 1, 5);
+        composerActions=row();composerActions.setGravity(Gravity.END|Gravity.CENTER_VERTICAL);
+        composer.addView(composerActions,lp(-2,-2));
+        attachFileButton=button("+",false);
+        attachFileButton.setTextSize(19);attachFileButton.setContentDescription(getString(R.string.attachment_pick));attachFileButton.setTooltipText(getString(R.string.attachment_pick));
+        attachFileButton.setMinWidth(dp(48));attachFileButton.setMinimumWidth(dp(48));
+        attachFileButton.setOnClickListener(v->pickChatAttachment());rowItem(composerActions,attachFileButton,0,4);
         voiceButton=button("🎙",false);
         voiceButton.setContentDescription(getString(R.string.voice));
         voiceButton.setMinWidth(dp(44));voiceButton.setMinimumWidth(dp(44));
-        rowItem(composer,voiceButton,0,4);
+        voiceButton.setTooltipText(getString(R.string.voice));rowItem(composerActions,voiceButton,0,4);
         voiceButton.setOnClickListener(v->openVoice());
         voiceButton.setOnLongClickListener(v->{if(voice!=null){if(chatBusy&&voice.continuous())stopChat();else voice.cancel();}return true;});
         sendButton = button("↑", true);
         sendButton.setContentDescription(getString(R.string.send));
         sendButton.setTextSize(19);
-        rowItem(composer, sendButton, 0, 4);
+        sendButton.setTooltipText(getString(R.string.send));rowItem(composerActions, sendButton, 0, 0);
         stopChatButton = button("■", false);
         stopChatButton.setContentDescription(getString(R.string.stop));
-        rowItem(composer, stopChatButton, 0, 0);
+        stopChatButton.setTooltipText(getString(R.string.stop));rowItem(composerActions, stopChatButton, 0, 0);
         voiceStateView=text("",12,MUTED,false);
         voiceStateView.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         voiceStateView.setVisibility(View.GONE);
         margin(voiceStateView,localChatContent,4,0);
-        margin(composer, localChatContent, 8, 2);
+        margin(composer, localChatContent, 4, 2);
         stopChatButton.setEnabled(false);stopChatButton.setVisibility(View.GONE);
         sendButton.setMinWidth(dp(48));sendButton.setMinimumWidth(dp(48));
         stopChatButton.setMinWidth(dp(48));stopChatButton.setMinimumWidth(dp(48));
@@ -905,6 +938,19 @@ public final class MainActivity extends Activity {
         stopChatButton.setOnClickListener(v -> stopChat());
         margin(text(getString(R.string.disclaimer),
             10, MUTED, false), localChatContent, 0, 0);
+        localChatContent.post(this::applyChatLayout);
+    }
+
+    private void showChatActions(){
+        if(guestOnly||cloudMode||isUiBusy()){toast(getString(R.string.busy));return;}
+        String[] labels={getString(R.string.cloud_short),getString(R.string.auto_title),getString(R.string.chat_export),getString(R.string.compute_select)};
+        new AlertDialog.Builder(this).setTitle(R.string.chat_actions).setItems(labels,(d,w)->{
+            if(isUiBusy()||guestOnly||cloudMode||!foreground)return;
+            if(w==0)openCloud();
+            else if(w==1){if(voice!=null)voice.cancel();if(automationUi==null)automationUi=new AutomationUi(this);automationUi.open(currentModel);}
+            else if(w==2)chooseChatExport();
+            else showComputeChoiceDialog();
+        }).setNegativeButton(R.string.close,null).show();
     }
 
     private void createModelPage() {
@@ -2629,7 +2675,7 @@ public final class MainActivity extends Activity {
     }
     private void newChat() {
         if(cloudMode){if(cloudPanel!=null)cloudPanel.newChat();return;}
-        if (chatBusy||attachmentReading) { toast(getString(R.string.new_chat_busy)); return; }
+        if (isUiBusy()) { toast(getString(R.string.new_chat_busy)); return; }
         if(voice!=null)voice.cancel();
         saveLocalDraft();
         String id=freshSessionId();
@@ -3115,7 +3161,7 @@ public final class MainActivity extends Activity {
     private void renderHistory(){renderHistory(true);}
     private void renderHistory(boolean follow) {
         if (messages == null) return;
-        if(exportConversation!=null)exportConversation.setEnabled(historyReadable&&!chatBusy&&history.length()>0);
+        if(chatActionsButton!=null)chatActionsButton.setEnabled(!chatBusy&&!AutomationUi.busy());
         int oldY=messageScroll==null?0:messageScroll.getScrollY();
         messages.removeAllViews();
         if(!historyReadable){
@@ -3161,8 +3207,9 @@ public final class MainActivity extends Activity {
             t.setBackground(bg(BUBBLE,17));
             wrapper.addView(t,lp(-2,-2));
             if(index>=0){
-                Button revise=button(getString(R.string.chat_edit_question),false);
-                revise.setMinimumHeight(dp(48));wrapper.addView(revise,lp(-2,-2));
+                Button revise=button("✎",false);
+                revise.setContentDescription(getString(R.string.chat_edit_question));revise.setTooltipText(getString(R.string.chat_edit_question));
+                revise.setMinWidth(dp(48));revise.setMinimumWidth(dp(48));wrapper.addView(revise,lp(-2,-2));
                 revise.setOnClickListener(v->branchMessage(index,true));
             }
         }else{
@@ -3175,7 +3222,7 @@ public final class MainActivity extends Activity {
             Button read=button(getString(R.string.read_answer),false);
             copy.setMinHeight(dp(48));copy.setMinimumHeight(dp(48));
             read.setMinHeight(dp(48));read.setMinimumHeight(dp(48));
-            rowItem(actions,copy,1,6);rowItem(actions,read,1,0);
+            rowItem(actions,copy,1,4);rowItem(actions,read,1,4);
             copy.setOnClickListener(v->{
                 Object raw=t.getTag();if(!(raw instanceof String))return;
                 ClipboardManager cb=(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
@@ -3189,8 +3236,9 @@ public final class MainActivity extends Activity {
             });
             wrapper.addView(actions,lp(-1,-2));
             if(index>=0&&"assistant".equals(role)){
-                Button regenerate=button(getString(R.string.chat_regenerate),false);
-                regenerate.setMinimumHeight(dp(48));wrapper.addView(regenerate,lp(-2,-2));
+                Button regenerate=button("↻",false);
+                regenerate.setContentDescription(getString(R.string.chat_regenerate));regenerate.setTooltipText(getString(R.string.chat_regenerate));
+                regenerate.setMinWidth(dp(48));regenerate.setMinimumWidth(dp(48));rowItem(actions,regenerate,0,0);
                 regenerate.setOnClickListener(v->branchMessage(index,false));
             }
             actions.setVisibility(pending?View.GONE:View.VISIBLE);
@@ -3236,7 +3284,7 @@ public final class MainActivity extends Activity {
         modelChooser.setEnabled(!busy && !knownModels.isEmpty());
         if(voiceButton!=null)voiceButton.setEnabled(!busy||(voice!=null&&voice.continuous()));
         if(attachFileButton!=null)attachFileButton.setEnabled(!busy&&!attachmentReading);
-        if(exportConversation!=null)exportConversation.setEnabled(!busy&&historyReadable&&history.length()>0);
+        if(chatActionsButton!=null)chatActionsButton.setEnabled(!busy&&!AutomationUi.busy());
     }
     private void sendChat(){sendChat(null);}
     private void confirmCooperativeTransfer(String fingerprint,JSONArray requestHistory,boolean speak,CoopSession.ApprovalRoster roster){

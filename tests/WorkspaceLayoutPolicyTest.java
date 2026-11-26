@@ -24,6 +24,20 @@ public final class WorkspaceLayoutPolicyTest {
                 }
             }
         }
+        ok(WorkspaceLayoutPolicy.stackedComposer(320,1f),"compact full width composer");
+        ok(WorkspaceLayoutPolicy.stackedComposer(419,1f),"stack below boundary");
+        ok(!WorkspaceLayoutPolicy.stackedComposer(420,1f),"wide inline composer");
+        ok(WorkspaceLayoutPolicy.stackedComposer(480,1.26f),"large text safe composer");
+        ok(!WorkspaceLayoutPolicy.stackedComposer(520,1.26f),"large text wide composer");
+        ok(!WorkspaceLayoutPolicy.directCloud(319,1f),"compact cloud menu fallback");
+        ok(WorkspaceLayoutPolicy.directCloud(320,1f),"phone direct cloud");
+        ok(!WorkspaceLayoutPolicy.directCloud(450,1.26f),"large text cloud menu fallback");
+        ok(WorkspaceLayoutPolicy.directCloud(460,1.26f),"wide large text direct cloud");
+        ok(WorkspaceLayoutPolicy.compactHeader(360,1f),"compact header");
+        ok(!WorkspaceLayoutPolicy.compactHeader(380,1f),"wide header");
+        ok(WorkspaceLayoutPolicy.compactHeader(480,1.26f),"large text header");
+        ok(WorkspaceLayoutPolicy.readingColumnDp(1024)==880,"wide readable column");
+        ok(WorkspaceLayoutPolicy.readingColumnDp(360)==360,"phone fills column");
         System.out.println("WorkspaceLayoutPolicyTest PASS: "+n+" assertions");
     }
 }

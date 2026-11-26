@@ -802,4 +802,5 @@
     <string name="auto_state_blocked">차단</string>
     <string name="auto_state_completed">완료</string>
     <string name="auto_state_cancelled">취소</string>
+    <string name="chat_actions">채팅 도구</string>
 </resources>
