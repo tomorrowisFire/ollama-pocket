@@ -95,7 +95,7 @@ public final class MainActivity extends Activity {
     private void refreshVoiceState(){
         if(voiceStateView==null||voiceButton==null)return;
         boolean active=voice!=null&&(voice.continuous()||voice.listening()||voice.speaking());
-        int label=!active?0:chatBusy?R.string.thinking:voice.listening()?R.string.listening:voice.speaking()?R.string.voice_turn:R.string.voice;
+        int label=!active?0:chatBusy?R.string.thinking:voice.listening()?R.string.listening:voice.speaking()?R.string.voice_playback:R.string.voice;
         voiceStateView.setVisibility(active?View.VISIBLE:View.GONE);
         if(active){String next=getString(label);if(!next.contentEquals(voiceStateView.getText()))voiceStateView.setText(next);}
         voiceButton.setContentDescription(getString(active?R.string.stop:R.string.voice));
@@ -447,6 +447,7 @@ public final class MainActivity extends Activity {
         if (chatConnection != null) chatConnection.disconnect();
         if (pullConnection != null) pullConnection.disconnect();
         ui.removeCallbacks(hudPoll);
+        ui.removeCallbacks(voiceStatePoll);
         ui.removeCallbacks(sunsetThemePoll);
         if(onlineSearchRunnable!=null)ui.removeCallbacks(onlineSearchRunnable);
         if(onlineSearchTask!=null)onlineSearchTask.cancel(true);
@@ -548,8 +549,9 @@ public final class MainActivity extends Activity {
     }
     private void listenVoiceTurn(boolean conversational){
         if(!foreground||isFinishing()||isDestroyed()||activeTab!=0||isUiBusy()||cloudMode||guestOnly){if(voice!=null)voice.cancel();return;}
+        final String voiceScope=historyKey();
         voice.listen(value->{
-            if(!foreground||isFinishing()||isDestroyed()||activeTab!=0||isUiBusy()){voice.cancel();return;}
+            if(!foreground||isFinishing()||isDestroyed()||activeTab!=0||isUiBusy()||cloudMode||guestOnly||!voiceScope.equals(historyKey())||!ownsLoadedScope()){voice.cancel();return;}
             chatInput.setText(value);chatInput.setSelection(chatInput.length());
             if(conversational){speakNextAnswer=true;try{sendChat();}finally{speakNextAnswer=false;}if(!chatBusy&&localTransferDialog==null)voice.cancel();}
         });
@@ -2973,7 +2975,9 @@ public final class MainActivity extends Activity {
         } catch (Exception ignored) { }
     }
     private void loadHistory() {
-        loadedHistoryScope=historyKey();
+        String nextScope=historyKey();
+        if(voice!=null&&!nextScope.equals(loadedHistoryScope))voice.cancel();
+        loadedHistoryScope=nextScope;
         if (!getPreferences(MODE_PRIVATE).contains(loadedHistoryScope)) {
             String legacy = getPreferences(MODE_PRIVATE).getString("chat_" + currentModel, "[]");
             if (!"[]".equals(legacy)) {
