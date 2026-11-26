@@ -50,6 +50,7 @@
     <string name="dictate">听写 · 确认后发送</string>
     <string name="voice_turn">连续语音对话 · 回答后自动聆听</string>
     <string name="voice_playback">正在朗读… 点击麦克风可打断。</string>
+    <string name="voice_barge_opt_in">实验性免触控打断（仅限有线耳机，朗读停止后请重新说话）。</string>
     <string name="voice_notice">点击开始。停止前，每次朗读回答后自动开启麦克风。需要已安装的离线语言支持。</string>
     <string name="voice_permission">允许麦克风权限后，再次点击语音。</string>
     <string name="voice_unavailable">无法使用离线语音识别。请安装支持的语音语言或输入文字。</string>
