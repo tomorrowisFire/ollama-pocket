@@ -925,4 +925,7 @@
     <string name="batch_citation_missing">綜合結果沒有可辨識的方括號來源ID</string>
     <string name="batch_citation_unknown">未知來源ID，請勿依賴這些引用</string>
     <string name="batch_context_limit">估計輸入上限不足，無法在不捨棄內容的情況下合併剩餘摘要。已保留先前的片段記錄，未產生最終綜合結果。</string>
+    <string name="batch_actual_scope">已記錄範圍（含僅空白的記錄片段）</string>
+    <string name="batch_actual_range">計畫的%2$s個UTF-16單位中已記錄至%1$s</string>
+    <string name="batch_run_metrics">本機聊天請求嘗試：%1$s次 · 分析耗時：%2$s ms（不含最終模型清理）</string>
 </resources>

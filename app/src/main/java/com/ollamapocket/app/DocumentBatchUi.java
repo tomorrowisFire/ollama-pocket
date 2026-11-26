@@ -35,6 +35,8 @@ final class DocumentBatchUi {
     private List<DocumentBatchPolicy.Source> sources;
     private DocumentBatchPolicy.Result result;
     private DocumentBatchPolicy.Plan analyzed;
+    private int reportRequests;
+    private long reportElapsedMillis;
     private TextView status,output;
     private EditText goal;
     private ProgressBar progress;
@@ -240,7 +242,7 @@ final class DocumentBatchUi {
             if(busy()||!eligible.getAsBoolean()||!reviewed.equals(goal.getText().toString()))return;
             if(!OllamaForegroundService.isRunning()){toast(R.string.test_need_server);return;}
             if(!"off".equals(CoopSession.get(owner).role())){toast(R.string.guest_stop_first);return;}
-            result=null;analyzed=null;output.setText(coverage(sources)+"\n\n"+plannedCoverage(plan));status.setText(R.string.thinking);progress.setMax(plan.maxTotal());progress.setProgress(0);
+            result=null;analyzed=null;reportRequests=0;reportElapsedMillis=0;output.setText(coverage(sources)+"\n\n"+plannedCoverage(plan));status.setText(R.string.thinking);progress.setMax(plan.maxTotal());progress.setProgress(0);
             final DocumentBatchRunner active=new DocumentBatchRunner(owner,model);runner=active;
             work(()->active.run(plan,done->owner.runOnUiThread(()->{
                 if(visible()&&!cancelRequested){
@@ -248,6 +250,7 @@ final class DocumentBatchUi {
                 }
             })),finished->{
                 runner=null;analyzed=plan;result=finished;
+                reportRequests=active.requests();reportElapsedMillis=active.elapsedMillis();
                 status.setText(finished.status==DocumentBatchPolicy.Status.COMPLETED?R.string.batch_completed:
                     finished.status==DocumentBatchPolicy.Status.STOPPED?stopLabel(active.reason()):
                     finished.contextLimited?R.string.batch_context_limit:R.string.batch_failed);
@@ -270,6 +273,13 @@ final class DocumentBatchUi {
         StringBuilder b=new StringBuilder(coverage(plan.sources)).append("\n\n").append(plannedCoverage(plan)).append("\n\n").append(s(R.string.batch_goal)).append(": ").append(plan.goal);
         b.append("\n\n").append(owner.getString(R.string.batch_processed,Integer.toString(result.notes.size()),Integer.toString(plan.units.size())));
         b.append('\n').append(s(R.string.batch_quality_notice));
+        b.append("\n\n").append(s(R.string.batch_actual_scope));
+        for(int i=0;i<plan.sources.size();i++){
+            b.append("\nD").append(i+1).append(" · ").append(owner.getString(R.string.batch_actual_range,
+                Integer.toString(result.completedEnd(i)),Integer.toString(plan.includedEnd(i))));
+        }
+        b.append("\n\n").append(owner.getString(R.string.batch_run_metrics,
+            Integer.toString(reportRequests),Long.toString(reportElapsedMillis)));
         if(result.status==DocumentBatchPolicy.Status.COMPLETED){
             b.append("\n\n").append(s(R.string.batch_synthesis)).append('\n').append(result.synthesis);
             DocumentBatchPolicy.Citations refs=DocumentBatchPolicy.citations(result.synthesis,result.notes);

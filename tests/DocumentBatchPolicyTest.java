@@ -113,6 +113,19 @@ public final class DocumentBatchPolicyTest {
         ok(cited.valid.equals(List.of("D1-S1","D3-S8"))&&cited.unknown.equals(List.of("D9-S1")));
         ok(DocumentBatchPolicy.citations("no brackets D1-S1",extended.notes).valid.isEmpty());
         ok(DocumentBatchPolicy.citations("[D1-S1]",List.of()).unknown.equals(List.of("D1-S1")));
+        DocumentBatchPolicy.Citations mixed=DocumentBatchPolicy.citations(
+            "[D1-S1, D2-S8; D90000-S1] ［D3-S8、d1-s1］ [D01-S1, D1 – S2]",extended.notes);
+        ok(mixed.valid.equals(List.of("D1-S1","D2-S8","D3-S8")));
+        ok(mixed.unknown.equals(List.of("D90000-S1","d1-s1","D01-S1","D1 – S2")));
+        DocumentBatchPolicy.Note whitespace=new DocumentBatchPolicy.Note(
+            new DocumentBatchPolicy.Unit(0,0,0,2,"  "),"[Whitespace-only extracted range]");
+        ok(DocumentBatchPolicy.citations("[D1-S1]",List.of(whitespace)).unknown.equals(List.of("D1-S1")));
+        ok(extended.completedEnd(0)==11192&&extended.completedEnd(2)==11192);
+        ok(failed.completedEnd(0)==4200&&failed.completedEnd(1)==0&&failed.completedEnd(2)==0);
+        ok(stopped.completedEnd(0)==1400&&stopped.completedEnd(1)==0);
+        String scopePrompt=DocumentBatchPolicy.finalPrompt(multilingual,List.of("note"));
+        ok(scopePrompt.contains("Scope (extracted text only")&&scopePrompt.contains(
+            "D1 "+multilingual.includedEnd(0)+"/"+multilingual.sources.get(0).text.length()+" partial"));
         // Long CJK notes require smaller reduction groups; retain all original notes.
         DocumentBatchPolicy.Plan adaptive=plan("a".repeat(5596));
         ok(adaptive.units.size()==4&&adaptive.maxTotal()==8&&expanded.maxTotal()==48);

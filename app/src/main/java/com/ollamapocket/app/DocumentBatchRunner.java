@@ -19,6 +19,11 @@ final class DocumentBatchRunner {
     private volatile Stop reason=Stop.NONE;
     private volatile HttpURLConnection connection;
     private volatile long deadline;
+    // In-memory diagnostic counters: dispatched chat requests, including failed/cancelled streams.
+    private volatile int requests;
+    private volatile long elapsedMillis;
+    int requests(){return requests;}
+    long elapsedMillis(){return elapsedMillis;}
     DocumentBatchRunner(Context context,String model){this.context=context.getApplicationContext();this.model=model;}
     Stop reason(){return reason;}
     void cancel(){stop(Stop.USER);}
@@ -38,7 +43,8 @@ final class DocumentBatchRunner {
         return false;
     }
     DocumentBatchPolicy.Result run(DocumentBatchPolicy.Plan plan,IntConsumer progress){
-        deadline=SystemClock.elapsedRealtime()+DocumentBatchPolicy.MAX_MILLIS;
+        long started=SystemClock.elapsedRealtime();
+        deadline=started+DocumentBatchPolicy.MAX_MILLIS;
         ScheduledExecutorService watch=Executors.newSingleThreadScheduledExecutor(r->{Thread t=new Thread(r,"document-batch-safety");t.setDaemon(true);return t;});
         try{
             if(!stopped()){GpuRunner.stop();DistributedRunner.stop();}
@@ -47,11 +53,13 @@ final class DocumentBatchRunner {
         }finally{
             watch.shutdownNow();
             HttpURLConnection c=connection;if(c!=null)c.disconnect();connection=null;
+            elapsedMillis=Math.max(0,SystemClock.elapsedRealtime()-started);
             if(reason==Stop.THERMAL||reason==Stop.MEMORY)try{
                 OllamaHttp.post("/api/generate",new JSONObject().put("model",model).put("keep_alive",0).put("stream",false),"POST");
             }catch(Exception ignored){}
         }
     }
+    private int planRequestCeiling(){return DocumentBatchPolicy.MAX_UNITS*2;}
     private String generate(String prompt,int maxChars,int maxTokens)throws Exception{
         if(stopped())throw new IOException("Batch stopped");
         JSONArray messages=new JSONArray().put(new JSONObject().put("role","user").put("content",prompt));
@@ -59,10 +67,16 @@ final class DocumentBatchRunner {
         body.getJSONObject("options").put("num_predict",maxTokens);
         // Keep the existing context and CPU memory policy. The input estimator is not an exact tokenizer.
         if(!DocumentBatchPolicy.fits(prompt,maxTokens))throw new IOException("Estimated context limit");
-        HttpURLConnection c=OllamaHttp.newChatConnection();connection=c;c.setReadTimeout(90000);
+        long remaining=deadline-SystemClock.elapsedRealtime();
+        if(remaining<=0){stop(Stop.DEADLINE);throw new IOException("Batch deadline");}
+        HttpURLConnection c=OllamaHttp.newChatConnection();connection=c;
+        c.setConnectTimeout((int)Math.max(1,Math.min(3000L,remaining)));
+        c.setReadTimeout((int)Math.max(1,Math.min(90000L,remaining)));
         StringBuilder text=new StringBuilder();boolean[] truncated={false};
         try{
             if(stopped())throw new IOException("Batch stopped");
+            if(requests>=planRequestCeiling())throw new IOException("Batch request limit");
+            requests++;
             OllamaHttp.streamChat(c,body,item->{
                 if(stopped())throw new IOException("Batch stopped");
                 JSONObject message=item.optJSONObject("message");

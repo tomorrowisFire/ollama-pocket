@@ -925,4 +925,7 @@
     <string name="batch_citation_missing">No recognized bracketed source IDs in synthesis</string>
     <string name="batch_citation_unknown">Unknown source IDs; do not rely on these references</string>
     <string name="batch_context_limit">The estimated context is too small to combine the remaining summaries without discarding text. Earlier notes are retained; no final synthesis was generated.</string>
+    <string name="batch_actual_scope">Completed excerpt coverage (includes recorded whitespace-only ranges)</string>
+    <string name="batch_actual_range">Completed through %1$s of %2$s planned UTF-16 units</string>
+    <string name="batch_run_metrics">Attempted local chat requests: %1$s · analysis elapsed: %2$s ms (excludes final model cleanup)</string>
 </resources>

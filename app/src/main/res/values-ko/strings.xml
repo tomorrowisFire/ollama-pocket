@@ -925,4 +925,7 @@
     <string name="batch_citation_missing">종합 결과에 인식 가능한 괄호형 출처 ID 없음</string>
     <string name="batch_citation_unknown">존재하지 않는 출처 ID(해당 인용에 의존하지 마세요)</string>
     <string name="batch_context_limit">추정 입력 한도로 남은 요약을 누락 없이 합칠 수 없습니다. 이전 구간별 기록은 유지되며 최종 종합은 생성되지 않았습니다.</string>
+    <string name="batch_actual_scope">분석 기록 완료 범위(공백만 있는 기록 구간 포함)</string>
+    <string name="batch_actual_range">예정 UTF-16 %2$s자 중 %1$s자까지 기록 완료</string>
+    <string name="batch_run_metrics">로컬 채팅 요청 시도: %1$s회 · 분석 경과: %2$s ms(최종 모델 정리 제외)</string>
 </resources>

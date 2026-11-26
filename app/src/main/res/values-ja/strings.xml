@@ -925,4 +925,7 @@
     <string name="batch_citation_missing">統合結果に認識可能な角括弧付き出典IDなし</string>
     <string name="batch_citation_unknown">存在しない出典ID（参照しないでください）</string>
     <string name="batch_context_limit">推定入力上限により残りの要約を欠落なく統合できません。既存の区間記録を保持し、最終統合は生成していません。</string>
+    <string name="batch_actual_scope">記録完了範囲（空白のみの記録区間を含む）</string>
+    <string name="batch_actual_range">予定UTF-16 %2$s単位のうち%1$sまで記録完了</string>
+    <string name="batch_run_metrics">ローカルチャット要求試行: %1$s回 · 分析経過: %2$s ms（最終モデル解放を除く）</string>
 </resources>
