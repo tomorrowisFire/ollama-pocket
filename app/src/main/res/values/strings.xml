@@ -867,7 +867,7 @@
     <string name="auto_code_step2" formatted="false">Goal: %GOAL%. Draft code based on the previous requirements and tests, and state limitations. Do not claim to have executed it.</string>
     <string name="auto_code_step3" formatted="false">Goal: %GOAL%. Review the previous code for correctness and safety. Return revised code and a test plan, without claiming any tests ran.</string>
     <string name="batch_title">Long / multiple documents</string>
-    <string name="batch_notice">Select 1–3 text, DOCX, XLSX or text PDF files. The local batch reads a bounded prefix of each file, splits up to 12 excerpts and synthesizes their notes. Text files use the selected common encoding; Office and PDF use their own formats. PDF text extraction requires Android 15 or later; scanned PDFs, images and OCR are not supported in batch mode. Only reviewed extracted text is analyzed. No chat record or original file is saved by this mode.</string>
+    <string name="batch_notice">Select 1–3 text, DOCX, XLSX or text PDF files. The local batch reads a bounded prefix of each file, splits up to 24 excerpts and synthesizes their notes. Text files use the selected common encoding; Office and PDF use their own formats. PDF text extraction requires Android 15 or later; scanned PDFs, images and OCR are not supported in batch mode. Only reviewed extracted text is analyzed. No chat record or original file is saved by this mode.</string>
     <string name="batch_goal">Analysis goal (up to 300 characters)</string>
     <string name="batch_default_goal">Summarize the important facts, differences and missing information without inventing evidence.</string>
     <string name="batch_preview">Review extracted source text</string>
@@ -881,7 +881,7 @@
     <string name="batch_scope">Included extracted text: %1$s UTF-16 units · %2$s</string>
     <string name="batch_partial">Partial / omissions or limit detected</string>
     <string name="batch_extracted">Extracted scope only</string>
-    <string name="batch_run_notice">Start CPU-only analysis? Up to 12 excerpts and 4 synthesis requests, with a 20-minute limit. It uses the selected model and excludes conversation history and cooperative/cloud processing. The model can omit or misread information; no factual verification is performed. Closing this screen or leaving the app stops the run and discards its temporary results. Copy the report explicitly to retain it.</string>
+    <string name="batch_run_notice">Start CPU-only analysis? Up to 24 excerpts and 9 synthesis requests, with a 20-minute limit. It uses the selected model and excludes conversation history and cooperative/cloud processing. The model can omit or misread information; no factual verification is performed. Closing this screen or leaving the app stops the run and discards its temporary results. Copy the report explicitly to retain it.</string>
     <string name="batch_progress">Analysis progress: %1$s / %2$s</string>
     <string name="batch_completed">All selected excerpts processed; synthesis generated.</string>
     <string name="batch_failed">Analysis did not finish. Completed excerpt notes remain below; no final synthesis is claimed.</string>
@@ -918,4 +918,10 @@
     <string name="workspace_starter_docs_detail">Compare or summarize 1–3 selected files locally.</string>
     <string name="workspace_starter_automation_detail">Create a multi-step local workflow with verification.</string>
     <string name="workspace_starter_cloud_detail">Use a separately configured cloud model or PC AI.</string>
+    <string name="batch_plan_scope">Planned analysis coverage (extracted text positions)</string>
+    <string name="batch_plan_range">Positions 1–%1$s of %2$s extracted units</string>
+    <string name="batch_budget_omitted">Later extracted text omitted by estimated context or excerpt limit</string>
+    <string name="batch_citation_check">Source ID check only; factual support is not verified</string>
+    <string name="batch_citation_missing">No recognized bracketed source IDs in synthesis</string>
+    <string name="batch_citation_unknown">Unknown source IDs; do not rely on these references</string>
 </resources>

@@ -867,7 +867,7 @@
     <string name="auto_code_step2" formatted="false">目標：%GOAL%。依據上一步需求與測試起草 code，說明 limitations，不聲稱已執行。</string>
     <string name="auto_code_step3" formatted="false">目標：%GOAL%。審查上一步程式碼的正確性和安全性，回傳修訂 code 和 test_plan，不聲稱實際執行測試。</string>
     <string name="batch_title">長文件與多文件分析</string>
-    <string name="batch_notice">請選擇1至3個文字、DOCX、XLSX或文字PDF。依上限擷取每個檔案的前段內容，分成最多12個片段並綜合分析。文字檔使用統一選擇的編碼，Office及PDF使用各自格式。PDF文字擷取需要Android 15或以上；批次不支援掃描PDF、影像和OCR。請核對擷取範圍。本模式不儲存聊天記錄或原始檔案。</string>
+    <string name="batch_notice">請選擇1至3個文字、DOCX、XLSX或文字PDF。依上限擷取每個檔案的前段內容，分成最多24個片段並綜合分析。文字檔使用統一選擇的編碼，Office及PDF使用各自格式。PDF文字擷取需要Android 15或以上；批次不支援掃描PDF、影像和OCR。請核對擷取範圍。本模式不儲存聊天記錄或原始檔案。</string>
     <string name="batch_goal">分析目標（最多300字元）</string>
     <string name="batch_default_goal">整理重要事實、文件差異和缺失資訊，不要捏造證據。</string>
     <string name="batch_preview">查看擷取原文</string>
@@ -881,7 +881,7 @@
     <string name="batch_scope">已包含的擷取文字：UTF-16 %1$s個單位 · %2$s</string>
     <string name="batch_partial">部分擷取／存在遺漏或上限</string>
     <string name="batch_extracted">僅限擷取範圍</string>
-    <string name="batch_run_notice">開始僅CPU的分析？最多12個片段和4次綜合請求，限時20分鐘。僅使用所選模型，不包含對話歷史、協作或雲端推論。模型可能遺漏或誤讀資訊，不執行事實查核。關閉介面或離開應用程式將停止執行並捨棄暫存結果。保留報告須主動複製。</string>
+    <string name="batch_run_notice">開始僅CPU的分析？最多24個片段和9次綜合請求，限時20分鐘。僅使用所選模型，不包含對話歷史、協作或雲端推論。模型可能遺漏或誤讀資訊，不執行事實查核。關閉介面或離開應用程式將停止執行並捨棄暫存結果。保留報告須主動複製。</string>
     <string name="batch_progress">分析進度：%1$s / %2$s</string>
     <string name="batch_completed">已完成所選擷取片段的分析與綜合生成。</string>
     <string name="batch_failed">分析未完成。僅顯示已完成片段的記錄，不生成最終綜合。</string>
@@ -918,4 +918,10 @@
     <string name="workspace_starter_docs_detail">在本機比較或摘要所選的1至3個檔案。</string>
     <string name="workspace_starter_automation_detail">建立具有驗證條件的多步驟本機工作流程。</string>
     <string name="workspace_starter_cloud_detail">使用另外設定的雲端模型或 PC AI。</string>
+    <string name="batch_plan_scope">計畫分析範圍（擷取文字位置）</string>
+    <string name="batch_plan_range">擷取的%2$s個單位中的1至%1$s</string>
+    <string name="batch_budget_omitted">因估計輸入長度或片段上限省略後續內容</string>
+    <string name="batch_citation_check">僅檢查來源ID，未核實事實依據</string>
+    <string name="batch_citation_missing">綜合結果沒有可辨識的方括號來源ID</string>
+    <string name="batch_citation_unknown">未知來源ID，請勿依賴這些引用</string>
 </resources>

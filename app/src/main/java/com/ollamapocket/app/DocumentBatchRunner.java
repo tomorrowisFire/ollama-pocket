@@ -57,7 +57,8 @@ final class DocumentBatchRunner {
         JSONArray messages=new JSONArray().put(new JSONObject().put("role","user").put("content",prompt));
         JSONObject body=OllamaHttp.chatBody(model,messages);
         body.getJSONObject("options").put("num_predict",maxTokens);
-        // Existing 2048 context is kept; character bounds are not exact tokenizer bounds.
+        // Keep the existing context and CPU memory policy. The input estimator is not an exact tokenizer.
+        if(!DocumentBatchPolicy.fits(prompt,maxTokens))throw new IOException("Estimated context limit");
         HttpURLConnection c=OllamaHttp.newChatConnection();connection=c;c.setReadTimeout(90000);
         StringBuilder text=new StringBuilder();boolean[] truncated={false};
         try{

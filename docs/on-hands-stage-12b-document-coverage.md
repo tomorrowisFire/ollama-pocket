@@ -1,0 +1,10 @@
+# Stage 12-B — bounded extended document scope and source-ID audit
+
+Baseline d938e26f2dc2fa7624b3b1e2edd683e6762aa401; Stage 12-A Java CI 45791706887 SUCCESS. Native CI 45791706783 was still in progress during review; stage-specific device acceptance remains NOT_RUN. Earlier 11-E Java and native CI succeeded; neither approves this candidate.
+
+- Maximum 24 excerpts and 33 inference requests (24 map + up to 8 intermediate + 1 final). Equal quotas across 1–3 files, up to 33,576 UTF-16 units of decoded prefix for one file or 11,192 each for three, before planning bounds. PDF reader retains its 12-page/6000-character cap and Office extraction limits apply.
+- Keep CPU-only 2048 context, 20-minute deadline and resource checks. Estimate input tokens with separate ASCII/Unicode costs and template/output reserve. Split excerpts at surrogate-safe boundaries; report omitted extracted ranges if quotas run out. Reject over-budget synthesis requests with partial notes retained. This is a heuristic, not a true tokenizer or guarantee of complete context; it can overestimate or underestimate. Long runs may stop at the original deadline.
+- Confirm planned text positions before inference and display planned scope in reports. Hierarchical reduction handles more than four intermediate summaries. Existing local-only and temporary-data rules remain.
+- Final synthesis requests bracketed source IDs such as [D1-S1]. Match IDs against completed excerpt notes, display filename/positions for recognized IDs and separately flag missing/unknown IDs. This checks identifier existence, not semantic support. Other citation styles are not recognized.
+- JVM fixture extensions and five UI resource sets updated. No HWP, scanned PDF batch OCR, whole-file guarantee, exact tokenization, semantic citation validation or device test claimed.
+- Original startup ad and production lock, model/history and inference engine preserved. No main merge, store release or unearned score increase. 12-C remains next after exact-commit verification.

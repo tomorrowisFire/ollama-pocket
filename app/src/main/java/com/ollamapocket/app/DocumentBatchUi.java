@@ -210,6 +210,16 @@ final class DocumentBatchUi {
         }
         return b.toString();
     }
+    private String plannedCoverage(DocumentBatchPolicy.Plan plan){
+        StringBuilder b=new StringBuilder(s(R.string.batch_plan_scope));
+        for(int i=0;i<plan.sources.size();i++){
+            int included=plan.includedEnd(i),extracted=plan.sources.get(i).text.length();
+            b.append("\nD").append(i+1).append(" · ").append(owner.getString(R.string.batch_plan_range,
+                Integer.toString(included),Integer.toString(extracted)));
+            if(included<extracted)b.append(" · ").append(s(R.string.batch_budget_omitted));
+        }
+        return b.toString();
+    }
     private void showSourcePreview(){
         if(!visible()||busy()||sources==null)return;
         LinearLayout panel=column();label(panel,coverage(sources),false);
@@ -226,11 +236,11 @@ final class DocumentBatchUi {
         final DocumentBatchPolicy.Plan plan;
         try{plan=new DocumentBatchPolicy.Plan(goal.getText().toString(),sources);}catch(IllegalArgumentException e){toast(R.string.batch_goal);return;}
         final String reviewed=goal.getText().toString();
-        confirm(R.string.batch_start,s(R.string.batch_run_notice)+"\n\n"+coverage(sources)+"\n\n"+s(R.string.batch_goal)+": "+reviewed,()->{
+        confirm(R.string.batch_start,s(R.string.batch_run_notice)+"\n\n"+coverage(sources)+"\n\n"+plannedCoverage(plan)+"\n\n"+s(R.string.batch_goal)+": "+reviewed,()->{
             if(busy()||!eligible.getAsBoolean()||!reviewed.equals(goal.getText().toString()))return;
             if(!OllamaForegroundService.isRunning()){toast(R.string.test_need_server);return;}
             if(!"off".equals(CoopSession.get(owner).role())){toast(R.string.guest_stop_first);return;}
-            result=null;analyzed=null;output.setText(coverage(sources));status.setText(R.string.thinking);progress.setMax(plan.total());progress.setProgress(0);
+            result=null;analyzed=null;output.setText(coverage(sources)+"\n\n"+plannedCoverage(plan));status.setText(R.string.thinking);progress.setMax(plan.total());progress.setProgress(0);
             final DocumentBatchRunner active=new DocumentBatchRunner(owner,model);runner=active;
             work(()->active.run(plan,done->owner.runOnUiThread(()->{
                 if(visible()&&!cancelRequested){
@@ -255,11 +265,18 @@ final class DocumentBatchUi {
         }
     }
     private String report(DocumentBatchPolicy.Plan plan,DocumentBatchPolicy.Result result){
-        StringBuilder b=new StringBuilder(coverage(plan.sources)).append("\n\n").append(s(R.string.batch_goal)).append(": ").append(plan.goal);
+        StringBuilder b=new StringBuilder(coverage(plan.sources)).append("\n\n").append(plannedCoverage(plan)).append("\n\n").append(s(R.string.batch_goal)).append(": ").append(plan.goal);
         b.append("\n\n").append(owner.getString(R.string.batch_processed,Integer.toString(result.notes.size()),Integer.toString(plan.units.size())));
         b.append('\n').append(s(R.string.batch_quality_notice));
         if(result.status==DocumentBatchPolicy.Status.COMPLETED){
             b.append("\n\n").append(s(R.string.batch_synthesis)).append('\n').append(result.synthesis);
+            DocumentBatchPolicy.Citations refs=DocumentBatchPolicy.citations(result.synthesis,result.notes);
+            b.append("\n\n").append(s(R.string.batch_citation_check));
+            if(refs.valid.isEmpty())b.append('\n').append(s(R.string.batch_citation_missing));
+            else for(DocumentBatchPolicy.Note n:result.notes)if(refs.valid.contains(n.unit.id()))
+                b.append("\n").append(n.unit.id()).append(" · ").append(plan.sources.get(n.unit.source).name)
+                    .append(" [").append(n.unit.start+1).append("–").append(n.unit.end).append("]");
+            if(!refs.unknown.isEmpty())b.append('\n').append(s(R.string.batch_citation_unknown)).append(": ").append(String.join(", ",refs.unknown));
         }else b.append("\n\n").append(s(R.string.batch_no_synthesis));
         b.append("\n\n").append(s(R.string.batch_unit_notes));
         for(DocumentBatchPolicy.Note note:result.notes)b.append("\n\n").append(note.unit.id())

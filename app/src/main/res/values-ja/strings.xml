@@ -867,7 +867,7 @@
     <string name="auto_code_step2" formatted="false">目標：%GOAL%。直前の要件とテストから code を作成し limitations を示してください。実行したとは主張しないでください。</string>
     <string name="auto_code_step3" formatted="false">目標：%GOAL%。直前のコードの正確性と安全性を確認し、修正版 code と test_plan を返してください。テスト実行は主張しないでください。</string>
     <string name="batch_title">長文・複数文書分析</string>
-    <string name="batch_notice">テキスト、DOCX、XLSX、テキストPDFを1～3件選択してください。各文書の先頭から上限内で抽出し、最大12区間に分けて分析・統合します。テキストには共通の選択文字コードを使用します。OfficeとPDFは各形式に従います。PDFテキスト抽出はAndroid 15以降で、スキャンPDF・画像・OCRの一括分析は非対応です。抽出範囲を確認してください。このモードは会話履歴や原本を保存しません。</string>
+    <string name="batch_notice">テキスト、DOCX、XLSX、テキストPDFを1～3件選択してください。各文書の先頭から上限内で抽出し、最大24区間に分けて分析・統合します。テキストには共通の選択文字コードを使用します。OfficeとPDFは各形式に従います。PDFテキスト抽出はAndroid 15以降で、スキャンPDF・画像・OCRの一括分析は非対応です。抽出範囲を確認してください。このモードは会話履歴や原本を保存しません。</string>
     <string name="batch_goal">分析目標（最大300文字）</string>
     <string name="batch_default_goal">重要な事実、文書間の差異、不足情報を根拠の捏造なしに整理してください。</string>
     <string name="batch_preview">抽出原文を確認</string>
@@ -881,7 +881,7 @@
     <string name="batch_scope">含まれる抽出テキスト：UTF-16 %1$s単位 · %2$s</string>
     <string name="batch_partial">部分抽出／欠落または上限あり</string>
     <string name="batch_extracted">抽出された範囲のみ</string>
-    <string name="batch_run_notice">CPU専用分析を開始しますか？最大12区間と4回の統合要求、20分の制限があります。選択モデルのみを使用し、会話履歴、協調・クラウド推論は含みません。情報の欠落や誤読があり得ます。事実検証は行いません。画面を閉じるかアプリを離れると停止し、一時結果を破棄します。保存には明示的にレポートをコピーしてください。</string>
+    <string name="batch_run_notice">CPU専用分析を開始しますか？最大24区間と9回の統合要求、20分の制限があります。選択モデルのみを使用し、会話履歴、協調・クラウド推論は含みません。情報の欠落や誤読があり得ます。事実検証は行いません。画面を閉じるかアプリを離れると停止し、一時結果を破棄します。保存には明示的にレポートをコピーしてください。</string>
     <string name="batch_progress">分析進捗：%1$s / %2$s</string>
     <string name="batch_completed">選択した抽出区間の分析と統合生成が完了しました。</string>
     <string name="batch_failed">分析が完了しませんでした。完了した区間の記録のみを表示し、最終統合は生成していません。</string>
@@ -918,4 +918,10 @@
     <string name="workspace_starter_docs_detail">選択した1～3件のファイルをローカルで比較・要約します。</string>
     <string name="workspace_starter_automation_detail">検証条件付きの複数手順のローカル作業を構成します。</string>
     <string name="workspace_starter_cloud_detail">別途設定したクラウドモデルまたはPC AIを利用します。</string>
+    <string name="batch_plan_scope">分析予定範囲（抽出テキスト位置）</string>
+    <string name="batch_plan_range">抽出%2$s単位のうち1～%1$s</string>
+    <string name="batch_budget_omitted">推定入力長または区間上限により後続部分を除外</string>
+    <string name="batch_citation_check">出典IDの確認のみ。内容の根拠は未検証</string>
+    <string name="batch_citation_missing">統合結果に認識可能な角括弧付き出典IDなし</string>
+    <string name="batch_citation_unknown">存在しない出典ID（参照しないでください）</string>
 </resources>

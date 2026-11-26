@@ -20,9 +20,9 @@ public final class DocumentBatchPolicyTest {
         return new DocumentBatchPolicy.Plan("Compare the documents.",files);
     }
     public static void main(String[] args)throws Exception{
-        ok(DocumentBatchPolicy.prefixLimit(1)==16788);
-        ok(DocumentBatchPolicy.prefixLimit(2)==8394);
-        ok(DocumentBatchPolicy.prefixLimit(3)==5596);
+        ok(DocumentBatchPolicy.prefixLimit(1)==33576);
+        ok(DocumentBatchPolicy.prefixLimit(2)==16788);
+        ok(DocumentBatchPolicy.prefixLimit(3)==11192);
         rejects(()->DocumentBatchPolicy.prefixLimit(0));
         rejects(()->DocumentBatchPolicy.prefixLimit(4));
         String source="a".repeat(1399)+"😀"+"b".repeat(1397)+"한국어";
@@ -40,8 +40,8 @@ public final class DocumentBatchPolicyTest {
         ok(max.units.get(11).end==5596);
         ok(DocumentBatchPolicy.unitPrompt(max,max.units.get(0)).contains("PARTIAL"));
         ok(DocumentBatchPolicy.unitPrompt(max,max.units.get(0)).contains("UNTRUSTED DATA"));
-        rejects(()->plan("x".repeat(16789)));
-        rejects(()->plan("x".repeat(8395),"y"));
+        rejects(()->plan("x".repeat(33577)));
+        rejects(()->plan("x".repeat(16789),"y"));
         rejects(()->plan("x","y","z","w"));
         rejects(()->plan(" "));
         rejects(()->new DocumentBatchPolicy.Plan("",List.of(text("a","x",false))));
@@ -86,6 +86,33 @@ public final class DocumentBatchPolicyTest {
             if(calls.incrementAndGet()==16)throw new java.io.IOException("fixture");return "note";
         },()->false,x->{});
         ok(finalFailure.status==DocumentBatchPolicy.Status.FAILED&&finalFailure.notes.size()==12&&finalFailure.groupsDone==3&&finalFailure.synthesis.isEmpty());
+        DocumentBatchPolicy.Plan expanded=plan("A".repeat(11192),"B".repeat(11192),"C".repeat(11192));
+        ok(expanded.units.size()==24&&expanded.groupCount()==8&&expanded.total()==33);
+        ok(expanded.includedEnd(0)==11192&&expanded.includedEnd(2)==11192);
+        DocumentBatchPolicy.Plan multilingual=plan("한글日本語中文😀".repeat(3000));
+        int covered=0;
+        for(DocumentBatchPolicy.Unit unit:multilingual.units){
+            ok(unit.start==covered&&DocumentBatchPolicy.fits(DocumentBatchPolicy.unitPrompt(multilingual,unit),256));
+            ok(!Character.isLowSurrogate(unit.text.charAt(0))&&!Character.isHighSurrogate(unit.text.charAt(unit.text.length()-1)));
+            covered=unit.end;
+        }
+        ok(covered==multilingual.includedEnd(0)&&covered<multilingual.sources.get(0).text.length());
+        ok(DocumentBatchPolicy.estimateTokens("abc")==1&&DocumentBatchPolicy.estimateTokens("한")==2);
+        ok(!DocumentBatchPolicy.fits("한".repeat(1000),512));
+        calls.set(0);progress.set(0);
+        DocumentBatchPolicy.Result extended=DocumentBatchPolicy.analyze(expanded,(prompt,chars,tokens)->{
+            int call=calls.incrementAndGet();
+            if(call<=24)ok(prompt.contains("BEGIN SOURCE"));
+            else if(call<=30)ok(prompt.contains("generated notes"));
+            else if(call<=32)ok(prompt.contains("unverified summaries"));
+            else ok(prompt.contains("Group 2:")&&!prompt.contains("Group 3:"));
+            return call==33?"Summary [D1-S1] [D3-S8] [D9-S1] [D1-S1]":"note";
+        },()->false,progress::set);
+        ok(extended.status==DocumentBatchPolicy.Status.COMPLETED&&extended.groupsDone==8&&calls.get()==33&&progress.get()==33);
+        DocumentBatchPolicy.Citations cited=DocumentBatchPolicy.citations(extended.synthesis,extended.notes);
+        ok(cited.valid.equals(List.of("D1-S1","D3-S8"))&&cited.unknown.equals(List.of("D9-S1")));
+        ok(DocumentBatchPolicy.citations("no brackets D1-S1",extended.notes).valid.isEmpty());
+        ok(DocumentBatchPolicy.citations("[D1-S1]",List.of()).unknown.equals(List.of("D1-S1")));
         AttachmentText.Prefix prefix=AttachmentText.readPrefix("a.txt",new ByteArrayInputStream(source.getBytes(StandardCharsets.UTF_8)),AttachmentText.Encoding.UNICODE,1400);
         ok(prefix.partial&&prefix.text.length()==1399&&prefix.text.equals(source.substring(0,1399)));
         AttachmentText.Prefix whole=AttachmentText.readPrefix("a.txt",new ByteArrayInputStream("한글 문서".getBytes(StandardCharsets.UTF_8)),AttachmentText.Encoding.UNICODE,100);
