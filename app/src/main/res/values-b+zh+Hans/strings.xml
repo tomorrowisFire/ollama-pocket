@@ -1167,4 +1167,17 @@
     <string name="workspace_voice_limit">文字超出字段限制或包含无效字符。未追加任何内容。</string>
     <string name="workspace_voice_review">请检查下方识别文字。追加后：%1$d / %2$d UTF-16 单位。尚未保存或发送。</string>
     <string name="workspace_voice_changed">目标草稿或工作区已变化。未追加任何内容。</string>
+    <string name="workspace_read_open">朗读</string>
+    <string name="workspace_read_field">朗读：%1$s</string>
+    <string name="workspace_read_notice">朗读来源：%1$s · %2$d UTF-16 单位\n检查下方原文，选择语言和速度后开始。仅选择标记为无需联网的语音。不翻译、不录音、不自动发送。附近的人可能听到声音；朗读不验证内容。</string>
+    <string name="workspace_read_start">开始朗读</string>
+    <string name="workspace_read_restart">从头朗读</string>
+    <string name="workspace_read_invalid">所选文字为空、超出朗读上限或包含无效字符。未播放。</string>
+    <string name="workspace_read_ready">等待明确开始播放。</string>
+    <string name="workspace_read_preparing">正在准备所选离线语音…</string>
+    <string name="workspace_read_playing">正在朗读所选文字…</string>
+    <string name="workspace_read_progress">已确认朗读进度</string>
+    <string name="workspace_read_complete">语音引擎已确认全部文字片段完成。</string>
+    <string name="workspace_read_stopped">朗读已停止。不会自动重新播放。</string>
+    <string name="workspace_read_answer">含证据的回答与引用状态</string>
 </resources>

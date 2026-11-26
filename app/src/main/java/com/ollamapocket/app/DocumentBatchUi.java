@@ -25,6 +25,7 @@ final class DocumentBatchUi {
     private static final AtomicBoolean BUSY=new AtomicBoolean();
     private final Activity owner;
     private final WorkspaceDictation dictation;
+    private final WorkspaceReadAloud reading;
     private final String model;
     private final BooleanSupplier eligible;
     private final AttachmentText.Encoding encoding;
@@ -43,11 +44,11 @@ final class DocumentBatchUi {
     private TextView status,output;
     private EditText goal;
     private ProgressBar progress;
-    private Button preview,copy,inspect,copyJson,saveProject,dictateGoal;
+    private Button preview,copy,inspect,copyJson,saveProject,dictateGoal,readReport;
     private ProjectWorkspaceUi reportWorkspace;
     static boolean busy(){return BUSY.get();}
     DocumentBatchUi(Activity owner,String model,AttachmentText.Encoding encoding,BooleanSupplier eligible){
-        this.owner=owner;this.model=model;this.encoding=encoding;this.eligible=eligible;this.dictation=new WorkspaceDictation(owner);
+        this.owner=owner;this.model=model;this.encoding=encoding;this.eligible=eligible;this.dictation=new WorkspaceDictation(owner);this.reading=new WorkspaceReadAloud(owner);
     }
     private String s(int resource){return owner.getString(resource);}
     private int dp(int value){return Math.round(value*owner.getResources().getDisplayMetrics().density);}
@@ -74,12 +75,13 @@ final class DocumentBatchUi {
         goal.setEnabled(idle);dictateGoal.setEnabled(idle);preview.setEnabled(idle&&sources!=null);copy.setEnabled(idle&&result!=null);
         inspect.setEnabled(idle&&result!=null&&!result.notes.isEmpty());copyJson.setEnabled(idle&&result!=null);
         saveProject.setEnabled(idle&&result!=null);
+        readReport.setEnabled(idle&&result!=null&&analyzed!=null);
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(idle&&sources!=null);
         dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setEnabled(!idle&&!cancelRequested);
     }
     private <T> void work(Callable<T> task,Consumer<T> done,Consumer<Exception> failure){
         if(!BUSY.compareAndSet(false,true)){toast(R.string.busy);return;}
-        dictation.cancel();
+        reading.cancel();dictation.cancel();
         cancelRequested=false;
         Thread t=new Thread(()->{
             T value=null;Exception problem=null;
@@ -96,7 +98,7 @@ final class DocumentBatchUi {
         worker=t;t.start();enabled();
     }
     void pause(){
-        dictation.cancel();
+        reading.cancel();dictation.cancel();
         if(closed)return;closed=true;stop();
         if(reportWorkspace!=null){reportWorkspace.pause();reportWorkspace=null;}
         AlertDialog c=confirmation;confirmation=null;if(c!=null)c.dismiss();
@@ -151,6 +153,9 @@ final class DocumentBatchUi {
             }catch(ProjectReportHandoff.TooLarge e){toast(R.string.project_report_too_large);}
             catch(Exception e){toast(R.string.batch_export_failed);}
         });
+        readReport=reading.add(panel,R.string.batch_title,()->output.getText().toString(),
+            ()->visible()&&!busy()&&result!=null&&analyzed!=null&&confirmation==null&&eligible.getAsBoolean());
+        readReport.setEnabled(false);
         output=label(panel,"",true);
         ScrollView scroll=new ScrollView(owner);scroll.addView(panel);
         AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.batch_title).setView(scroll)

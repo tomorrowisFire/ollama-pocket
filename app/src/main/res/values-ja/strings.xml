@@ -1167,4 +1167,17 @@
     <string name="workspace_voice_limit">入力上限を超えているか無効な文字が含まれます。追記していません。</string>
     <string name="workspace_voice_review">以下の認識結果を確認してください。追記後：%1$d / %2$d UTF-16単位。保存・送信はしていません。</string>
     <string name="workspace_voice_changed">対象の下書きまたはワークスペースが変更されました。追記していません。</string>
+    <string name="workspace_read_open">読み上げ</string>
+    <string name="workspace_read_field">読み上げ：%1$s</string>
+    <string name="workspace_read_notice">読み上げ対象：%1$s · %2$d UTF-16単位\n下の原文を確認し、言語と速度を選んで開始してください。ネット接続不要と表示された音声のみ選択します。翻訳・録音・自動送信は行いません。周囲の人に聞こえる場合があり、読み上げは内容の検証ではありません。</string>
+    <string name="workspace_read_start">読み上げ開始</string>
+    <string name="workspace_read_restart">最初から読み上げ</string>
+    <string name="workspace_read_invalid">対象の文字列が空か、読み上げ上限を超えているか、無効な文字を含みます。再生していません。</string>
+    <string name="workspace_read_ready">明示的な再生開始を待っています。</string>
+    <string name="workspace_read_preparing">選択したオフライン音声を準備中…</string>
+    <string name="workspace_read_playing">選択した原文を読み上げ中…</string>
+    <string name="workspace_read_progress">読み上げ完了確認の進捗</string>
+    <string name="workspace_read_complete">音声エンジンがすべてのテキスト区間の完了を通知しました。</string>
+    <string name="workspace_read_stopped">読み上げを停止しました。自動再開はしません。</string>
+    <string name="workspace_read_answer">根拠付き回答と引用状態</string>
 </resources>

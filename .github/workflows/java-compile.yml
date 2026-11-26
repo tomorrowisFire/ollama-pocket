@@ -50,6 +50,7 @@ on:
       - 'tests/VoiceQueuePolicyTest.java'
       - 'tests/VoiceInteractionPolicyTest.java'
       - 'tests/WorkspaceDictationPolicyTest.java'
+      - 'tests/WorkspaceReadPolicyTest.java'
       - 'tests/CloudRequestAdviceTest.java'
       - 'tests/CloudProviderOverviewTest.java'
       - 'tests/CloudUsageLedgerTest.java'
@@ -175,6 +176,8 @@ jobs:
           java -cp /tmp/voice-tests com.ollamapocket.app.VoiceInteractionPolicyTest
           javac -cp /tmp/voice-tests -d /tmp/voice-tests app/src/main/java/com/ollamapocket/app/WorkspaceDictationPolicy.java tests/WorkspaceDictationPolicyTest.java
           java -cp /tmp/voice-tests com.ollamapocket.app.WorkspaceDictationPolicyTest
+          javac -cp /tmp/voice-tests -d /tmp/voice-tests app/src/main/java/com/ollamapocket/app/WorkspaceReadPolicy.java tests/WorkspaceReadPolicyTest.java
+          java -cp /tmp/voice-tests com.ollamapocket.app.WorkspaceReadPolicyTest
       - name: Test cloud usage ledger and estimated spending policy
         run: |
           mkdir -p /tmp/cloud-usage-tests

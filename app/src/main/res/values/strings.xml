@@ -1167,4 +1167,17 @@
     <string name="workspace_voice_limit">Text does not fit this field or contains invalid characters. Nothing was appended.</string>
     <string name="workspace_voice_review">Review the recognized text below. After append: %1$d / %2$d UTF-16 units. Nothing has been saved or sent.</string>
     <string name="workspace_voice_changed">The target draft or workspace changed. Nothing was appended.</string>
+    <string name="workspace_read_open">Read aloud</string>
+    <string name="workspace_read_field">Read aloud: %1$s</string>
+    <string name="workspace_read_notice">Source: %1$s · %2$d UTF-16 units\nReview the exact text below, choose a language and speed, then start. Only voices marked as not requiring network access are selected. No translation, microphone recording or automatic sending. Audio may be heard by people nearby; reading does not verify the content.</string>
+    <string name="workspace_read_start">Start reading</string>
+    <string name="workspace_read_restart">Read from start</string>
+    <string name="workspace_read_invalid">The selected text is empty, exceeds the reading limit, or contains invalid characters. Nothing was played.</string>
+    <string name="workspace_read_ready">Ready for explicit playback.</string>
+    <string name="workspace_read_preparing">Preparing the selected offline voice…</string>
+    <string name="workspace_read_playing">Reading selected text…</string>
+    <string name="workspace_read_progress">Acknowledged reading progress</string>
+    <string name="workspace_read_complete">All text chunks acknowledged by the speech engine.</string>
+    <string name="workspace_read_stopped">Reading stopped. No automatic restart.</string>
+    <string name="workspace_read_answer">Evidence-aware answer and citation status</string>
 </resources>

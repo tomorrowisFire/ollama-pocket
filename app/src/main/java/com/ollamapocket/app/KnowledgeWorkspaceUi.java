@@ -19,6 +19,7 @@ final class KnowledgeWorkspaceUi {
     private static final AtomicBoolean MODAL=new AtomicBoolean(),WORK=new AtomicBoolean();
     private final Activity owner;
     private final WorkspaceDictation dictation;
+    private final WorkspaceReadAloud reading;
     private final BooleanSupplier eligible,answerEligible;
     private final String answerModel;
     private volatile DocumentBatchRunner answerRunner;
@@ -31,7 +32,7 @@ final class KnowledgeWorkspaceUi {
     private ProjectTransactions.Snapshot<KnowledgeLibrary.State> snapshot;
     KnowledgeWorkspaceUi(Activity owner,BooleanSupplier eligible){this(owner,eligible,"",()->false);}
     KnowledgeWorkspaceUi(Activity owner,BooleanSupplier eligible,String model,BooleanSupplier answerEligible){
-        this.owner=owner;this.eligible=eligible;this.answerModel=model;this.answerEligible=answerEligible;this.dictation=new WorkspaceDictation(owner);
+        this.owner=owner;this.eligible=eligible;this.answerModel=model;this.answerEligible=answerEligible;this.dictation=new WorkspaceDictation(owner);this.reading=new WorkspaceReadAloud(owner);
     }
     static boolean busy(){return MODAL.get()||WORK.get();}
     private boolean valid(long token){return session.valid(token)&&eligible.getAsBoolean()&&!owner.isFinishing()&&!owner.isDestroyed();}
@@ -50,7 +51,7 @@ final class KnowledgeWorkspaceUi {
         dialog.setOnDismissListener(d->{if(dialog==d)pause();});secure(dialog);dialog.show();secure(dialog);reload(imported);
     }
     void pause(){
-        dictation.cancel();
+        reading.cancel();dictation.cancel();
         session.close();
         DocumentBatchRunner active=answerRunner;answerRunner=null;if(active!=null)active.cancel();
         if(confirmation!=null){AlertDialog d=confirmation;confirmation=null;d.dismiss();}
@@ -60,7 +61,7 @@ final class KnowledgeWorkspaceUi {
         // An already confirmed worker write can finish; its stale UI callback cannot run.
     }
     private void reset(){
-        dictation.cancel();
+        reading.cancel();dictation.cancel();
         body.removeAllViews();notice=new TextView(owner);notice.setSaveEnabled(false);notice.setTextSize(14);body.addView(notice);
         ScrollView current=scroll;current.post(()->{if(scroll==current)current.scrollTo(0,0);});
     }
@@ -115,7 +116,7 @@ final class KnowledgeWorkspaceUi {
     private <T> void work(Task<T> task,Consumer<T> success,Consumer<Exception> failure){
         long token=session.token();
         if(!valid(token)||!WORK.compareAndSet(false,true))return;
-        dictation.cancel();lockControls(true);status(R.string.project_working);
+        reading.cancel();dictation.cancel();lockControls(true);status(R.string.project_working);
         Thread worker=new Thread(()->{
             T value=null;Exception error=null;
             try{value=task.run();}catch(Exception e){error=e;}
@@ -213,6 +214,7 @@ final class KnowledgeWorkspaceUi {
     }
     private void showSource(KnowledgeLibrary.Source source,Runnable back){
         reset();label(source.title,true);label(s(R.string.knowledge_id,source.id),true);showOrigin(source.origin);label(source.text,true);
+        readText(R.string.knowledge_text,source.text);
         button(R.string.project_delete,()->confirm(R.string.knowledge_delete_notice,()->save(st->KnowledgeLibrary.remove(st,source.id))));
         button(R.string.project_back,back);button(R.string.close,this::pause);
     }
@@ -282,9 +284,15 @@ final class KnowledgeWorkspaceUi {
     private void answerResult(KnowledgeAnswerPolicy.Plan plan,KnowledgeAnswerPolicy.Answer answer){
         reset();label(s(R.string.knowledge_citation_notice),false);label(s(R.string.model_label)+": "+answerModel,false);
         label(answer.text,true);
-        label(s(R.string.knowledge_citation_ids,answer.known.isEmpty()?"—":String.join(", ",answer.known),
-            answer.unknown.isEmpty()?"—":String.join(", ",answer.unknown)),false);
+        String citations=s(R.string.knowledge_citation_ids,answer.known.isEmpty()?"—":String.join(", ",answer.known),
+            answer.unknown.isEmpty()?"—":String.join(", ",answer.unknown));
+        label(citations,false);
+        readText(R.string.workspace_read_answer,s(R.string.knowledge_citation_notice)+"\n"+answer.text+"\n"+citations);
         evidence(plan);button(R.string.project_back,()->answerEditor(plan.query,plan.question));button(R.string.close,this::pause);
+    }
+    private void readText(int title,String value){
+        final long token=session.token();
+        reading.add(body,title,()->value,()->valid(token)&&!WORK.get()&&confirmation==null&&dialog!=null&&dialog.isShowing());
     }
     private void showHits(KnowledgeLibrary.State state,String query,List<KnowledgeLibrary.Hit> hits){
         reset();label(s(R.string.knowledge_search_notice),false);label(s(R.string.knowledge_hits,hits.size(),KnowledgeLibrary.MAX_HITS),false);

@@ -1167,4 +1167,17 @@
     <string name="workspace_voice_limit">文字超出欄位限制或包含無效字元。未附加任何內容。</string>
     <string name="workspace_voice_review">請檢查下方辨識文字。附加後：%1$d / %2$d UTF-16 單位。尚未儲存或傳送。</string>
     <string name="workspace_voice_changed">目標草稿或工作區已變更。未附加任何內容。</string>
+    <string name="workspace_read_open">朗讀</string>
+    <string name="workspace_read_field">朗讀：%1$s</string>
+    <string name="workspace_read_notice">朗讀來源：%1$s · %2$d UTF-16 單位\n確認下方原文，選擇語言及速度後開始。僅選擇標示為無需網路連線的語音。不翻譯、不錄音、不自動傳送。附近的人可能聽到聲音；朗讀不驗證內容。</string>
+    <string name="workspace_read_start">開始朗讀</string>
+    <string name="workspace_read_restart">從頭朗讀</string>
+    <string name="workspace_read_invalid">所選文字為空、超出朗讀上限或含有無效字元。未播放。</string>
+    <string name="workspace_read_ready">等待明確開始播放。</string>
+    <string name="workspace_read_preparing">正在準備所選離線語音…</string>
+    <string name="workspace_read_playing">正在朗讀所選文字…</string>
+    <string name="workspace_read_progress">已確認朗讀進度</string>
+    <string name="workspace_read_complete">語音引擎已確認全部文字片段完成。</string>
+    <string name="workspace_read_stopped">朗讀已停止。不會自動重新播放。</string>
+    <string name="workspace_read_answer">含證據的回答及引用狀態</string>
 </resources>

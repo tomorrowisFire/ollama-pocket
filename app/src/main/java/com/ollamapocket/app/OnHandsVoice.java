@@ -59,7 +59,12 @@ final class OnHandsVoice {
     }
     private Runnable afterSpeech;
     private VoiceInteractionPolicy.Playback playback;
+    private java.util.function.BooleanSupplier playbackGuard=()->true;
+    private boolean playbackComplete;
     private long speechDeadline;
+    void setPlaybackGuard(java.util.function.BooleanSupplier guard){playbackGuard=guard==null?()->true:guard;}
+    boolean playbackCompleted(){return playbackComplete;}
+    private boolean playbackAllowed(){try{return playbackGuard.getAsBoolean();}catch(RuntimeException e){return false;}}
     private void clearPlayback(){playback=null;speechDeadline=0;}
     boolean playbackPaused(){return playback!=null&&playback.paused();}
     boolean canPausePlayback(){return playback!=null&&!playback.finished();}
@@ -95,15 +100,18 @@ final class OnHandsVoice {
         if(closed)return;
         VoiceInteractionPolicy.Playback p=playback;
         if(p==null||!p.current(id))return;
+        if(!playbackAllowed()){cancel();return;}
         if(!success){cancel();toast(R.string.tts_unavailable);return;}
         if(!p.acknowledge(id))return;
         clearTimeout();
         if(!p.finished()){playNextSpeechChunk();return;}
+        playbackComplete=true;
         stopBarge();clearPlayback();Runnable next=afterSpeech;afterSpeech=null;
         if(continuous&&next!=null)resumeAfterPlayback(next);
     }
     private void playNextSpeechChunk(){
         if(closed||tts==null||playback==null||playback.finished()||playback.paused())return;
+        if(!playbackAllowed()){cancel();return;}
         long left=speechDeadline-android.os.SystemClock.elapsedRealtime();
         if(left<=0){cancel();toast(R.string.tts_unavailable);return;}
         VoiceInteractionPolicy.Playback.Chunk chunk=playback.next();
@@ -180,6 +188,8 @@ final class OnHandsVoice {
     void speakThen(String text,Runnable next){afterSpeech=next;speak(text);}
     void speak(String text){
         if(closed)return;
+        playbackComplete=false;
+        if(!playbackAllowed()){cancel();return;}
         if(text==null||text.trim().isEmpty()){cancel();return;}
         if(!initialized){pendingSpeech=text;armTimeout(15000);return;}
         if(!ready||tts==null){cancel();toast(R.string.tts_unavailable);return;}
@@ -206,6 +216,7 @@ final class OnHandsVoice {
         }catch(RuntimeException e){cancel();toast(R.string.tts_unavailable);}
     }
     void cancel(){
+        playbackComplete=false;
         generation++;stopBarge();clearTimeout();clearResume();pendingSpeech=null;continuous=false;bargeOptIn=false;afterSpeech=null;clearPlayback();
         partialTranscript="";reviewPending=false;
         if(capture!=null)capture.cancel();capture=null;
