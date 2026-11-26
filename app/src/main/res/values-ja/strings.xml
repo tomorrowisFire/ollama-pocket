@@ -742,4 +742,8 @@
     <string name="cloud_output_rate">出力100万トークンあたりUSD</string>
     <string name="cloud_pc_address">PCアドレス（プライベートIPv4:ポート）</string>
     <string name="cloud_pc_notice">暗号化されていないLAN接続です。信頼できるネットワークのみで使用してください。通信内容が読み取られたり改変されたりする可能性があります。</string>
+    <string name="cloud_session_usage">セッション使用量：%1$s 回 · 入力 %2$s / 出力 %3$s トークン</string>
+    <string name="cloud_session_cost">確認済み推定費用：$%1$s · 費用不明のリクエスト：%2$s</string>
+    <string name="cloud_budget">セッション推定支出上限（USD、任意）</string>
+    <string name="cloud_budget_stop">推定支出上限に達したか使用量が不明です。上限を変更する前に請求情報を確認してください。</string>
 </resources>
