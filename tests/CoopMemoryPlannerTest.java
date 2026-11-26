@@ -32,6 +32,15 @@ public final class CoopMemoryPlannerTest {
                 Collections.emptyList()).allowed, "RPC needs a remote node");
         check(!CoopMemoryPlanner.evaluate(3800, 300,
                 Arrays.asList(6000L)).allowed, "host must reserve KV/work memory");
-        System.out.println("PASS: CoopMemoryPlanner (9 assertions)");
+        CoopMemoryPlanner.Plan reserve=CoopMemoryPlanner.evaluate(4000,4200,Arrays.asList(768L));
+        check(!reserve.allowed&&reserve.totalSafeMiB==4776&&reserve.requiredMiB==4800,
+                "RPC runtime reserve must not count toward model capacity");
+        check(CoopMemoryPlanner.evaluate(4000,4200,Arrays.asList(792L)).allowed,
+                "exact usable capacity boundary");
+        check(CoopMemoryPlanner.safeMiB(Long.MAX_VALUE,Long.MAX_VALUE,0,false,true)<=1048576,
+                "overflow-safe RAM budget");
+        check(!CoopMemoryPlanner.evaluate(Long.MAX_VALUE,Long.MAX_VALUE,Arrays.asList(Long.MAX_VALUE)).allowed,
+                "oversized model and forged memory values must not pass");
+        System.out.println("PASS: CoopMemoryPlanner (16 assertions)");
     }
 }
