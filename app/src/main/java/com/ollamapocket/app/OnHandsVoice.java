@@ -35,9 +35,10 @@ final class OnHandsVoice {
     int sessionToken(){return generation;}
     void beginContinuous(){continuous=true;}
     private void finishSpeech(String id, boolean success){
-        if(closed||id==null||utterancePrefix==null||!id.startsWith(utterancePrefix))return;
-        if(!success){cancel();toast(R.string.tts_unavailable);return;}
-        if(!id.equals(lastUtterance))return;
+        if(closed)return;
+        VoiceQueuePolicy.Event event=VoiceQueuePolicy.event(utterancePrefix,lastUtterance,id,success);
+        if(event==VoiceQueuePolicy.Event.ERROR){cancel();toast(R.string.tts_unavailable);return;}
+        if(event!=VoiceQueuePolicy.Event.COMPLETE)return;
         clearTimeout();utterancePrefix=null;lastUtterance=null; Runnable next=afterSpeech; afterSpeech=null;
         if(success&&continuous&&next!=null)next.run(); else if(!success)cancel();
     }
@@ -110,10 +111,9 @@ final class OnHandsVoice {
             int max=Math.min(2000,TextToSpeech.getMaxSpeechInputLength());
             utterancePrefix=null;lastUtterance=null;tts.stop();
             utterancePrefix="oh-"+generation+"-"+(++speechSequence)+"-";
-            armTimeout(Math.min(1800000L,30000L+text.length()*500L));
+            armTimeout(VoiceQueuePolicy.timeout(text.length()));
             for(int i=0;i<text.length();){
-                int end=Math.min(text.length(),i+max);
-                if(end<text.length()&&Character.isHighSurrogate(text.charAt(end-1)))end--;
+                int end=VoiceQueuePolicy.chunkEnd(text,i,max);
                 String utterance=utterancePrefix+i;
                 if(end==text.length())lastUtterance=utterance;
                 if(tts.speak(text.substring(i,end),i==0?TextToSpeech.QUEUE_FLUSH:TextToSpeech.QUEUE_ADD,null,utterance)==TextToSpeech.ERROR){
