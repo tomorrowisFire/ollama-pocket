@@ -50,6 +50,7 @@
     <string name="dictate">받아쓰기 · 확인 후 전송</string>
     <string name="voice_turn">연속 음성 대화 · 답변 후 자동 듣기</string>
     <string name="voice_playback">답변 읽는 중… 마이크를 누르면 끼어들 수 있습니다.</string>
+    <string name="voice_barge_opt_in">실험적 자동 끼어들기(유선 헤드셋 전용, 답변이 멈추면 다시 말하세요).</string>
     <string name="voice_notice">버튼을 눌러 시작합니다. 종료하기 전까지 답변을 읽은 후 자동으로 마이크가 다시 켜집니다. 오프라인 언어 지원이 필요합니다.</string>
     <string name="voice_permission">마이크 권한을 허용한 뒤 음성 버튼을 다시 누르세요.</string>
     <string name="voice_unavailable">오프라인 음성 인식을 사용할 수 없습니다. 지원 언어를 설치하거나 텍스트를 입력하세요.</string>
