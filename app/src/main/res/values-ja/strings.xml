@@ -905,4 +905,17 @@
     <string name="voice_app_language">アプリ言語と同じ</string>
     <string name="voice_rate">読み上げ速度</string>
     <string name="voice_review_option">認識結果を毎回確認・編集してから送信（推奨）</string>
+    <string name="workspace_latest">最新の回答へ移動</string>
+    <string name="workspace_draft_budget">下書き：%1$s / %2$s文字</string>
+    <string name="workspace_starter_add">下書きに開始文を追加</string>
+    <string name="workspace_starter_preserve">既存の内容をすべて保持し、その前に開始文を追加しますか？自動送信はしません。</string>
+    <string name="workspace_starter_write">文章作成</string>
+    <string name="workspace_starter_plan">計画作成</string>
+    <string name="workspace_starter_code">コーディング</string>
+    <string name="workspace_starter_docs">文書分析</string>
+    <string name="workspace_starter_automation">タスク自動化</string>
+    <string name="workspace_starter_cloud">クラウドAI</string>
+    <string name="workspace_starter_docs_detail">選択した1～3件のファイルをローカルで比較・要約します。</string>
+    <string name="workspace_starter_automation_detail">検証条件付きの複数手順のローカル作業を構成します。</string>
+    <string name="workspace_starter_cloud_detail">別途設定したクラウドモデルまたはPC AIを利用します。</string>
 </resources>

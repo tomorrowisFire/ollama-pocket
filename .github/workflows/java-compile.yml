@@ -17,6 +17,7 @@ on:
       - 'tests/CloudPolicyTest.java'
       - 'tests/CloudBranchTest.java'
       - 'tests/WorkspaceLayoutPolicyTest.java'
+      - 'tests/ChatWorkspacePolicyTest.java'
       - 'tests/DiagnosticValuesTest.java'
       - 'tests/AdvisorDisplayDataTest.java'
       - 'tests/CoopPlanLocaleDataTest.java'
@@ -107,8 +108,9 @@ jobs:
       - name: Test responsive workspace policy (pure Java)
         run: |
           mkdir -p /tmp/workspace-tests
-          javac -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/WorkspaceLayoutPolicy.java tests/WorkspaceLayoutPolicyTest.java
+          javac -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/WorkspaceLayoutPolicy.java app/src/main/java/com/ollamapocket/app/ChatWorkspacePolicy.java tests/WorkspaceLayoutPolicyTest.java tests/ChatWorkspacePolicyTest.java
           java -cp /tmp/workspace-tests com.ollamapocket.app.WorkspaceLayoutPolicyTest
+          java -cp /tmp/workspace-tests com.ollamapocket.app.ChatWorkspacePolicyTest
       - name: Test diagnostic formatting and advisor display data (pure Java)
         run: |
           mkdir -p /tmp/diagnostic-tests

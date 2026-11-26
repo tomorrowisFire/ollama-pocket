@@ -905,4 +905,17 @@
     <string name="voice_app_language">與應用程式語言相同</string>
     <string name="voice_rate">朗讀速度</string>
     <string name="voice_review_option">每輪辨識後先核對或編輯再傳送（建議）</string>
+    <string name="workspace_latest">跳至最新回覆</string>
+    <string name="workspace_draft_budget">草稿：%1$s / %2$s 字元</string>
+    <string name="workspace_starter_add">向草稿新增起始提示</string>
+    <string name="workspace_starter_preserve">保留全部現有內容，並在前面新增起始提示？不會自動傳送。</string>
+    <string name="workspace_starter_write">寫作</string>
+    <string name="workspace_starter_plan">制定計畫</string>
+    <string name="workspace_starter_code">程式設計</string>
+    <string name="workspace_starter_docs">文件分析</string>
+    <string name="workspace_starter_automation">任務自動化</string>
+    <string name="workspace_starter_cloud">雲端 AI</string>
+    <string name="workspace_starter_docs_detail">在本機比較或摘要所選的1至3個檔案。</string>
+    <string name="workspace_starter_automation_detail">建立具有驗證條件的多步驟本機工作流程。</string>
+    <string name="workspace_starter_cloud_detail">使用另外設定的雲端模型或 PC AI。</string>
 </resources>

@@ -93,7 +93,13 @@ public final class MainActivity extends Activity {
     private Button voiceButton, cloudShortcut, chatActionsButton, newChatShortcut;
     private LinearLayout chatComposer,composerActions;
     private Boolean composerStacked;
-    private boolean keyboardVisible;
+    private boolean keyboardVisible,compactChatHeight;
+    private int rootHeightDp,starterColumns;
+    private LinearLayout starterPanel;
+    private Button latestButton;
+    private TextView draftBudgetView;
+    private boolean followWanted=true,programmaticScroll;
+    private long scrollRevision;
     private TextView voiceStateView,voicePartialView;
     private LinearLayout voicePanel,voiceControls;
     private Button voicePauseButton,voiceEndButton;
@@ -570,7 +576,7 @@ public final class MainActivity extends Activity {
         if(cloudPanel!=null){cloudPanel.pause();cloudPanel.setVisibility(View.GONE);}
         if(localChatContent!=null)localChatContent.setVisibility(View.VISIBLE);
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
-        if(activeTab==0&&topPageSubtitle!=null)topPageSubtitle.setText(getString(R.string.chat)+"  ·  "+getString(R.string.local));
+        refreshChatHeader();updateTypingChrome();refreshLatestButton();
         refreshTabletRail();
     }
     @Override public void onBackPressed(){
@@ -719,6 +725,10 @@ public final class MainActivity extends Activity {
         root.setPadding(dp(12),dp(15),dp(12),dp(10));
         // Android 15+ enforces edge-to-edge. Respect real status-bar/cutout
         // insets instead of allowing the menu / chat title to be drawn under it.
+        root.addOnLayoutChangeListener((v,l,t,right,b,ol,ot,or,ob)->{
+            int height=(int)((b-t-v.getPaddingTop()-v.getPaddingBottom())/getResources().getDisplayMetrics().density);
+            if(height!=rootHeightDp){rootHeightDp=height;updateTypingChrome();}
+        });
         root.setOnApplyWindowInsetsListener((view,insets)->{
             int top=0,bottom=0,left=0,right=0,ime=0;
             boolean typing=false;
@@ -749,13 +759,15 @@ public final class MainActivity extends Activity {
         menuButton=menu;
         menu.setContentDescription(getString(R.string.menu));
         menu.setTextSize(20);
-        menu.setMinWidth(dp(46));menu.setMinimumWidth(dp(46));
+        menu.setMinWidth(dp(48));menu.setMinimumWidth(dp(48));menu.setTooltipText(getString(R.string.menu));
         rowItem(header, menu, 0, 9);
         menu.setOnClickListener(v -> showNavigationDrawer());
         LinearLayout branding = column();
         topPageTitle = text("OnHand AI", 19, WHITE, true);
+        topPageTitle.setSingleLine(true);topPageTitle.setEllipsize(TextUtils.TruncateAt.END);
         branding.addView(topPageTitle);
         topPageSubtitle=text(getString(R.string.chat)+"  ·  "+getString(R.string.local), 10, MUTED, false);
+        topPageSubtitle.setSingleLine(true);topPageSubtitle.setEllipsize(TextUtils.TruncateAt.END);
         branding.addView(topPageSubtitle);
         rowItem(header, branding, 1, 5);
         Button fresh = button("＋ "+getString(R.string.new_chat), false);
@@ -846,8 +858,16 @@ public final class MainActivity extends Activity {
         if(localChatContent!=null)localChatContent.post(this::applyChatLayout);
     }
     private void updateTypingChrome(){
-        if(performanceHudView!=null)performanceHudView.setVisibility(showHud&&!keyboardVisible?View.VISIBLE:View.GONE);
-        if(miniStatus!=null)miniStatus.setVisibility(keyboardVisible?View.GONE:View.VISIBLE);
+        float scale=uiTextScale*Math.max(1f,getResources().getConfiguration().fontScale);
+        compactChatHeight=activeTab==0&&ChatWorkspacePolicy.compactHeight(rootHeightDp,keyboardVisible,scale);
+        if(performanceHudView!=null){
+            performanceHudView.setVisibility(showHud&&!compactChatHeight?View.VISIBLE:View.GONE);
+            performanceHudView.setMaxLines(activeTab==0?2:4);
+        }
+        if(miniStatus!=null)miniStatus.setVisibility(compactChatHeight?View.GONE:View.VISIBLE);
+        if(activeEngineLabel!=null)activeEngineLabel.setVisibility(compactChatHeight?View.GONE:View.VISIBLE);
+        if(chatInput!=null)chatInput.setMaxLines(compactChatHeight?3:5);
+        updateDraftBudget();
     }
     private void applyChatLayout(){
         if(localChatContent==null||chatComposer==null||composerActions==null||chatInput==null||isFinishing()||isDestroyed())return;
@@ -865,6 +885,7 @@ public final class MainActivity extends Activity {
             composerActions.setLayoutParams(lp(stacked?-1:-2,-2));
         }
         if(cloudShortcut!=null)cloudShortcut.setVisibility(WorkspaceLayoutPolicy.directCloud(width,scale)?View.VISIBLE:View.GONE);
+        if(starterPanel!=null&&starterPanel.getParent()!=null){int columns=ChatWorkspacePolicy.starterColumns(width,scale);if(columns!=starterColumns)populateStarterCards(columns);}
     }
     private ScrollView createTabletRail(){
         ScrollView scroll=new ScrollView(this);
@@ -973,7 +994,7 @@ public final class MainActivity extends Activity {
                 if (ignoreSelection || knownModels.isEmpty() || position >= knownModels.size()) return;
                 String model = knownModels.get(position);
                 if (model.equals(currentModel)) return;
-                if (isUiBusy()) { toast(getString(R.string.model_wait)); return; }
+                if (isUiBusy()) {int prior=knownModels.indexOf(currentModel);if(prior>=0&&prior!=position)modelChooser.setSelection(prior);toast(getString(R.string.model_wait));return;}
                 if(voice!=null)voice.cancel();
                 saveLocalDraft();
                 currentModel = model;
@@ -982,14 +1003,27 @@ public final class MainActivity extends Activity {
             }
         });
         messageScroll = new ScrollView(this); messageScroll.setFillViewport(true);
-        messageScroll.setBackgroundColor(BG);
+        messageScroll.setBackgroundColor(BG);messageScroll.setVerticalScrollBarEnabled(false);
         messages = column(); messages.setPadding(dp(4), dp(10), dp(4), dp(12));
         messageScroll.addView(messages);
         messageScroll.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
             if(r-l!=or-ol)refreshBubbleWidths();
         });
+        FrameLayout viewport=new FrameLayout(this);viewport.addView(messageScroll,new FrameLayout.LayoutParams(-1,-1));
+        latestButton=button("↓",false);latestButton.setTextSize(20);latestButton.setMinimumWidth(dp(48));latestButton.setMinWidth(dp(48));
+        latestButton.setContentDescription(getString(R.string.workspace_latest));latestButton.setTooltipText(getString(R.string.workspace_latest));
+        latestButton.setVisibility(View.GONE);latestButton.setOnClickListener(v->scrollBottom());
+        FrameLayout.LayoutParams jump=new FrameLayout.LayoutParams(dp(48),dp(48),Gravity.BOTTOM|Gravity.END);
+        jump.bottomMargin=dp(8);jump.rightMargin=dp(6);viewport.addView(latestButton,jump);
+        messageScroll.setOnScrollChangeListener((v,x,y,oldX,oldY)->{
+            if(!programmaticScroll&&y!=oldY){followWanted=followsLatest();if(!followWanted)scrollRevision++;}
+            refreshLatestButton();
+        });
+        messages.addOnLayoutChangeListener((v,l,t,right,b,ol,ot,or,ob)->{
+            if(b-t!=ob-ot&&followWanted&&starterPanel==null)scrollBottom();else refreshLatestButton();
+        });
         LinearLayout.LayoutParams scrollParam = new LinearLayout.LayoutParams(-1, 0, 1);
-        localChatContent.addView(messageScroll, scrollParam);
+        localChatContent.addView(viewport, scrollParam);
         LinearLayout composer = row();chatComposer=composer;
         composer.setPadding(dp(8), dp(6), dp(8), dp(6));
         composer.setBackground(bg(CARD, 22));
@@ -1027,6 +1061,13 @@ public final class MainActivity extends Activity {
         rowItem(voiceControls,voicePauseButton,1,4);rowItem(voiceControls,voiceEndButton,1,0);voicePanel.addView(voiceControls,lp(-1,-2));
         voicePanel.setVisibility(View.GONE);margin(voicePanel,localChatContent,4,0);
         margin(composer, localChatContent, 4, 2);
+        draftBudgetView=text("",11,MUTED,false);draftBudgetView.setVisibility(View.GONE);draftBudgetView.setGravity(Gravity.END);
+        margin(draftBudgetView,localChatContent,0,2);
+        chatInput.addTextChangedListener(new TextWatcher(){
+            @Override public void beforeTextChanged(CharSequence s,int start,int count,int after){}
+            @Override public void onTextChanged(CharSequence s,int start,int before,int count){updateDraftBudget();}
+            @Override public void afterTextChanged(Editable e){}
+        });
         stopChatButton.setEnabled(false);stopChatButton.setVisibility(View.GONE);
         sendButton.setMinWidth(dp(48));sendButton.setMinimumWidth(dp(48));
         stopChatButton.setMinWidth(dp(48));stopChatButton.setMinimumWidth(dp(48));
@@ -1035,7 +1076,7 @@ public final class MainActivity extends Activity {
         stopChatButton.setOnClickListener(v -> stopChat());
         margin(text(getString(R.string.disclaimer),
             10, MUTED, false), localChatContent, 0, 0);
-        localChatContent.post(this::applyChatLayout);
+        localChatContent.post(this::applyChatLayout);updateDraftBudget();
     }
 
     private void showChatActions(){
@@ -1044,7 +1085,7 @@ public final class MainActivity extends Activity {
         new AlertDialog.Builder(this).setTitle(R.string.chat_actions).setItems(labels,(d,w)->{
             if(isUiBusy()||guestOnly||cloudMode||!foreground)return;
             if(w==0)openCloud();
-            else if(w==1){if(voice!=null)voice.cancel();if(automationUi==null)automationUi=new AutomationUi(this);automationUi.open(currentModel);}
+            else if(w==1)openLocalAutomation();
             else if(w==2)chooseChatExport();
             else showComputeChoiceDialog();
         }).setNegativeButton(R.string.close,null).show();
@@ -1586,6 +1627,7 @@ public final class MainActivity extends Activity {
             int[] subtitles={R.string.chat,R.string.models,R.string.settings,R.string.devices};
             topPageSubtitle.setText(getString(subtitles[activeTab])+"  ·  "+getString(cloudMode?R.string.cloud_short:R.string.local));
         }
+        refreshChatHeader();updateTypingChrome();refreshLatestButton();
         if(activeTab==1)loadRecommendedVariants(false);
         if(activeTab==3)refreshDiagnosticViews();
         refreshTabletRail();
@@ -1729,7 +1771,7 @@ public final class MainActivity extends Activity {
         };
         modelChooser.setAdapter(adapter);
         int idx=names.indexOf(currentModel);
-        if(!names.isEmpty()&&idx<0&&!chatBusy&&!attachmentReading){
+        if(!names.isEmpty()&&idx<0&&!isUiBusy()){
             saveLocalDraft();
             currentModel=names.get(0);
             getPreferences(MODE_PRIVATE).edit().putString("model",currentModel).apply();
@@ -1746,6 +1788,7 @@ public final class MainActivity extends Activity {
         populateModelFilters();
         animateNextTileUpdate=true;
         renderInstalledModels();
+        if(activeTab==0&&history.length()==0&&!isUiBusy()&&historyReadable)renderHistory(false);
         if(activeTab==3)refreshDiagnosticViews();
     }
 
@@ -2977,7 +3020,7 @@ public final class MainActivity extends Activity {
             if(!raw.equals(prefs.getString(key,"[]")))throw new IllegalStateException("Conversation list changed");
             prefs.edit().putString(key,index.toString()).apply();
             if(drawer!=null)drawer.dismiss();
-            refreshTabletRail();toast(getString(R.string.chat_manage_done));
+            refreshChatHeader();refreshTabletRail();toast(getString(R.string.chat_manage_done));
         }catch(Exception e){toast(getString(R.string.chat_manage_failed));}
     }
     private void manageConversation(DrawerChat entry,Dialog drawer){
@@ -3268,33 +3311,36 @@ public final class MainActivity extends Activity {
         if (messages == null) return;
         if(chatActionsButton!=null)chatActionsButton.setEnabled(!chatBusy&&!AutomationUi.busy());
         int oldY=messageScroll==null?0:messageScroll.getScrollY();
+        followWanted=follow;scrollRevision++;starterPanel=null;
         messages.removeAllViews();
         if(!historyReadable){
             margin(text(getString(R.string.chat_history_invalid),14,WHITE,false),messages,8,8);
             return;
         }
-        if (history.length() == 0) {
-            margin(text(getString(R.string.welcome), 26, WHITE, true), messages, 45, 9);
-            margin(text(getString(R.string.welcome_sub),
-                13, MUTED, false), messages, 0, 20);
-            for (String hint : new String[]{getString(R.string.example_write),getString(R.string.example_plan),getString(R.string.example_code)}) {
-                Button suggestion = button("✦  " + hint, false);
-                margin(suggestion, messages, 4, 4);
-                suggestion.setOnClickListener(v -> chatInput.setText(hint));
+        if(history.length()==0){
+            margin(text(getString(R.string.welcome),24,WHITE,true),messages,18,6);
+            margin(text(getString(R.string.welcome_sub),13,MUTED,false),messages,0,12);
+            if(knownModels.isEmpty()){
+                Button install=button(getString(R.string.install_model),true);
+                margin(install,messages,0,10);install.setOnClickListener(v->{if(!isUiBusy())showTab(1);});
             }
-            if (knownModels.isEmpty()) {
-                Button install = button(getString(R.string.install_model), true);
-                margin(install, messages, 18, 0);
-                install.setOnClickListener(v -> showTab(1));
-            }
+            starterPanel=column();margin(starterPanel,messages,0,4);
+            int width=localChatContent==null?0:(int)((localChatContent.getWidth()-localChatContent.getPaddingLeft()-localChatContent.getPaddingRight())/getResources().getDisplayMetrics().density);
+            populateStarterCards(ChatWorkspacePolicy.starterColumns(width,uiTextScale*Math.max(1f,getResources().getConfiguration().fontScale)));
+            followWanted=false;scrollRevision++;
+            if(messageScroll!=null)messageScroll.post(()->{if(starterPanel!=null)messageScroll.scrollTo(0,0);});
+            refreshChatHeader();updateDraftBudget();refreshTabletRail();refreshLatestButton();return;
         }
         for (int i = 0; i < history.length(); i++) {
             JSONObject item = history.optJSONObject(i);
             if(item!=null)bubble(item.optString("role"),item.optString("content"),false,i);
         }
         if(follow)scrollBottom();
-        else if(messageScroll!=null)messageScroll.post(()->messageScroll.scrollTo(0,oldY));
-        refreshTabletRail();
+        else if(messageScroll!=null){
+            final long revision=scrollRevision;
+            messageScroll.post(()->{if(revision==scrollRevision){programmaticScroll=true;try{messageScroll.scrollTo(0,oldY);}finally{programmaticScroll=false;}refreshLatestButton();}});
+        }
+        refreshChatHeader();updateDraftBudget();refreshTabletRail();
     }
     private TextView bubble(String role,String content){return bubble(role,content,false,-1);}
     private TextView bubble(String role,String content,boolean pending){return bubble(role,content,pending,-1);}
@@ -3375,21 +3421,106 @@ public final class MainActivity extends Activity {
     private boolean followsLatest(){
         if(messageScroll==null||messageScroll.getChildCount()==0)return true;
         View content=messageScroll.getChildAt(0);
-        return content.getBottom()-messageScroll.getHeight()-messageScroll.getScrollY()<=dp(96);
+        return ChatWorkspacePolicy.nearLatest(content.getBottom(),messageScroll.getHeight(),messageScroll.getScrollY(),dp(96));
     }
-    private void scrollBottom() { if(messageScroll!=null)messageScroll.post(()->messageScroll.fullScroll(View.FOCUS_DOWN)); }
+    private void scrollBottom(){
+        if(messageScroll==null)return;
+        followWanted=true;final long revision=++scrollRevision;
+        messageScroll.post(()->{
+            if(revision!=scrollRevision||!followWanted||isFinishing()||isDestroyed()||messageScroll.getChildCount()==0)return;
+            int end=Math.max(0,messageScroll.getChildAt(0).getBottom()-messageScroll.getHeight());
+            programmaticScroll=true;try{messageScroll.scrollTo(0,end);}finally{programmaticScroll=false;}
+            refreshLatestButton();
+        });
+    }
+    private void refreshLatestButton(){
+        if(latestButton!=null)latestButton.setVisibility(starterPanel==null&&!cloudMode&&activeTab==0&&!followsLatest()?View.VISIBLE:View.GONE);
+    }
+    private void updateDraftBudget(){
+        if(chatInput==null||draftBudgetView==null)return;
+        int chars=chatInput.length(),max=LocalChatTurns.MAX_PROMPT;
+        boolean show=ChatWorkspacePolicy.showDraftBudget(chars,max);
+        draftBudgetView.setVisibility(show?View.VISIBLE:View.GONE);
+        if(show){draftBudgetView.setText(getString(R.string.workspace_draft_budget,Integer.toString(chars),Integer.toString(max)));
+            draftBudgetView.setTextColor(chars>max?DANGER:MUTED);}
+        if(sendButton!=null&&!chatBusy)sendButton.setEnabled(!attachmentReading&&ChatWorkspacePolicy.canSend(chatInput.getText().toString(),max));
+    }
+    private void refreshChatHeader(){
+        if(topPageSubtitle==null||activeTab!=0||cloudMode)return;
+        String title="";
+        if(!currentModel.isEmpty()&&!loadedHistoryScope.isEmpty())try{
+            String id=currentSessionId();JSONArray records=new JSONArray(getPreferences(MODE_PRIVATE).getString(listKey(),"[]"));
+            for(int i=0;i<records.length();i++){JSONObject item=records.optJSONObject(i);if(item!=null&&id.equals(item.optString("id"))){title=item.optString("title","");break;}}
+        }catch(Exception ignored){}
+        topPageSubtitle.setText(getString(R.string.local)+" · "+(title.trim().isEmpty()?getString(R.string.chat):title));
+    }
+    private void fillStarter(String hint){
+        if(!foreground||guestOnly||cloudMode||activeTab!=0||isUiBusy()||!historyReadable||!ownsLoadedScope())return;
+        if(voice!=null&&(voice.continuous()||voice.listening()||voice.speaking())){toast(getString(R.string.busy));return;}
+        final String scope=loadedHistoryScope,draft=chatInput.getText().toString(),next;
+        try{next=ChatWorkspacePolicy.prependStarter(draft,hint,LocalChatTurns.MAX_PROMPT);}
+        catch(IllegalArgumentException e){toast(getString(R.string.chat_prompt_limit));return;}
+        Runnable apply=()->{
+            if(!foreground||cloudMode||isUiBusy()||!ownsLoadedScope()||!scope.equals(loadedHistoryScope)||!draft.equals(chatInput.getText().toString()))return;
+            chatInput.setText(next);chatInput.setSelection(Math.min(hint.trim().length(),chatInput.length()));saveLocalDraft();
+            chatInput.requestFocus();updateDraftBudget();
+        };
+        if(draft.isEmpty())apply.run();
+        else new AlertDialog.Builder(this).setTitle(R.string.workspace_starter_add).setMessage(R.string.workspace_starter_preserve)
+            .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,(d,w)->apply.run()).show();
+    }
+    private LinearLayout starterCard(String title,String detail,Runnable action){
+        LinearLayout card=column();card.setPadding(dp(12),dp(10),dp(12),dp(10));card.setMinimumHeight(dp(72));
+        GradientDrawable surface=bg(CARD,14);surface.setStroke(dp(1),borderTone());
+        card.setBackground(surface);card.setClickable(true);card.setFocusable(true);
+        TextView heading=text(title,14,WHITE,true);heading.setMaxLines(2);heading.setEllipsize(TextUtils.TruncateAt.END);
+        TextView caption=text(detail,12,MUTED,false);caption.setMaxLines(3);caption.setEllipsize(TextUtils.TruncateAt.END);
+        card.addView(heading,lp(-1,-2));margin(caption,card,3,0);
+        card.setContentDescription(title+" · "+detail);
+        heading.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);caption.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        card.setOnClickListener(v->action.run());return card;
+    }
+    private void openLocalAutomation(){
+        if(!foreground||guestOnly||cloudMode||isUiBusy()||activeTab!=0){toast(getString(R.string.busy));return;}
+        if(voice!=null)voice.cancel();
+        if(automationUi==null)automationUi=new AutomationUi(this);automationUi.open(currentModel);
+    }
+    private void populateStarterCards(int columns){
+        if(starterPanel==null)return;
+        starterColumns=columns;starterPanel.removeAllViews();
+        int[] names={R.string.workspace_starter_write,R.string.workspace_starter_plan,R.string.workspace_starter_code,
+            R.string.workspace_starter_docs,R.string.workspace_starter_automation,R.string.workspace_starter_cloud};
+        int[] details={R.string.example_write,R.string.example_plan,R.string.example_code,R.string.workspace_starter_docs_detail,
+            R.string.workspace_starter_automation_detail,R.string.workspace_starter_cloud_detail};
+        for(int i=0;i<names.length;){
+            LinearLayout line=row();line.setGravity(Gravity.TOP);int count=Math.min(columns,names.length-i);
+            for(int j=0;j<count;j++){
+                final int index=i+j;
+                LinearLayout card=starterCard(getString(names[index]),getString(details[index]),()->{
+                    if(index<3)fillStarter(getString(details[index]));
+                    else if(index==3){if(!isUiBusy()&&ownsLoadedScope()&&!cloudMode){if(currentModel.isEmpty()){toast(getString(R.string.need_model));showTab(1);}else chooseDocumentBatch(loadedHistoryScope);}}
+                    else if(index==4)openLocalAutomation();
+                    else openCloud();
+                });
+                LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,-2,1f);
+                if(j+1<count)cp.rightMargin=dp(8);line.addView(card,cp);
+            }
+            margin(line,starterPanel,0,8);i+=count;
+        }
+    }
     private void setChatBusy(boolean busy) {
         chatBusy = busy;
         ui.removeCallbacks(inferenceWatch);
         if(busy)ui.post(inferenceWatch);
         if(chatInput!=null)chatInput.setEnabled(!busy);
-        sendButton.setEnabled(!busy);sendButton.setVisibility(busy?View.GONE:View.VISIBLE);
+        sendButton.setEnabled(!busy&&chatInput!=null&&ChatWorkspacePolicy.canSend(chatInput.getText().toString(),LocalChatTurns.MAX_PROMPT));sendButton.setVisibility(busy?View.GONE:View.VISIBLE);
         stopChatButton.setEnabled(busy);stopChatButton.setVisibility(busy?View.VISIBLE:View.GONE);
         if(cloudShortcut!=null)cloudShortcut.setEnabled(!busy);
         modelChooser.setEnabled(!busy && !knownModels.isEmpty());
         if(voiceButton!=null)voiceButton.setEnabled(!busy||(voice!=null&&voice.continuous()));
         if(attachFileButton!=null)attachFileButton.setEnabled(!busy&&!attachmentReading);
-        if(chatActionsButton!=null)chatActionsButton.setEnabled(!busy&&!AutomationUi.busy());
+        if(chatActionsButton!=null)chatActionsButton.setEnabled(!busy&&!AutomationUi.busy()&&!DocumentBatchUi.busy());
+        updateDraftBudget();
     }
     private void sendChat(){sendChat(null);}
     private void confirmCooperativeTransfer(String fingerprint,JSONArray requestHistory,boolean speak,CoopSession.ApprovalRoster roster){
@@ -3448,7 +3579,7 @@ public final class MainActivity extends Activity {
         forgetLastAttachment();chatInput.setText("");
         ((InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(chatInput.getWindowToken(),0);
         renderHistory();
-        if(history.length()==0)messages.removeAllViews();
+        if(history.length()==0){starterPanel=null;messages.removeAllViews();}
         bubble("user",prompt);
         TextView assistant=bubble("assistant",getString(R.string.thinking),true);
         lastStreamUi=0;
@@ -3594,7 +3725,7 @@ public final class MainActivity extends Activity {
         if(lastStreamUi!=0&&now-lastStreamUi<80)return;
         lastStreamUi=now;
         String display=answer.toString();
-        ui.post(()->{if(isFinishing()||isDestroyed())return;boolean follow=followsLatest();assistant.setText(getString(R.string.app_name)+"\n"+display);if(follow)scrollBottom();});
+        ui.post(()->{if(isFinishing()||isDestroyed())return;boolean follow=followWanted||followsLatest();assistant.setText(getString(R.string.app_name)+"\n"+display);if(follow)scrollBottom();else refreshLatestButton();});
     }
     private void stopChat() {
         chatCancelled = true;

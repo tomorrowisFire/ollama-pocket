@@ -905,4 +905,17 @@
     <string name="voice_app_language">Same as app</string>
     <string name="voice_rate">Reading speed</string>
     <string name="voice_review_option">Review/edit each recognized turn before sending (recommended)</string>
+    <string name="workspace_latest">Jump to latest reply</string>
+    <string name="workspace_draft_budget">Draft: %1$s / %2$s characters</string>
+    <string name="workspace_starter_add">Add a starter to the draft</string>
+    <string name="workspace_starter_preserve">Keep all existing text and insert this starter before it? Nothing will be sent automatically.</string>
+    <string name="workspace_starter_write">Write</string>
+    <string name="workspace_starter_plan">Make a plan</string>
+    <string name="workspace_starter_code">Code</string>
+    <string name="workspace_starter_docs">Analyze documents</string>
+    <string name="workspace_starter_automation">Automate tasks</string>
+    <string name="workspace_starter_cloud">Cloud AI</string>
+    <string name="workspace_starter_docs_detail">Compare or summarize 1–3 selected files locally.</string>
+    <string name="workspace_starter_automation_detail">Create a multi-step local workflow with verification.</string>
+    <string name="workspace_starter_cloud_detail">Use a separately configured cloud model or PC AI.</string>
 </resources>

@@ -1,0 +1,10 @@
+# Stage 11-D — commercial workspace UI candidate
+
+Baseline 0f1a70a57fdb66ded081db504bad42d566ebb8a6. Stage 11-C Java CI 45788610520 SUCCESS; native CI 45788610450 still pending at initial inspection. Stage 11-B full native build 45787425500 SUCCESS.
+
+- Six task-oriented starter cards: writing, planning, coding, local document batch, local automation and cloud/PC AI. Cards reflow to two columns only at adequate actual content width, with larger text requiring more width. Existing model installation remains available. Text starters do not send automatically. An existing draft requires confirmation and is preserved exactly, including a previously inserted attachment suffix.
+- Chat header shows the current local conversation title where available. Local/cloud routing remains explicit, and the existing model and tool controls remain. Busy model changes are rejected and the displayed spinner selection is restored where possible.
+- Compact-height/IME policy reduces HUD and status chrome during chat input and restores the configured HUD on taller layouts; the diagnostics view and tap-to-detail functionality are preserved. Composer draft budget appears at 75% of the existing UTF-16 limit. Empty/oversized drafts are not sendable through the normal composer.
+- Jump-to-latest control for long chats; scrolling does not invoke focus-changing fullScroll. Preserve reading position when the user scrolls away from latest and follow only when near the end or explicitly requested. Starter page opens at the top, not at the bottom.
+- 34 JVM assertions authored covering responsive starter columns, compact height, latest-distance and draft-preserving starter/budget policy. Android layout rendering, physical phones/tablets, IME, screen reader, interaction timing and user evaluation remain NOT_RUN; CI is not a visual approval.
+- Original startup advertising, privacy approval boundaries, package identity and existing chat/storage formats retained. No production activation, main merge, or unverified score uplift.
