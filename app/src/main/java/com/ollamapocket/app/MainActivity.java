@@ -1584,7 +1584,8 @@ public final class MainActivity extends Activity {
         }
         final String preference=computePreference();
         report.append("\n\n").append(getString(R.string.resource_preference,getString(
-            "cpu".equals(preference)?R.string.compute_cpu:"gpu".equals(preference)?R.string.compute_gpu_try:R.string.compute_auto)));
+            "cooperative".equals(preference)?R.string.bench_rpc:"cpu".equals(preference)?R.string.compute_cpu:
+            "gpu".equals(preference)?R.string.compute_gpu_try:R.string.compute_auto)));
         BenchmarkProfile profile=installed?recentBenchmark(selected):null;
         boolean gpu=compute.gpuCompute&&GpuRunner.packaged(this);
         ModelResourceAdvice.Route route=ModelResourceAdvice.route(estimate,gpu,profile);
@@ -1602,6 +1603,7 @@ public final class MainActivity extends Activity {
         CoopSession session=CoopSession.get(this);
         int peers="host".equals(session.role())?session.readyNodes().size():0;
         report.append("\n").append(getString(R.string.resource_rpc,peers));
+        if("host".equals(session.role()))report.append("\n").append(getString(R.string.rpc_advice_entry));
         new AlertDialog.Builder(this).setTitle(R.string.resource_title).setMessage(report.toString())
             .setPositiveButton(R.string.close,null).show();
     }

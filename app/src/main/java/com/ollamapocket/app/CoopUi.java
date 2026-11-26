@@ -159,12 +159,22 @@ public final class CoopUi {
             if(!"host".equals(session.role())){message(a,a.getString(R.string.coop_preflight_host));return;}
             String model=a.getPreferences(Context.MODE_PRIVATE).getString("model","");
             if(model.isEmpty()){message(a,a.getString(R.string.coop_select_model));return;}
+            final String reviewedSession=session.sessionId(), reviewedRoster=session.approvalRoster().key;
             preflight.setEnabled(false);
             new Thread(()->{
                 String result=DistributedRunner.previewLocalized(a.getApplicationContext(),model);
                 a.runOnUiThread(()->{
                     preflight.setEnabled(true);
-                    if(!a.isFinishing())message(a,result);
+                    if(a.isFinishing()||a.isDestroyed()||!dialog.isShowing()||dialog.getWindow()==null||
+                        !dialog.getWindow().getDecorView().hasWindowFocus())return;
+                    boolean unchanged="host".equals(session.role())&&reviewedSession.equals(session.sessionId())&&
+                        reviewedRoster.equals(session.approvalRoster().key)&&
+                        model.equals(a.getPreferences(Context.MODE_PRIVATE).getString("model",""));
+                    AlertDialog report=new AlertDialog.Builder(a).setTitle(R.string.coop_preflight)
+                        .setMessage(unchanged?result:a.getString(R.string.rpc_advice_changed))
+                        .setPositiveButton(R.string.ok,null).create();
+                    report.show();
+                    if(report.getWindow()!=null)report.getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE);
                 });
             },"coop-ram-preflight").start();
         });

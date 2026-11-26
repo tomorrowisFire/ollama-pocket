@@ -1105,4 +1105,22 @@
     <string name="resource_no_route">目前估算條件下不建議本機引擎。</string>
     <string name="resource_history_rates">歷史回報的生成速度：CPU %1$s / GPU %2$s tok/s；並非目前效能。</string>
     <string name="resource_rpc">RPC：目前主機工作階段有 %1$d 個就緒節點。未檢查容量與卸載；不建議 RPC，也不變更連線。</string>
+    <string name="rpc_advice_intro">使用本機 GGUF 檔案大小及主機、節點回報記憶體的唯讀容量快照。不載入或傳送模型。估算不代表已驗證推論、速度或即時容錯。</string>
+    <string name="rpc_advice_total">GGUF：%1$d MiB · 預估需要：%2$d MiB\n主機預算：%3$d MiB · 全部合格容量：%4$d MiB · 合格節點：%5$d</string>
+    <string name="rpc_advice_compact">最少節點估算：%1$d 個 · 容量 %2$d MiB · 餘裕 %3$d MiB</string>
+    <string name="rpc_advice_loss">單節點退出假設：%1$d/%2$d 種合格節點退出情形仍符合新計畫容量。不保證執行中推論恢復。</string>
+    <string name="rpc_advice_peer">節點 %1$d · %2$s · 回報預算 %3$s · %4$s</string>
+    <string name="rpc_advice_pick">最少配置節點 %1$d · %2$s · 相對 RPC 權重 %3$d</string>
+    <string name="rpc_advice_not_ready">排除：無法使用或資訊過期</string>
+    <string name="rpc_advice_thermal_unknown">排除：溫控狀態未知</string>
+    <string name="rpc_advice_hot">排除：過熱警告</string>
+    <string name="rpc_advice_ram_unknown">排除：記憶體資訊無效或未知</string>
+    <string name="rpc_advice_ram_low">排除：回報預算低於 384 MiB</string>
+    <string name="rpc_advice_eligible">僅符合本次估算</string>
+    <string name="rpc_advice_host_unknown">主機記憶體或溫控讀數未知；不提供容量建議。</string>
+    <string name="rpc_advice_host_risk">主機過熱或記憶體不足警告；建議暫停協作推論。</string>
+    <string name="rpc_advice_changed">工作階段、節點名單或模型已變更。請重新進行預檢。</string>
+    <string name="rpc_advice_fit">所選節點組合符合容量估算；實際載入和卸載尚未驗證。</string>
+    <string name="rpc_advice_limit">每個節點分配前保留 192 MiB。分割權重僅為遠端節點相對權重，不是主機與節點張量比例。未知或過期讀數僅從本建議排除；執行和同意策略不變。</string>
+    <string name="rpc_advice_entry">如需詳細 RPC 容量與節點退出估算，請開啟協作工作階段並執行所選模型預檢。</string>
 </resources>

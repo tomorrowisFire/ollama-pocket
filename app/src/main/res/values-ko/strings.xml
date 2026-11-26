@@ -1105,4 +1105,22 @@
     <string name="resource_no_route">현재 추정 조건에서는 로컬 엔진을 추천하지 않습니다.</string>
     <string name="resource_history_rates">이전 보고된 생성 속도: CPU %1$s / GPU %2$s tok/s(현재 성능 아님).</string>
     <string name="resource_rpc">RPC: 현재 호스트 세션 준비 노드 %1$d대. 용량·오프로딩은 미확인이며 RPC 추천이나 연결 변경은 하지 않습니다.</string>
+    <string name="rpc_advice_intro">로컬 GGUF 파일 크기와 호스트·보조 노드의 보고 RAM을 사용한 읽기 전용 용량 분석입니다. 모델 로딩·전송 없이 확인하며, 실제 추론·속도·실시간 장애 복구는 미검증입니다.</string>
+    <string name="rpc_advice_total">GGUF: %1$d MiB · 예상 필요량: %2$d MiB\n호스트 배정 여유: %3$d MiB · 적격 전체 용량: %4$d MiB · 적격 노드: %5$d대</string>
+    <string name="rpc_advice_compact">최소 노드 구성 추정: %1$d대 · 용량 %2$d MiB · 여유 %3$d MiB</string>
+    <string name="rpc_advice_loss">노드 1대 이탈 가정: 적격 노드별 %1$d/%2$d가지 경우에서 새 계획의 용량 조건 충족. 실행 중 추론 복구를 보장하지 않습니다.</string>
+    <string name="rpc_advice_peer">노드 %1$d · %2$s · 보고된 배정 여유 %3$s · %4$s</string>
+    <string name="rpc_advice_pick">최소 구성 노드 %1$d · %2$s · 상대 RPC 가중치 %3$d</string>
+    <string name="rpc_advice_not_ready">제외: 연결 준비 불가 또는 오래된 정보</string>
+    <string name="rpc_advice_thermal_unknown">제외: 발열 상태 미확인</string>
+    <string name="rpc_advice_hot">제외: 과열 경고</string>
+    <string name="rpc_advice_ram_unknown">제외: RAM 정보 미확인 또는 불일치</string>
+    <string name="rpc_advice_ram_low">제외: 보고된 배정 여유 384 MiB 미만</string>
+    <string name="rpc_advice_eligible">이번 추정의 적격 후보</string>
+    <string name="rpc_advice_host_unknown">호스트 RAM 또는 발열 상태를 확인할 수 없어 용량 추천을 보류합니다.</string>
+    <string name="rpc_advice_host_risk">호스트 과열·저메모리 경고 상태로 협력 추론을 보류하세요.</string>
+    <string name="rpc_advice_changed">세션·노드 구성 또는 모델이 변경되었습니다. 사전 점검을 다시 실행하세요.</string>
+    <string name="rpc_advice_fit">선택 노드 구성으로 추정 용량 조건 충족. 실제 모델 로딩 및 오프로딩은 미검증입니다.</string>
+    <string name="rpc_advice_limit">노드별 192 MiB를 배정 전 제외합니다. 분할 가중치는 보조 노드 간 상대값이며 호스트·보조 노드 텐서 비율이 아닙니다. 미확인·오래된 정보는 이 분석에서만 제외하며 실행·동의 정책은 그대로입니다.</string>
+    <string name="rpc_advice_entry">상세 RPC 용량 및 노드 이탈 분석은 협력 세션에서 선택 모델 사전 점검을 실행하세요.</string>
 </resources>

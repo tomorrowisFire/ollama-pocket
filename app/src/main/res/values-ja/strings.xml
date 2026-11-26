@@ -1105,4 +1105,22 @@
     <string name="resource_no_route">現在の推定条件ではローカルエンジンを推奨しません。</string>
     <string name="resource_history_rates">過去の報告生成速度：CPU %1$s / GPU %2$s tok/s（現在の性能ではありません）。</string>
     <string name="resource_rpc">RPC：現在のホストセッションで準備済みノード %1$d 台。容量とオフロードは未確認で、RPC推奨や接続変更は行いません。</string>
+    <string name="rpc_advice_intro">ローカルGGUFのサイズとホスト・ノードの報告RAMを使用した読み取り専用の容量分析です。モデルの読み込みや送信は行いません。推論・速度・実際のフェイルオーバーは未検証です。</string>
+    <string name="rpc_advice_total">GGUF：%1$d MiB · 推定必要量：%2$d MiB\nホスト予算：%3$d MiB · 全適格容量：%4$d MiB · 適格ノード：%5$d 台</string>
+    <string name="rpc_advice_compact">最少ノード構成の推定：%1$d 台 · 容量 %2$d MiB · 余裕 %3$d MiB</string>
+    <string name="rpc_advice_loss">1台離脱の仮定：適格ノードの個別離脱 %1$d/%2$d ケースで新規計画の容量条件を満たします。実行中の復旧は保証しません。</string>
+    <string name="rpc_advice_peer">ノード %1$d · %2$s · 報告予算 %3$s · %4$s</string>
+    <string name="rpc_advice_pick">最少構成ノード %1$d · %2$s · 相対RPC重み %3$d</string>
+    <string name="rpc_advice_not_ready">除外：利用不可または古い情報</string>
+    <string name="rpc_advice_thermal_unknown">除外：熱状態不明</string>
+    <string name="rpc_advice_hot">除外：熱警告</string>
+    <string name="rpc_advice_ram_unknown">除外：RAM情報が無効または不明</string>
+    <string name="rpc_advice_ram_low">除外：報告予算384 MiB未満</string>
+    <string name="rpc_advice_eligible">今回の推定に限り適格</string>
+    <string name="rpc_advice_host_unknown">ホストのRAMまたは熱状態が不明なため容量の推奨は行いません。</string>
+    <string name="rpc_advice_host_risk">ホストに熱またはメモリ不足の警告があります。協調推論を中断してください。</string>
+    <string name="rpc_advice_changed">セッション・ノード構成またはモデルが変わりました。事前確認をやり直してください。</string>
+    <string name="rpc_advice_fit">選択ノード構成で推定容量条件を満たします。実際の読み込みとオフロードは未検証です。</string>
+    <string name="rpc_advice_limit">各ノードは割当前に192 MiBを確保します。分割値はリモート間の相対重みであり、ホストとのテンソル比率ではありません。不明・古い情報は本分析のみ除外し、実行・同意ポリシーは変更しません。</string>
+    <string name="rpc_advice_entry">詳細なRPC容量・ノード離脱の推定は、協調セッションで選択モデルの事前確認を実行してください。</string>
 </resources>

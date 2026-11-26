@@ -1105,4 +1105,22 @@
     <string name="resource_no_route">No local engine recommendation under this estimate.</string>
     <string name="resource_history_rates">Past reported decode rates: CPU %1$s / GPU %2$s tok/s; not current performance.</string>
     <string name="resource_rpc">RPC: %1$d ready peer(s) in current host session. Capacity and offload not checked; no RPC recommendation or connection change.</string>
+    <string name="rpc_advice_intro">Read-only capacity snapshot using local GGUF file size and reported host/peer RAM. No model is loaded or sent. Estimates are not verified inference, speed or live failover.</string>
+    <string name="rpc_advice_total">GGUF: %1$d MiB · Required estimate: %2$d MiB\nHost budget: %3$d MiB · All eligible capacity: %4$d MiB · Eligible peers: %5$d</string>
+    <string name="rpc_advice_compact">Compact estimate: %1$d peer(s) · Capacity %2$d MiB · Margin %3$d MiB</string>
+    <string name="rpc_advice_loss">One-peer-loss what-if: %1$d/%2$d individual eligible-peer loss cases still fit a NEW plan. Running inference recovery is not supported by this estimate.</string>
+    <string name="rpc_advice_peer">Peer %1$d · %2$s · Reported budget %3$s · %4$s</string>
+    <string name="rpc_advice_pick">Compact peer %1$d · %2$s · Relative remote weight %3$d</string>
+    <string name="rpc_advice_not_ready">Excluded: unavailable or stale</string>
+    <string name="rpc_advice_thermal_unknown">Excluded: thermal state unknown</string>
+    <string name="rpc_advice_hot">Excluded: thermal warning</string>
+    <string name="rpc_advice_ram_unknown">Excluded: invalid or unknown RAM</string>
+    <string name="rpc_advice_ram_low">Excluded: below 384 MiB reported budget</string>
+    <string name="rpc_advice_eligible">Eligible for this estimate only</string>
+    <string name="rpc_advice_host_unknown">Host RAM or thermal readings unknown; no capacity recommendation.</string>
+    <string name="rpc_advice_host_risk">Host thermal or low-memory warning; pause cooperative inference.</string>
+    <string name="rpc_advice_changed">Session, peer roster or model changed. Run the preflight again.</string>
+    <string name="rpc_advice_fit">Capacity estimate fits with the selected peer set; actual loading and offload are unverified.</string>
+    <string name="rpc_advice_limit">Each peer reserves 192 MiB before allocation. Split weights are relative remote weights, not a host/guest tensor percentage. Unknown or stale readings are excluded from this advisor only; execution and consent policy are unchanged.</string>
+    <string name="rpc_advice_entry">For a detailed RPC capacity and node-loss estimate, open the cooperative session and run the selected-model preflight.</string>
 </resources>

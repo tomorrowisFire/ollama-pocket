@@ -88,17 +88,97 @@ public final class DistributedRunner {
         }catch(Exception e){return "모델 사전 점검 실패: "+e.getMessage();}
     }
 
-    /** Same read-only preflight, localized; no model allocation or transfer. */
+    /** Detailed advisory snapshot; execution still uses its existing independent preflight. */
     public static String previewLocalized(Context context,String model){
         Context c=OnHandsLocale.wrap(context);
         CoopSession coop=CoopSession.get(context);
         if(!"host".equals(coop.role()))return c.getString(R.string.coop_preflight_host);
+        if(!CoopSession.packaged(context))return c.getString(R.string.coop_rpc_missing);
         try{
+            final String sid=coop.sessionId(), roster=coop.approvalRoster().key;
             File weights=findModel(context,model);
-            BudgetSelection selection=plan(context,weights);
-            return c.getString(R.string.advisor_current,model)+"\n"+CoopMemoryPresentation.summary(c,selection.budget)+"\n"+
-                c.getString(R.string.rpc_plan_split,selection.budget.tensorSplit);
+            final String weightKey=EngineLoadPolicy.weightKey(weights);
+            final long bytes=weights.length();
+            android.app.ActivityManager am=(android.app.ActivityManager)context.getSystemService(Context.ACTIVITY_SERVICE);
+            android.app.ActivityManager.MemoryInfo mem=new android.app.ActivityManager.MemoryInfo();
+            if(am!=null)am.getMemoryInfo(mem);
+            boolean hostKnown=am!=null&&mem.totalMem>0&&mem.availMem>=0&&mem.availMem<=mem.totalMem&&mem.threshold>=0;
+            long hostBudget=hostKnown?CoopMemoryPlanner.safeMiB(mem.totalMem>>20,mem.availMem>>20,
+                mem.threshold>>20,mem.lowMemory,true):0;
+            int thermal=-1;
+            if(android.os.Build.VERSION.SDK_INT>=29)try{
+                android.os.PowerManager pm=(android.os.PowerManager)context.getSystemService(Context.POWER_SERVICE);
+                if(pm!=null)thermal=pm.getCurrentThermalStatus();
+            }catch(RuntimeException ignored){}
+            List<CoopSession.Node> nodes=coop.nodes();
+            if(nodes.size()>CoopCapacityAdvice.MAX_PEERS)return c.getString(R.string.rpc_advice_changed);
+            nodes.sort((a,b)->a.id.compareTo(b.id));
+            List<CoopSession.Node> ready=coop.readyNodes();
+            List<CoopCapacityAdvice.Peer> peers=new ArrayList<>();
+            long now=SystemClock.elapsedRealtime();
+            for(CoopSession.Node n:nodes){
+                long seen=n.lastSeen;
+                peers.add(new CoopCapacityAdvice.Peer(n.name,ready.contains(n)&&n.workerOk,
+                    seen>now?-1:now-seen,n.thermalStatus,n.safeRamMiB,n.totalRamMiB));
+            }
+            CoopCapacityAdvice.Result result=CoopCapacityAdvice.analyze(bytes,hostKnown,hostBudget,thermal,mem.lowMemory,peers);
+            if(!"host".equals(coop.role())||!sid.equals(coop.sessionId())||!roster.equals(coop.approvalRoster().key)||
+                !weightKey.equals(EngineLoadPolicy.weightKey(weights))||
+                !weightKey.equals(EngineLoadPolicy.weightKey(findModel(context,model))))
+                return c.getString(R.string.rpc_advice_changed);
+            return capacityReport(c,model,result,peers);
         }catch(Exception e){return c.getString(R.string.rpc_preflight_failed,UiText.error(c,e.getMessage()));}
+    }
+    private static String capacityReport(Context c,String model,CoopCapacityAdvice.Result result,List<CoopCapacityAdvice.Peer> peers){
+        StringBuilder out=new StringBuilder(c.getString(R.string.rpc_advice_intro)).append("\n\n")
+            .append(c.getString(R.string.advisor_current,model)).append('\n');
+        if(result.full!=null){
+            CoopMemoryPlanner.Plan all=result.full;
+            out.append(c.getString(R.string.rpc_advice_total,result.modelMiB,all.requiredMiB,all.hostSafeMiB,
+                all.totalSafeMiB,result.eligible)).append('\n');
+        }
+        int state;
+        switch(result.state){
+            case HOST_UNKNOWN:state=R.string.rpc_advice_host_unknown;break;
+            case HOST_RISK:state=R.string.rpc_advice_host_risk;break;
+            case BAD_SAMPLE:state=R.string.rpc_advice_changed;break;
+            case NO_REMOTE:state=R.string.rpc_plan_no_remote;break;
+            case HOST_LOW:state=R.string.rpc_plan_host_low;break;
+            case SHORTFALL:
+                state=0;
+                out.append(c.getString(R.string.rpc_plan_shortfall,result.full.requiredMiB-result.full.totalSafeMiB)).append('\n');
+                break;
+            case FIT:state=R.string.rpc_advice_fit;break;
+            default:state=R.string.rpc_plan_unknown;
+        }
+        if(state!=0)out.append(c.getString(state)).append('\n');
+        for(int i=0;i<result.peers.size();i++){
+            CoopCapacityAdvice.Peer p=peers.get(i);
+            int label;
+            switch(result.peers.get(i)){
+                case THERMAL_UNKNOWN:label=R.string.rpc_advice_thermal_unknown;break;
+                case HOT:label=R.string.rpc_advice_hot;break;
+                case RAM_UNKNOWN:label=R.string.rpc_advice_ram_unknown;break;
+                case RAM_LOW:label=R.string.rpc_advice_ram_low;break;
+                case ELIGIBLE:label=R.string.rpc_advice_eligible;break;
+                default:label=R.string.rpc_advice_not_ready;
+            }
+            String budget=p.ramKnown()?String.format(c.getResources().getConfiguration().getLocales().get(0),"%d MiB",p.safeMiB):c.getString(R.string.unknown);
+            out.append('\n').append(c.getString(R.string.rpc_advice_peer,i+1,p.name.isEmpty()?c.getString(R.string.unknown):p.name,budget,c.getString(label)));
+        }
+        if(result.state==CoopCapacityAdvice.State.FIT){
+            CoopMemoryPlanner.Plan compact=result.compact;
+            out.append("\n\n").append(c.getString(R.string.rpc_advice_compact,compact.selectedIndices.size(),compact.totalSafeMiB,
+                compact.totalSafeMiB-compact.requiredMiB));
+            for(int i=0;i<compact.selectedIndices.size();i++){
+                int index=compact.selectedIndices.get(i);
+                String name=peers.get(index).name;
+                out.append('\n').append(c.getString(R.string.rpc_advice_pick,index+1,name.isEmpty()?c.getString(R.string.unknown):name,
+                    compact.remoteSafeMiB.get(i)-CoopMemoryPlanner.REMOTE_RUNTIME_RESERVE_MIB));
+            }
+            out.append("\n\n").append(c.getString(R.string.rpc_advice_loss,result.lossFits,result.eligible));
+        }
+        return out.append("\n\n").append(c.getString(R.string.rpc_advice_limit)).toString();
     }
 
     /** Called only from a worker thread, before the distributed server is started. */
