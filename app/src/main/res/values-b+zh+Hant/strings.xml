@@ -930,4 +930,6 @@
     <string name="batch_run_metrics">本機聊天請求嘗試：%1$s次 · 分析耗時：%2$s ms（不含最終模型清理）</string>
     <string name="auto_gate_jsonvalues">JSON值精確比對</string>
     <string name="auto_gate_jsonvalues_help">輸入包含預期字串、整數、數值或布林值的JSON物件（1至12個欄位）。多餘、缺漏、null或巢狀欄位均失敗。整數與小數或指數表示屬於不同類型。僅檢查指定值是否一致，不驗證事實。</string>
+    <string name="voice_finish_speaking">結束說話</string>
+    <string name="voice_invalid_transcript">語音辨識結果為空、過長或含有無效字元。原有草稿未被修改。</string>
 </resources>

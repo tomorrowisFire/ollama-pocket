@@ -930,4 +930,6 @@
     <string name="batch_run_metrics">ローカルチャット要求試行: %1$s回 · 分析経過: %2$s ms（最終モデル解放を除く）</string>
     <string name="auto_gate_jsonvalues">JSON値の完全一致</string>
     <string name="auto_gate_jsonvalues_help">期待する文字列・整数・数値・真偽値をJSONオブジェクトで入力してください（1～12項目）。余分・不足・null・入れ子の項目は失敗します。整数と小数・指数表記は異なる型です。指定値の一致のみを確認し、事実の検証は行いません。</string>
+    <string name="voice_finish_speaking">話し終える</string>
+    <string name="voice_invalid_transcript">音声認識結果が空、長すぎる、または無効な文字を含んでいます。既存の下書きは変更されていません。</string>
 </resources>

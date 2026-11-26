@@ -26,13 +26,19 @@ final class OnHandsVoice {
     private String partialTranscript="";
     private String speechLanguage="app";
     private int rateIndex=1;
-    private boolean speechReady,processingSpeech;
+    private VoiceInteractionPolicy.Capture capture;
     void configure(String language,int rate){speechLanguage=VoiceInteractionPolicy.language(language);rateIndex=VoiceInteractionPolicy.rateIndex(rate);}
     private Locale targetLocale(){return VoiceInteractionPolicy.locale(speechLanguage,OnHandsLocale.speechLocale(a));}
     void reviewPending(boolean value){reviewPending=value;}
     boolean awaitingReview(){return reviewPending;}
-    boolean processingSpeech(){return processingSpeech;}
-    boolean speechReady(){return speechReady;}
+    boolean processingSpeech(){return capture!=null&&capture.state()==VoiceInteractionPolicy.Capture.State.FINALIZING;}
+    boolean speechReady(){return capture!=null&&capture.state()==VoiceInteractionPolicy.Capture.State.LISTENING;}
+    boolean canFinishListening(){return recognizer!=null&&capture!=null&&capture.canFinish();}
+    void finishListening(){
+        SpeechRecognizer current=recognizer;
+        if(closed||current==null||capture==null||!capture.finish())return;
+        try{current.stopListening();}catch(RuntimeException e){cancel();toast(R.string.voice_error);}
+    }
     String partialTranscript(){return partialTranscript;}
     private BargeMonitor barge;
     private long bargeEpoch;
@@ -128,31 +134,35 @@ final class OnHandsVoice {
     private void toast(int id){if(!closed)Toast.makeText(a,id,Toast.LENGTH_SHORT).show();}
     void listen(Result cb) {
         boolean loop=continuous, opt=bargeOptIn; cancel(); continuous=loop;bargeOptIn=opt;
-        if(closed||Build.VERSION.SDK_INT<31||!SpeechRecognizer.isOnDeviceRecognitionAvailable(a)){
-            cancel();toast(R.string.voice_unavailable);return;
-        }
+        if(closed||Build.VERSION.SDK_INT<31){cancel();toast(R.string.voice_unavailable);return;}
         final int id=++generation;
+        final VoiceInteractionPolicy.Capture turn=new VoiceInteractionPolicy.Capture();
+        capture=turn;
         try {
+            if(!SpeechRecognizer.isOnDeviceRecognitionAvailable(a)){cancel();toast(R.string.voice_unavailable);return;}
             recognizer=SpeechRecognizer.createOnDeviceSpeechRecognizer(a);
             recognizer.setRecognitionListener(new RecognitionListener(){
-                public void onReadyForSpeech(Bundle b){if(id==generation){speechReady=true;processingSpeech=false;}}
-                public void onBeginningOfSpeech(){if(id==generation){speechReady=true;processingSpeech=false;}}
+                private boolean current(){return !closed&&id==generation&&capture==turn;}
+                public void onReadyForSpeech(Bundle b){if(current())turn.ready();}
+                public void onBeginningOfSpeech(){if(current())turn.ready();}
                 public void onRmsChanged(float r){}
                 public void onBufferReceived(byte[] b){}
-                public void onEndOfSpeech(){if(id==generation){processingSpeech=true;}}
+                public void onEndOfSpeech(){if(current())turn.end();}
                 public void onPartialResults(Bundle b){
-                    if(closed||id!=generation)return;
+                    if(!current()||turn.state()==VoiceInteractionPolicy.Capture.State.TERMINAL)return;
                     ArrayList<String> rows=b==null?null:b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
                     if(rows!=null&&!rows.isEmpty())partialTranscript=VoiceInteractionPolicy.partial(rows.get(0));
                 }
                 public void onEvent(int type,Bundle b){}
-                public void onError(int error){if(id==generation){cancel();toast(error==SpeechRecognizer.ERROR_NO_MATCH||error==SpeechRecognizer.ERROR_SPEECH_TIMEOUT?R.string.voice_no_match:error==SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS?R.string.voice_permission:R.string.voice_error);}}
+                public void onError(int error){if(current()&&turn.consumeTerminal()){cancel();toast(error==SpeechRecognizer.ERROR_NO_MATCH||error==SpeechRecognizer.ERROR_SPEECH_TIMEOUT?R.string.voice_no_match:error==SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS?R.string.voice_permission:R.string.voice_error);}}
                 public void onResults(Bundle b){
-                    if(closed||id!=generation)return;
+                    if(!current()||!turn.consumeTerminal())return;
                     ArrayList<String> rows=b==null?null:b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                    final String result;
+                    try{result=VoiceInteractionPolicy.finalTranscript(rows==null||rows.isEmpty()?null:rows.get(0),LocalChatTurns.MAX_PROMPT);}
+                    catch(IllegalArgumentException e){cancel();toast(R.string.voice_invalid_transcript);return;}
                     boolean loop=continuous, opt=bargeOptIn;cancel();continuous=loop;bargeOptIn=opt;
-                    if(rows==null||rows.isEmpty()||rows.get(0)==null||rows.get(0).trim().isEmpty()){cancel();toast(R.string.voice_error);return;}
-                    cb.accepted(rows.get(0).trim());
+                    cb.accepted(result);
                 }
             });
             Intent intent=new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
@@ -161,7 +171,7 @@ final class OnHandsVoice {
                 .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS,true)
                 .putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE,true)
                 .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS,1);
-            recognizer.startListening(intent);armTimeout(45000);
+            armTimeout(45000);recognizer.startListening(intent);
         }catch(RuntimeException e){cancel();toast(R.string.voice_unavailable);}
     }
     void speakThen(String text,Runnable next){afterSpeech=next;speak(text);}
@@ -173,10 +183,14 @@ final class OnHandsVoice {
         Locale target=targetLocale();
         Voice selected=null;
         try {
+            int bestRank=-1;
             for(Voice v:tts.getVoices()){
-                if(v.isNetworkConnectionRequired()||!v.getLocale().getLanguage().equals(target.getLanguage()))continue;
-                if(v.getLocale().getCountry().equals(target.getCountry())){selected=v;break;}
-                if(!"zh".equals(target.getLanguage()) && selected==null)selected=v;
+                if(v==null||v.isNetworkConnectionRequired())continue;
+                int rank=VoiceInteractionPolicy.localeRank(target,v.getLocale());
+                if(VoiceInteractionPolicy.betterVoice(rank,v.getQuality(),v.getLatency(),v.getName(),
+                    bestRank,selected==null?0:selected.getQuality(),selected==null?0:selected.getLatency(),selected==null?null:selected.getName())){
+                    selected=v;bestRank=rank;
+                }
             }
             if(selected==null||tts.setVoice(selected)!=TextToSpeech.SUCCESS||tts.setSpeechRate(VoiceInteractionPolicy.RATES[rateIndex])!=TextToSpeech.SUCCESS){cancel();toast(R.string.tts_unavailable);return;}
             int max=Math.min(2000,TextToSpeech.getMaxSpeechInputLength());
@@ -190,12 +204,13 @@ final class OnHandsVoice {
     }
     void cancel(){
         generation++;stopBarge();clearTimeout();clearResume();pendingSpeech=null;continuous=false;bargeOptIn=false;afterSpeech=null;clearPlayback();
-        partialTranscript="";reviewPending=false;speechReady=false;processingSpeech=false;
+        partialTranscript="";reviewPending=false;
+        if(capture!=null)capture.cancel();capture=null;
         SpeechRecognizer old=recognizer;recognizer=null;
         if(old!=null){try{old.cancel();}catch(RuntimeException ignored){}try{old.destroy();}catch(RuntimeException ignored){}}
-        if(tts!=null)tts.stop();
+        if(tts!=null)try{tts.stop();}catch(RuntimeException ignored){}
     }
-    void close(){closed=true;cancel();if(tts!=null){tts.shutdown();tts=null;}}
+    void close(){closed=true;cancel();if(tts!=null){try{tts.shutdown();}catch(RuntimeException ignored){}tts=null;}}
     /** Experimental energy detector. Wired headset plus enabled platform AEC required.
         Never interprets captured audio as a command; the user repeats after playback stops. */
     private static final class BargeMonitor {

@@ -930,4 +930,6 @@
     <string name="batch_run_metrics">로컬 채팅 요청 시도: %1$s회 · 분석 경과: %2$s ms(최종 모델 정리 제외)</string>
     <string name="auto_gate_jsonvalues">JSON 값 정확히 일치</string>
     <string name="auto_gate_jsonvalues_help">기대하는 문자열·정수·숫자·참/거짓 값을 JSON 객체로 입력하세요(1~12개 항목). 추가·누락·null·중첩 항목은 실패 처리합니다. 정수와 소수/지수 표기는 다른 유형입니다. 지정된 값의 일치 여부만 검사하며 사실 검증은 아닙니다.</string>
+    <string name="voice_finish_speaking">말하기 완료</string>
+    <string name="voice_invalid_transcript">음성 인식 결과가 비어 있거나 너무 길거나 유효하지 않은 문자를 포함합니다. 기존 초안은 변경되지 않았습니다.</string>
 </resources>

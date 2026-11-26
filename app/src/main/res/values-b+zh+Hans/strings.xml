@@ -930,4 +930,6 @@
     <string name="batch_run_metrics">本地聊天请求尝试：%1$s次 · 分析耗时：%2$s ms（不含最终模型清理）</string>
     <string name="auto_gate_jsonvalues">JSON值精确匹配</string>
     <string name="auto_gate_jsonvalues_help">输入包含预期字符串、整数、数值或布尔值的JSON对象（1至12个字段）。多余、缺失、null或嵌套字段均失败。整数与小数或指数表示属于不同类型。仅检查指定值是否一致，不验证事实。</string>
+    <string name="voice_finish_speaking">结束说话</string>
+    <string name="voice_invalid_transcript">语音识别结果为空、过长或包含无效字符。原有草稿未被修改。</string>
 </resources>

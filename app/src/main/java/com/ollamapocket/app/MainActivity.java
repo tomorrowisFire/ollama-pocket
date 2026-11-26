@@ -103,7 +103,7 @@ public final class MainActivity extends Activity {
     private long scrollRevision;
     private TextView voiceStateView,voicePartialView;
     private LinearLayout voicePanel,voiceControls;
-    private Button voicePauseButton,voiceEndButton;
+    private Button voicePauseButton,voiceEndButton,voiceFinishButton;
     private boolean voiceReviewBeforeSend=true;
     private String voiceReviewScope="";
     private final Runnable voiceStatePoll=new Runnable(){public void run(){
@@ -143,6 +143,7 @@ public final class MainActivity extends Activity {
             voicePauseButton.setVisibility(active&&voice.canPausePlayback()?View.VISIBLE:View.GONE);
             if(active)voicePauseButton.setText(voice.playbackPaused()?R.string.voice_resume_playback:R.string.voice_pause_playback);
         }
+        if(voiceFinishButton!=null)voiceFinishButton.setVisibility(active&&voice.canFinishListening()&&!chatBusy?View.VISIBLE:View.GONE);
         if(voiceEndButton!=null)voiceEndButton.setVisibility(active?View.VISIBLE:View.GONE);
         voiceButton.setContentDescription(getString(active?R.string.stop:R.string.voice));
         voiceButton.setEnabled(!AutomationUi.busy()&&!DocumentBatchUi.busy()&&(!chatBusy||active));
@@ -1066,10 +1067,13 @@ public final class MainActivity extends Activity {
         margin(voiceStateView,voicePanel,0,2);
         voicePartialView=text("",12,MUTED,false);voicePartialView.setMaxLines(2);voicePartialView.setEllipsize(TextUtils.TruncateAt.END);
         voicePartialView.setSaveEnabled(false);voicePartialView.setVisibility(View.GONE);margin(voicePartialView,voicePanel,0,2);
-        voiceControls=row();
+        voiceControls=new AdaptiveAnswerActions(this);
+        voiceFinishButton=button(getString(R.string.voice_finish_speaking),true);
+        voiceFinishButton.setOnClickListener(v->{if(voice!=null&&foreground&&!chatBusy){voice.finishListening();refreshVoiceState();}});
+        voiceFinishButton.setVisibility(View.GONE);
         voicePauseButton=button(getString(R.string.voice_pause_playback),false);voicePauseButton.setOnClickListener(v->{if(voice!=null){voice.togglePlaybackPause();refreshVoiceState();}});
         voiceEndButton=button(getString(R.string.voice_end_session),false);voiceEndButton.setOnClickListener(v->endVoiceSession());
-        rowItem(voiceControls,voicePauseButton,1,4);rowItem(voiceControls,voiceEndButton,1,0);voicePanel.addView(voiceControls,lp(-1,-2));
+        rowItem(voiceControls,voiceFinishButton,0,0);rowItem(voiceControls,voicePauseButton,0,0);rowItem(voiceControls,voiceEndButton,0,0);voicePanel.addView(voiceControls,lp(-1,-2));
         voicePanel.setVisibility(View.GONE);margin(voicePanel,localChatContent,4,0);
         margin(composer, localChatContent, 4, 2);
         draftBudgetView=text("",11,MUTED,false);draftBudgetView.setVisibility(View.GONE);draftBudgetView.setGravity(Gravity.END);
