@@ -43,6 +43,7 @@ public final class AdSupport {
     private final SharedPreferences prefs;
     private final Map<FrameLayout, AdView> live = new IdentityHashMap<>();
     private final Map<FrameLayout, String> placements = new IdentityHashMap<>();
+    private final Map<FrameLayout, View.OnLayoutChangeListener> layoutListeners = new IdentityHashMap<>();
     private AppOpenAd appOpenAd;
     private boolean appOpenLoading;
     private boolean appOpenShowing;
@@ -80,15 +81,25 @@ public final class AdSupport {
     public void register(FrameLayout parent, String placement) {
         if (disposed) return;
         placements.put(parent, placement);
+        if(!layoutListeners.containsKey(parent)){
+            View.OnLayoutChangeListener listener=(view,l,t,r,b,ol,ot,or,ob)->{
+                if(r-l!=or-ol && requested.contains(parent))load(parent);
+            };
+            layoutListeners.put(parent,listener);
+            parent.addOnLayoutChangeListener(listener);
+        }
         status(parent, "광고 영역 · 데이터 사용 가능" + (BuildConfig.DEBUG ? " · 테스트 광고" : ""));
     }
 
     public void showBanner(FrameLayout parent) {
-        if (disposed || parent == null) return;
+        if (disposed || parent == null || !placements.containsKey(parent)) return;
         if (!requested.contains(parent)) requested.add(parent);
         if (!isEnabled()) { status(parent, "광고 표시 꺼짐"); return; }
-        if (consent.canRequestAds()) load(parent);
-        else status(parent, "광고 개인정보 확인 중 · 표시되지 않을 수 있습니다");
+        if (consent.canRequestAds() && adsInitialized) load(parent);
+        else {
+            status(parent, "광고 개인정보 확인 중 · 표시되지 않을 수 있습니다");
+            prepareConsent();
+        }
     }
 
     public void prepareConsent() {
@@ -122,12 +133,11 @@ public final class AdSupport {
     }
 
     private void load(FrameLayout parent) {
-        if (disposed || !isEnabled() || !consent.canRequestAds() || live.containsKey(parent)) return;
-        if (parent.getWindowToken() == null) {
-            // Dialogs and pages can be attached after the consent callback arrives.
-            parent.post(() -> { if (!disposed && requested.contains(parent)) load(parent); });
-            return;
-        }
+        if (disposed || !isEnabled() || !adsInitialized || !consent.canRequestAds()
+                || !placements.containsKey(parent) || !requested.contains(parent) || live.containsKey(parent)) return;
+        // A layout event will retry when attached and measured. Never spin on an unattached view,
+        // and do not display a fixed-width 320dp banner in a slot too narrow to contain it.
+        if (parent.getWindowToken() == null || parent.getWidth() < toDp(320)) return;
         AdView banner = new AdView(activity);
         banner.setAdSize(AdSize.BANNER);
         String placement = placements.get(parent);
@@ -174,6 +184,9 @@ public final class AdSupport {
     /** Called only when returning to the app after a meaningful absence. */
     public void showAppOpenIfReady() {
         if (disposed || !isEnabled() || !consent.canRequestAds() || appOpenShowing) return;
+        for(FrameLayout parent:requested){
+            if(PLACEMENT_ONBOARDING.equals(placements.get(parent)) || (live.containsKey(parent)&&parent.isShown()))return;
+        }
         long now = android.os.SystemClock.elapsedRealtime();
         if (appOpenAd == null || now - appOpenLoadedTime >= APP_OPEN_TTL) {
             preloadAppOpen();
@@ -232,6 +245,8 @@ public final class AdSupport {
     }
 
     public void detach(FrameLayout parent) {
+        View.OnLayoutChangeListener listener=layoutListeners.remove(parent);
+        if(parent!=null&&listener!=null)parent.removeOnLayoutChangeListener(listener);
         placements.remove(parent);
         requested.remove(parent);
         AdView banner = live.remove(parent);
@@ -241,6 +256,9 @@ public final class AdSupport {
 
     public void destroy() {
         disposed = true;
+        for(Map.Entry<FrameLayout,View.OnLayoutChangeListener> e:layoutListeners.entrySet())
+            e.getKey().removeOnLayoutChangeListener(e.getValue());
+        layoutListeners.clear();
         for (AdView banner : live.values()) banner.destroy();
         live.clear();
         requested.clear();

@@ -7,3 +7,5 @@ Changes: first message clears empty-state cards; mutually exclusive send/stop co
 Evaluation gate: report ten simulated reviewer ratings after checks, preserve unresolved evidence and require all individual and mean scores >=90 plus actual end-to-end quality gates before final stop.
 
 Follow-up static review: first-use TTS waits for the offline engine to initialize; cancellation, activity pause and navigation invalidate pending speech. Cloud code-span background uses neutral translucent color to avoid a fixed light-only background. Android/device evidence remains pending.
+
+User correction: retain the first-run onboarding banner at its original placement and existing unit ID. Restored on the development branch; Debug uses Google's test unit only, Release ad requests remain disabled pending separately authorized deployment. Banner loading waits for consent/SDK initialization and a sufficiently wide attached slot. The guide is dismissible and does not wait for ads. No app-open ad may overlay an active onboarding/banner placement. The earlier statement that first-run ads were excluded is superseded.

@@ -1193,9 +1193,12 @@ public final class MainActivity extends Activity {
         LinearLayout guide = column(); guide.setPadding(dp(20), dp(12), dp(20), dp(5));
         margin(text(getString(R.string.onboarding_title), 20, WHITE, true), guide, 0, 8);
         margin(text(getString(R.string.onboarding_body),13,WHITE,false),guide,0,11);
-        // Keep existing ad code but exclude first-run banner in the candidate.
+        // Preserve the original first-run banner placement and ad unit; keep it separate from dialog controls.
+        margin(text(getString(BuildConfig.DEBUG?R.string.ad_test:R.string.ad_label),11,MUTED,false),guide,0,4);
         FrameLayout guideAd = new FrameLayout(this);
-        guideAd.setVisibility(View.GONE); // First-run flow stays ad-free.
+        guideAd.setMinimumHeight(dp(56));
+        margin(guideAd,guide,0,12);
+        ads.register(guideAd,AdSupport.PLACEMENT_ONBOARDING);
         AlertDialog dialog = new AlertDialog.Builder(this).setView(guide)
             .setNegativeButton(R.string.chat, (d,w) -> showTab(0))
             .setNeutralButton(R.string.guest, (d,w) -> enterGuestMode())
@@ -1205,6 +1208,7 @@ public final class MainActivity extends Activity {
             ads.detach(guideAd);
         });
         dialog.show();
+        ads.showBanner(guideAd);
         ads.prepareConsent();
     }
 
