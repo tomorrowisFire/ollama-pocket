@@ -18,6 +18,22 @@ public final class VoiceQueuePolicyTest {
         check(VoiceQueuePolicy.timeout(0)==30000L);
         check(VoiceQueuePolicy.timeout(2000)==1030000L);
         check(VoiceQueuePolicy.timeout(Integer.MAX_VALUE)==1800000L);
-        System.out.println("PASS: 13 voice queue policy checks");
+        check(VoiceQueuePolicy.event("oh-2-2-", "oh-2-2-0", "oh-2-1-0", false)==VoiceQueuePolicy.Event.IGNORE);
+        check(VoiceQueuePolicy.event(p,last,"oh-20-1-2000",true)==VoiceQueuePolicy.Event.IGNORE);
+        check(VoiceQueuePolicy.event(p,null,p+"0",true)==VoiceQueuePolicy.Event.WAIT);
+        check(VoiceQueuePolicy.timeout(-1)==30000L);
+        String mixed="한글中文日本語"+s.repeat(1000);
+        StringBuilder rebuilt=new StringBuilder();
+        for(int start=0;start<mixed.length();){
+            int end=VoiceQueuePolicy.chunkEnd(mixed,start,2000);
+            check(end>start&&end-start<=2000);
+            check(end==mixed.length()||!Character.isLowSurrogate(mixed.charAt(end)));
+            rebuilt.append(mixed,start,end);start=end;
+        }
+        check(mixed.contentEquals(rebuilt));
+        boolean rejected=false;
+        try{VoiceQueuePolicy.chunkEnd(s,0,1);}catch(IllegalArgumentException expected){rejected=true;}
+        check(rejected);
+        System.out.println("PASS: voice queue policy, stale callback and multilingual round-trip checks");
     }
 }
