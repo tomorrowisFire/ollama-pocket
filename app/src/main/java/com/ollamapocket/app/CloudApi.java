@@ -183,10 +183,13 @@ final class CloudApi {
         int status=c.getResponseCode();if(status<200||status>=300)throw new HttpFailure(status);
         String contentType=c.getContentType();
         if(contentType==null||!contentType.toLowerCase(java.util.Locale.ROOT).contains("text/event-stream"))throw new java.io.IOException("Expected SSE");
+        try(InputStream raw=c.getInputStream()){return parseStream(provider,raw,progress);}
+    }
+    static Reply parseStream(Provider provider,InputStream raw,Progress progress)throws Exception{
         StringBuilder answer=new StringBuilder();long input=-1,output=-1,lastUi=0;
         final long deadline=System.nanoTime()+300000000000L;
         boolean complete=false,finishedChoice=false;
-        try(InputStream raw=c.getInputStream();java.io.Reader reader=new java.io.InputStreamReader(raw,StandardCharsets.UTF_8)){
+        try(java.io.Reader reader=new java.io.InputStreamReader(raw,StandardCharsets.UTF_8)){
             StringBuilder line=new StringBuilder(),event=new StringBuilder();int ch;long consumed=0;
             while((ch=reader.read())!=-1){
                 if(Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("Stream interrupted");
