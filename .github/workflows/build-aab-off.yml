@@ -1,0 +1,200 @@
+name: Isolated Play AAB - ads OFF
+on:
+  push:
+    branches: ['build/aab-off-20261126']
+    paths: ['.github/workflows/build-aab-off.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android API 36
+        shell: bash
+        run: |
+          set -eu
+          sdk="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          test -d "$sdk"
+          echo "ANDROID_HOME=$sdk" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$sdk" >> "$GITHUB_ENV"
+          yes | "$sdk/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$sdk/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-36' 'build-tools;35.0.0' 'ndk;27.2.12479018'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Recover native payload from successful matching-source build
+        uses: actions/download-artifact@v4
+        with:
+          name: AI-in-Pocket-Cooperative-RPC-APK
+          repository: tomorrowisFire/ollama-pocket
+          run-id: 45358690239
+          github-token: ${{ github.token }}
+          path: base-apk
+      - name: Build-only OFF overlay and native validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib, zipfile, hashlib, struct, re, shutil
+          root=pathlib.Path('.')
+          expected={
+            'app/build.gradle':'cf7a551da551a83f3dad0814ec77ae179abf32d0',
+            'build.gradle':'5b7ccba7c566afb5057eaea1b10b99b083851fe4',
+            'app/src/main/java/com/ollamapocket/app/AdSupport.java':'e43f6276e1916c590e5482fd88f495d03024c219',
+            'app/src/main/java/com/ollamapocket/app/MainActivity.java':'a0916a0847c91dc7b6d534120fa22636a61f7481',
+            'app/src/main/AndroidManifest.xml':'0bb09eef8fcabd77f594861997caec7a94ec4c49'
+          }
+          for name,sha in expected.items():
+              b=(root/name).read_bytes()
+              assert hashlib.sha1(('blob %d\0'%len(b)).encode()+b).hexdigest()==sha, 'source mismatch: '+name
+          apk=list(pathlib.Path('base-apk').rglob('*.apk'))
+          assert len(apk)==1, apk
+          required={'libollama.so','libllama-server.so','libdeviceprobe.so','libllama-vulkan-server.so','libggml-rpc-worker.so','libllama-distributed-server.so'}
+          out=pathlib.Path('app/src/main/jniLibs/arm64-v8a')
+          out.mkdir(parents=True,exist_ok=True)
+          bad=[]
+          with zipfile.ZipFile(apk[0]) as z:
+              libs={pathlib.PurePosixPath(n).name:n for n in z.namelist() if re.fullmatch(r'lib/arm64-v8a/[^/]+\.so',n)}
+              assert required <= set(libs), required-set(libs)
+              for name,entry in libs.items():
+                  data=z.read(entry)
+                  assert data[:6]==b'\x7fELF\x02\x01' and struct.unpack_from('<H',data,18)[0]==183,name
+                  (out/name).write_bytes(data)
+                  phoff=struct.unpack_from('<Q',data,32)[0]
+                  entsize,count=struct.unpack_from('<HH',data,54)
+                  align=[struct.unpack_from('<Q',data,phoff+i*entsize+48)[0] for i in range(count) if struct.unpack_from('<I',data,phoff+i*entsize)[0]==1]
+                  print(name,'PT_LOAD alignments',align)
+                  if not align or min(align)<16384: bad.append(name)
+              for n in z.namelist():
+                  if n.startswith('assets/licenses/') and not n.endswith('/') and '..' not in pathlib.PurePosixPath(n).parts:
+                      dst=pathlib.Path('app/src/main')/n
+                      dst.parent.mkdir(parents=True,exist_ok=True)
+                      dst.write_bytes(z.read(n))
+          pathlib.Path('build-verification').mkdir(exist_ok=True)
+          pathlib.Path('build-verification/native-16kb.txt').write_text('PASS\n' if not bad else 'FAIL: '+', '.join(bad)+'\n')
+          def replace_once(s,a,b):
+              assert s.count(a)==1, 'anchor mismatch: '+a
+              return s.replace(a,b,1)
+          p=pathlib.Path('build.gradle')
+          p.write_text(replace_once(p.read_text(),"version '8.7.3'","version '8.10.1'"))
+          p=pathlib.Path('app/build.gradle')
+          s=p.read_text()
+          s=replace_once(s,'compileSdk 35','compileSdk 36')
+          s=replace_once(s,'targetSdk 35','targetSdk 36')
+          s=replace_once(s,"versionCode 24","versionCode 25")
+          s=replace_once(s,"versionName '0.11.1-clean-ui'","versionName '0.11.2-off-candidate'")
+          s=replace_once(s,'            manifestPlaceholders = [admobAppId: publisherAdMobAppId ?: sampleAdMobAppId]','            manifestPlaceholders = [admobAppId: sampleAdMobAppId]\n            if (stableSigning) signingConfig signingConfigs.durable')
+          s=replace_once(s,"        if (!(publisherAdMobAppId ==~ /ca-app-pub-[0-9]{16}~[0-9]{10}/)) {\n            throw new GradleException('Release build requires ADMOB_APP_ID=ca-app-pub-<publisher>~<app>')\n        }","        if (publisherAdMobAppId) throw new GradleException('OFF build forbids publisher AdMob app ID')")
+          # The OFF artifact has no Google ads/UMP SDK dependencies, even transitive SDK startup is excluded.
+          s=replace_once(s,"    implementation 'com.google.android.gms:play-services-ads:25.5.0'","")
+          s=replace_once(s,"    implementation 'com.google.android.ump:user-messaging-platform:4.0.0'","")
+          p.write_text(s)
+          p=pathlib.Path('app/src/main/AndroidManifest.xml')
+          s=p.read_text()
+          s=replace_once(s,'        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID"\n            android:value="${admobAppId}" />','        <!-- AdMob excluded from isolated OFF artifact. -->')
+          p.write_text(s)
+          # Original advertising implementation remains in the repository, this replacement exists only in the CI checkout.
+          p=pathlib.Path('app/src/main/java/com/ollamapocket/app/AdSupport.java')
+          p.write_text("""package com.ollamapocket.app;
+          import android.app.Activity;
+          import android.app.AlertDialog;
+          import android.view.View;
+          import android.widget.FrameLayout;
+          public final class AdSupport {
+              public static final String PLACEMENT_DOWNLOAD = "download";
+              public static final String PLACEMENT_ONBOARDING = "onboarding";
+              private final Activity activity;
+              public AdSupport(Activity activity) { this.activity = activity; }
+              public boolean isEnabled() { return false; }
+              public void register(FrameLayout parent, String placement) { detach(parent); }
+              public void showBanner(FrameLayout parent) { detach(parent); }
+              public void prepareConsent() {}
+              public void showAppOpenIfReady() {}
+              public void showPrivacyChoices() {
+                  new AlertDialog.Builder(activity).setTitle("광고 OFF")
+                    .setMessage("이 검증용 빌드에서는 광고와 광고 SDK가 비활성화되어 있습니다.")
+                    .setPositiveButton("확인", null).show();
+              }
+              public void detach(FrameLayout parent) { if(parent!=null){parent.removeAllViews();parent.setVisibility(View.GONE);} }
+              public void destroy() {}
+          }
+          """)
+          p=pathlib.Path('app/src/main/java/com/ollamapocket/app/MainActivity.java')
+          s=p.read_text()
+          # Remove ad-only labels from main download/first-run screens while retaining inference and controls.
+          s=replace_once(s,'        margin(text("광고"+(BuildConfig.DEBUG?" · 테스트":""),11,MUTED,false),content,0,3);','')
+          s=replace_once(s,'        margin(text("광고" + (BuildConfig.DEBUG ? " · Google 테스트 배너" : ""), 11, MUTED, false), guide, 0, 4);','')
+          p.write_text(s)
+          print('PASS: source SHA verified, native payload reused, ad SDK excluded; isolated checkout only.')
+          PY
+      - name: Existing release key only (no key generation)
+        shell: bash
+        env:
+          KEY_B64: ${{ secrets.AI_POCKET_KEYSTORE_BASE64 }}
+          KEY_PASS: ${{ secrets.AI_POCKET_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$KEY_B64" && -n "$KEY_PASS" ]]; then
+            f="$RUNNER_TEMP/aiinpocket-upload.p12"
+            printf '%s' "$KEY_B64" | base64 --decode > "$f"
+            chmod 600 "$f"
+            keytool -list -keystore "$f" -storetype PKCS12 -storepass:env KEY_PASS -alias aiinpocket >/dev/null
+            echo "AI_POCKET_KEYSTORE_FILE=$f" >> "$GITHUB_ENV"
+            echo "AI_POCKET_KEYSTORE_PASSWORD=$KEY_PASS" >> "$GITHUB_ENV"
+            echo "SIGNING_MODE=existing-key" >> "$GITHUB_ENV"
+          else
+            echo "SIGNING_MODE=unsigned" >> "$GITHUB_ENV"
+            echo "::warning::Existing signing key unavailable. Output is an UNSIGNED candidate, not eligible for Play submission."
+          fi
+      - name: Build isolated Release AAB
+        shell: bash
+        run: |
+          set -eu
+          unset ADMOB_APP_ID
+          gradle --no-daemon :app:bundleRelease
+      - name: Validate and label bundle (never deploy)
+        shell: bash
+        run: |
+          set -euo pipefail
+          aab=app/build/outputs/bundle/release/app-release.aab
+          test -s "$aab"
+          unzip -t "$aab" >/dev/null
+          python3 - "$aab" <<'PY'
+          import zipfile,sys
+          with zipfile.ZipFile(sys.argv[1]) as z:
+              for name in ['libollama.so','libllama-server.so','libdeviceprobe.so','libllama-vulkan-server.so','libggml-rpc-worker.so','libllama-distributed-server.so']:
+                  assert 'base/lib/arm64-v8a/'+name in z.namelist(),name
+          PY
+          mkdir -p dist
+          label=UNSIGNED
+          if [[ "$SIGNING_MODE" = existing-key ]]; then
+            jarsigner -verify -verbose -certs "$aab" > build-verification/signature.txt
+            grep -q 'jar verified' build-verification/signature.txt
+            label=SIGNED-KEY-UNVERIFIED-FOR-PLAY
+          fi
+          if ! grep -qx PASS build-verification/native-16kb.txt; then label="${label}-16KB-FAIL"; fi
+          cp "$aab" "dist/AI-in-Pocket-v0.11.2-OFF-${label}.aab"
+          sha256sum dist/*.aab > build-verification/sha256.txt
+          echo "$SIGNING_MODE" > build-verification/signing-mode.txt
+          echo "OFF BUILD ONLY; not the full AdMob safe-patch; Play approval and device checks NOT_RUN" > build-verification/release-status.txt
+          cat build-verification/native-16kb.txt build-verification/signing-mode.txt >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AI-in-Pocket-OFF-AAB-Candidate
+          path: |
+            dist/*.aab
+            build-verification/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Report native alignment gate
+        run: grep -qx PASS build-verification/native-16kb.txt
