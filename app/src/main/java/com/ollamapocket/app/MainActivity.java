@@ -3296,7 +3296,7 @@ public final class MainActivity extends Activity {
                 if ("cooperative".equals(computeAtStart)) {
                     StringBuilder reason = new StringBuilder();
                     ui.post(() -> activeEngineLabel.setText(getString(R.string.engine_rpc_load)));
-                    if (!DistributedRunner.ensure(getApplicationContext(), modelAtStart, reason))
+                    if (!DistributedRunner.ensure(getApplicationContext(), modelAtStart, reason,()->chatCancelled))
                         throw new java.io.IOException(getString(R.string.coop_error_fallback,UiText.error(this,reason.toString())));
                     checkChatCancelled();
                     HttpURLConnection connection = OllamaHttp.newCooperativeChatConnection();
@@ -3312,13 +3312,7 @@ public final class MainActivity extends Activity {
                 StringBuilder fallback = new StringBuilder();
                 if (tryGpu && !chatCancelled) {
                     ui.post(() -> activeEngineLabel.setText(getString(R.string.engine_gpu_test)));
-                    // Release the CPU model before allocating the second GPU runtime.
-                    try {
-                        OllamaHttp.post("/api/generate", new JSONObject()
-                            .put("model", modelAtStart).put("keep_alive", 0)
-                            .put("stream", false), "POST");
-                    } catch (Exception ignored) { }
-                    gpu = GpuRunner.ensure(getApplicationContext(), modelAtStart, fallback);
+                    gpu = GpuRunner.ensure(getApplicationContext(), modelAtStart, fallback,()->chatCancelled);
                 }
                 checkChatCancelled();
                 final boolean verifiedGpu = gpu;
@@ -3333,7 +3327,7 @@ public final class MainActivity extends Activity {
                         OllamaHttp.streamGpuChat(connection, OllamaHttp.gpuChatBody(modelAtStart, requestHistory),
                             item -> appendAnswer(item, answer, assistant));
                     } catch (Exception gpuError) {
-                        if(chatCancelled||Thread.currentThread().isInterrupted()||answer.length()>0)throw gpuError; // never duplicate a partial/cancelled response
+                        if(!InferenceSafetyPolicy.mayFallback(chatCancelled,Thread.currentThread().isInterrupted(),answer.length(),InferenceSafety.check(getApplicationContext())))throw gpuError;
                         GpuRunner.stop();
                         if(InferenceSafety.blocked(getApplicationContext()))throw gpuError;
                         ui.post(() -> activeEngineLabel.setText(getString(R.string.engine_cpu_fallback)));
@@ -3343,6 +3337,9 @@ public final class MainActivity extends Activity {
                             item -> appendAnswer(item, answer, assistant));
                     }
                 } else {
+                    GpuRunner.stop();DistributedRunner.stop();
+                    checkChatCancelled();
+                    if(InferenceSafety.blocked(getApplicationContext()))throw new java.io.IOException("Unsafe inference resources");
                     HttpURLConnection connection = OllamaHttp.newChatConnection();
                     publishChatConnection(connection);
                     OllamaHttp.streamChat(connection, OllamaHttp.chatBody(modelAtStart, requestHistory),

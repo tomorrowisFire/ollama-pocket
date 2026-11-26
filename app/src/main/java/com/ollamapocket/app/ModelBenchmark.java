@@ -69,6 +69,7 @@ public final class ModelBenchmark {
         long elapsedMs;
         long generated;
         long promptCount;
+        long minFreeMiB=Long.MAX_VALUE;
     }
 
     private static final class Reading {
@@ -139,7 +140,7 @@ public final class ModelBenchmark {
             this.mode = mode; this.name = name;
         }
         public boolean valid() {
-            return passes == REPEATS && decodeTps > 0 && error.isEmpty();
+            return passes == REPEATS && Double.isFinite(decodeTps)&&decodeTps > 0 && thermalStart<3&&thermalEnd<3&&error.isEmpty();
         }
         String localizedSummary(Context c){
             String name=engineLabel(c,mode);
@@ -301,6 +302,7 @@ public final class ModelBenchmark {
         HttpURLConnection conn = (HttpURLConnection)new URL(endpoint).openConnection();
         activeConnection = conn;
         conn.setRequestMethod("POST");
+        conn.setInstanceFollowRedirects(false);
         conn.setConnectTimeout(4000);
         conn.setReadTimeout(TIMEOUT_MS);
         conn.setUseCaches(false);
@@ -310,6 +312,7 @@ public final class ModelBenchmark {
                 "application/x-ndjson" : "text/event-stream");
         long started = SystemClock.elapsedRealtime();
         Sample sample = new Sample();
+        boolean terminal=false;long lastCheck=0;
         try {
             byte[] bytes = requestBody(mode,model,tokens).toString()
                     .getBytes(StandardCharsets.UTF_8);
@@ -322,7 +325,10 @@ public final class ModelBenchmark {
                     conn.getInputStream(),StandardCharsets.UTF_8))) {
                 String line;
                 while((line=reader.readLine())!=null) {
-                    if(canceled)throw new InterruptedIOException("검사 취소");
+                    if(canceled||Thread.currentThread().isInterrupted())throw new InterruptedIOException("검사 취소");
+                    long now=SystemClock.elapsedRealtime();
+                    if(now-started>300_000)throw new java.net.SocketTimeoutException("Benchmark deadline");
+                    if(now-lastCheck>=1000){check(context);if("cooperative".equals(mode)&&!DistributedRunner.peersAvailable(context))throw new IOException("RPC peer disconnected");sample.minFreeMiB=Math.min(sample.minFreeMiB,Reading.capture(context).freeMiB);lastCheck=now;}
                     String data;
                     if("cpu".equals(mode)) data=line.trim();
                     else {
@@ -338,6 +344,7 @@ public final class ModelBenchmark {
                     if(!chunk.isEmpty() && sample.firstTokenMs<0)
                         sample.firstTokenMs=SystemClock.elapsedRealtime()-started;
                     if("cpu".equals(mode) && obj.optBoolean("done",false)) {
+                        terminal=true;
                         sample.generated=obj.optLong("eval_count",0);
                         sample.promptCount=obj.optLong("prompt_eval_count",0);
                         sample.decodeTps=BenchmarkStats.tokensPerSecond(
@@ -347,7 +354,8 @@ public final class ModelBenchmark {
                     }
                     if(!"cpu".equals(mode)) {
                         JSONObject timings=obj.optJSONObject("timings");
-                        if(timings!=null) {
+                        if(timings!=null&&obj.optBoolean("stop",false)) {
+                            terminal=true;
                             sample.generated=timings.optLong("predicted_n",0);
                             sample.promptCount=timings.optLong("prompt_n",0);
                             sample.decodeTps=BenchmarkStats.tokensPerSecond(
@@ -358,6 +366,10 @@ public final class ModelBenchmark {
                     }
                 }
             }
+            check(context);
+            if("cooperative".equals(mode)&&!DistributedRunner.peersAvailable(context))throw new IOException("RPC peer disconnected");
+            sample.minFreeMiB=Math.min(sample.minFreeMiB,Reading.capture(context).freeMiB);
+            if(!terminal)throw new IOException("Incomplete benchmark stream");
             sample.elapsedMs = SystemClock.elapsedRealtime() - started;
             if(sample.generated < Math.min(12, tokens) || sample.decodeTps <= 0
                     || sample.firstTokenMs < 0)
@@ -393,15 +405,15 @@ public final class ModelBenchmark {
                 if(!ComputeProfiler.scan(context).gpuCompute)
                     throw new IOException("기기 Vulkan compute 미보고");
                 StringBuilder reason=new StringBuilder();
-                if(!GpuRunner.ensure(context,model,reason))
+                if(!GpuRunner.ensure(context,model,reason,()->canceled))
                     throw new IOException("GPU 오프로드 불가: "+reason);
             } else {
                 GpuRunner.stop();
                 CoopSession session=CoopSession.get(context);
-                if(!"host".equals(session.role()) || session.readyNodes().isEmpty())
+                if(!"host".equals(session.role()) || session.connectedRpcEndpoints().isEmpty())
                     throw new IOException("호스트 세션·활성 보조 노드 없음");
                 StringBuilder reason=new StringBuilder();
-                if(!DistributedRunner.ensure(context,model,reason))
+                if(!DistributedRunner.ensure(context,model,reason,()->canceled))
                     throw new IOException("분산 모델 로딩 실패: "+reason);
             }
 
@@ -414,6 +426,7 @@ public final class ModelBenchmark {
                 progress.update(locale.getString(R.string.bench_measuring,displayEngine,i+1,REPEATS));
                 Sample m=measure(context,model,mode,TOKENS);
                 result.passes++;
+                result.minFreeMiB=Math.min(result.minFreeMiB,m.minFreeMiB);
                 tgs.add(m.decodeTps);
                 pps.add(m.promptTps);
                 firsts.add((double)m.firstTokenMs);
@@ -451,7 +464,7 @@ public final class ModelBenchmark {
         double bestRate=0;
         try {
             for(String mode:modes) {
-                if(canceled)break;
+                if(canceled||InferenceSafety.blocked(context))break;
                 EngineResult result=measureEngine(context,model,mode,progress);
                 report.results.add(result);
                 if(result.valid()) {

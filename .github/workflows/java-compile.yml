@@ -31,6 +31,7 @@ on:
       - 'tests/CloudUsageLedgerTest.java'
       - 'tests/CloudStreamTest.java'
       - 'tests/InferenceSafetyPolicyTest.java'
+      - 'tests/Stage07BatchPolicyTest.java'
       - 'tests/CoopMemoryPlannerTest.java'
       - 'tests/CoopPlanLocaleDataTest.java'
 
@@ -146,6 +147,11 @@ jobs:
           mkdir -p /tmp/inference-safety-tests
           javac -d /tmp/inference-safety-tests app/src/main/java/com/ollamapocket/app/InferenceSafetyPolicy.java tests/InferenceSafetyPolicyTest.java
           java -cp /tmp/inference-safety-tests com.ollamapocket.app.InferenceSafetyPolicyTest
+      - name: Test compact RPC allocation and fallback policy
+        run: |
+          mkdir -p /tmp/stage07-tests
+          javac -d /tmp/stage07-tests app/src/main/java/com/ollamapocket/app/CoopMemoryPlanner.java app/src/main/java/com/ollamapocket/app/InferenceSafetyPolicy.java tests/Stage07BatchPolicyTest.java
+          java -cp /tmp/stage07-tests com.ollamapocket.app.Stage07BatchPolicyTest
       - name: Audit direct Hangul UI literals
         run: python3 tests/locale_ui_audit.py
       - name: Verify OnHand AI brand and locale resource parity

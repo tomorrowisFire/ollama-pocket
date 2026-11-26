@@ -76,6 +76,27 @@ public final class CoopMemoryPlanner {
         }
     }
 
+    /** Fewest eligible guests needed for this capacity estimate; no throughput claim.
+     * Keep the original stable RPC order, even when choosing by usable capacity.
+     * If the full pool cannot fit, return its diagnostic unchanged.
+     */
+    public static Plan evaluateCompact(long modelMiB,long hostSafeMiB,List<Long> remotes){
+        Plan full=evaluate(modelMiB,hostSafeMiB,remotes);
+        if(!full.allowed||full.selectedIndices.size()<2)return full;
+        List<Integer> ordered=new ArrayList<>(full.selectedIndices);
+        ordered.sort((a,b)->{
+            int cmp=Long.compare(bounded(remotes.get(b)),bounded(remotes.get(a)));
+            return cmp!=0?cmp:Integer.compare(a,b);
+        });
+        List<Long> candidate=new ArrayList<>(Collections.nCopies(remotes.size(),0L));
+        for(int index:ordered){
+            candidate.set(index,remotes.get(index));
+            Plan plan=evaluate(modelMiB,hostSafeMiB,candidate);
+            if(plan.allowed)return plan;
+        }
+        return full;
+    }
+
     /**
      * Splits specify relative remote RPC device weights, NOT a host/RPC
      * split. Local CPU tensors and KV allocation are chosen by llama.cpp.

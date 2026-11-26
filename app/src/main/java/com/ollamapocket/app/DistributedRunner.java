@@ -21,6 +21,7 @@ public final class DistributedRunner {
     private static volatile Process process;
     private static volatile String activeModel="";
     private static volatile String rpcEndpointSet="";
+    private static volatile long generation;
     private static final StringBuilder logs=new StringBuilder();
     private DistributedRunner(){}
     public static String url(){return "http://127.0.0.1:"+PORT;}
@@ -32,6 +33,7 @@ public final class DistributedRunner {
     }
     public static void stop(){
         synchronized(DistributedRunner.class){
+            generation++;
             if(process!=null){process.destroy();process=null;}
             activeModel="";rpcEndpointSet="";
         }
@@ -39,9 +41,7 @@ public final class DistributedRunner {
     public static boolean peersAvailable(Context context){
         String expected=rpcEndpointSet;
         if(expected.isEmpty())return true;
-        String available=","+CoopSession.get(context).connectedRpcEndpoints()+",";
-        for(String endpoint:expected.split(","))if(!available.contains(","+endpoint+","))return false;
-        return true;
+        return InferenceSafetyPolicy.hasEndpoints(expected,CoopSession.get(context).connectedRpcEndpoints());
     }
     private static boolean healthy(){
         HttpURLConnection c=null;
@@ -68,7 +68,7 @@ public final class DistributedRunner {
         List<Long> capacities=new ArrayList<>();
         for(CoopSession.Node node:ready) capacities.add(node.safeRamMiB);
         long weightMiB=(modelWeights.length()+1048575L)/1048576L;
-        CoopMemoryPlanner.Plan budget=CoopMemoryPlanner.evaluate(
+        CoopMemoryPlanner.Plan budget=CoopMemoryPlanner.evaluateCompact(
                 weightMiB,coop.localSafeRamMiB(),capacities);
         List<CoopSession.Node> picked=new ArrayList<>();
         for(int index:budget.selectedIndices)picked.add(ready.get(index));
@@ -102,8 +102,13 @@ public final class DistributedRunner {
 
     /** Called only from a worker thread, before the distributed server is started. */
     public static boolean ensure(Context context,String model,StringBuilder reason){
+        return ensure(context,model,reason,()->false);
+    }
+    public static boolean ensure(Context context,String model,StringBuilder reason,java.util.function.BooleanSupplier cancelled){
+        if(cancelled.getAsBoolean()||Thread.currentThread().isInterrupted())return false;
         CoopSession coop=CoopSession.get(context);
-        if(InferenceSafety.blocked(context)){reason.append(OnHandsLocale.wrap(context).getString(InferenceSafety.label(InferenceSafety.check(context))));return false;}
+        InferenceSafetyPolicy.Reason risk=InferenceSafety.check(context);
+        if(risk!=InferenceSafetyPolicy.Reason.NONE){reason.append(OnHandsLocale.wrap(context).getString(InferenceSafety.label(risk)));return false;}
         if(!"host".equals(coop.role()) || coop.connectedRpcEndpoints().isEmpty()){
             reason.append("호스트 세션 또는 활성 보조 노드가 없습니다");return false;
         }
@@ -122,9 +127,15 @@ public final class DistributedRunner {
             String current=coop.connectedRpcEndpoints();
             for(String endpoint:rpcEndpointSet.split(","))
                 if(!(","+current+",").contains(","+endpoint+","))stillConnected=false;
-            if(stillConnected)return true;
+            if(stillConnected&&!cancelled.getAsBoolean())return true;
         }
-        stop();
+        final long startup;
+        synchronized(DistributedRunner.class){stop();startup=generation;}
+        try{
+            GpuRunner.stop();
+            OllamaHttp.releaseResidentModels(cancelled);
+        }catch(Exception e){reason.append(e.getMessage());return false;}
+        if(cancelled.getAsBoolean()||startup!=generation||InferenceSafety.blocked(context))return false;
 
         BudgetSelection selection=plan(context,weights);
         CoopMemoryPlanner.Plan budget=selection.budget;
@@ -141,11 +152,7 @@ public final class DistributedRunner {
         log("RPC endpoints="+selection.endpoints+" tensor-split="+budget.tensorSplit);
 
         try {
-            // Free previous Ollama weights before starting another engine.
-            try {OllamaHttp.post("/api/generate",new JSONObject().put("model",model)
-                .put("keep_alive",0).put("stream",false),"POST");}
-            catch(Exception ignored){}
-            GpuRunner.stop();
+            // Admission was recomputed after releasing competing engines.
             List<String> args=new ArrayList<>();
             args.add(binary.getAbsolutePath());args.add("-m");args.add(weights.getAbsolutePath());
             args.add("--host");args.add("127.0.0.1");args.add("--port");args.add(Integer.toString(PORT));
@@ -165,10 +172,11 @@ public final class DistributedRunner {
             pb.environment().put("GGML_RPC_NO_RDMA","1");
             pb.environment().put("HOME",context.getFilesDir().getAbsolutePath());
             pb.environment().put("TMPDIR",context.getCacheDir().getAbsolutePath());
-            if(InferenceSafety.blocked(context))throw new java.io.IOException("Unsafe inference resources");
-            final Process current=pb.start();
+            final Process current;
             synchronized(DistributedRunner.class){
-                process=current;activeModel=model;rpcEndpointSet=selection.endpoints;
+                if(startup!=generation||cancelled.getAsBoolean()||InferenceSafety.blocked(context))return false;
+                if(!InferenceSafetyPolicy.hasEndpoints(selection.endpoints,coop.connectedRpcEndpoints()))return false;
+                current=pb.start();process=current;activeModel=model;rpcEndpointSet=selection.endpoints;
             }
             new Thread(()->{
                 try(BufferedReader r=new BufferedReader(new InputStreamReader(
@@ -180,15 +188,16 @@ public final class DistributedRunner {
             long seconds=Math.max(180,Math.min(900,weights.length()/(12L*1024*1024)));
             long until=SystemClock.elapsedRealtime()+seconds*1000;
             while(SystemClock.elapsedRealtime()<until && current.isAlive()){
-                if(InferenceSafety.blocked(context)){stop();reason.append("Unsafe inference resources");return false;}
+                if(startup!=generation||process!=current||cancelled.getAsBoolean()||Thread.currentThread().isInterrupted()){stopGeneration(startup);return false;}
+                if(InferenceSafety.blocked(context)){stopGeneration(startup);reason.append("Unsafe inference resources");return false;}
                 String now=coop.connectedRpcEndpoints();
                 for(String endpoint:selection.endpoints.split(",")){
                     if(!(","+now+",").contains(","+endpoint+",")){
                         reason.append("모델 로딩 중 보조 노드가 연결 해제되었습니다");
-                        stop();return false;
+                        stopGeneration(startup);return false;
                     }
                 }
-                if(healthy()){
+                if(healthy()&&process==current&&startup==generation&&!cancelled.getAsBoolean()){
                     log("RPC HTTP ready; real remote compute needs measured token output");
                     return true;
                 }
@@ -196,9 +205,10 @@ public final class DistributedRunner {
             }
             reason.append(current.isAlive()?"RPC 모델 로딩 시간 초과":
                 "RPC 호스트 종료 · RAM/버전/모델 호환성 확인");
-            stop();return false;
-        }catch(Exception e){reason.append(e.getMessage());stop();return false;}
+            stopGeneration(startup);return false;
+        }catch(Exception e){reason.append(e.getMessage());stopGeneration(startup);return false;}
     }
+    private static synchronized void stopGeneration(long expected){if(expected==generation)stop();}
     private static File findModel(Context context,String model) throws Exception{
         if(model==null||!model.matches("[A-Za-z0-9._/-]{1,90}(:[A-Za-z0-9._-]{1,45})?"))
             throw new Exception("일반 Ollama library 모델 이름만 지원됩니다");

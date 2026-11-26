@@ -95,18 +95,26 @@ public final class GpuRunner {
 
     /** Called on a worker thread. Returns true only after verified GPU offload. */
     public static boolean ensure(Context context, String model, StringBuilder reason) {
+        return ensure(context,model,reason,()->false);
+    }
+    public static boolean ensure(Context context,String model,StringBuilder reason,java.util.function.BooleanSupplier cancelled){
+        if(cancelled.getAsBoolean()||Thread.currentThread().isInterrupted())return false;
         InferenceSafetyPolicy.Reason risk=InferenceSafety.check(context);
         if(risk!=InferenceSafetyPolicy.Reason.NONE){reason.append(OnHandsLocale.wrap(context).getString(InferenceSafety.label(risk)));return false;}
         if (!packaged(context)) {
             reason.append("GPU 추론 실행 파일이 포함되지 않았습니다"); return false;
         }
         if (process != null && process.isAlive() && activeModel.equals(model)
-                && offloadConfirmed && healthy()) return true;
-        synchronized (GpuRunner.class) { stopLocked(); }
+                && offloadConfirmed && healthy()&&!cancelled.getAsBoolean()) return true;
+        final int startup;
+        synchronized (GpuRunner.class) { stopLocked(); startup=generation; }
         File weights;
         try { weights = modelFile(context, model); }
         catch (Exception e) { reason.append(e.getMessage()); return false; }
         try {
+            DistributedRunner.stop();
+            OllamaHttp.releaseResidentModels(cancelled);
+            if(cancelled.getAsBoolean()||generation!=startup||InferenceSafety.blocked(context))return false;
             File executable = new File(context.getApplicationInfo().nativeLibraryDir, "libllama-vulkan-server.so");
             ProcessBuilder pb = new ProcessBuilder(executable.getAbsolutePath(),
                     "-m", weights.getAbsolutePath(), "--host", "127.0.0.1", "--port", String.valueOf(PORT),
@@ -120,11 +128,11 @@ public final class GpuRunner {
             Process current;
             int myGeneration;
             synchronized (GpuRunner.class) {
-                if(InferenceSafety.blocked(context))throw new java.io.IOException("Unsafe inference resources");
+                if(generation!=startup||cancelled.getAsBoolean()||InferenceSafety.blocked(context))return false;
                 process = pb.start();
                 activeModel = model;
                 offloadConfirmed = false;
-                myGeneration = ++generation;
+                myGeneration = generation;
                 current = process;
             }
             new Thread(() -> {
@@ -132,25 +140,25 @@ public final class GpuRunner {
                         current.getInputStream(), StandardCharsets.UTF_8))) {
                     String line;
                     while ((line = br.readLine()) != null) {
-                        if (myGeneration == generation) append(line);
+                        synchronized(GpuRunner.class){if (myGeneration == generation&&process==current) append(line);}
                     }
                 } catch (Exception e) { append("GPU logs: " + e.getMessage()); }
             }, "gpu-llama-logs").start();
             long end = SystemClock.elapsedRealtime() + 35000;
             while (SystemClock.elapsedRealtime() < end) {
-                if (process != current || !current.isAlive()) break;
+                if (process != current || !current.isAlive()||cancelled.getAsBoolean()||Thread.currentThread().isInterrupted()) break;
                 if(InferenceSafety.blocked(context)){reason.append("Unsafe inference resources");synchronized(GpuRunner.class){if(process==current)stopLocked();}return false;}
-                if (healthy() && offloadConfirmed) return true;
+                if (healthy() && offloadConfirmed&&process==current&&!cancelled.getAsBoolean()) return true;
                 Thread.sleep(500);
             }
             if (!current.isAlive()) reason.append("GPU 실행 파일이 종료됐습니다. Vulkan 드라이버·모델 호환 확인 필요");
             else if (healthy()) reason.append("서버는 시작됐지만 GPU 레이어 오프로드는 확인되지 않았습니다");
             else reason.append("GPU 서버 시작 실패 또는 시간 초과");
-            synchronized (GpuRunner.class) { stopLocked(); }
+            synchronized (GpuRunner.class) { if(generation==startup)stopLocked(); }
             return false;
         } catch (Exception e) {
             reason.append("GPU 실행 실패: ").append(e.getMessage());
-            synchronized (GpuRunner.class) { stopLocked(); } return false;
+            synchronized (GpuRunner.class) { if(generation==startup)stopLocked(); } return false;
         }
     }
 

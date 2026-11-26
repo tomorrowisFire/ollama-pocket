@@ -19,7 +19,8 @@ public final class OllamaHttp {
     private OllamaHttp() { }
 
     private static HttpURLConnection open(String path, String method, int readTimeoutMs) throws Exception {
-        HttpURLConnection conn = (HttpURLConnection) new URL(BASE + path).openConnection();
+        HttpURLConnection conn = (HttpURLConnection) new URL(BASE + path).openConnection(java.net.Proxy.NO_PROXY);
+        conn.setInstanceFollowRedirects(false);
         conn.setRequestMethod(method);
         conn.setConnectTimeout(3000);
         conn.setReadTimeout(readTimeoutMs);
@@ -35,6 +36,28 @@ public final class OllamaHttp {
     public static JSONObject get(String path) throws Exception {
         HttpURLConnection conn = open(path, "GET", 6000);
         try { return readSingle(conn); } finally { conn.disconnect(); }
+    }
+
+    /** Release only model allocations in this app's loopback Ollama daemon. */
+    public static void releaseResidentModels(java.util.function.BooleanSupplier cancelled)throws Exception{
+        if(cancelled.getAsBoolean())throw new java.io.InterruptedIOException("CHAT_CANCELLED");
+        if(!OllamaForegroundService.isRunning())return;
+        JSONArray models=get("/api/ps").optJSONArray("models");
+        if(models==null||models.length()>128)throw new IOException("Invalid resident model list");
+        for(int i=0;i<models.length();i++){
+            if(cancelled.getAsBoolean()||Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("CHAT_CANCELLED");
+            JSONObject row=models.optJSONObject(i);
+            String name=row==null?"":row.optString("name",row.optString("model",""));
+            if(name.isEmpty()||name.length()>256)throw new IOException("Invalid resident model name");
+            post("/api/generate",new JSONObject().put("model",name).put("keep_alive",0).put("stream",false),"POST");
+        }
+        for(int i=0;i<8;i++){
+            if(cancelled.getAsBoolean()||Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("CHAT_CANCELLED");
+            JSONArray left=get("/api/ps").optJSONArray("models");
+            if(left!=null&&left.length()==0)return;
+            Thread.sleep(250);
+        }
+        throw new IOException("Resident models did not unload");
     }
 
     public static JSONObject post(String path, JSONObject body, String method) throws Exception {
@@ -53,7 +76,7 @@ public final class OllamaHttp {
 
     private static InputStream checkedStream(HttpURLConnection conn) throws Exception {
         int code = conn.getResponseCode();
-        if (code >= 400) {
+        if (code < 200 || code >= 300) {
             InputStream err = conn.getErrorStream();
             String message = err == null ? "" : readText(err, 8192);
             throw new IOException("Ollama HTTP " + code + ": " + message);
@@ -108,10 +131,11 @@ public final class OllamaHttp {
         if(!done[0])throw new IOException("CHAT_STREAM_INCOMPLETE");
     }
     public static HttpURLConnection newGpuChatConnection() throws Exception {
-        HttpURLConnection conn = (HttpURLConnection)new URL(GpuRunner.url() + "/v1/chat/completions").openConnection();
+        HttpURLConnection conn = (HttpURLConnection)new URL(GpuRunner.url() + "/v1/chat/completions").openConnection(java.net.Proxy.NO_PROXY);
+        conn.setInstanceFollowRedirects(false);
         conn.setRequestMethod("POST");
         conn.setConnectTimeout(4000);
-        conn.setReadTimeout(0);
+        conn.setReadTimeout(300_000);
         conn.setUseCaches(false);
         conn.setDoOutput(true);
         conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
@@ -120,10 +144,11 @@ public final class OllamaHttp {
     }
 
     public static HttpURLConnection newCooperativeChatConnection() throws Exception {
-        HttpURLConnection conn = (HttpURLConnection)new URL(DistributedRunner.url() + "/v1/chat/completions").openConnection();
+        HttpURLConnection conn = (HttpURLConnection)new URL(DistributedRunner.url() + "/v1/chat/completions").openConnection(java.net.Proxy.NO_PROXY);
+        conn.setInstanceFollowRedirects(false);
         conn.setRequestMethod("POST");
         conn.setConnectTimeout(4000);
-        conn.setReadTimeout(0);
+        conn.setReadTimeout(300_000);
         conn.setUseCaches(false);
         conn.setDoOutput(true);
         conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
@@ -178,7 +203,7 @@ public final class OllamaHttp {
         } finally { connection.disconnect(); }
     }
 
-    public static HttpURLConnection newChatConnection() throws Exception { return open("/api/chat", "POST", 0); }
+    public static HttpURLConnection newChatConnection() throws Exception { return open("/api/chat", "POST", 300_000); }
     public static HttpURLConnection newPullConnection() throws Exception { return open("/api/pull", "POST", 0); }
 
     public static JSONObject chatBody(String model, JSONArray history) throws Exception {
