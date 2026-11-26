@@ -1,0 +1,27 @@
+# 12-F4A verification checkpoint / 12-F4B usability and context preflight
+Application candidate 32efe44eebf55e62e87f669dff4f0d320bbe9da2. Physical acceptance is reserved for FINAL, not an intermediate development gate. A/B/C below are simulated perspectives of one assistant, not independent executed agents.
+
+## Exact-candidate evidence at inspection
+- Java run 45823647344, job 139922064082: new bounded AI conference orchestration test step SUCCESS; five-locale brand/resource parity SUCCESS; final Android Java compilation IN_PROGRESS. Full Java workflow result and final test log counts not yet available.
+- Native run 45823647373: secure-relay-unit-test SUCCESS; cooperative APK job IN_PROGRESS at pinned CPU RPC host/worker build. QA AAB and 16 KiB audit pending.
+- F4A-1 and final F4A-4 signoff pending; no F4A acceptance claim, no score uplift from the 79.0 provisional mean. F4A-5 NOT_RUN / DEFERRED_TO_FINAL. Do not substitute earlier builds or modify application code for F4B until all F4A non-device gates pass.
+
+## Source findings
+1. ConferencePolicy.Request reuses the generic workflow validator, which accepts MIN_CHARS up to 4000, but conference artifacts have a fixed 600 UTF-16-unit ceiling. A requested minimum of 601 or more can therefore never pass; reject this at preflight rather than spending model calls.
+2. ConferencePolicy.Session.call uses a fixed 512-token output reserve for every role. The existing 2048 context estimator can reject a later reviewer or correction after a valid bounded artifact is generated. This is especially relevant to CJK data: goal 240 and artifact 600 BMP non-ASCII units alone estimate 1680 tokens, before instructions, condition or issue text. The current fail-closed behavior is correct, but a capacity-aware preflight and role-specific handoff budget are needed for useful work.
+3. AutomationUi.conferenceReport concatenates the entire transcript. There is no distinct artifact-only copy or structured handoff. A stop reason is appended to the screen but not included by the existing copy method. These are concrete product gaps, not device-observed performance measurements.
+
+## Three-role proposed decision
+A / product: preserve the current conference and add a visible pre-run capacity summary and useful, explicit result actions. Clearly distinguish completed condition+review from partial/blocked artifacts. Provide artifact-only copy and bounded structured meeting export for later project workspaces.
+B / engineering: split F4B if necessary.
+- F4B1 capacity-aware preflight. Reject provably impossible configured conditions before calling a model; preserve existing generic workflow gates and old conference ceilings. Allocate a conservative estimated serialized-input budget across plan, artifact and review issues, accounting for each downstream role including correction. Derive a role-specific output reserve not exceeding 512, with a useful minimum per role. Enforce actual serialized prompt fit before every call. Pass the available content allowance explicitly to each role and validate returned content before committing it. Do not silently truncate the user goal, condition, accepted artifact or issue text. For configurations that cannot support meaningful handoff within 2048 estimated context, explain and block at preflight. Preserve five-request/one-correction/5-minute ceilings. Treat estimator as an approximation, never exact tokenizer or measured model speed.
+- F4B2 result handoff: immutable terminal snapshot; include model, exact goal/condition, status, cause/stop reason, attempts, ordered role turns, latest artifact, current predicate and associated review. Verify turn order and terminal conjunction when producing JSON, preserve exact strings with org.json, bound report size. Offer explicit artifact-only copy and transcript JSON copy with sensitive-clipboard confirmation. No automatic application, new storage, external tool or cloud transfer. Use a future F5 adapter for project persistence rather than silently creating project files here.
+C / QA: preserve exact predicate semantics, no invented independent quality approval. Reject impossible minimum, invalid limits and over-budget inputs before dispatch; test ASCII/CJK/emoji and escaped JSON, all three roles, correction handoff, no truncation and zero calls on a failed preflight. Verify partial vs complete export, stale review invalidation, stop reasons and no unintended clipboard/export action. Freeze exact thresholds/fixtures after F4A passes. Keep initial ad, package/signing, data and engine boundaries.
+
+## Proposed KPI (not frozen)
+F4B-1 same-candidate Java/native APK, QA AAB, 16 KiB, existing ad/locale/regression PASS.
+F4B-2 deterministic preflight and handoff budget fixtures 100%; no call for provably impossible condition; every accepted handoff must fit the next estimated-context request or fail before model dispatch; no silent text loss or cap increases.
+F4B-3 terminal snapshot/export fixtures 100%; current artifact/role sequence/actual predicate/associated review/stop cause consistent; no falsely completed partial result. No auto-copy or persistence.
+F4B-4 five-language resource and scoped source review, no known P0/P1. Ten simulated perspectives only after evidence.
+F4B-5 actual CJK model quality, speed, usable output, cancellation, clipboard and UI NOT_RUN / DEFERRED_TO_FINAL.
+No application feature implemented by this planning checkpoint; no score promised. Final 22 release gates and actual ten-review requirement unchanged.
