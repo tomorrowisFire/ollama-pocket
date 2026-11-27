@@ -2,6 +2,8 @@ package com.ollamapocket.app;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -59,6 +61,43 @@ final class AutomationDraftForms {
         void remove(int index){
             if(rows.size()<=1)throw new IllegalArgumentException("Keep entry node");
             rows.remove(index);
+        }
+        private static boolean validId(String id){
+            return id!=null&&id.matches("[A-Za-z][A-Za-z0-9_-]{0,31}");
+        }
+        List<String> targets(int index){
+            if(index<0||index>=rows.size())throw new IllegalArgumentException("Node index");
+            List<String> values=new ArrayList<>();
+            values.add(WorkflowBranchPlan.COMPLETE);values.add(WorkflowBranchPlan.BLOCK);
+            for(int i=index+1;i<rows.size();i++){
+                String id=rows.get(i).id;
+                if(!validId(id))continue;
+                int count=0;for(Row row:rows)if(id.equals(row.id))count++;
+                if(count==1)values.add(id);
+            }
+            return values;
+        }
+        /** Advisory row navigation only; the original parser still decides admission. */
+        int firstInvalidRow(){
+            Set<String> ids=new HashSet<>();
+            for(int i=0;i<rows.size();i++){
+                Row r=rows.get(i);
+                if(!validId(r.id)||!ids.add(r.id))return i;
+                try{
+                    ReviewedLocalPolicy.text(r.prompt,2000);
+                    if(!r.condition)ReviewedLocalPolicy.text(r.expect,200);
+                }catch(IllegalArgumentException invalid){return i;}
+                if(r.condition&&r.contains||(!retain&&(r.contains||r.previous))||i==0&&r.previous)return i;
+            }
+            Set<String> reached=new HashSet<>();
+            if(!rows.isEmpty())reached.add(rows.get(0).id);
+            for(int i=0;i<rows.size();i++){
+                Row r=rows.get(i);List<String> allowed=targets(i);
+                if(!reached.contains(r.id)||!allowed.contains(r.next)||
+                   r.condition&&(!allowed.contains(r.other)||r.next.equals(r.other)))return i;
+                reached.add(r.next);if(r.condition)reached.add(r.other);
+            }
+            return -1;
         }
         private String canonical()throws Exception{
             JSONArray nodes=new JSONArray();

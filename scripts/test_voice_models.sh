@@ -9,14 +9,7 @@ trap 'rm -rf "$voice_test_dir"' EXIT
 mkdir -p "$voice_dependency_dir"
 
 voice_fetch_jar() {
-  local relative=$1 expected=$2 file="$voice_dependency_dir/${1##*/}"
-  if [[ ! -f "$file" ]] || ! printf '%s  %s\n' "$expected" "$file" | sha256sum --check --status; then
-    curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
-      --connect-timeout 15 --max-time 180 --retry 2 \
-      "https://repo.maven.apache.org/maven2/$relative" -o "$file.part"
-    printf '%s  %s\n' "$expected" "$file.part" | sha256sum --check --status
-    mv "$file.part" "$file"
-  fi
+  bash "$voice_repo_root/scripts/fetch_pinned_test_jar.sh" "$1" "$2" "$voice_dependency_dir/${1##*/}"
 }
 voice_fetch_jar org/apache/commons/commons-compress/1.28.0/commons-compress-1.28.0.jar e1522945218456f3649a39bc4afd70ce4bd466221519dba7d378f2141a4642ca
 voice_fetch_jar commons-io/commons-io/2.20.0/commons-io-2.20.0.jar df90bba0fe3cb586b7f164e78fe8f8f4da3f2dd5c27fa645f888100ccc25dd72

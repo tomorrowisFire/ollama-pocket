@@ -1357,4 +1357,6 @@
     <string name="run_stop_user">Stopped by user</string>
     <string name="run_stop_interrupted">Interrupted</string>
     <string name="run_stop_unknown">Stop reason unknown</string>
+    <string name="integration_form_missing_target">Missing or invalid target: %1$s</string>
+    <string name="integration_form_row_invalid">Node %1$d needs review. Check its ID, prompt, conditions, and reachable forward links.</string>
 </resources>

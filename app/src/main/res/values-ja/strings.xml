@@ -1357,4 +1357,6 @@
     <string name="run_stop_user">ユーザーが停止</string>
     <string name="run_stop_interrupted">実行が中断されました</string>
     <string name="run_stop_unknown">停止理由不明</string>
+    <string name="integration_form_missing_target">接続先が存在しないか無効です：%1$s</string>
+    <string name="integration_form_row_invalid">ノード %1$d を確認してください。ID、指示、条件、到達可能な次のノードを確認してください。</string>
 </resources>

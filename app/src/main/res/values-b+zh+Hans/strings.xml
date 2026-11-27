@@ -1357,4 +1357,6 @@
     <string name="run_stop_user">用户停止</string>
     <string name="run_stop_interrupted">执行被中断</string>
     <string name="run_stop_unknown">停止原因未知</string>
+    <string name="integration_form_missing_target">目标节点缺失或无效：%1$s</string>
+    <string name="integration_form_row_invalid">请检查节点 %1$d 的 ID、提示词、条件及可达的后续节点。</string>
 </resources>

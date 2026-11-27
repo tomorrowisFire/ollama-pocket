@@ -1357,4 +1357,6 @@
     <string name="run_stop_user">사용자가 중단함</string>
     <string name="run_stop_interrupted">실행 중단됨</string>
     <string name="run_stop_unknown">중단 원인 불명</string>
+    <string name="integration_form_missing_target">누락되거나 유효하지 않은 연결: %1$s</string>
+    <string name="integration_form_row_invalid">%1$d번 노드를 확인하세요. ID, 프롬프트, 조건과 도달 가능한 다음 노드를 점검하세요.</string>
 </resources>

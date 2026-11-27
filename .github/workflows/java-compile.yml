@@ -123,6 +123,9 @@ on:
       - '.github/workflows/build-coop-apk.yml'
       - 'docs/on-hands-native-checkpoint.json'
 
+env:
+  ONHAND_VOICE_TEST_DEPS: /tmp/onhand-voice-test-deps
+
 jobs:
   compile:
     runs-on: ubuntu-24.04
@@ -135,6 +138,14 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+
+      - name: Restore SHA-256 pinned voice fixture jars
+        uses: actions/cache@v4
+        with:
+          path: /tmp/onhand-voice-test-deps
+          key: ${{ runner.os }}-onhand-voice-jars-v1-${{ hashFiles('scripts/test_voice_models.sh', 'scripts/fetch_pinned_test_jar.sh') }}
+      - name: Test pinned fixture mirror and cache integrity without network
+        run: python3 -m unittest discover -s tests -p test_pinned_test_jar.py
       - name: Test stage-scoped native build policy
         run: python3 -m unittest discover -s tests -p test_native_build_scope.py
       - name: Test safe Markdown parser (pure Java)
@@ -539,6 +550,12 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+
+      - name: Restore SHA-256 pinned voice fixture jars
+        uses: actions/cache@v4
+        with:
+          path: /tmp/onhand-voice-test-deps
+          key: ${{ runner.os }}-onhand-voice-jars-v1-${{ hashFiles('scripts/test_voice_models.sh', 'scripts/fetch_pinned_test_jar.sh') }}
       - name: Test actual Whisper model and native cancellation on host
         shell: bash
         run: bash scripts/test_whisper_host.sh
@@ -557,5 +574,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+
+      - name: Restore SHA-256 pinned voice fixture jars
+        uses: actions/cache@v4
+        with:
+          path: /tmp/onhand-voice-test-deps
+          key: ${{ runner.os }}-onhand-voice-jars-v1-${{ hashFiles('scripts/test_voice_models.sh', 'scripts/fetch_pinned_test_jar.sh') }}
       - name: Verify pinned VLM archive and actual synthetic JPEG inference
         run: python3 scripts/test_vision_host.py

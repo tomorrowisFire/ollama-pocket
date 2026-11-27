@@ -601,7 +601,7 @@ final class AutomationUi {
     }
     private EditText draftInput(LinearLayout l,int hint,String model,boolean branch){
         LinearLayout advanced=new LinearLayout(owner);advanced.setOrientation(LinearLayout.VERTICAL);
-        EditText raw=formField(advanced,hint,"",ToolJsonPolicy.MAX_CHARS,true);
+        EditText raw=formField(advanced,hint,"",ToolJsonPolicy.MAX_CHARS+1,true);
         Button edit=button(l,R.string.integration_form_editor,()->{
             if(branch)showBranchForm(raw,model);else showAgentForm(raw,model);
         });
@@ -670,6 +670,50 @@ final class AutomationUi {
             }catch(Exception invalid){error.setText(R.string.integration_agent_invalid);}
         });
     }
+    /** Forward-edge picker retains stale input visibly until explicitly repaired. */
+    private final class BranchTargetField {
+        final LinearLayout group;
+        final TextView title;
+        final Spinner picker;
+        List<String> values=new ArrayList<>();
+        BranchTargetField(LinearLayout parent,int caption){
+            group=new LinearLayout(owner);group.setOrientation(LinearLayout.VERTICAL);
+            picker=new Spinner(owner);picker.setSaveEnabled(false);picker.setMinimumHeight(dp(48));
+            title=WorkbenchStyle.fieldLabel(owner,group,caption,picker);
+            group.addView(picker,WorkbenchStyle.row(owner));parent.addView(group,WorkbenchStyle.row(owner));
+        }
+        void caption(int resource){title.setText(resource);picker.setContentDescription(s(resource));}
+        void render(List<String> allowed,String current){
+            values=new ArrayList<>(allowed);List<String> labels=new ArrayList<>();
+            for(String target:values)labels.add(branchTargetLabel(target));
+            if(!values.contains(current)){
+                values.add(current);
+                labels.add(owner.getString(R.string.integration_form_missing_target,current==null?"":current));
+            }
+            ArrayAdapter<String> adapter=new ArrayAdapter<>(owner,android.R.layout.simple_spinner_item,labels);
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            picker.setAdapter(adapter);picker.setSelection(values.indexOf(current));
+        }
+        String value(){
+            int index=picker.getSelectedItemPosition();return index<0||index>=values.size()?"":values.get(index);
+        }
+    }
+    private String branchTargetLabel(String target){
+        if(WorkflowBranchPlan.COMPLETE.equals(target))return s(R.string.auto_state_completed);
+        if(WorkflowBranchPlan.BLOCK.equals(target))return s(R.string.auto_state_blocked);
+        return target;
+    }
+    private String branchDraftOverview(AutomationDraftForms.BranchDraft draft){
+        StringBuilder out=new StringBuilder();
+        for(AutomationDraftForms.Row row:draft.rows){
+            if(out.length()>0)out.append('\n');
+            out.append(row.id).append(" → ");
+            if(row.condition)out.append(s(R.string.integration_outcome_true)).append(": ").append(branchTargetLabel(row.next))
+                .append(" / ").append(s(R.string.integration_outcome_false)).append(": ").append(branchTargetLabel(row.other));
+            else out.append(branchTargetLabel(row.next));
+        }
+        return out.toString();
+    }
     private void showBranchForm(EditText spec,String selectedModel){
         if(busy()||!spec.isEnabled())return;
         final String original=spec.getText().toString();final int token=epoch;
@@ -688,16 +732,16 @@ final class AutomationUi {
         EditText expect=formField(l,R.string.auto_step_condition,"",201,false);
         CheckBox contains=draftCheck(l,R.string.auto_gate_contains,false);
         CheckBox previous=draftCheck(l,R.string.integration_form_previous,false);
-        EditText next=formField(l,R.string.integration_form_next,"",33,false);
-        EditText other=formField(l,R.string.integration_form_false,"",33,false);
+        BranchTargetField next=new BranchTargetField(l,R.string.integration_form_next);
+        BranchTargetField other=new BranchTargetField(l,R.string.integration_form_false);
         TextView error=output(l);error.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         int[] index={0};Button[] controls=new Button[4];
         Runnable toggle=()->{
             boolean c=condition.isChecked();
             ((View)expect.getParent()).setVisibility(c?View.GONE:View.VISIBLE);
             contains.setVisibility(c?View.GONE:View.VISIBLE);
-            ((View)other.getParent()).setVisibility(c?View.VISIBLE:View.GONE);
-            formCaption(next,c?R.string.integration_form_true:R.string.integration_form_next);
+            other.group.setVisibility(c?View.VISIBLE:View.GONE);
+            next.caption(c?R.string.integration_form_true:R.string.integration_form_next);
         };
         condition.setOnCheckedChangeListener((view,checked)->toggle.run());
         Runnable capture=()->{
@@ -705,17 +749,16 @@ final class AutomationUi {
             draft.model=model.getText().toString();draft.digest=digest.getText().toString();draft.retain=retain.isChecked();
             row.id=node.getText().toString();row.prompt=prompt.getText().toString();row.condition=condition.isChecked();
             row.expect=expect.getText().toString();row.contains=!row.condition&&contains.isChecked();
-            row.previous=previous.isChecked();row.next=next.getText().toString();row.other=other.getText().toString();
+            row.previous=previous.isChecked();row.next=next.value();row.other=other.value();
         };
         Runnable render=()->{
             AutomationDraftForms.Row row=draft.rows.get(index[0]);
             step.setText(owner.getString(R.string.auto_editor_index,Integer.toString(index[0]+1),Integer.toString(draft.rows.size())));
-            ArrayList<String> names=new ArrayList<>();
-            for(AutomationDraftForms.Row n:draft.rows)names.add(n.id);
-            ids.setText(android.text.TextUtils.join(" → ",names));
+            ids.setText(branchDraftOverview(draft));
             node.setText(row.id);prompt.setText(row.prompt);condition.setChecked(row.condition);
             expect.setText(row.expect);contains.setChecked(row.contains);previous.setChecked(row.previous);
-            next.setText(row.next);other.setText(row.other);toggle.run();error.setText("");
+            next.render(draft.targets(index[0]),row.next);other.render(draft.targets(index[0]),row.other);
+            other.caption(R.string.integration_form_false);toggle.run();error.setText("");
             if(controls[0]!=null)controls[0].setEnabled(index[0]>0);
             if(controls[1]!=null)controls[1].setEnabled(index[0]+1<draft.rows.size());
             if(controls[2]!=null)controls[2].setEnabled(draft.rows.size()<WorkflowBranchPlan.MAX_NODES);
@@ -732,6 +775,11 @@ final class AutomationUi {
         d.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(v->{
             if(!valid(token)||busy()||!spec.isEnabled()||!original.equals(spec.getText().toString())){d.dismiss();return;}
             capture.run();
+            int invalidRow=draft.firstInvalidRow();
+            if(invalidRow>=0){
+                index[0]=invalidRow;render.run();
+                error.setText(owner.getString(R.string.integration_form_row_invalid,invalidRow+1));return;
+            }
             try{spec.setText(draft.encode());d.dismiss();}
             catch(Exception invalid){error.setText(R.string.integration_form_invalid);}
         });
