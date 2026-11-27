@@ -301,6 +301,11 @@ jobs:
         run: |
           javac -cp /tmp/attachment-tests:/tmp/cloud-stream-tests/json.jar -d /tmp/attachment-tests app/src/main/java/com/ollamapocket/app/DocumentBatchReport.java tests/DocumentBatchReportTest.java
           java -cp /tmp/attachment-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.DocumentBatchReportTest
+      - name: Test exact vision model pair and private image request
+        run: |
+          mkdir -p /tmp/vision-request-tests
+          javac --release 17 -d /tmp/vision-request-tests app/src/main/java/com/ollamapocket/app/VisionImagePolicy.java app/src/main/java/com/ollamapocket/app/VisionModelProfile.java app/src/main/java/com/ollamapocket/app/VisionChatRequest.java tests/VisionChatRequestTest.java
+          java -cp /tmp/vision-request-tests com.ollamapocket.app.VisionChatRequestTest
       - name: Test bounded private visual input policy
         run: |
           mkdir -p /tmp/vision-input-tests
@@ -497,3 +502,17 @@ jobs:
       - name: Test actual Korean English Japanese neural TTS and JNI on host
         shell: bash
         run: bash scripts/test_neural_tts_host.sh
+
+  vision-inference-host:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Verify pinned VLM archive and actual synthetic JPEG inference
+        run: python3 scripts/test_vision_host.py
