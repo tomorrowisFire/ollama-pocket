@@ -46,9 +46,9 @@ final class ChatRichView {
         return b;
     }
     private static void section(Context c,LinearLayout root,String title,int button,String original,View content,int ink,int surface,float scale){
-        section(c,root,title,button,original,content,ink,surface,scale,null);
+        section(c,root,title,button,original,content,ink,surface,scale,new Button[0]);
     }
-    private static void section(Context c,LinearLayout root,String title,int button,String original,View content,int ink,int surface,float scale,Button extra){
+    private static void section(Context c,LinearLayout root,String title,int button,String original,View content,int ink,int surface,float scale,Button... extras){
         LinearLayout card=column(c);
         GradientDrawable frame=new GradientDrawable();frame.setColor(surface);frame.setCornerRadius(dp(c,12));
         card.setBackground(frame);card.setPadding(dp(c,4),dp(c,2),dp(c,4),dp(c,4));
@@ -57,7 +57,7 @@ final class ChatRichView {
         heading.setTextIsSelectable(false);
         header.addView(heading,new LinearLayout.LayoutParams(-2,-2));
         header.addView(action(c,button,scale,()->copy(c,original)),new LinearLayout.LayoutParams(-2,-2));
-        if(extra!=null)header.addView(extra,new LinearLayout.LayoutParams(-2,-2));
+        for(Button extra:extras)if(extra!=null)header.addView(extra,new LinearLayout.LayoutParams(-2,-2));
         card.addView(header,new LinearLayout.LayoutParams(-1,-2));
         card.addView(content,new LinearLayout.LayoutParams(-1,-2));
         LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.bottomMargin=dp(c,8);
@@ -90,27 +90,44 @@ final class ChatRichView {
                 }
                 TextView code=label(c,b.body,ink,14*scale,true);
                 code.setHorizontallyScrolling(true);
-                LinearLayout holder=column(c);
-                HorizontalScrollView scrolling=horizontal(c,code);
+                LinearLayout holder=column(c),lineRow=new LinearLayout(c);
+                lineRow.setOrientation(LinearLayout.HORIZONTAL);
+                String digits=ChatBlocks.codeLineGutter(b.body);
+                TextView gutter=label(c,digits,ink,14*scale,true);
+                gutter.setTextIsSelectable(false);gutter.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+                gutter.setGravity(android.view.Gravity.END);gutter.setVisibility(View.GONE);
+                gutter.setHorizontallyScrolling(true);
+                lineRow.addView(gutter,new LinearLayout.LayoutParams(-2,-2));
+                lineRow.addView(code,new LinearLayout.LayoutParams(-2,-2));
+                HorizontalScrollView scrolling=horizontal(c,lineRow);
                 holder.addView(scrolling,new LinearLayout.LayoutParams(-1,-2));
                 Button wrap=action(c,R.string.chat_wrap_code,scale,null);
+                Button numbers=digits.isEmpty()?null:action(c,R.string.chat_show_line_numbers,scale,null);
                 final boolean[] wrapped={false};
+                if(numbers!=null)numbers.setOnClickListener(v->{
+                    if(wrapped[0])return;
+                    boolean show=gutter.getVisibility()!=View.VISIBLE;
+                    gutter.setVisibility(show?View.VISIBLE:View.GONE);
+                    numbers.setText(show?R.string.chat_hide_line_numbers:R.string.chat_show_line_numbers);
+                });
                 wrap.setOnClickListener(v->{
                     if(!wrapped[0]){
-                        scrolling.removeView(code);holder.removeView(scrolling);
+                        lineRow.removeView(code);holder.removeView(scrolling);
                         code.setHorizontallyScrolling(false);
                         holder.addView(code,new LinearLayout.LayoutParams(-1,-2));
                     }else{
                         holder.removeView(code);code.setHorizontallyScrolling(true);
-                        scrolling.addView(code,new android.widget.FrameLayout.LayoutParams(-2,-2));
+                        lineRow.addView(code,new LinearLayout.LayoutParams(-2,-2));
                         holder.addView(scrolling,new LinearLayout.LayoutParams(-1,-2));
                         scrolling.scrollTo(0,0);
                     }
                     wrapped[0]=!wrapped[0];
+                    if(numbers!=null)numbers.setEnabled(!wrapped[0]);
                     wrap.setText(wrapped[0]?R.string.chat_unwrap_code:R.string.chat_wrap_code);
                 });
-                section(c,root,c.getString(R.string.chat_code_block)+(b.language.isEmpty()?"":" · "+b.language),
-                    R.string.chat_copy_code,b.body,holder,ink,surface,scale,wrap);
+                section(c,root,c.getString(R.string.chat_code_block)+(b.language.isEmpty()?"":" · "+b.language)+
+                        " · "+c.getString(R.string.chat_code_line_count,ChatBlocks.codeLineCount(b.body)),
+                    R.string.chat_copy_code,b.body,holder,ink,surface,scale,wrap,numbers);
             }else if(b.kind==ChatBlocks.Kind.TABLE){
                 TableLayout table=new TableLayout(c);
                 int count=b.rows.get(0).size();int[] widths=new int[count];

@@ -46,7 +46,7 @@ final class DocumentBatchUi {
     private TextView status,output;
     private EditText goal;
     private ProgressBar progress;
-    private Button preview,copy,inspect,copyJson,saveProject,dictateGoal,readReport,viewReport;
+    private Button preset,preview,copy,inspect,copyJson,saveProject,dictateGoal,readReport,viewReport;
     private ProjectWorkspaceUi reportWorkspace;
     static boolean busy(){return BUSY.busy();}
     DocumentBatchUi(Activity owner,String model,AttachmentText.Encoding encoding,BooleanSupplier eligible){
@@ -77,7 +77,7 @@ final class DocumentBatchUi {
     private void enabled(){
         if(!visible())return;
         boolean idle=!busy();
-        goal.setEnabled(idle);dictateGoal.setEnabled(idle);preview.setEnabled(idle&&sources!=null);copy.setEnabled(idle&&result!=null);
+        goal.setEnabled(idle);dictateGoal.setEnabled(idle);preset.setEnabled(idle);preview.setEnabled(idle&&sources!=null);copy.setEnabled(idle&&result!=null);
         inspect.setEnabled(idle&&result!=null&&!result.notes.isEmpty());copyJson.setEnabled(idle&&result!=null);
         saveProject.setEnabled(idle&&result!=null);
         readReport.setEnabled(idle&&result!=null&&analyzed!=null);
@@ -165,6 +165,7 @@ final class DocumentBatchUi {
         panel.addView(goal,WorkbenchStyle.row(owner));
         dictateGoal=dictation.add(panel,goal,R.string.batch_goal,DocumentBatchPolicy.MAX_GOAL,true,
             ()->visible()&&!busy()&&confirmation==null&&eligible.getAsBoolean());
+        preset=button(panel,R.string.batch_goal_templates,this::chooseGoal);
         preview=button(panel,R.string.batch_preview,this::showSourcePreview);
         inspect=button(panel,R.string.batch_inspect_excerpt,this::inspectCompleted);
         copy=button(panel,R.string.batch_copy,()->{
@@ -350,6 +351,28 @@ final class DocumentBatchUi {
         ScrollView scroll=new ScrollView(owner);scroll.addView(panel);
         AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.batch_inspect_excerpt).setView(scroll).setPositiveButton(R.string.close,null).create();
         confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;});d.show();secure(d);WorkbenchWindow.fit(owner,d);
+    }
+    /** Choosing a template only edits the current draft; the existing start review remains mandatory. */
+    private void chooseGoal(){
+        if(!visible()||busy()||!eligible.getAsBoolean()||confirmation!=null)return;
+        final AlertDialog screen=dialog;final String original=goal.getText().toString();
+        final int[] prompts={R.string.batch_default_goal,R.string.batch_goal_compare_text,
+                R.string.batch_goal_extract_text,R.string.batch_goal_review_text,R.string.batch_goal_code_text};
+        String[] titles={s(R.string.batch_goal_summary),s(R.string.batch_goal_compare),
+                s(R.string.batch_goal_extract),s(R.string.batch_goal_review),s(R.string.batch_goal_code)};
+        AlertDialog chooser=new AlertDialog.Builder(owner).setTitle(R.string.batch_goal_templates).setItems(titles,(x,index)->{
+            if(!visible()||dialog!=screen||confirmation!=x||busy()||!eligible.getAsBoolean()||
+                    !original.equals(goal.getText().toString()))return;
+            String candidate=s(prompts[index]);
+            if(candidate.trim().isEmpty()||candidate.length()>DocumentBatchPolicy.MAX_GOAL){toast(R.string.batch_goal);return;}
+            confirm(R.string.auto_apply_draft,candidate,()->{
+                if(eligible.getAsBoolean()&&original.equals(goal.getText().toString())){
+                    dictation.cancel();goal.setText(candidate);goal.setSelection(goal.length());
+                }
+            });
+        }).setNegativeButton(R.string.cancel,null).create();
+        confirmation=chooser;chooser.setOnDismissListener(x->{if(confirmation==chooser)confirmation=null;});
+        chooser.show();secure(chooser);
     }
     private void start(){
         if(!visible()||busy()||sources==null||!eligible.getAsBoolean())return;

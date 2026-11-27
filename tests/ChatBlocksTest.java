@@ -11,6 +11,12 @@ public final class ChatBlocksTest {
         ok(blocks.get(1).body.equals("int x=2;\r\n")&&blocks.get(1).language.equals("java"),"exact code bytes");
         StringBuilder raw=new StringBuilder();for(ChatBlocks.Block b:blocks)raw.append(b.raw);
         ok(raw.toString().equals(src),"raw preserved");
+        ok(ChatBlocks.codeLineCount(blocks.get(1).body)==1&&ChatBlocks.codeLineGutter(blocks.get(1).body).equals("1\n"),"CRLF exact line gutter");
+        ok(ChatBlocks.codeLineCount("x\n\n")==2&&ChatBlocks.codeLineGutter("x\n\n").equals("1\n2\n"),"Blank line and trailing newline");
+        ok(ChatBlocks.codeLineCount("a\nb")==2&&ChatBlocks.codeLineGutter("a\nb").equals("1\n2"),"Unterminated last line");
+        ok(ChatBlocks.codeLineCount("")==0&&ChatBlocks.codeLineGutter("").isEmpty(),"Empty code");
+        ok(ChatBlocks.codeLineGutter("\n".repeat(1000)).endsWith("1000\n"),"Numbering limit");
+        ok(ChatBlocks.codeLineCount("\n".repeat(1001))==1001&&ChatBlocks.codeLineGutter("\n".repeat(1001)).isEmpty(),"Large source still countable without gutter");
         ok(!ChatBlocks.hasSpecial(ChatBlocks.parse("\u0060\u0060\u0060\nunclosed")),"unclosed fence");
         blocks=ChatBlocks.parse("| A | B |\n| --- | :---: |\n| x\\|y | \u0060a|b\u0060 |\n");
         ok(blocks.get(0).kind==ChatBlocks.Kind.TABLE&&blocks.get(0).rows.size()==2,"native table data");

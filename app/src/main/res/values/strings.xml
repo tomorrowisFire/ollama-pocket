@@ -1333,4 +1333,17 @@
     <string name="integration_form_branch_summary">Draft: %1$s · %2$d nodes</string>
     <string name="integration_form_agent_summary">Draft: %1$s · temperature × 1000: %2$d · tokens: %3$d</string>
     <string name="integration_form_bad_summary">Invalid JSON draft. Open advanced JSON to correct it or use the current installed model.</string>
+    <string name="batch_goal_templates">Analysis templates</string>
+    <string name="batch_goal_summary">Summary</string>
+    <string name="batch_goal_compare">Compare documents</string>
+    <string name="batch_goal_extract">Extract key data</string>
+    <string name="batch_goal_review">Review issues and missing evidence</string>
+    <string name="batch_goal_code">Review source code</string>
+    <string name="batch_goal_compare_text">Compare the included documents by topic. Identify agreements, contradictions, differing values and missing evidence. Cite excerpt IDs and clearly mark uncertainty.</string>
+    <string name="batch_goal_extract_text">Extract names, dates, amounts, units and obligations where present. Preserve original values, cite excerpt IDs, and mark missing or ambiguous fields rather than guessing.</string>
+    <string name="batch_goal_review_text">Identify inconsistent claims, deadlines, obligations, risks and missing evidence. Separate explicit statements from inferences, cite excerpt IDs, and state the limits of the included text.</string>
+    <string name="batch_goal_code_text">Review the included code or technical text for defects, security, edge cases and missing tests. Cite excerpt IDs, suggest concrete fixes, and distinguish unverified hypotheses. Do not claim to have executed code.</string>
+    <string name="chat_show_line_numbers">Show line numbers</string>
+    <string name="chat_hide_line_numbers">Hide line numbers</string>
+    <string name="chat_code_line_count">%1$d lines</string>
 </resources>

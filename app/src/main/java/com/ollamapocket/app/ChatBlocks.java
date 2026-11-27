@@ -157,5 +157,25 @@ final class ChatBlocks {
             }else out.appendCodePoint(cp);
         }
     }
+    /** Numbering is display-only. It never changes the original selectable/copyable code body. */
+    static final int MAX_NUMBERED_CODE_LINES=1000;
+    static int codeLineCount(String body){
+        if(body==null)throw new IllegalArgumentException("Missing code");
+        if(body.isEmpty())return 0;
+        int count=body.charAt(body.length()-1)=='\n'?0:1;
+        for(int i=0;i<body.length();i++)if(body.charAt(i)=='\n')count++;
+        return count;
+    }
+    static String codeLineGutter(String body){
+        int count=codeLineCount(body);
+        if(count==0||count>MAX_NUMBERED_CODE_LINES)return "";
+        StringBuilder out=new StringBuilder();
+        for(int i=1;i<=count;i++){
+            if(i>1)out.append('\n');
+            out.append(i);
+        }
+        if(body.endsWith("\n"))out.append('\n');
+        return out.toString();
+    }
     static boolean hasSpecial(List<Block> blocks){for(Block b:blocks)if(b.kind!=Kind.TEXT)return true;return false;}
 }

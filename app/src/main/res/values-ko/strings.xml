@@ -1333,4 +1333,17 @@
     <string name="integration_form_branch_summary">초안: %1$s · 노드 %2$d개</string>
     <string name="integration_form_agent_summary">초안: %1$s · 온도 × 1000: %2$d · 토큰: %3$d</string>
     <string name="integration_form_bad_summary">JSON 초안이 올바르지 않습니다. 고급 JSON을 표시하여 수정하거나 현재 설치 모델을 사용하세요.</string>
+    <string name="batch_goal_templates">분석 템플릿</string>
+    <string name="batch_goal_summary">요약</string>
+    <string name="batch_goal_compare">문서 비교</string>
+    <string name="batch_goal_extract">핵심 데이터 추출</string>
+    <string name="batch_goal_review">문제 및 근거 누락 검토</string>
+    <string name="batch_goal_code">소스 코드 검토</string>
+    <string name="batch_goal_compare_text">포함된 문서를 주제별로 비교하고 일치·상충 내용, 다른 수치 및 누락된 근거를 확인하세요. 발췌 ID를 인용하고 불확실성을 명시하세요.</string>
+    <string name="batch_goal_extract_text">문서에 나타난 이름, 날짜, 금액, 단위 및 의무를 추출하세요. 원래 값을 유지하고 발췌 ID를 인용하며 누락·모호한 항목은 추측하지 말고 표시하세요.</string>
+    <string name="batch_goal_review_text">상충하는 주장, 기한, 의무, 위험 및 누락된 근거를 확인하세요. 명시된 내용과 추론을 구분하고 발췌 ID 및 포함된 텍스트의 한계를 명시하세요.</string>
+    <string name="batch_goal_code_text">포함된 코드 또는 기술 문서의 결함, 보안, 경계 조건 및 누락 테스트를 검토하세요. 발췌 ID와 구체적인 수정안을 제시하고 미검증 가설을 구분하세요. 코드를 실행했다고 주장하지 마세요.</string>
+    <string name="chat_show_line_numbers">줄 번호 표시</string>
+    <string name="chat_hide_line_numbers">줄 번호 숨기기</string>
+    <string name="chat_code_line_count">%1$d줄</string>
 </resources>

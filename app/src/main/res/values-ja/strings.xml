@@ -1333,4 +1333,17 @@
     <string name="integration_form_branch_summary">下書き：%1$s · %2$d ノード</string>
     <string name="integration_form_agent_summary">下書き：%1$s · 温度 × 1000：%2$d · トークン：%3$d</string>
     <string name="integration_form_bad_summary">JSONの下書きが無効です。詳細JSONを表示して修正するか、現在のインストール済みモデルを使用してください。</string>
+    <string name="batch_goal_templates">分析テンプレート</string>
+    <string name="batch_goal_summary">要約</string>
+    <string name="batch_goal_compare">文書の比較</string>
+    <string name="batch_goal_extract">重要データの抽出</string>
+    <string name="batch_goal_review">問題と根拠不足の確認</string>
+    <string name="batch_goal_code">ソースコードのレビュー</string>
+    <string name="batch_goal_compare_text">対象文書をトピック別に比較し、一致点、矛盾、数値の差、根拠の不足を確認してください。抜粋IDを引用し、不確実性を明示してください。</string>
+    <string name="batch_goal_extract_text">名前、日付、金額、単位、義務を抽出してください。元の値を保持し、抜粋IDを引用し、不明な項目は推測せず明示してください。</string>
+    <string name="batch_goal_review_text">矛盾、期限、義務、リスク、根拠の不足を確認してください。明示的な記述と推論を分け、抜粋IDと対象テキストの限界を示してください。</string>
+    <string name="batch_goal_code_text">対象コードや技術文書の欠陥、セキュリティ、境界条件、不足テストを確認してください。抜粋ID、具体的な修正案、未検証の仮説を示し、コードを実行したと主張しないでください。</string>
+    <string name="chat_show_line_numbers">行番号を表示</string>
+    <string name="chat_hide_line_numbers">行番号を非表示</string>
+    <string name="chat_code_line_count">%1$d 行</string>
 </resources>

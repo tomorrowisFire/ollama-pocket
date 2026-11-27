@@ -1333,4 +1333,17 @@
     <string name="integration_form_branch_summary">草稿：%1$s · %2$d 個節點</string>
     <string name="integration_form_agent_summary">草稿：%1$s · 溫度 × 1000：%2$d · 權杖數：%3$d</string>
     <string name="integration_form_bad_summary">JSON 草稿無效。請顯示進階 JSON 進行修正，或使用目前已安裝的模型。</string>
+    <string name="batch_goal_templates">分析範本</string>
+    <string name="batch_goal_summary">摘要</string>
+    <string name="batch_goal_compare">比較文件</string>
+    <string name="batch_goal_extract">擷取關鍵資料</string>
+    <string name="batch_goal_review">審查問題與缺失證據</string>
+    <string name="batch_goal_code">審查原始碼</string>
+    <string name="batch_goal_compare_text">按主題比較所含文件，指出一致、矛盾、數值差異及缺失證據。引用摘錄 ID，並明確標註不確定性。</string>
+    <string name="batch_goal_extract_text">擷取文件中的姓名、日期、金額、單位及義務。保留原始值，引用摘錄 ID，標記缺失或模糊欄位而非猜測。</string>
+    <string name="batch_goal_review_text">識別矛盾、期限、義務、風險及缺失證據。區分明確陳述和推論，引用摘錄 ID，並說明所含文字的限制。</string>
+    <string name="batch_goal_code_text">審查所含程式碼或技術文字中的缺陷、安全問題、邊界條件及缺失測試。引用摘錄 ID，提出具體修正建議，區分未驗證假設，不要聲稱已執行程式碼。</string>
+    <string name="chat_show_line_numbers">顯示行號</string>
+    <string name="chat_hide_line_numbers">隱藏行號</string>
+    <string name="chat_code_line_count">%1$d 行</string>
 </resources>
