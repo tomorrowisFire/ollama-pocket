@@ -40,6 +40,7 @@ on:
       - 'tests/locale_ui_audit.py'
       - 'tests/LocalChatTurnsTest.java'
       - 'tests/LocalInferenceStreamTest.java'
+      - 'tests/VisionImagePolicyTest.java'
       - 'tests/LocalStreamCancellationTest.java'
       - 'tests/StructuredInferenceTerminalTest.java'
       - 'tests/test_stage10_gate.py'
@@ -288,6 +289,11 @@ jobs:
         run: |
           javac -cp /tmp/attachment-tests:/tmp/cloud-stream-tests/json.jar -d /tmp/attachment-tests app/src/main/java/com/ollamapocket/app/DocumentBatchReport.java tests/DocumentBatchReportTest.java
           java -cp /tmp/attachment-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.DocumentBatchReportTest
+      - name: Test bounded private visual input policy
+        run: |
+          mkdir -p /tmp/vision-input-tests
+          javac --release 17 -d /tmp/vision-input-tests app/src/main/java/com/ollamapocket/app/VisionImagePolicy.java tests/VisionImagePolicyTest.java
+          java -cp /tmp/vision-input-tests com.ollamapocket.app.VisionImagePolicyTest
       - name: Test bounded local inference protocol
         run: |
           mkdir -p /tmp/local-stream-tests
