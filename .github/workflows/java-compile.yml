@@ -77,6 +77,7 @@ on:
       - 'tests/ConferenceCapacityTest.java'
       - 'tests/ConferenceReportTest.java'
       - 'tests/ProjectLibraryTest.java'
+      - 'tests/ProjectVersionComparisonTest.java'
       - 'tests/BenchmarkProfileTest.java'
       - 'tests/PrivacyPolicyTest.java'
       - 'tests/RpcSocketRegistryTest.java'
@@ -306,6 +307,8 @@ jobs:
           java -Xmx512m -cp /tmp/project-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.ProjectLibraryTest
           javac -cp /tmp/project-tests:/tmp/cloud-stream-tests/json.jar -d /tmp/project-tests app/src/main/java/com/ollamapocket/app/ProjectWorkspacePolicy.java tests/ProjectWorkspacePolicyTest.java
           java -cp /tmp/project-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.ProjectWorkspacePolicyTest
+          javac -d /tmp/project-tests app/src/main/java/com/ollamapocket/app/ProjectVersionComparison.java tests/ProjectVersionComparisonTest.java
+          java -cp /tmp/project-tests com.ollamapocket.app.ProjectVersionComparisonTest
       - name: Test exact terminal report project handoff
         run: |
           javac -cp /tmp/project-tests:/tmp/workflow-tests:/tmp/attachment-tests:/tmp/cloud-stream-tests/json.jar -d /tmp/project-tests app/src/main/java/com/ollamapocket/app/ProjectReportHandoff.java tests/ProjectReportHandoffTest.java

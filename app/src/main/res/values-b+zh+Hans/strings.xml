@@ -1017,6 +1017,15 @@
     <string name="project_version_limit">已保存六个版本。不能继续编辑或恢复，不会自动删除历史。</string>
     <string name="project_restore">恢复为新版本</string>
     <string name="project_restore_note">恢复会将所选文本追加为新版本，保留原有历史。</string>
+    <string name="project_compare_open">与当前版本比较</string>
+    <string name="project_compare_notice">显示去除相同开头和结尾后的单个变更范围，并非逐行差异。保留空格和换行，不修改任何版本。</string>
+    <string name="project_compare_common">相同开头：%1$d · 相同结尾：%2$d 个 UTF-16 单元</string>
+    <string name="project_compare_previous">旧版本</string>
+    <string name="project_compare_current">当前版本</string>
+    <string name="project_compare_units">变更范围：%1$d 个 UTF-16 单元</string>
+    <string name="project_compare_identical">两个版本的文本完全相同。</string>
+    <string name="project_compare_empty">此范围没有文本。</string>
+    <string name="project_compare_invalid">无法比较版本，请返回版本列表。</string>
     <string name="project_restore_message">将此历史文本原样追加为新版本？</string>
     <string name="project_delete">删除</string>
     <string name="project_delete_project_message">永久删除此项目及其所有成果和版本？</string>

@@ -1017,6 +1017,15 @@
     <string name="project_version_limit">버전 6개가 저장되었습니다. 추가 편집 및 복원은 제한되며 기존 기록은 자동 삭제되지 않습니다.</string>
     <string name="project_restore">새 버전으로 복원</string>
     <string name="project_restore_note">복원은 선택한 내용을 새 버전으로 추가하며 기존 기록을 보존합니다.</string>
+    <string name="project_compare_open">현재 버전과 비교</string>
+    <string name="project_compare_notice">동일한 앞부분과 뒷부분을 제외한 하나의 변경 구간을 표시합니다. 줄 단위 비교가 아닙니다. 공백과 줄바꿈은 그대로 유지되며 버전은 수정되지 않습니다.</string>
+    <string name="project_compare_common">동일한 앞부분 %1$d · 뒷부분 %2$d UTF-16 단위</string>
+    <string name="project_compare_previous">이전 버전</string>
+    <string name="project_compare_current">현재 버전</string>
+    <string name="project_compare_units">변경 구간 %1$d UTF-16 단위</string>
+    <string name="project_compare_identical">두 버전의 내용이 동일합니다.</string>
+    <string name="project_compare_empty">이 구간에는 내용이 없습니다.</string>
+    <string name="project_compare_invalid">버전을 비교할 수 없습니다. 버전 목록으로 돌아가세요.</string>
     <string name="project_restore_message">이 버전의 내용을 새 버전으로 추가하시겠습니까?</string>
     <string name="project_delete">삭제</string>
     <string name="project_delete_project_message">이 프로젝트와 모든 산출물·버전을 영구 삭제하시겠습니까?</string>

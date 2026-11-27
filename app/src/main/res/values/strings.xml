@@ -1017,6 +1017,15 @@
     <string name="project_version_limit">Six versions saved. Further edits and restores are disabled; no history is discarded automatically.</string>
     <string name="project_restore">Restore as new version</string>
     <string name="project_restore_note">Restore appends the selected text as a new version; existing history is preserved.</string>
+    <string name="project_compare_open">Compare with current version</string>
+    <string name="project_compare_notice">Single changed region: the identical beginning and ending are omitted. This is not a line-by-line diff. Spaces and line breaks are retained. No version is modified.</string>
+    <string name="project_compare_common">Common beginning: %1$d · common ending: %2$d UTF-16 units</string>
+    <string name="project_compare_previous">Previous</string>
+    <string name="project_compare_current">Current</string>
+    <string name="project_compare_units">Changed region: %1$d UTF-16 units</string>
+    <string name="project_compare_identical">The two versions have identical text.</string>
+    <string name="project_compare_empty">No text in this region.</string>
+    <string name="project_compare_invalid">Cannot compare these versions. Return to the version list.</string>
     <string name="project_restore_message">Append this exact historical text as a new version?</string>
     <string name="project_delete">Delete</string>
     <string name="project_delete_project_message">Permanently delete this project and all its artifacts and versions?</string>

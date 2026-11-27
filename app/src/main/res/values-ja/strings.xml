@@ -1017,6 +1017,15 @@
     <string name="project_version_limit">6版保存済みです。追加編集と復元はできません。履歴は自動削除されません。</string>
     <string name="project_restore">新しい版として復元</string>
     <string name="project_restore_note">選択したテキストを新しい版として追加し、既存履歴を保持します。</string>
+    <string name="project_compare_open">現在のバージョンと比較</string>
+    <string name="project_compare_notice">一致する先頭部分と末尾部分を除いた一つの変更範囲を表示します。行単位の差分ではありません。空白と改行は保持され、バージョンは変更されません。</string>
+    <string name="project_compare_common">一致する先頭：%1$d · 末尾：%2$d UTF-16単位</string>
+    <string name="project_compare_previous">以前のバージョン</string>
+    <string name="project_compare_current">現在のバージョン</string>
+    <string name="project_compare_units">変更範囲：%1$d UTF-16単位</string>
+    <string name="project_compare_identical">両バージョンの内容は同一です。</string>
+    <string name="project_compare_empty">この範囲にはテキストがありません。</string>
+    <string name="project_compare_invalid">バージョンを比較できません。バージョン一覧に戻ってください。</string>
     <string name="project_restore_message">この履歴の内容をそのまま新しい版として追加しますか？</string>
     <string name="project_delete">削除</string>
     <string name="project_delete_project_message">このプロジェクトとすべての成果物・版を完全に削除しますか？</string>

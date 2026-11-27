@@ -1017,6 +1017,15 @@
     <string name="project_version_limit">已儲存六個版本。無法繼續編輯或還原，不會自動刪除歷史。</string>
     <string name="project_restore">還原為新版本</string>
     <string name="project_restore_note">還原會將所選文字新增為新版本，保留原有歷史。</string>
+    <string name="project_compare_open">與目前版本比較</string>
+    <string name="project_compare_notice">顯示去除相同開頭與結尾後的單一變更範圍，並非逐行差異。保留空格與換行，不修改任何版本。</string>
+    <string name="project_compare_common">相同開頭：%1$d · 相同結尾：%2$d 個 UTF-16 單元</string>
+    <string name="project_compare_previous">舊版本</string>
+    <string name="project_compare_current">目前版本</string>
+    <string name="project_compare_units">變更範圍：%1$d 個 UTF-16 單元</string>
+    <string name="project_compare_identical">兩個版本的文字完全相同。</string>
+    <string name="project_compare_empty">此範圍沒有文字。</string>
+    <string name="project_compare_invalid">無法比較版本，請返回版本清單。</string>
     <string name="project_restore_message">將此歷史文字原樣新增為新版本？</string>
     <string name="project_delete">刪除</string>
     <string name="project_delete_project_message">永久刪除此專案及其所有成果與版本？</string>

@@ -210,6 +210,7 @@ final class ProjectWorkspaceUi {
                 ProjectLibrary.Artifact a=p.artifact(aid);label(a.title,true);
                 if(selection.ordinal>0){
                     final int ordinal=selection.ordinal;
+                    if(ordinal<a.current().ordinal)button(R.string.project_compare_open,()->compareVersions(state,p,a,ordinal));
                     version(a.version(ordinal));contextButton(state,p.id,a.id,ordinal);label(s(R.string.project_restore_note),false);
                     button(s(R.string.project_restore),ProjectWorkspacePolicy.canRestore(a,ordinal),
                         ()->confirm(R.string.project_restore,R.string.project_restore_message,
@@ -338,6 +339,38 @@ final class ProjectWorkspaceUi {
                 reviewed.append(st,pid,aid,System.currentTimeMillis()),
                 new ProjectWorkspacePolicy.Selection(pid,aid,0))));
         button(R.string.project_back,this::render);button(R.string.close,this::pause);
+    }
+    private boolean comparisonCurrent(ProjectLibrary.State state,ProjectLibrary.Project p,ProjectLibrary.Artifact a,int ordinal){
+        return report==null&&snapshot!=null&&snapshot.value==state&&p.id.equals(selection.project)&&
+            a.id.equals(selection.artifact)&&selection.ordinal==ordinal;
+    }
+    private void compareVersions(ProjectLibrary.State state,ProjectLibrary.Project p,ProjectLibrary.Artifact a,int ordinal){
+        if(!comparisonCurrent(state,p,a,ordinal)||ordinal<1||ordinal>=a.current().ordinal){
+            status(R.string.project_compare_invalid);return;
+        }
+        ProjectLibrary.Version old=a.version(ordinal),current=a.current();
+        final ProjectVersionComparison.Result changes;
+        try{changes=ProjectVersionComparison.compare(old.text,current.text);}
+        catch(IllegalArgumentException e){status(R.string.project_compare_invalid);return;}
+        reset();label(p.title+" / "+a.title,true);
+        label(s(R.string.project_compare_notice),false);
+        label(s(R.string.project_compare_common,changes.prefix,changes.suffix),false);
+        if(changes.identical())label(s(R.string.project_compare_identical),false);
+        final long token=session.token();
+        BooleanSupplier guard=()->valid(token)&&!WORK.get()&&confirmation==null&&dialog!=null&&dialog.isShowing()&&
+            comparisonCurrent(state,p,a,ordinal);
+        comparisonSpan(R.string.project_compare_previous,old.ordinal,changes.previous,guard);
+        comparisonSpan(R.string.project_compare_current,current.ordinal,changes.current,guard);
+        button(R.string.project_back,this::render);button(R.string.close,this::pause);
+    }
+    private void comparisonSpan(int heading,int ordinal,String span,BooleanSupplier guard){
+        label(s(heading)+" · "+s(R.string.project_version,ordinal)+" · "+s(R.string.project_compare_units,span.length()),false);
+        if(span.isEmpty()){label(s(R.string.project_compare_empty),false);return;}
+        boolean inspectable=true;
+        try{WorkspaceTextPolicy.review(span);}catch(IllegalArgumentException e){inspectable=false;}
+        if(inspectable)viewer.add(body,heading,()->span,guard);
+        // Preserve whitespace and the exact stored changed region, including non-viewer-compatible text.
+        label(span,true);
     }
     private void version(ProjectLibrary.Version v){
         label(s(R.string.project_version,v.ordinal)+" · "+DateFormat.getDateTimeInstance().format(new Date(v.saved)),false);
