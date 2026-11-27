@@ -30,7 +30,8 @@ public final class CloudChatActivity extends Activity {
         LinearLayout form=new LinearLayout(this);form.setOrientation(LinearLayout.VERTICAL);
         int pad=(int)(18*getResources().getDisplayMetrics().density);form.setPadding(pad,pad,pad,pad);
         scroll.addView(form);setContentView(scroll);
-        TextView title=new TextView(this);title.setText(R.string.cloud);title.setTextSize(24);form.addView(title);
+        TextView title=new TextView(this);title.setText(R.string.cloud);WorkbenchStyle.label(this,title,24,false,true);
+        OnHandGlyphs.accentLabel(title,OnHandGlyphs.Kind.CLOUD);form.addView(title,WorkbenchStyle.row(this));
         TextView note=new TextView(this);note.setText(R.string.cloud_desc);form.addView(note);
         provider=new Spinner(this);
         CloudApi.Provider[] values=CloudApi.Provider.hosted();
@@ -41,10 +42,10 @@ public final class CloudChatActivity extends Activity {
         key.setSaveEnabled(false);key.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
         prompt=edit(R.string.cloud_prompt,InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE,16000);prompt.setMinLines(3);form.addView(prompt);
         TextView single=new TextView(this);single.setText(R.string.cloud_single);form.addView(single);
-        send=new Button(this);send.setText(R.string.send);form.addView(send);
-        stop=new Button(this);stop.setText(R.string.stop);stop.setEnabled(false);form.addView(stop);
+        send=new Button(this);send.setText(R.string.send);WorkbenchStyle.button(this,send,R.string.send);form.addView(send,WorkbenchStyle.row(this));
+        stop=new Button(this);stop.setText(R.string.stop);WorkbenchStyle.button(this,stop,R.string.stop);stop.setEnabled(false);form.addView(stop,WorkbenchStyle.row(this));
         answer=new TextView(this);answer.setTextIsSelectable(true);answer.setTextSize(16);form.addView(answer);
-        Button close=new Button(this);close.setText(R.string.close);form.addView(close);
+        Button close=new Button(this);close.setText(R.string.close);WorkbenchStyle.button(this,close,R.string.close);form.addView(close,WorkbenchStyle.row(this));
         close.setOnClickListener(v->finish());stop.setOnClickListener(v->cancel());
         send.setOnClickListener(v->{
             final CloudApi.Provider p=values[provider.getSelectedItemPosition()];
@@ -57,7 +58,7 @@ public final class CloudChatActivity extends Activity {
     private EditText edit(int hint,int type,int limit){
         EditText field=new EditText(this);field.setHint(hint);field.setInputType(type);
         field.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(limit)});
-        field.setSaveEnabled(false);return field;
+        field.setSaveEnabled(false);WorkbenchStyle.field(this,field);return field;
     }
     private void busy(boolean b){send.setEnabled(!b);stop.setEnabled(b);provider.setEnabled(!b);model.setEnabled(!b);key.setEnabled(!b);prompt.setEnabled(!b);}
     private void request(CloudApi.Provider p,String id,String token,String q){

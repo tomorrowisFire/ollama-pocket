@@ -1363,4 +1363,7 @@
     <string name="integration_form_bound">インストール済みモデルの識別子を確認しました。他の下書き項目は変更されません。</string>
     <string name="knowledge_excerpt_count">確認する抜粋：最大 %2$d 件中 %1$d 件。同じ資料の別の一致箇所を含む場合があります。</string>
     <string name="search_partial_lookup">一部の結果のみ：%1$d 件の照会が失敗またはタイムアウトしました。</string>
+    <string name="brand_quick_actions">クイック操作</string>
+    <string name="brand_app_preferences">アプリ設定</string>
+    <string name="brand_model_filters">モデルを探す</string>
 </resources>

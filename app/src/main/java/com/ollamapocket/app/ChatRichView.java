@@ -42,6 +42,7 @@ final class ChatRichView {
     private static Button action(Context c,int title,float scale,Runnable onClick){
         Button b=new Button(c);b.setText(title);b.setAllCaps(false);b.setMinHeight(dp(c,48));
         b.setMinimumHeight(dp(c,48));b.setTextSize(13*scale);b.setSingleLine(false);b.setEllipsize(null);
+        if(c instanceof android.app.Activity)WorkbenchStyle.button((android.app.Activity)c,b,title);
         if(onClick!=null)b.setOnClickListener(v->onClick.run());
         return b;
     }
@@ -50,11 +51,14 @@ final class ChatRichView {
     }
     private static void section(Context c,LinearLayout root,String title,int button,String original,View content,int ink,int surface,float scale,Button... extras){
         LinearLayout card=column(c);
-        GradientDrawable frame=new GradientDrawable();frame.setColor(surface);frame.setCornerRadius(dp(c,12));
+        GradientDrawable frame=new GradientDrawable();frame.setColor(surface);frame.setCornerRadius(dp(c,16));
+        frame.setStroke(dp(c,1),WorkbenchStyle.palette(c).border);
         card.setBackground(frame);card.setPadding(dp(c,4),dp(c,2),dp(c,4),dp(c,4));
         AdaptiveAnswerActions header=new AdaptiveAnswerActions(c);
         TextView heading=label(c,title,ink,12*scale,false);heading.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
         heading.setTextIsSelectable(false);
+        OnHandGlyphs.accentLabel(heading,button==R.string.chat_copy_code?OnHandGlyphs.Kind.CODE:
+            button==R.string.chat_copy_table?OnHandGlyphs.Kind.PLAN:OnHandGlyphs.Kind.DOC);
         header.addView(heading,new LinearLayout.LayoutParams(-2,-2));
         header.addView(action(c,button,scale,()->copy(c,original)),new LinearLayout.LayoutParams(-2,-2));
         for(Button extra:extras)if(extra!=null)header.addView(extra,new LinearLayout.LayoutParams(-2,-2));

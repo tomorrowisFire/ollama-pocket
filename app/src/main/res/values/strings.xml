@@ -1363,4 +1363,7 @@
     <string name="integration_form_bound">Installed model identity verified. Other draft fields are unchanged.</string>
     <string name="knowledge_excerpt_count">Reviewed excerpts: %1$d of %2$d maximum. Separate matches from the same source may be included.</string>
     <string name="search_partial_lookup">Partial results: %1$d lookup(s) failed or timed out.</string>
+    <string name="brand_quick_actions">Quick actions</string>
+    <string name="brand_app_preferences">App preferences</string>
+    <string name="brand_model_filters">Find a model</string>
 </resources>

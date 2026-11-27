@@ -1363,4 +1363,7 @@
     <string name="integration_form_bound">已驗證安裝模型的識別碼，其他草稿欄位維持不變。</string>
     <string name="knowledge_excerpt_count">待審閱摘錄：最多 %2$d 段中的 %1$d 段。可能包含同一來源的不同相符片段。</string>
     <string name="search_partial_lookup">部分結果：%1$d 次查詢失敗或逾時。</string>
+    <string name="brand_quick_actions">快速操作</string>
+    <string name="brand_app_preferences">應用程式設定</string>
+    <string name="brand_model_filters">尋找模型</string>
 </resources>

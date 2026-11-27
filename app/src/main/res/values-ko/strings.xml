@@ -1363,4 +1363,7 @@
     <string name="integration_form_bound">설치 모델의 식별자를 확인했습니다. 나머지 초안 내용은 유지됩니다.</string>
     <string name="knowledge_excerpt_count">검토할 발췌: 최대 %2$d개 중 %1$d개. 같은 출처의 서로 다른 일치 부분을 포함할 수 있습니다.</string>
     <string name="search_partial_lookup">일부 결과만 표시: 조회 %1$d건 실패 또는 시간 초과.</string>
+    <string name="brand_quick_actions">빠른 실행</string>
+    <string name="brand_app_preferences">앱 설정</string>
+    <string name="brand_model_filters">모델 찾기</string>
 </resources>

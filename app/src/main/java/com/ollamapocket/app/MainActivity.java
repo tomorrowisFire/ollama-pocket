@@ -337,6 +337,7 @@ public final class MainActivity extends Activity {
             "dark".equals(choice)||"mono_dark".equals(choice);
     }
     private boolean lightTheme(){return !activeThemeDark;}
+    boolean brandDark(){return activeThemeDark;}
     private void applyUiPreferences() {
         themeMode=getPreferences(MODE_PRIVATE).getString("ui_theme","light");
         activeThemeDark=resolvedDarkTheme(themeMode);
@@ -347,19 +348,9 @@ public final class MainActivity extends Activity {
         smoothMotion=getPreferences(MODE_PRIVATE).getBoolean("smooth_motion",true);
         modelListView=getPreferences(MODE_PRIVATE).getBoolean("model_list_view",true);
         workspaceMode=WorkspaceLayoutPolicy.normalize(getPreferences(MODE_PRIVATE).getString("workspace_mode",WorkspaceLayoutPolicy.AUTO));
-        // Neutral and flatter system palette. Avoid the blue-tinted boxes
-        // and outlines previously repeated around every setting and button.
-        if(lightTheme()){
-            BG=Color.rgb(250,250,251); CARD=Color.WHITE; FIELD=Color.rgb(243,244,246);
-            ACCENT=Color.rgb(34,36,41); WHITE=Color.rgb(37,39,44);
-            MUTED=Color.rgb(111,114,121); DANGER=Color.rgb(174,53,68);
-            BUBBLE=Color.rgb(243,244,246);
-        } else {
-            BG=Color.rgb(18,19,22); CARD=Color.rgb(27,28,32); FIELD=Color.rgb(40,42,47);
-            ACCENT=Color.rgb(237,238,240); WHITE=Color.rgb(238,239,242);
-            MUTED=Color.rgb(157,160,168); DANGER=Color.rgb(239,143,153);
-            BUBBLE=Color.rgb(40,42,47);
-        }
+        WorkbenchVisualPolicy.Palette p=WorkbenchVisualPolicy.palette(activeThemeDark);
+        BG=p.canvas;CARD=p.surface;FIELD=p.field;ACCENT=p.primary;WHITE=p.text;
+        MUTED=p.muted;DANGER=p.dangerText;BUBBLE=p.bubble;
     }
     private int[] palette(){
         return new int[]{BG,CARD,FIELD,ACCENT,WHITE,MUTED,DANGER,BUBBLE};
@@ -390,9 +381,11 @@ public final class MainActivity extends Activity {
                 int old=c.getDefaultColor(),next=mappedColor(old,before,after);
                 if(next!=old){
                     shape.setColor(next);
-                    // Do not bring back universal borders during auto theme changes.
-                    if(old==before[1]||old==before[2])
-                        shape.setStroke(0,Color.TRANSPARENT);
+                    // Keep field/card contrast after a live sunset-theme change.
+                    if(old==before[1]||old==before[2]||old==before[7]){
+                        boolean bordered=v instanceof EditText||v instanceof LinearLayout&&v.isClickable();
+                        shape.setStroke(bordered?dp(1):0,bordered?borderTone():Color.TRANSPARENT);
+                    }
                 }
             }
         }else if(drawable instanceof ColorDrawable){
@@ -400,6 +393,7 @@ public final class MainActivity extends Activity {
             int old=solid.getColor(),next=mappedColor(old,before,after);
             if(next!=old)solid.setColor(next);
         }
+        OnHandGlyphs.refresh(v);
         if(v instanceof ViewGroup){
             ViewGroup group=(ViewGroup)v;
             for(int i=0;i<group.getChildCount();i++)
@@ -410,6 +404,7 @@ public final class MainActivity extends Activity {
         int[] before=palette();
         applyUiPreferences();
         int[] after=palette();
+        setTheme(activeThemeDark?R.style.OnHandTheme_Dark:R.style.OnHandTheme_Light);
         Window window=getWindow();
         if(window!=null){
             recolorViewTree(window.getDecorView(),before,after);
@@ -434,9 +429,7 @@ public final class MainActivity extends Activity {
     };
     @Override public void onCreate(Bundle state) {
         String wanted=getPreferences(MODE_PRIVATE).getString("ui_theme","light");
-        setTheme(resolvedDarkTheme(wanted)?
-            android.R.style.Theme_Material_NoActionBar:
-            android.R.style.Theme_Material_Light_NoActionBar);
+        setTheme(resolvedDarkTheme(wanted)?R.style.OnHandTheme_Dark:R.style.OnHandTheme_Light);
         super.onCreate(state);
         applyUiPreferences();
         io.execute(()->{try{PdfTextClient.cleanAbandoned(getApplicationContext());}catch(Exception ignored){}});
@@ -716,7 +709,7 @@ public final class MainActivity extends Activity {
     private LinearLayout row() { LinearLayout l = new LinearLayout(this); l.setOrientation(LinearLayout.HORIZONTAL); l.setGravity(Gravity.CENTER_VERTICAL); return l; }
     private LinearLayout.LayoutParams lp(int width, int height) { return new LinearLayout.LayoutParams(width < 0 ? width : dp(width), height < 0 ? height : dp(height)); }
     private int borderTone(){
-        return lightTheme()?Color.rgb(237,238,241):Color.rgb(53,55,61);
+        return WorkbenchVisualPolicy.palette(activeThemeDark).border;
     }
     private GradientDrawable bg(int color, int radius) {
         // Flat surfaces by default; only interactive model rows get a light outline.
@@ -733,7 +726,8 @@ public final class MainActivity extends Activity {
     private EditText edit(String hint, String value, boolean multiline) {
         EditText e = new EditText(this); e.setTextColor(WHITE); e.setHintTextColor(MUTED);
         e.setTextSize(15*uiTextScale); e.setHint(hint); e.setText(value); e.setPadding(dp(12), dp(9), dp(12), dp(9));
-        e.setBackground(bg(FIELD, 12)); e.setSingleLine(!multiline);
+        GradientDrawable field=bg(FIELD,14);field.setStroke(dp(1),borderTone());
+        e.setBackgroundTintList(null);e.setBackground(field);e.setSingleLine(!multiline);
         if (multiline) { e.setMinLines(2); e.setMaxLines(4); }
         return e;
     }
@@ -741,8 +735,10 @@ public final class MainActivity extends Activity {
         Button b = new Button(this); b.setText(label); b.setAllCaps(false);
         b.setTextSize(13*uiTextScale); b.setTextColor(primary ? BG : WHITE);
         b.setPadding(dp(11), dp(6), dp(11), dp(6)); b.setMinHeight(dp(48)); b.setMinimumHeight(dp(48));
-        b.setBackground(bg(primary ? ACCENT : FIELD, 11));
-        b.setElevation(0);AdaptiveAnswerActions.feedback(b,11);return b;
+        b.setBackgroundTintList(null);b.setStateListAnimator(null);
+        b.setBackground(bg(primary ? ACCENT : FIELD, 14));
+        if(primary)b.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        b.setElevation(0);AdaptiveAnswerActions.feedback(b,14);return b;
     }
     private void margin(View v, LinearLayout host, int top, int bottom) {
         LinearLayout.LayoutParams p = lp(-1, -2); p.topMargin = dp(top); p.bottomMargin = dp(bottom); host.addView(v, p);
@@ -750,6 +746,31 @@ public final class MainActivity extends Activity {
     private void rowItem(LinearLayout r, View view, int weight, int marginRight) {
         LinearLayout.LayoutParams p = weight > 0 ? new LinearLayout.LayoutParams(0, -2, weight) : lp(-2, -2);
         p.rightMargin = dp(marginRight); r.addView(view, p);
+    }
+    private void iconAction(Button button,OnHandGlyphs.Kind glyph){
+        OnHandGlyphs.label(button,glyph,true);
+    }
+    private void settingAction(Button button,OnHandGlyphs.Kind glyph){
+        button.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);
+        OnHandGlyphs.label(button,glyph,false);
+    }
+    private TextView sectionTitle(int title,OnHandGlyphs.Kind glyph){
+        TextView heading=text(getString(title),16,WHITE,true);
+        OnHandGlyphs.accentLabel(heading,glyph);
+        if(Build.VERSION.SDK_INT>=28)heading.setAccessibilityHeading(true);
+        return heading;
+    }
+    private LinearLayout brandSection(LinearLayout host,int title,OnHandGlyphs.Kind glyph){
+        LinearLayout section=column();section.setPadding(dp(14),dp(13),dp(14),dp(13));
+        GradientDrawable surface=bg(CARD,20);surface.setStroke(dp(1),borderTone());section.setBackground(surface);
+        margin(sectionTitle(title,glyph),section,0,10);
+        margin(section,host,0,12);return section;
+    }
+    private android.widget.ImageView brandArtwork(int size){
+        android.widget.ImageView art=new android.widget.ImageView(this);
+        art.setImageResource(R.drawable.onhand_approved_icon);art.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        art.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        art.setLayoutParams(lp(size,size));return art;
     }
     private void createUi() {
         LinearLayout root = column(); root.setBackgroundColor(BG);
@@ -791,18 +812,19 @@ public final class MainActivity extends Activity {
         menu.setContentDescription(getString(R.string.menu));
         menu.setTextSize(20);
         menu.setMinWidth(dp(48));menu.setMinimumWidth(dp(48));menu.setTooltipText(getString(R.string.menu));
-        rowItem(header, menu, 0, 9);
+        iconAction(menu,OnHandGlyphs.Kind.MENU);rowItem(header, menu, 0, 9);
         menu.setOnClickListener(v -> showNavigationDrawer());
         LinearLayout branding = column();
-        topPageTitle = text("OnHand AI", 19, WHITE, true);
+        topPageTitle = text(getString(R.string.app_name), 20, WHITE, true);
         topPageTitle.setSingleLine(true);topPageTitle.setEllipsize(TextUtils.TruncateAt.END);
         branding.addView(topPageTitle);
         topPageSubtitle=text(getString(R.string.chat)+"  ·  "+getString(R.string.local), 10, MUTED, false);
         topPageSubtitle.setSingleLine(true);topPageSubtitle.setEllipsize(TextUtils.TruncateAt.END);
         branding.addView(topPageSubtitle);
         rowItem(header, branding, 1, 5);
-        Button fresh = button("＋ "+getString(R.string.new_chat), false);
+        Button fresh = button(getString(R.string.new_chat), false);
         newChatShortcut=fresh;fresh.setContentDescription(getString(R.string.new_chat));fresh.setTooltipText(getString(R.string.new_chat));
+        OnHandGlyphs.label(fresh,OnHandGlyphs.Kind.PLUS,false);
         rowItem(header, fresh, 0, 0);
         fresh.setOnClickListener(v -> newChat());
         header.setMinimumHeight(dp(52));
@@ -885,7 +907,11 @@ public final class MainActivity extends Activity {
             if(wide)refreshTabletRail();
         }
         refreshWorkspaceModeLabel();
-        if(newChatShortcut!=null)newChatShortcut.setText(WorkspaceLayoutPolicy.compactHeader(widthDp,scale)?"＋":"＋ "+getString(R.string.new_chat));
+        if(newChatShortcut!=null){
+            boolean compact=WorkspaceLayoutPolicy.compactHeader(widthDp,scale);
+            newChatShortcut.setText(compact?"":getString(R.string.new_chat));
+            OnHandGlyphs.label(newChatShortcut,OnHandGlyphs.Kind.PLUS,compact);
+        }
         if(localChatContent!=null)localChatContent.post(this::applyChatLayout);
     }
     private void updateTypingChrome(){
@@ -1002,7 +1028,7 @@ public final class MainActivity extends Activity {
         LinearLayout modelRow = row();
         modelChooser = new Spinner(this); modelChooser.setBackground(bg(FIELD, 12));
         modelChooser.setContentDescription(getString(R.string.model_label));modelChooser.setMinimumHeight(dp(48));
-        modelChooser.setPadding(dp(12), dp(4), dp(8), dp(4));
+        OnHandGlyphs.spinner(modelChooser);
         rowItem(modelRow, modelChooser, 1, 6);
         cloudShortcut=button(getString(R.string.cloud_short),false);
         cloudShortcut.setContentDescription(getString(R.string.cloud));
@@ -1011,6 +1037,7 @@ public final class MainActivity extends Activity {
         chatActionsButton=button("⋯",false);
         chatActionsButton.setTextSize(21);chatActionsButton.setMinimumWidth(dp(48));chatActionsButton.setMinWidth(dp(48));
         chatActionsButton.setContentDescription(getString(R.string.chat_actions));chatActionsButton.setTooltipText(getString(R.string.chat_actions));
+        iconAction(chatActionsButton,OnHandGlyphs.Kind.MORE);
         chatActionsButton.setOnClickListener(v->showChatActions());
         rowItem(modelRow,chatActionsButton,0,0);
         margin(modelRow, localChatContent, 2, 3);
@@ -1043,6 +1070,7 @@ public final class MainActivity extends Activity {
         FrameLayout viewport=new FrameLayout(this);viewport.addView(messageScroll,new FrameLayout.LayoutParams(-1,-1));
         latestButton=button("↓",false);latestButton.setTextSize(20);latestButton.setMinimumWidth(dp(48));latestButton.setMinWidth(dp(48));
         latestButton.setContentDescription(getString(R.string.workspace_latest));latestButton.setTooltipText(getString(R.string.workspace_latest));
+        iconAction(latestButton,OnHandGlyphs.Kind.DOWN);
         latestButton.setVisibility(View.GONE);latestButton.setOnClickListener(v->scrollBottom());
         FrameLayout.LayoutParams jump=new FrameLayout.LayoutParams(dp(48),dp(48),Gravity.BOTTOM|Gravity.END);
         jump.bottomMargin=dp(8);jump.rightMargin=dp(6);viewport.addView(latestButton,jump);
@@ -1057,7 +1085,7 @@ public final class MainActivity extends Activity {
         localChatContent.addView(viewport, scrollParam);
         LinearLayout composer = row();chatComposer=composer;
         composer.setPadding(dp(8), dp(6), dp(8), dp(6));
-        composer.setBackground(bg(CARD, 22));
+        GradientDrawable composerSurface=bg(CARD,24);composerSurface.setStroke(dp(1),borderTone());composer.setBackground(composerSurface);
         chatInput = edit(getString(R.string.message_hint), "", true);
         chatInput.setMinLines(1); chatInput.setMaxLines(5);chatInput.setMinimumHeight(dp(48));
         rowItem(composer, chatInput, 1, 5);
@@ -1080,6 +1108,8 @@ public final class MainActivity extends Activity {
         stopChatButton = button("■", false);
         stopChatButton.setContentDescription(getString(R.string.stop));
         stopChatButton.setTooltipText(getString(R.string.stop));rowItem(composerActions, stopChatButton, 0, 0);
+        iconAction(attachFileButton,OnHandGlyphs.Kind.ATTACH);iconAction(voiceButton,OnHandGlyphs.Kind.MIC);
+        iconAction(sendButton,OnHandGlyphs.Kind.SEND);iconAction(stopChatButton,OnHandGlyphs.Kind.STOP);
         voicePanel=column();voicePanel.setPadding(dp(10),dp(6),dp(10),dp(6));voicePanel.setBackground(bg(FIELD,12));
         voiceStateView=text("",12,WHITE,true);
         voiceStateView.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);voiceStateView.setSaveEnabled(false);
@@ -1132,6 +1162,8 @@ public final class MainActivity extends Activity {
             R.string.api_manager_title,R.string.chat_export,R.string.compute_select};
         int[] details={R.string.workbench_project_detail,R.string.workbench_knowledge_detail,R.string.workbench_automation_detail,
             R.string.workbench_api_detail,R.string.workbench_export_detail,R.string.workbench_compute_detail};
+        OnHandGlyphs.Kind[] glyphs={OnHandGlyphs.Kind.PROJECT,OnHandGlyphs.Kind.KNOWLEDGE,OnHandGlyphs.Kind.FLOW,
+            OnHandGlyphs.Kind.CLOUD,OnHandGlyphs.Kind.EXPORT,OnHandGlyphs.Kind.CHIP};
         int[] groups={R.string.workbench_work_group,R.string.workbench_chat_group};
         for(int g=0;g<groups.length;g++){
             TextView section=text(getString(groups[g]),16,WHITE,true);
@@ -1140,7 +1172,7 @@ public final class MainActivity extends Activity {
             WorkbenchGrid tiles=new WorkbenchGrid(this,uiTextScale);
             for(int i=g*3;i<g*3+3;i++){
                 final int index=i;
-                tiles.addView(workbenchCard(getString(titles[i]),getString(details[i]),()->{
+                tiles.addView(workbenchCard(getString(titles[i]),getString(details[i]),glyphs[i],()->{
                     if(workbenchDialog!=dialog||!dialog.isShowing()||isFinishing()||isDestroyed()||!foreground||activeTab!=0||isUiBusy()||guestOnly||cloudMode)return;
                     closeWorkbench();actions[index].run();
                 }));
@@ -1152,14 +1184,15 @@ public final class MainActivity extends Activity {
         try{dialog.show();WorkbenchWindow.fit(this,dialog);}
         catch(RuntimeException e){closeWorkbench();toast(getString(R.string.busy));}
     }
-    private View workbenchCard(String title,String detail,Runnable action){
-        LinearLayout card=column();card.setPadding(dp(14),dp(13),dp(14),dp(13));card.setMinimumHeight(dp(84));
-        GradientDrawable surface=bg(CARD,14);surface.setStroke(dp(1),borderTone());
-        card.setBackground(surface);card.setClickable(true);card.setFocusable(true);AdaptiveAnswerActions.feedback(card,14);
+    private View workbenchCard(String title,String detail,OnHandGlyphs.Kind glyph,Runnable action){
+        LinearLayout card=column();card.setPadding(dp(14),dp(13),dp(14),dp(13));card.setMinimumHeight(dp(108));
+        GradientDrawable surface=bg(CARD,18);surface.setStroke(dp(1),borderTone());
+        card.setBackground(surface);card.setClickable(true);card.setFocusable(true);AdaptiveAnswerActions.feedback(card,18);
         TextView heading=text(title,15,WHITE,true),caption=text(detail,13,MUTED,false);
+        LinearLayout lead=row();rowItem(lead,OnHandGlyphs.tile(this,glyph),0,10);rowItem(lead,heading,1,0);
         heading.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         caption.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-        card.addView(heading,lp(-1,-2));margin(caption,card,4,0);
+        card.addView(lead,lp(-1,-2));margin(caption,card,8,0);
         card.setContentDescription(title+" · "+detail);
         card.setAccessibilityDelegate(new View.AccessibilityDelegate(){
             @Override public void onInitializeAccessibilityNodeInfo(View host,android.view.accessibility.AccessibilityNodeInfo info){
@@ -1175,7 +1208,7 @@ public final class MainActivity extends Activity {
         LinearLayout content=column();content.setPadding(dp(4),dp(8),dp(4),dp(18));
         scroll.addView(content);modelPage.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
 
-        margin(text(getString(R.string.recommended),23,WHITE,true),content,0,3);
+        margin(text(getString(R.string.models),24,WHITE,true),content,0,3);
         margin(text(getString(R.string.recommend_basis),13,MUTED,false),
             content,0,10);
         LinearLayout top=row();
@@ -1183,21 +1216,22 @@ public final class MainActivity extends Activity {
         rowItem(top,modelListHeader,1,5);
         Button refresh=button(getString(R.string.refresh),false);rowItem(top,refresh,0,0);
         refresh.setOnClickListener(v->{refreshModels();if(modelFilter!=null&&!modelFilter.getText().toString().trim().isEmpty())onModelSearchChanged(modelFilter.getText().toString(),true);else loadRecommendedVariants(true);});
-        margin(top,content,0,7);
+        OnHandGlyphs.label(refresh,OnHandGlyphs.Kind.REFRESH,false);
         LinearLayout viewModeRow=row();
         modelListViewButton=button(getString(R.string.list_view),modelListView);
         modelGridViewButton=button(getString(R.string.grid_view),!modelListView);
         rowItem(viewModeRow,modelListViewButton,1,6);
         rowItem(viewModeRow,modelGridViewButton,1,0);
-        margin(viewModeRow,content,0,9);
         modelListViewButton.setOnClickListener(v->setModelViewMode(true));
         modelGridViewButton.setOnClickListener(v->setModelViewMode(false));
         updateModelViewButtons();
+        LinearLayout searchPanel=brandSection(content,R.string.brand_model_filters,OnHandGlyphs.Kind.SEARCH);
         LinearLayout searchRow=row();
         modelFilter=edit(getString(R.string.model_search),"",false);
         rowItem(searchRow,modelFilter,1,6);
         Button submitSearch=button(getString(R.string.search),true);
-        rowItem(searchRow,submitSearch,0,0);margin(searchRow,content,0,5);
+        iconAction(submitSearch,OnHandGlyphs.Kind.SEARCH);submitSearch.setContentDescription(getString(R.string.search));
+        rowItem(searchRow,submitSearch,0,0);margin(searchRow,searchPanel,0,8);
         submitSearch.setOnClickListener(v->onModelSearchChanged(modelFilter.getText().toString(),true));
         modelFilter.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH);
         modelFilter.setOnEditorActionListener((v,action,event)->{
@@ -1211,7 +1245,8 @@ public final class MainActivity extends Activity {
         sortFilter=new Spinner(this);sortFilter.setBackground(bg(FIELD,12));sortFilter.setMinimumHeight(dp(46));
         sortFilter.setAdapter(makeFilterAdapter(java.util.Arrays.asList("추천 순","용량 작은 순","용량 큰 순","이름 순")));
         rowItem(searchOptions,sourceFilter,1,6);rowItem(searchOptions,sortFilter,1,0);
-        margin(searchOptions,content,0,5);
+        OnHandGlyphs.spinner(sourceFilter);OnHandGlyphs.spinner(sortFilter);
+        margin(searchOptions,searchPanel,0,8);
         sourceFilter.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
             @Override public void onNothingSelected(AdapterView<?> p){}
             @Override public void onItemSelected(AdapterView<?> p,View view,int pos,long id){
@@ -1227,7 +1262,7 @@ public final class MainActivity extends Activity {
             }
         });
         modelSearchStatus=text(getString(R.string.search_intro),11,MUTED,false);
-        margin(modelSearchStatus,content,0,9);
+        margin(modelSearchStatus,searchPanel,0,8);
         modelFilter.addTextChangedListener(new TextWatcher(){
             @Override public void beforeTextChanged(CharSequence s,int start,int count,int after){}
             @Override public void onTextChanged(CharSequence s,int start,int before,int count){
@@ -1244,8 +1279,10 @@ public final class MainActivity extends Activity {
         quantizationFilter.setMinimumHeight(dp(46));
         rowItem(filterRow,familyFilter,1,6);
         rowItem(filterRow,quantizationFilter,1,0);
-        margin(filterRow,content,0,11);
-        margin(text(getString(R.string.filter_label),11,MUTED,false),content,0,9);
+        OnHandGlyphs.spinner(familyFilter);OnHandGlyphs.spinner(quantizationFilter);
+        margin(filterRow,searchPanel,0,6);
+        margin(text(getString(R.string.filter_label),11,MUTED,false),searchPanel,0,0);
+        margin(top,content,2,8);margin(viewModeRow,content,0,10);
         populateModelFilters();
         modelRows=column();margin(modelRows,content,0,7);
         modelRows.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
@@ -1253,11 +1290,11 @@ public final class MainActivity extends Activity {
             if(width>0&&width!=lastModelGridWidth){lastModelGridWidth=width;ui.post(this::renderInstalledModels);}
         });
         installedPickerButton=button(getString(R.string.installed_all),false);
-        margin(installedPickerButton,content,0,16);
+        settingAction(installedPickerButton,OnHandGlyphs.Kind.CHIP);margin(installedPickerButton,content,0,16);
         installedPickerButton.setOnClickListener(v->showAllInstalledModels());
         margin(text(getString(R.string.import_other),18,WHITE,true),content,0,6);
         Button importButton=button(getString(R.string.import_gguf),false);
-        margin(importButton,content,0,8);
+        settingAction(importButton,OnHandGlyphs.Kind.EXPORT);margin(importButton,content,0,8);
         importButton.setOnClickListener(v->{
             if(!OllamaForegroundService.isRunning()){toast(getString(R.string.start_ollama));return;}
             Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT);
@@ -1335,24 +1372,26 @@ public final class MainActivity extends Activity {
         serverPage.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         margin(text(getString(R.string.settings),23,WHITE,true),content,0,5);
         margin(text(getString(R.string.settings_intro),13,MUTED,false),content,0,15);
-        Button language=button(getString(R.string.language),false);margin(language,content,0,8);
+        LinearLayout general=brandSection(content,R.string.brand_app_preferences,OnHandGlyphs.Kind.SETTINGS);
+        Button language=button(getString(R.string.language),false);settingAction(language,OnHandGlyphs.Kind.LANGUAGE);margin(language,general,0,8);
         language.setOnClickListener(v->{if(isUiBusy())toast(getString(R.string.busy));else OnHandsLocale.choose(this);});
-        Button voiceModels=button(getString(R.string.voice_models_title),false);margin(voiceModels,content,0,8);
+        Button voiceModels=button(getString(R.string.voice_models_title),false);settingAction(voiceModels,OnHandGlyphs.Kind.MIC);margin(voiceModels,general,0,8);
         voiceModels.setOnClickListener(v->{if(isUiBusy())toast(getString(R.string.busy));else VoiceModelsUi.show(this);});
-        Button cloud=button(getString(R.string.cloud),false);margin(cloud,content,0,8);
+        Button cloud=button(getString(R.string.cloud),false);settingAction(cloud,OnHandGlyphs.Kind.CLOUD);margin(cloud,general,0,8);
         cloud.setOnClickListener(v->openCloud());
-        Button guest=button(getString(R.string.guest),false);margin(guest,content,0,14);
+        Button guest=button(getString(R.string.guest),false);settingAction(guest,OnHandGlyphs.Kind.DEVICE);margin(guest,general,0,0);
         guest.setOnClickListener(v->enterGuestMode());
 
-        margin(text(getString(R.string.display),17,WHITE,true),content,0,8);
+        LinearLayout display=brandSection(content,R.string.display,OnHandGlyphs.Kind.THEME);
         workspaceModeButton=button(getString(R.string.workspace_mode),false);
-        workspaceModeButton.setMinHeight(dp(56));margin(workspaceModeButton,content,0,5);
+        workspaceModeButton.setMinHeight(dp(56));settingAction(workspaceModeButton,OnHandGlyphs.Kind.DEVICE);margin(workspaceModeButton,display,0,5);
         workspaceModeButton.setOnClickListener(v->chooseWorkspaceMode());
         refreshWorkspaceModeLabel();
-        margin(text(getString(R.string.workspace_help),11,MUTED,false),content,0,12);
+        margin(text(getString(R.string.workspace_help),11,MUTED,false),display,0,12);
         String currentTheme=getString("auto".equals(themeMode)?R.string.theme_auto:activeThemeDark?R.string.theme_dark:R.string.theme_light);
         Button theme=button(getString(R.string.theme)+"  ·  "+currentTheme,false);
-        margin(theme,content,0,6);
+        settingAction(theme,OnHandGlyphs.Kind.THEME);
+        margin(theme,display,0,6);
         theme.setOnClickListener(v->new AlertDialog.Builder(this)
             .setTitle(getString(R.string.theme))
             .setSingleChoiceItems(new String[]{getString(R.string.theme_light_default),getString(R.string.theme_dark),getString(R.string.theme_auto_detail)},
@@ -1362,11 +1401,12 @@ public final class MainActivity extends Activity {
                     applySetting("ui_theme",which==2?"auto":which==1?"dark":"light");
                 }).setNegativeButton(getString(R.string.cancel),null).show());
         margin(text(getString(R.string.theme_location),
-            11,MUTED,false),content,0,8);
+            11,MUTED,false),display,0,8);
         String chosenCity=getPreferences(MODE_PRIVATE).getString("sunset_city","device");
         Button cityChoice=button(getString(R.string.theme_city)+"  ·  "+
             UiText.cityLabels(this)[SolarTheme.cityIndex(chosenCity)],false);
-        margin(cityChoice,content,0,12);
+        settingAction(cityChoice,OnHandGlyphs.Kind.LANGUAGE);
+        margin(cityChoice,display,0,12);
         cityChoice.setVisibility("auto".equals(themeMode)?View.VISIBLE:View.GONE);
         cityChoice.setOnClickListener(v->new AlertDialog.Builder(this)
             .setTitle(getString(R.string.theme_city_title))
@@ -1379,7 +1419,8 @@ public final class MainActivity extends Activity {
         String f=getPreferences(MODE_PRIVATE).getString("font_size","normal");
         String sizeLabel=getString("large".equals(f)?R.string.font_large:"extra".equals(f)?R.string.font_extra:R.string.font_normal);
         Button typeSize=button(getString(R.string.font_size)+"  ·  "+sizeLabel,false);
-        margin(typeSize,content,0,8);
+        settingAction(typeSize,OnHandGlyphs.Kind.FONT);
+        margin(typeSize,display,0,8);
         typeSize.setOnClickListener(v->new AlertDialog.Builder(this)
             .setTitle(getString(R.string.font_size))
             .setSingleChoiceItems(new String[]{getString(R.string.font_normal)+" (100%)",getString(R.string.font_large)+" (113%)",getString(R.string.font_extra)+" (126%)"},
@@ -1390,50 +1431,55 @@ public final class MainActivity extends Activity {
                 }).setNegativeButton(getString(R.string.cancel),null).show());
 
         Button hud=button(getString(R.string.hud_title)+"  ·  "+getString(showHud?R.string.hud_visible:R.string.hud_hidden),false);
-        margin(hud,content,0,8);
+        settingAction(hud,OnHandGlyphs.Kind.CHIP);
+        margin(hud,display,0,8);
         hud.setOnClickListener(v->{
             if(isUiBusy()){toast(getString(R.string.busy));return;}
             getPreferences(MODE_PRIVATE).edit().putBoolean("show_hud",!showHud).apply();
             recreate();
         });
         Button motion=button(getString(R.string.motion)+"  ·  "+getString(smoothMotion?R.string.on:R.string.off),false);
-        margin(motion,content,0,14);
+        settingAction(motion,OnHandGlyphs.Kind.PLAY);
+        margin(motion,display,0,14);
         motion.setOnClickListener(v->{
             if(isUiBusy()){toast(getString(R.string.busy));return;}
             getPreferences(MODE_PRIVATE).edit().putBoolean("smooth_motion",!smoothMotion).apply();
             recreate();
         });
 
-        margin(text(getString(R.string.local_inference),17,WHITE,true),content,0,8);
+        LinearLayout inference=brandSection(content,R.string.local_inference,OnHandGlyphs.Kind.CHIP);
         Button compute=button(getString(R.string.compute),false);
-        margin(compute,content,0,8);
+        settingAction(compute,OnHandGlyphs.Kind.CHIP);
+        margin(compute,inference,0,8);
         compute.setOnClickListener(v->showComputeChoiceDialog());
         serverStatus=text(getString(R.string.server_check),13,MUTED,true);
-        margin(serverStatus,content,0,8);
+        margin(serverStatus,inference,0,8);
         LinearLayout controls=row();
         Button start=button(getString(R.string.server_start),true),stop=button(getString(R.string.server_stop),false);
         rowItem(controls,start,1,7);rowItem(controls,stop,1,0);
-        margin(controls,content,0,14);
+        margin(controls,inference,0,14);
         start.setOnClickListener(v->startServer());
         stop.setOnClickListener(v->stopServer());
         margin(text(getString(R.string.inference_notice),
-            12,MUTED,false),content,0,16);
+            12,MUTED,false),inference,0,16);
 
-        margin(text(getString(R.string.privacy),17,WHITE,true),content,0,8);
+        LinearLayout privacySection=brandSection(content,R.string.privacy,OnHandGlyphs.Kind.SHIELD);
         Button privacy=button(getString(R.string.privacy_settings),false);
-        margin(privacy,content,0,7);
+        settingAction(privacy,OnHandGlyphs.Kind.SHIELD);
+        margin(privacy,privacySection,0,7);
         privacy.setOnClickListener(v->ads.showPrivacyChoices());
         margin(text(getString(R.string.ad_notice),
-            12,MUTED,false),content,0,16);
+            12,MUTED,false),privacySection,0,16);
 
-        margin(text(getString(R.string.about),17,WHITE,true),content,0,8);
+        LinearLayout about=brandSection(content,R.string.about,OnHandGlyphs.Kind.BOOK);
         Button license=button(getString(R.string.license),false);
-        margin(license,content,0,5);
+        settingAction(license,OnHandGlyphs.Kind.BOOK);
+        margin(license,about,0,5);
         license.setOnClickListener(v->new AlertDialog.Builder(this)
             .setTitle(getString(R.string.license_title))
             .setMessage(R.string.license_notice)
             .setPositiveButton(getString(R.string.close),null).show());
-        margin(text(getString(R.string.independent_client),12,MUTED,false),content,8,0);
+        margin(text(getString(R.string.independent_client),12,MUTED,false),about,8,0);
     }
 
     private boolean isUiBusy(){
@@ -1458,7 +1504,7 @@ public final class MainActivity extends Activity {
             content,0,12);
 
         LinearLayout ownTitle=row();
-        rowItem(ownTitle,text(getString(R.string.own_device),18,WHITE,true),1,5);
+        rowItem(ownTitle,sectionTitle(R.string.own_device,OnHandGlyphs.Kind.DEVICE),1,5);
         Button refresh=button(getString(R.string.diag_refresh),false);
         rowItem(ownTitle,refresh,0,0);
         margin(ownTitle,content,0,7);
@@ -1466,13 +1512,13 @@ public final class MainActivity extends Activity {
         deviceSummary.setPadding(dp(14),dp(13),dp(14),dp(13));
         deviceSummary.setBackground(bg(CARD,14));
         margin(deviceSummary,content,0,7);
-        margin(text(getString(R.string.diag_suitability),18,WHITE,true),content,0,7);
+        margin(sectionTitle(R.string.diag_suitability,OnHandGlyphs.Kind.CHIP),content,0,7);
         suitabilitySummary=text(getString(R.string.diag_models_check),13,WHITE,false);
         suitabilitySummary.setPadding(dp(14),dp(13),dp(14),dp(13));
         suitabilitySummary.setBackground(bg(CARD,14));
         margin(suitabilitySummary,content,0,10);
         Button resourceAdvisor=button(getString(R.string.resource_title),false);
-        margin(resourceAdvisor,content,0,10);
+        settingAction(resourceAdvisor,OnHandGlyphs.Kind.CHIP);margin(resourceAdvisor,content,0,10);
         resourceAdvisor.setOnClickListener(v->showResourceAdvice());
         computeSummary=text(computeReport.description(this),12,MUTED,false);
         computeSummary.setPadding(dp(14),dp(12),dp(14),dp(12));
@@ -1491,7 +1537,7 @@ public final class MainActivity extends Activity {
         margin(text(getString(R.string.diag_permission_detail),
             12,MUTED,false),content,0,7);
         Button notification=button(getString(R.string.notification_permission),false);
-        margin(notification,content,0,14);
+        settingAction(notification,OnHandGlyphs.Kind.SHIELD);margin(notification,content,0,14);
         notification.setOnClickListener(v->{
             if(Build.VERSION.SDK_INT<33){
                 toast(getString(R.string.notification_legacy));return;
@@ -1503,7 +1549,7 @@ public final class MainActivity extends Activity {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},3);
         });
 
-        margin(text(getString(R.string.session_diagnostics),18,WHITE,true),content,0,6);
+        margin(sectionTitle(R.string.session_diagnostics,OnHandGlyphs.Kind.FLOW),content,0,6);
         connectionSessionStatus=text(getString(R.string.session_check),13,WHITE,false);
         connectionSessionStatus.setPadding(dp(14),dp(12),dp(14),dp(12));
         connectionSessionStatus.setBackground(bg(CARD,14));
@@ -2251,15 +2297,14 @@ public final class MainActivity extends Activity {
     }
 
     private int tileBackgroundColor(boolean selected){
-        return selected?FIELD:CARD;
+        return selected?BUBBLE:CARD;
     }
     private int tileTextColor(){return WHITE;}
     private int tileMutedColor(){return MUTED;}
     private GradientDrawable tileBackground(boolean selected){
-        GradientDrawable shape=bg(tileBackgroundColor(selected),13);
-        // Selected rows are distinguished by surface tone, not thick borders.
-        shape.setStroke(dp(1),selected?
-            (lightTheme()?Color.rgb(208,210,215):Color.rgb(79,82,89)):borderTone());
+        GradientDrawable shape=bg(tileBackgroundColor(selected),18);
+        // Orange focus indicates selection, while the actual status label remains authoritative.
+        shape.setStroke(dp(selected?2:1),selected?ACCENT:borderTone());
         return shape;
     }
 
@@ -2426,6 +2471,7 @@ public final class MainActivity extends Activity {
         tilePressEffect(card);
 
         LinearLayout line=row();
+        rowItem(line,OnHandGlyphs.tile(this,OnHandGlyphs.Kind.CHIP),0,10);
         LinearLayout body=column();
         TextView title=text(item.title,16,ink,true);
         title.setSingleLine(true);
@@ -2446,27 +2492,21 @@ public final class MainActivity extends Activity {
         margin(details,body,0,0);
         rowItem(line,body,1,8);
 
-        LinearLayout trailing=column();
-        trailing.setGravity(Gravity.END|Gravity.CENTER_VERTICAL);
+        TextView chevron=OnHandGlyphs.tile(this,OnHandGlyphs.Kind.CHEVRON);
+        rowItem(line,chevron,0,0);margin(line,card,0,6);
+        AdaptiveAnswerActions badges=new AdaptiveAnswerActions(this);
         TextView status=text(item.id.equals(downloadingCardId)&&pullBusy?getString(R.string.model_downloading):
             item.installed?(selected?getString(R.string.model_active):getString(R.string.model_installed)):getString(R.string.model_not_installed),
-            10,ink,true);
-        status.setGravity(Gravity.END|Gravity.CENTER_VERTICAL);
-        status.setSingleLine(true);
-        margin(status,trailing,0,5);
+            11,item.installed?WHITE:MUTED,true);
+        status.setPadding(dp(10),dp(5),dp(10),dp(5));status.setBackground(bg(item.installed?BUBBLE:FIELD,10));
+        status.setMaxLines(2);
+        badges.addView(status,lp(-2,-2));
         if(item.featured){
-            TextView recommended=text(getString(R.string.model_recommend_mark),11,secondary,true);
-            recommended.setGravity(Gravity.END|Gravity.CENTER_VERTICAL);
-            recommended.setSingleLine(true);
-            margin(recommended,trailing,0,5);
+            TextView recommended=text(getString(R.string.model_recommend_mark),11,ACCENT,true);
+            recommended.setPadding(dp(10),dp(5),dp(10),dp(5));recommended.setBackground(bg(BUBBLE,10));
+            badges.addView(recommended,lp(-2,-2));
         }
-        TextView more=text(getString(R.string.model_select_more),12,secondary,false);
-        more.setGravity(Gravity.END|Gravity.CENTER_VERTICAL);
-        more.setSingleLine(true);
-        margin(more,trailing,0,0);
-        rowItem(line,trailing,0,0);
-        margin(line,card,0,0);
-        tileStatusLabels.put(item.id,status);
+        card.addView(badges,lp(-1,-2));tileStatusLabels.put(item.id,status);
 
         ProgressBar progress=new ProgressBar(this,null,
             android.R.attr.progressBarStyleHorizontal);
@@ -3220,16 +3260,18 @@ public final class MainActivity extends Activity {
     }
 
     private TextView drawerNavigationItem(String title){
-        // The lower sidebar displays only these three titles—no subtitles or icons.
+        // Preserve the three compact destinations; pictograms aid scanning without subtitles.
         boolean active=(getString(R.string.models).equals(title)&&activeTab==1)
             ||(getString(R.string.settings).equals(title)&&activeTab==2)
             ||(getString(R.string.devices).equals(title)&&activeTab==3);
         TextView item=text(title,14,WHITE,active);
         item.setSingleLine(true);
         item.setEllipsize(TextUtils.TruncateAt.END);
-        item.setMinHeight(dp(42));
-        item.setPadding(dp(12),dp(7),dp(10),dp(7));
-        item.setBackground(bg(active?FIELD:BG,10));
+        item.setMinHeight(dp(48));
+        item.setPadding(dp(12),dp(8),dp(12),dp(8));
+        item.setBackground(bg(active?BUBBLE:BG,14));
+        OnHandGlyphs.accentLabel(item,getString(R.string.models).equals(title)?OnHandGlyphs.Kind.CHIP:
+            getString(R.string.settings).equals(title)?OnHandGlyphs.Kind.SETTINGS:OnHandGlyphs.Kind.DEVICE);
         item.setSelected(active);
         item.setContentDescription(title+(active?" · "+getString(R.string.workspace_selected):""));
         item.setFocusable(true);
@@ -3268,7 +3310,8 @@ public final class MainActivity extends Activity {
         });
 
         LinearLayout heading=row();
-        TextView product=text("OnHand AI",17,WHITE,true);
+        rowItem(heading,brandArtwork(36),0,9);
+        TextView product=text(getString(R.string.app_name),18,WHITE,true);
         rowItem(heading,product,1,8);
         Button close=button("×",false);
         close.setTextSize(20);
@@ -3278,7 +3321,8 @@ public final class MainActivity extends Activity {
         heading.setMinimumHeight(dp(48));
         margin(heading,shell,0,8);
 
-        TextView newChatItem=drawerRow("✎   "+getString(R.string.new_chat),"",false);
+        TextView newChatItem=drawerRow(getString(R.string.new_chat),"",false);
+        OnHandGlyphs.accentLabel(newChatItem,OnHandGlyphs.Kind.PLUS);
         margin(newChatItem,shell,0,8);
         newChatItem.setOnClickListener(v->{
             if(chatBusy){toast(getString(R.string.new_chat_busy));return;}
@@ -3492,12 +3536,17 @@ public final class MainActivity extends Activity {
         }
         if(history.length()==0){
             starterNeedsModel=knownModels.isEmpty();
-            margin(text(getString(R.string.welcome),24,WHITE,true),messages,18,6);
-            margin(text(getString(R.string.welcome_sub),13,MUTED,false),messages,0,12);
+            LinearLayout hero=row();hero.setPadding(dp(14),dp(16),dp(14),dp(16));hero.setBackground(bg(BUBBLE,22));
+            rowItem(hero,brandArtwork(68),0,12);
+            LinearLayout greeting=column();
+            margin(text(getString(R.string.welcome),24,WHITE,true),greeting,0,4);
+            margin(text(getString(R.string.welcome_sub),14,MUTED,false),greeting,0,0);
+            rowItem(hero,greeting,1,0);margin(hero,messages,8,16);
             if(knownModels.isEmpty()){
                 Button install=button(getString(R.string.install_model),true);
                 margin(install,messages,0,10);install.setOnClickListener(v->{if(!isUiBusy())showTab(1);});
             }
+            margin(sectionTitle(R.string.brand_quick_actions,OnHandGlyphs.Kind.FLOW),messages,0,8);
             starterPanel=column();margin(starterPanel,messages,0,4);
             int width=localChatContent==null?0:(int)((localChatContent.getWidth()-localChatContent.getPaddingLeft()-localChatContent.getPaddingRight())/getResources().getDisplayMetrics().density);
             populateStarterCards(ChatWorkspacePolicy.starterColumns(width,uiTextScale*Math.max(1f,getResources().getConfiguration().fontScale)));
@@ -3643,13 +3692,14 @@ public final class MainActivity extends Activity {
         else new AlertDialog.Builder(this).setTitle(R.string.workspace_starter_add).setMessage(R.string.workspace_starter_preserve)
             .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,(d,w)->apply.run()).show();
     }
-    private LinearLayout starterCard(String title,String detail,Runnable action){
-        LinearLayout card=column();card.setPadding(dp(12),dp(10),dp(12),dp(10));card.setMinimumHeight(dp(72));
-        GradientDrawable surface=bg(CARD,14);surface.setStroke(dp(1),borderTone());
-        card.setBackground(surface);card.setClickable(true);card.setFocusable(true);AdaptiveAnswerActions.feedback(card,14);
+    private LinearLayout starterCard(String title,String detail,OnHandGlyphs.Kind glyph,Runnable action){
+        LinearLayout card=column();card.setPadding(dp(12),dp(12),dp(12),dp(12));card.setMinimumHeight(dp(104));
+        GradientDrawable surface=bg(CARD,18);surface.setStroke(dp(1),borderTone());
+        card.setBackground(surface);card.setClickable(true);card.setFocusable(true);AdaptiveAnswerActions.feedback(card,18);
+        TextView icon=OnHandGlyphs.tile(this,glyph);card.addView(icon,lp(40,40));
         TextView heading=text(title,14,WHITE,true);heading.setMaxLines(2);heading.setEllipsize(TextUtils.TruncateAt.END);
         TextView caption=text(detail,12,MUTED,false);caption.setMaxLines(3);caption.setEllipsize(TextUtils.TruncateAt.END);
-        card.addView(heading,lp(-1,-2));margin(caption,card,3,0);
+        margin(heading,card,8,0);margin(caption,card,3,0);
         card.setContentDescription(title+" · "+detail);
         heading.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);caption.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         card.setOnClickListener(v->action.run());return card;
@@ -3736,11 +3786,13 @@ public final class MainActivity extends Activity {
             R.string.workspace_starter_docs,R.string.workspace_starter_automation,R.string.workspace_starter_cloud};
         int[] details={R.string.example_write,R.string.example_plan,R.string.example_code,R.string.workspace_starter_docs_detail,
             R.string.workspace_starter_automation_detail,R.string.workspace_starter_cloud_detail};
+        OnHandGlyphs.Kind[] glyphs={OnHandGlyphs.Kind.WRITE,OnHandGlyphs.Kind.PLAN,OnHandGlyphs.Kind.CODE,
+            OnHandGlyphs.Kind.DOC,OnHandGlyphs.Kind.FLOW,OnHandGlyphs.Kind.CLOUD};
         for(int i=0;i<names.length;){
             LinearLayout line=row();line.setGravity(Gravity.TOP);int count=Math.min(columns,names.length-i);
             for(int j=0;j<count;j++){
                 final int index=i+j;
-                LinearLayout card=starterCard(getString(names[index]),getString(details[index]),()->{
+                LinearLayout card=starterCard(getString(names[index]),getString(details[index]),glyphs[index],()->{
                     if(index<3)fillStarter(getString(details[index]));
                     else if(index==3){if(!isUiBusy()&&ownsLoadedScope()&&!cloudMode){if(currentModel.isEmpty()){toast(getString(R.string.need_model));showTab(1);}else chooseDocumentBatch(loadedHistoryScope);}}
                     else if(index==4)openLocalAutomation();

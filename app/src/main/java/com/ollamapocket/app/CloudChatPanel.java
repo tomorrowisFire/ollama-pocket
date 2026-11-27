@@ -140,10 +140,11 @@ final class CloudChatPanel extends LinearLayout {
         header.addView(configure,new LayoutParams(0,-2,1f));
         addView(header,new LayoutParams(-1,-2));
         back.setOnClickListener(v->local.run());configure.setOnClickListener(v->showApiManager());
-        endpoint=new TextView(owner);endpoint.setTextSize(16);endpoint.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        endpoint=new TextView(owner);WorkbenchStyle.label(owner,endpoint,16,false,true);OnHandGlyphs.accentLabel(endpoint,OnHandGlyphs.Kind.CLOUD);
         endpoint.setSaveEnabled(false);
         addView(endpoint,new LayoutParams(-1,-2));
-        usageSummary=new TextView(owner);usageSummary.setTextSize(12);addView(usageSummary,new LayoutParams(-1,-2));
+        usageSummary=new TextView(owner);WorkbenchStyle.label(owner,usageSummary,12,true,false);
+        usageSummary.setPadding(dp(12),dp(8),dp(12),dp(8));addView(usageSummary,WorkbenchStyle.row(owner));
         conversations=button(R.string.cloud_conversations);
         conversations.setOnClickListener(v->chooseConversation());
         addView(conversations,new LayoutParams(-1,-2));
@@ -154,7 +155,7 @@ final class CloudChatPanel extends LinearLayout {
         scroll.addView(transcript,new ScrollView.LayoutParams(-1,-2));
         FrameLayout viewport=new FrameLayout(owner);
         viewport.addView(scroll,new FrameLayout.LayoutParams(-1,-1));
-        latest=button(R.string.workspace_latest);latest.setText("↓");latest.setMinWidth(dp(48));latest.setMinimumWidth(dp(48));
+        latest=button(R.string.workspace_latest);latest.setText("↓");latest.setMinWidth(dp(48));latest.setMinimumWidth(dp(48));OnHandGlyphs.label(latest,OnHandGlyphs.Kind.DOWN,true);
         latest.setContentDescription(getResources().getString(R.string.workspace_latest));
         latest.setTooltipText(getResources().getString(R.string.workspace_latest));latest.setVisibility(GONE);
         FrameLayout.LayoutParams jump=new FrameLayout.LayoutParams(dp(48),dp(48),android.view.Gravity.BOTTOM|android.view.Gravity.END);
@@ -172,11 +173,14 @@ final class CloudChatPanel extends LinearLayout {
         addView(status,new LayoutParams(-1,-2));
         composer=new LinearLayout(owner);composer.setOrientation(HORIZONTAL);
         composer.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        WorkbenchStyle.card(owner,composer,false);composer.setPadding(dp(8),dp(6),dp(8),dp(6));
         prompt=input(R.string.message_hint,InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE,CloudHistory.MAX_PROMPT);
         prompt.setMinLines(1);prompt.setMaxLines(4);prompt.setMinimumHeight(dp(48));prompt.setSaveEnabled(false);
         prompt.setContentDescription(getResources().getString(R.string.message_hint));
         composer.addView(prompt,new LayoutParams(0,-2,1f));
         send=button(R.string.send);stop=button(R.string.stop);
+        send.setContentDescription(getResources().getString(R.string.send));stop.setContentDescription(getResources().getString(R.string.stop));
+        OnHandGlyphs.label(send,OnHandGlyphs.Kind.SEND,true);OnHandGlyphs.label(stop,OnHandGlyphs.Kind.STOP,true);
         composerActions=new LinearLayout(owner);composerActions.setOrientation(HORIZONTAL);
         composerActions.addView(send,new LayoutParams(-2,-2));composerActions.addView(stop,new LayoutParams(-2,-2));
         composer.addView(composerActions,new LayoutParams(-2,-2));
@@ -218,11 +222,13 @@ final class CloudChatPanel extends LinearLayout {
         }
     }
     private int dp(int v){return Math.round(v*getResources().getDisplayMetrics().density);}
-    private Button button(int label){Button b=new Button(owner);b.setText(label);b.setAllCaps(false);b.setMinHeight(dp(48));return b;}
+    private Button button(int label){
+        Button b=new Button(owner);b.setText(label);WorkbenchStyle.button(owner,b,label);return b;
+    }
     private EditText input(int hint,int type,int limit){
         EditText field=new EditText(owner);field.setHint(hint);field.setInputType(type);
         field.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(limit)});
-        field.setSaveEnabled(false);return field;
+        field.setSaveEnabled(false);WorkbenchStyle.field(owner,field);return field;
     }
     private void toast(int label){Toast.makeText(owner,label,Toast.LENGTH_SHORT).show();}
     boolean isBusy(){return busy;}
@@ -253,6 +259,7 @@ final class CloudChatPanel extends LinearLayout {
         dialog.setOnDismissListener(d->{if(actionDialog==dialog)actionDialog=null;});
         dialog.show();
         if(dialog.getWindow()!=null)dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        WorkbenchWindow.fit(owner,dialog);
     }
     private String title(CloudHistory.Session s){
         List<CloudHistory.Turn> turns=s.turns();
@@ -317,7 +324,11 @@ final class CloudChatPanel extends LinearLayout {
         if(rich!=null)transcript.addView(rich,new LayoutParams(-1,-2));
         else{
             text.setText(user?value:ChatPresentation.format(provider.title+"\n",value,"",0x33808080));
-            if(user)text.setBackgroundColor(0x14808080);
+            if(user){
+                WorkbenchVisualPolicy.Palette p=WorkbenchStyle.palette(owner);
+                android.graphics.drawable.GradientDrawable bubble=new android.graphics.drawable.GradientDrawable();
+                bubble.setColor(p.bubble);bubble.setCornerRadius(dp(18));text.setBackground(bubble);text.setTextColor(p.text);
+            }
             transcript.addView(text,new LayoutParams(-1,-2));
         }
         LinearLayout actions=new AdaptiveAnswerActions(owner);

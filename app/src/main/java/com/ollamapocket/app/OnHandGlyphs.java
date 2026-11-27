@@ -35,6 +35,12 @@ final class OnHandGlyphs extends Drawable {
     @Override public void setAlpha(int value){alpha=value;invalidateSelf();}
     @Override public void setColorFilter(ColorFilter value){pen.setColorFilter(value);invalidateSelf();}
     @Override public int getOpacity(){return PixelFormat.TRANSLUCENT;}
+    @Override public boolean isStateful(){return true;}
+    @Override protected boolean onStateChange(int[] state){
+        boolean enabled=false;for(int s:state)if(s==android.R.attr.state_enabled)enabled=true;
+        int next=enabled||state.length==0?255:115;
+        if(next==alpha)return false;alpha=next;invalidateSelf();return true;
+    }
     private void line(Canvas c,float... xy){Path p=new Path();p.moveTo(xy[0],xy[1]);for(int i=2;i<xy.length;i+=2)p.lineTo(xy[i],xy[i+1]);c.drawPath(p,pen);}
     private void box(Canvas c,float l,float t,float r,float b,float corner){c.drawRoundRect(l,t,r,b,corner,corner,pen);}
     private void dot(Canvas c,float x,float y){pen.setStyle(Paint.Style.FILL);c.drawCircle(x,y,1.3f,pen);pen.setStyle(Paint.Style.STROKE);}

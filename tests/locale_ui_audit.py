@@ -47,3 +47,10 @@ for variant in variants:
         if variant!="values":
             assert labels[key]!=base_strings[key],f"{variant}: untranslated execution status {key}"
 print("Branch, conference and document execution status localization verified")
+
+# The redesigned launcher uses the same localized group captions in all five locales.
+for variant in variants:
+    labels={item.get("name"):"".join(item.itertext()) for item in ET.parse(res/variant/"strings.xml").getroot().findall("string")}
+    for key in ("brand_quick_actions","brand_app_preferences","brand_model_filters"):
+        assert labels.get(key,"").strip(),f"{variant}: missing brand group {key}"
+print("OnHand quick-action, settings and model-filter captions verified")

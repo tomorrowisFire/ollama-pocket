@@ -21,9 +21,11 @@ assert 'drawerNavigationItem(String title)' in src
 drawer_fn=src.split('private TextView drawerNavigationItem(String title)',1)[1].split('private void showNavigationDrawer()',1)[0]
 assert 'TextView item=text(title,14,WHITE,active)' in drawer_fn
 assert 'text(mark+' not in drawer_fn
-assert 'item.setBackground(bg(active?FIELD:BG,10))' in drawer_fn
+assert 'item.setBackground(bg(active?BUBBLE:BG,14))' in drawer_fn
+assert 'OnHandGlyphs.accentLabel(item' in drawer_fn
 assert 'if(radius>0&&(color==CARD||color==FIELD))' not in src
-assert 'BUBBLE=Color.rgb(243,244,246)' in src
+assert 'BUBBLE=p.bubble' in src
+assert 'R.style.OnHandTheme_Dark:R.style.OnHandTheme_Light' in src
 assert 'profile.setOnClickListener' not in src
 assert 'dp(300),Math.max(dp(228)' in src
 assert 'SolarTheme.isNight(' in src

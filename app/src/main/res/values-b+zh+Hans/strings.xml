@@ -1363,4 +1363,7 @@
     <string name="integration_form_bound">已验证安装模型的标识，其他草稿字段保持不变。</string>
     <string name="knowledge_excerpt_count">待审阅摘录：最多 %2$d 段中的 %1$d 段。可能包含同一来源的不同匹配片段。</string>
     <string name="search_partial_lookup">部分结果：%1$d 次查询失败或超时。</string>
+    <string name="brand_quick_actions">快捷操作</string>
+    <string name="brand_app_preferences">应用设置</string>
+    <string name="brand_model_filters">查找模型</string>
 </resources>
