@@ -62,10 +62,21 @@ final class OnHandsVoice {
     private java.util.function.BooleanSupplier playbackGuard=()->true;
     private boolean playbackComplete;
     private long speechDeadline;
+    private String playbackVoiceName;
+    private Locale playbackVoiceLocale;
     void setPlaybackGuard(java.util.function.BooleanSupplier guard){playbackGuard=guard==null?()->true:guard;}
     boolean playbackCompleted(){return playbackComplete;}
     private boolean playbackAllowed(){try{return playbackGuard.getAsBoolean();}catch(RuntimeException e){return false;}}
-    private void clearPlayback(){playback=null;speechDeadline=0;}
+    private void clearPlayback(){playback=null;speechDeadline=0;playbackVoiceName=null;playbackVoiceLocale=null;}
+    private static boolean offlineVoice(Locale target,Voice voice){
+        return voice!=null&&VoiceOfflinePolicy.eligible(voice.getName(),
+            VoiceInteractionPolicy.localeRank(target,voice.getLocale()),voice.isNetworkConnectionRequired(),voice.getFeatures());
+    }
+    private boolean selectedVoiceCurrent(){
+        Voice voice=tts.getVoice();
+        return voice!=null&&VoiceOfflinePolicy.matches(playbackVoiceName,voice.getName(),
+            VoiceInteractionPolicy.localeRank(playbackVoiceLocale,voice.getLocale()),voice.isNetworkConnectionRequired(),voice.getFeatures());
+    }
     boolean playbackPaused(){return playback!=null&&playback.paused();}
     boolean canPausePlayback(){return playback!=null&&!playback.finished();}
     int playbackPercent(){return playback==null?0:playback.percent();}
@@ -122,9 +133,10 @@ final class OnHandsVoice {
         if(!playbackAllowed()){cancel();return;}
         long left=speechDeadline-android.os.SystemClock.elapsedRealtime();
         if(left<=0){cancel();toast(R.string.tts_unavailable);return;}
-        VoiceInteractionPolicy.Playback.Chunk chunk=playback.next();
-        armTimeout(Math.min(left,VoiceQueuePolicy.timeout(chunk.text.length())));
         try{
+            if(!selectedVoiceCurrent()){cancel();toast(R.string.tts_unavailable);return;}
+            VoiceInteractionPolicy.Playback.Chunk chunk=playback.next();
+            armTimeout(Math.min(left,VoiceQueuePolicy.timeout(chunk.text.length())));
             if(tts.speak(chunk.text,TextToSpeech.QUEUE_FLUSH,null,chunk.id)!=TextToSpeech.SUCCESS){
                 cancel();toast(R.string.tts_unavailable);
             }
@@ -212,7 +224,7 @@ final class OnHandsVoice {
         try {
             int bestRank=-1;
             for(Voice v:tts.getVoices()){
-                if(v==null||v.isNetworkConnectionRequired())continue;
+                if(!offlineVoice(target,v))continue;
                 int rank=VoiceInteractionPolicy.localeRank(target,v.getLocale());
                 if(VoiceInteractionPolicy.betterVoice(rank,v.getQuality(),v.getLatency(),v.getName(),
                     bestRank,selected==null?0:selected.getQuality(),selected==null?0:selected.getLatency(),selected==null?null:selected.getName())){
@@ -224,6 +236,7 @@ final class OnHandsVoice {
             if(max<2||text.length()>160000){cancel();toast(R.string.tts_unavailable);return;}
             stopBarge();clearPlayback();clearTimeout();tts.stop();
             playback=new VoiceInteractionPolicy.Playback(text,"oh-"+generation+"-"+(++speechSequence)+"-",max);
+            playbackVoiceName=selected.getName();playbackVoiceLocale=target;
             speechDeadline=android.os.SystemClock.elapsedRealtime()+VoiceQueuePolicy.timeout(text.length());
             playNextSpeechChunk();
             // Start monitoring only when the current utterance actually begins playback.
