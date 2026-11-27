@@ -45,11 +45,11 @@ final class VoiceModelCatalog {
                 total=Math.addExact(total,entry.bytes);
             }
             java.util.Set<String> dirs=new java.util.LinkedHashSet<>();
-            for(String name:map.keySet()){
-                if(format==Format.TAR_BZ2&&archivePrefix.length()+1+name.length()>100)
+            for(String entryName:map.keySet()){
+                if(format==Format.TAR_BZ2&&archivePrefix.length()+1+entryName.length()>100)
                     throw new IllegalArgumentException("Tar path too long");
-                for(int slash=name.lastIndexOf('/');slash>=0;slash=name.lastIndexOf('/',slash-1)){
-                    String parent=name.substring(0,slash);
+                for(int slash=entryName.lastIndexOf('/');slash>=0;slash=entryName.lastIndexOf('/',slash-1)){
+                    String parent=entryName.substring(0,slash);
                     if(map.containsKey(parent))throw new IllegalArgumentException("Model file/directory collision");
                     dirs.add(parent);
                 }
