@@ -69,6 +69,14 @@ jobs:
         run: |
           export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
           bash scripts/build_vulkan_gpu.sh
+      - name: Build pinned embedded Whisper and neural TTS runtimes
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
+          bash scripts/build_whisper.sh
+          bash scripts/build_neural_tts.sh
+
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.13'

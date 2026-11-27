@@ -106,6 +106,14 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+      - name: Build pinned embedded Whisper and neural TTS runtimes
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
+          bash scripts/build_whisper.sh
+          bash scripts/build_neural_tts.sh
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:

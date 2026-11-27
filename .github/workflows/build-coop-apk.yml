@@ -12,6 +12,11 @@ on:
       - '.github/workflows/build-coop-apk.yml'
       - 'settings.gradle'
       - 'scripts/build_rpc_cpu.sh'
+      - 'scripts/build_whisper.sh'
+      - 'scripts/build_neural_tts.sh'
+      - 'app/src/main/cpp/whisper/**'
+      - 'app/src/main/cpp/neural_tts/**'
+      - 'app/src/main/assets/licenses/**'
       - 'app/src/main/cpp/deviceprobe.c'
       - 'app/src/main/cpp/nnapi_probe_counts.h'
       - 'tests/nnapi_probe_counts_test.c'
@@ -233,6 +238,13 @@ jobs:
           set -euo pipefail
           export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
           bash scripts/build_rpc_cpu.sh
+      - name: Build pinned embedded Whisper and neural TTS runtimes
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
+          bash scripts/build_whisper.sh
+          bash scripts/build_neural_tts.sh
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.13'
@@ -343,7 +355,8 @@ jobs:
           set -euo pipefail
           apk=app/build/outputs/apk/debug/app-debug.apk
           for lib in libollama.so libllama-server.so libdeviceprobe.so libllama-vulkan-server.so \
-                     libggml-rpc-worker.so libllama-distributed-server.so; do
+                     libggml-rpc-worker.so libllama-distributed-server.so \
+                     libonhand_whisper.so libonhand_tts.so libsherpa-onnx-c-api.so libonnxruntime.so; do
             unzip -l "$apk" | grep -F "lib/arm64-v8a/$lib"
           done
           unzip -t "$apk" | tail -2

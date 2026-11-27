@@ -3,6 +3,11 @@ package com.ollamapocket.app;
 public final class VoiceQueuePolicyTest {
     private static void check(boolean ok){if(!ok)throw new AssertionError();}
     public static void main(String[] args){
+        check(VoiceQueuePolicy.silent(" \n\t\r\u3000\u00a0"));
+        check(VoiceQueuePolicy.silent(" ".repeat(2000)));
+        check(!VoiceQueuePolicy.silent(" \uD83D\uDE00"));
+        check(!VoiceQueuePolicy.silent(" \u0000"));
+        check(!VoiceQueuePolicy.silent(" \ud800"));
         String p="oh-2-1-",last=p+"2000";
         check(VoiceQueuePolicy.event(p,last,"oh-1-1-2000",true)==VoiceQueuePolicy.Event.IGNORE);
         check(VoiceQueuePolicy.event(null,last,last,true)==VoiceQueuePolicy.Event.IGNORE);

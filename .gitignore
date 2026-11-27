@@ -8,6 +8,10 @@ app/src/main/jniLibs/arm64-v8a/*.so
 
 vulkan-build/
 
+# Reproducible embedded speech build downloads and binaries
+voice-build/
+native-voice-src/
+
 # Never publish signing keys or passwords
 *.keystore
 *.jks
@@ -15,3 +19,5 @@ vulkan-build/
 *.pfx
 *signing_recovery*
 *signing_password*
+
+**/__pycache__/

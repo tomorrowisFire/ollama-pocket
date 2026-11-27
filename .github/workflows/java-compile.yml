@@ -60,6 +60,19 @@ on:
       - 'tests/DocumentRequestControlTest.java'
       - 'tests/DocumentBatchReportTest.java'
       - 'tests/VoiceQueuePolicyTest.java'
+      - 'tests/VoiceNativeWorkTest.java'
+      - 'tests/WhisperCapturePolicyTest.java'
+      - 'tests/NeuralTtsPolicyTest.java'
+      - 'tests/VoiceModelStoreTest.java'
+      - 'scripts/test_voice_models.sh'
+      - 'scripts/test_whisper_host.sh'
+      - 'scripts/test_neural_tts_host.sh'
+      - 'scripts/build_whisper.sh'
+      - 'scripts/build_neural_tts.sh'
+      - 'app/src/main/cpp/whisper/**'
+      - 'app/src/main/cpp/neural_tts/**'
+      - 'tests/NeuralTtsNativeSmokeTest.java'
+      - 'tests/NativeWhisperHostTest.java'
       - 'tests/VoiceInteractionPolicyTest.java'
       - 'tests/VoiceOfflinePolicyTest.java'
       - 'tests/VoiceContinuationTest.java'
@@ -219,6 +232,18 @@ jobs:
           java -cp /tmp/voice-tests com.ollamapocket.app.WorkspaceDictationPolicyTest
           javac -cp /tmp/voice-tests -d /tmp/voice-tests app/src/main/java/com/ollamapocket/app/WorkspaceReadPolicy.java tests/WorkspaceReadPolicyTest.java
           java -cp /tmp/voice-tests com.ollamapocket.app.WorkspaceReadPolicyTest
+      - name: Test embedded voice admission, ownership and verified model installation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/embedded-voice-tests
+          javac -d /tmp/embedded-voice-tests app/src/main/java/com/ollamapocket/app/VoiceNativeWork.java tests/VoiceNativeWorkTest.java
+          java -cp /tmp/embedded-voice-tests com.ollamapocket.app.VoiceNativeWorkTest
+          javac -d /tmp/embedded-voice-tests app/src/main/java/com/ollamapocket/app/WhisperCapturePolicy.java tests/WhisperCapturePolicyTest.java
+          java -cp /tmp/embedded-voice-tests com.ollamapocket.app.WhisperCapturePolicyTest
+          javac -d /tmp/embedded-voice-tests app/src/main/java/com/ollamapocket/app/NeuralTtsPolicy.java tests/NeuralTtsPolicyTest.java
+          java -cp /tmp/embedded-voice-tests com.ollamapocket.app.NeuralTtsPolicyTest
+          bash scripts/test_voice_models.sh
       - name: Test cloud usage ledger and estimated spending policy
         run: |
           mkdir -p /tmp/cloud-usage-tests
@@ -426,7 +451,7 @@ jobs:
         with:
           gradle-version: '8.13'
       - name: Compile Java without native Ollama/Vulkan compilation
-        run: gradle --no-daemon :app:compileDebugJavaWithJavac -x :app:checkNativePayload -x :app:checkComputeProbe
+        run: gradle --no-daemon :app:compileDebugJavaWithJavac -x :app:checkNativePayload -x :app:checkComputeProbe -x :app:checkVoicePayload
       - name: Compile typed neural speech adapter against pinned upstream Android AAR (no packaging)
         shell: bash
         run: |
@@ -435,6 +460,22 @@ jobs:
           curl --fail --location --retry 2 --connect-timeout 20 --max-time 180 --proto '=https' --proto-redir '=https' -o "$aar" https://github.com/k2-fsa/sherpa-onnx/releases/download/v2.0.3/sherpa-onnx-2.0.3.aar
           test "$(stat -c%s "$aar")" = 52411426
           echo "4c766e2e74c9d33d595338c21fe3b305c73ba45d47e96a235675c33142a2ec50  $aar" | sha256sum -c -
-          gradle --no-daemon :app:compileDebugJavaWithJavac -x :app:checkNativePayload -x :app:checkComputeProbe -PONHAND_NEURAL_VOICE_AAR="$aar"
+          gradle --no-daemon :app:compileDebugJavaWithJavac -x :app:checkNativePayload -x :app:checkComputeProbe -x :app:checkVoicePayload -PONHAND_NEURAL_VOICE_AAR="$aar"
           test -n "$(find app/build -name SherpaNeuralVoice.class -print -quit)"
           echo 'PASS: typed Whisper and Supertonic adapter compiled; no native execution or packaging'
+
+  embedded-voice-host:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Test actual Whisper model and native cancellation on host
+        shell: bash
+        run: bash scripts/test_whisper_host.sh
+      - name: Test actual Korean English Japanese neural TTS and JNI on host
+        shell: bash
+        run: bash scripts/test_neural_tts_host.sh

@@ -1,0 +1,23 @@
+Embedded Whisper speech recognition
+
+Runtime: ggml-org/whisper.cpp v1.9.6
+Pinned source commit: 96ec4d9823e9d0211944172da35f9f29134af990
+Source: https://github.com/ggml-org/whisper.cpp/tree/96ec4d9823e9d0211944172da35f9f29134af990
+Runtime license: MIT; see WHISPER-MIT.txt.
+The runtime contains its own statically linked ggml CPU backend. It is isolated
+from the app's language-model runtimes. No cloud recognition service is used.
+
+Optional model: OpenAI Whisper tiny, multilingual, converted by ggerganov.
+Model source: https://huggingface.co/ggerganov/whisper.cpp/tree/fb5ed9369c26eaf08392504d8446da431e0fffb9
+Filename: ggml-tiny.bin
+Bytes: 77691713
+SHA-256: be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21
+Model license: MIT; see WHISPER-MODEL-MIT.txt.
+
+This UI enables Korean, English, Japanese and Chinese recognition. Simplified
+and Traditional Chinese both select Whisper's zh language; the model does not
+guarantee a particular output script. Accuracy, latency and power use depend
+on the recording and device. Downloading the optional model requires network;
+installed-model recognition processes microphone audio locally and does not
+save recordings. Recordings are bounded to 30 seconds. Cancellation during a
+model load discards the result and releases the context after loading returns.

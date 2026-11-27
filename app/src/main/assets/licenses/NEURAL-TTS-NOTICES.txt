@@ -1,0 +1,51 @@
+OnHand AI embedded neural speech
+
+Runtime: sherpa-onnx 2.0.3 (Apache-2.0), Copyright Xiaomi Corporation and contributors.
+Pinned source: https://github.com/k2-fsa/sherpa-onnx/commit/38016c6e0622e90bf417c35e8b47e0eb805af417
+The app uses the CPU C API. It does not include sherpa's Java/Kotlin classes,
+external phonemizers, espeak-ng, piper-phonemize or their voice data.
+The removal of those phonemizer dependencies is recorded in the 2.0.0 section of:
+https://github.com/k2-fsa/sherpa-onnx/blob/v2.0.3/CHANGELOG.md
+
+Runtime dependency: ONNX Runtime 1.28.2, Copyright Microsoft Corporation (MIT).
+Android binary from sherpa-onnx's pinned AAR; upstream packaging:
+https://github.com/csukuangfj/onnxruntime-libs/releases/tag/v1.28.2
+https://github.com/csukuangfj/onnxruntime-libs/blob/v1.28.2/.github/workflows/android-shared.yaml
+That Android archive omits redistribution notices, and the Microsoft upstream
+repository currently returns HTTP 404. The accompanying unmodified LICENSE and
+ThirdPartyNotices were recovered from Microsoft's official same-version series
+PyPI distribution onnxruntime-windowsml 1.28.2.202609030142. They contain notices
+for the broader upstream distribution, including components not used on Android.
+No Windows binaries or code from that wheel are shipped in this app.
+https://pypi.org/project/onnxruntime-windowsml/1.28.2.202609030142/
+
+Additional sherpa runtime dependencies and their included license files:
+kaldi-native-fbank 1.23.1: KALDI-NATIVE-FBANK-LICENSE.txt (Apache-2.0)
+kaldifst 1.9.0: KALDIFST-LICENSE.txt (Apache-2.0)
+OpenFst 1.8.5-2026-07-09: OPENFST-LICENSE.txt (Apache-2.0; full text in SHERPA-ONNX-LICENSE.txt)
+kaldi-decoder 0.4.0: KALDI-DECODER-LICENSE.txt (Apache-2.0)
+kaldi-hmm-gmm 1.2.1: KALDI-HMM-GMM-LICENSE.txt (Apache-2.0)
+kaldi_native_io 1.23.2: KALDI-NATIVE-IO-LICENSE.txt (Apache-2.0)
+simple-sentencepiece 0.7: SIMPLE-SENTENCEPIECE-LICENSE.txt (Apache-2.0)
+nlohmann/json 3.12.0: NLOHMANN-JSON-LICENSE.txt (MIT)
+utf8proc 2.12.0: UTF8PROC-LICENSE.txt (MIT and Unicode data notices)
+KISS FFT febd4caeed32e33ad8b2e0bb5ea77542c40f18ec: KISSFFT-LICENSE.txt and KISSFFT-BSD-3-Clause.txt
+hclust-cpp 2026-02-25: HCLUST-CPP-LICENSE.txt (BSD-2-Clause)
+Eigen 5.0.1: EIGEN-MPL2.txt (MPL-2.0)
+Unmodified Eigen source: https://gitlab.com/libeigen/eigen/-/archive/5.0.1/eigen-5.0.1.tar.gz
+Build/compiler runtime notices: ANDROID-NDK-r27c-TOOLCHAIN-NOTICE.txt.
+This is the complete NDK toolchain notice bundle; some entries apply to build
+programs, not the resulting application. LLVM runtime terms and exceptions are
+included there. Inclusion of a tool's notice does not mean that tool is shipped.
+
+Optional weights: Supertonic 3 int8 conversion, Supertone Inc.
+Model source and model license are separate from runtime and sample-code licenses.
+https://huggingface.co/Supertone/supertonic-3
+OpenRAIL-M model license, full text in SUPERTONIC-3-MODEL-LICENSE.txt:
+https://huggingface.co/Supertone/supertonic-3/blob/724fb5abbf5502583fb520898d45929e62f02c0b/LICENSE
+The sherpa model archive's MIT LICENSE applies to sample software and does not
+replace the original OpenRAIL-M model license. The model is an optional download
+and is not included in this APK. Model terms, including use restrictions and
+machine-generated-output disclosure, are presented during installation.
+
+This app's speech is machine-generated. No personalized voice cloning is used.

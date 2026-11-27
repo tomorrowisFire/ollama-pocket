@@ -1228,4 +1228,33 @@
     <string name="workspace_text_bad_query">Enter valid nonblank search text (up to 160 UTF-16 units).</string>
     <string name="workspace_text_invalid">The selected text is empty, invalid, or exceeds 160000 UTF-16 units. No text was truncated or copied.</string>
     <string name="workspace_text_changed">The reviewed source or selection changed. Nothing was copied. Open the source again.</string>
+
+    <!-- Optional embedded Whisper and neural TTS model management. -->
+    <string name="voice_models_title">Offline voice models</string>
+    <string name="voice_models_notice">Optional models run on this device. Install only after reviewing the source, size and license. The app does not upload audio. Whisper records up to 30 seconds; tap Finish speaking to stop earlier. The result appears after decoding. When no enabled compatible model is installed, the app uses installed offline system speech support.</string>
+    <string name="voice_models_chinese">Supertonic supports Korean, English and Japanese here. Chinese uses an installed offline system voice. Whisper does not guarantee simplified or traditional Chinese spelling.</string>
+    <string name="voice_model_details">Download: %1$s\nInstalled data: %2$s\nLanguages: %3$s\nModel license: %4$s</string>
+    <string name="voice_model_not_installed">Not installed</string>
+    <string name="voice_model_installed">Installed · verified before each use</string>
+    <string name="voice_model_reinstall">Incomplete model · remove and install again</string>
+    <string name="voice_models_use_whisper">Use installed Whisper for speech recognition</string>
+    <string name="voice_models_use_tts">Use installed Supertonic for speech playback</string>
+    <string name="voice_model_install">Install model</string>
+    <string name="voice_model_remove">Remove model</string>
+    <string name="voice_model_license">Read model license</string>
+    <string name="voice_models_idle">No download starts automatically. Closing this screen stops a running download.</string>
+    <string name="voice_model_cancel_download">Cancel download</string>
+    <string name="voice_model_download_review">%1$s\nDownload: %2$s\nFree space required, including temporary files: %3$s\nLicense: %4$s\n\nSource: %5$s\nLicense source: %6$s\n\nReview the model license before continuing. Downloading means accepting its terms. Internet access is used only to fetch model data.</string>
+    <string name="voice_model_download_agree">Accept license and download</string>
+    <string name="voice_model_remove_review">Remove %1$s from this device? Existing chats and documents are kept. A model currently in use cannot be removed.</string>
+    <string name="voice_model_removing">Removing model…</string>
+    <string name="voice_model_downloading">Downloading model…</string>
+    <string name="voice_model_verifying">Verifying and installing model…</string>
+    <string name="voice_model_progress">Downloading: %1$d%%</string>
+    <string name="voice_model_in_use">Model is in use. Stop voice playback or recognition and try again.</string>
+    <string name="voice_model_cancelled">Download cancelled. No incomplete model was activated.</string>
+    <string name="voice_model_failure">Model operation failed. Check the connection and free storage. Incomplete data cannot be used; remove an incomplete model before retrying.</string>
+    <string name="voice_model_cancelling">Cancelling download…</string>
+    <string name="voice_model_removed">Model removed</string>
+    <string name="voice_model_android_requirement">Supertonic requires Android 8.1 or later. Older devices can use installed offline system voices.</string>
 </resources>

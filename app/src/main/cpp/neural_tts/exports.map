@@ -1,0 +1,6 @@
+{
+  global:
+    Java_com_ollamapocket_app_NativeNeuralTts_*;
+  local:
+    *;
+};

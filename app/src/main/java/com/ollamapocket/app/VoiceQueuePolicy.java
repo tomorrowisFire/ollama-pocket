@@ -45,4 +45,13 @@ final class VoiceQueuePolicy {
     static long timeout(int length){
         return Math.min(1800000L,30000L+Math.max(0,length)*500L);
     }
+    static boolean silent(String text){
+        if(text==null)return true;
+        for(int i=0;i<text.length();){
+            int codepoint=text.codePointAt(i);
+            if(!Character.isWhitespace(codepoint)&&!Character.isSpaceChar(codepoint))return false;
+            i+=Character.charCount(codepoint);
+        }
+        return true;
+    }
 }

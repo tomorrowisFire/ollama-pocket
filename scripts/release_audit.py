@@ -14,6 +14,7 @@ PAGE = 16384
 NATIVE_REQUIRED = {
     "libollama.so", "libllama-server.so", "libdeviceprobe.so",
     "libllama-vulkan-server.so", "libggml-rpc-worker.so", "libllama-distributed-server.so",
+    "libonhand_whisper.so", "libonhand_tts.so", "libsherpa-onnx-c-api.so", "libonnxruntime.so",
 }
 
 def inspect_elf(stream, size):

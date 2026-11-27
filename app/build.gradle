@@ -115,6 +115,24 @@ tasks.register('checkComputeProbe') {
 }
 preBuild.dependsOn checkComputeProbe
 
+tasks.register('checkVoicePayload') {
+    doLast {
+        def nativeDir = file('src/main/jniLibs/arm64-v8a')
+        ['libonhand_whisper.so', 'libonhand_tts.so', 'libsherpa-onnx-c-api.so', 'libonnxruntime.so'].each { name ->
+            def library = new File(nativeDir, name)
+            if (!library.isFile() || library.length() < 3000) {
+                throw new GradleException("Missing embedded voice runtime: ${library}. Run scripts/build_whisper.sh and scripts/build_neural_tts.sh")
+            }
+            def magic = new byte[4]
+            library.withInputStream { stream -> stream.read(magic) }
+            if (magic[0] != 0x7f || magic[1] != 69 || magic[2] != 76 || magic[3] != 70) {
+                throw new GradleException("Invalid embedded voice ELF: ${library}")
+            }
+        }
+    }
+}
+preBuild.dependsOn checkVoicePayload
+
 // Production requires the publisher's AdMob app ID (with ~), not an ad unit ID (with /).
 tasks.register('verifyReleaseAdMobId') {
     doLast {
@@ -137,6 +155,8 @@ dependencies {
         implementation files(neuralVoiceAar)
         implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.9.24'
     }
+    // Only the pinned model-data tar.bz2 installer uses this; executable code ships in the APK.
+    implementation 'org.apache.commons:commons-compress:1.28.0'
     implementation 'com.google.android.gms:play-services-ads:25.5.0'
     implementation 'com.google.android.ump:user-messaging-platform:4.0.0'
     // Bundled OCR models: no first-use language model download is required.

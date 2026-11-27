@@ -1228,4 +1228,33 @@
     <string name="workspace_text_bad_query">請輸入有效的非空搜尋文字（最多 160 個 UTF-16 單位）。</string>
     <string name="workspace_text_invalid">所選原文為空、無效或超過 160000 個 UTF-16 單位。未截斷或複製。</string>
     <string name="workspace_text_changed">已檢查的來源或選取範圍已變更。未複製，請重新開啟來源。</string>
+
+    <!-- Optional embedded Whisper and neural TTS model management. -->
+    <string name="voice_models_title">離線語音模型</string>
+    <string name="voice_models_notice">選用模型在此裝置上執行。請先查看來源、大小及授權條款再安裝。應用程式不會上傳音訊。Whisper最多錄製30秒，點選「結束說話」可提前結束。辨識完成後顯示結果。未安裝已啟用的相容模型時，使用已安裝的系統離線語音功能。</string>
+    <string name="voice_models_chinese">此處Supertonic支援韓語、英語及日語。中文使用已安裝的系統離線語音。Whisper不保證輸出簡體或繁體中文。</string>
+    <string name="voice_model_details">下載大小：%1$s\n安裝資料：%2$s\n語言：%3$s\n模型授權：%4$s</string>
+    <string name="voice_model_not_installed">未安裝</string>
+    <string name="voice_model_installed">已安裝 · 每次使用前驗證</string>
+    <string name="voice_model_reinstall">模型不完整 · 請刪除後重新安裝</string>
+    <string name="voice_models_use_whisper">使用已安裝的Whisper辨識語音</string>
+    <string name="voice_models_use_tts">使用已安裝的Supertonic播放語音</string>
+    <string name="voice_model_install">安裝模型</string>
+    <string name="voice_model_remove">刪除模型</string>
+    <string name="voice_model_license">閱讀模型授權條款</string>
+    <string name="voice_models_idle">不會自動開始下載。關閉此頁面會停止正在進行的下載。</string>
+    <string name="voice_model_cancel_download">取消下載</string>
+    <string name="voice_model_download_review">%1$s\n下載大小：%2$s\n所需可用空間（含暫存檔案）：%3$s\n授權：%4$s\n\n來源：%5$s\n授權來源：%6$s\n\n繼續之前請閱讀模型授權條款。下載即表示接受其條款。網路連線僅用於取得模型資料。</string>
+    <string name="voice_model_download_agree">同意授權並下載</string>
+    <string name="voice_model_remove_review">從此裝置刪除%1$s嗎？現有對話及文件將保留。使用中的模型無法刪除。</string>
+    <string name="voice_model_removing">正在刪除模型…</string>
+    <string name="voice_model_downloading">正在下載模型…</string>
+    <string name="voice_model_verifying">正在驗證及安裝模型…</string>
+    <string name="voice_model_progress">下載：%1$d%%</string>
+    <string name="voice_model_in_use">模型使用中。請停止語音播放或辨識後重試。</string>
+    <string name="voice_model_cancelled">已取消下載。未啟用不完整的模型。</string>
+    <string name="voice_model_failure">模型操作失敗。請檢查連線及可用空間。不完整的資料無法使用，請先刪除不完整的模型再重試。</string>
+    <string name="voice_model_cancelling">正在取消下載…</string>
+    <string name="voice_model_removed">已刪除模型</string>
+    <string name="voice_model_android_requirement">Supertonic需要Android 8.1或更新版本。舊裝置可使用已安裝的系統離線語音。</string>
 </resources>

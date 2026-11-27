@@ -502,6 +502,7 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onPause() {
         foreground=false;closeWorkbench();
+        VoiceModelsUi.cancel(this);
         if(ads!=null)ads.pause();
         if(documentBatch!=null){documentBatch.pause();documentBatch=null;}
         if(automationUi!=null)automationUi.pause();
@@ -521,6 +522,7 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onDestroy() {
         closeWorkbench();saveLocalDraft();
+        VoiceModelsUi.cancel(this);
         if(documentBatch!=null){documentBatch.pause();documentBatch=null;}
         if(automationUi!=null)automationUi.pause();
         if(projectWorkspaceUi!=null){projectWorkspaceUi.pause();projectWorkspaceUi=null;}
@@ -619,6 +621,8 @@ public final class MainActivity extends Activity {
         }
         LinearLayout panel=column();panel.setPadding(dp(16),dp(8),dp(16),dp(8));
         margin(text(getString(R.string.voice_notice),13,WHITE,false),panel,0,8);
+        Button voiceModels=button(getString(R.string.voice_models_title),false);margin(voiceModels,panel,0,8);
+        voiceModels.setOnClickListener(v->VoiceModelsUi.show(this));
         margin(text(getString(R.string.voice_language),13,WHITE,true),panel,0,4);
         Spinner language=new Spinner(this);
         String[] languages={getString(R.string.voice_app_language),"한국어","English","简体中文","繁體中文","日本語"};
@@ -1328,6 +1332,8 @@ public final class MainActivity extends Activity {
         margin(text(getString(R.string.settings_intro),13,MUTED,false),content,0,15);
         Button language=button(getString(R.string.language),false);margin(language,content,0,8);
         language.setOnClickListener(v->{if(isUiBusy())toast(getString(R.string.busy));else OnHandsLocale.choose(this);});
+        Button voiceModels=button(getString(R.string.voice_models_title),false);margin(voiceModels,content,0,8);
+        voiceModels.setOnClickListener(v->{if(isUiBusy())toast(getString(R.string.busy));else VoiceModelsUi.show(this);});
         Button cloud=button(getString(R.string.cloud),false);margin(cloud,content,0,8);
         cloud.setOnClickListener(v->openCloud());
         Button guest=button(getString(R.string.guest),false);margin(guest,content,0,14);
