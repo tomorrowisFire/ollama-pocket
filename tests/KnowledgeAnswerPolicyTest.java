@@ -9,7 +9,7 @@ public final class KnowledgeAnswerPolicyTest {
         String text="a".repeat(119)+"😀"+query+"😀"+"z".repeat(119);
         KnowledgeLibrary.State one=KnowledgeLibrary.add(KnowledgeLibrary.empty(),"one","One",text);
         KnowledgeAnswerPolicy.Plan plan=KnowledgeAnswerPolicy.plan(one,query,"질문?");
-        ok(plan.matchingSources==1&&plan.excerpts.size()==1);
+        ok(plan.matchingSources==1&&plan.includedSources==1&&plan.excerpts.size()==1);
         KnowledgeAnswerPolicy.Excerpt e=plan.excerpts.get(0);
         ok(e.marker.equals("K1")&&e.sourceId.equals("one")&&e.text.contains(query));
         ok(e.text.equals(text.substring(e.start-1,e.end)));
@@ -38,7 +38,7 @@ public final class KnowledgeAnswerPolicyTest {
         KnowledgeLibrary.State many=KnowledgeLibrary.add(KnowledgeLibrary.empty(),"a","A","key ".repeat(60));
         for(int i=0;i<4;i++)many=KnowledgeLibrary.add(many,"b"+i,"B","key in "+i);
         KnowledgeAnswerPolicy.Plan limited=KnowledgeAnswerPolicy.plan(many,"key","Question");
-        ok(limited.matchingSources==5&&limited.excerpts.size()==3);
+        ok(limited.matchingSources==5&&limited.includedSources==3&&limited.excerpts.size()==3);
         ok(limited.excerpts.get(0).sourceId.equals("a")&&limited.excerpts.get(1).sourceId.equals("b0")&&limited.excerpts.get(2).sourceId.equals("b1"));
         ok(KnowledgeAnswerPolicy.plan(many,"KEY","Question").excerpts.isEmpty());
         KnowledgeLibrary.State huge=KnowledgeLibrary.add(KnowledgeLibrary.empty(),"h","H","漢".repeat(120)+"😀"+"漢".repeat(120));
@@ -50,6 +50,30 @@ public final class KnowledgeAnswerPolicyTest {
         KnowledgeAnswerPolicy.Plan p=KnowledgeAnswerPolicy.plan(imported,"key","Question");
         ok(p.excerpts.get(0).origin==origin&&p.excerpts.get(0).start==1&&p.excerpts.get(0).end==3);
         ok(p.prompt.contains("TEXT"));
+        String repeated="first key "+"a".repeat(300)+" second key "+"b".repeat(300)+" third key";
+        var repeatState=KnowledgeLibrary.add(KnowledgeLibrary.empty(),"repeat","R",repeated);
+        var repeat=KnowledgeAnswerPolicy.plan(repeatState,"key","Find key passages");
+        ok(repeat.matchingSources==1&&repeat.includedSources==1&&repeat.excerpts.size()==3);
+        ok(DocumentBatchPolicy.fits(repeat.prompt,KnowledgeAnswerPolicy.TOKENS));
+        int priorEnd=0;
+        for(int i=0;i<repeat.excerpts.size();i++){
+            var x=repeat.excerpts.get(i);
+            ok(x.marker.equals("K"+(i+1))&&x.sourceId.equals("repeat")&&x.start>priorEnd);
+            ok(x.text.equals(repeated.substring(x.start-1,x.end))&&x.text.contains("key"));
+            priorEnd=x.end;
+        }
+        var diverse=KnowledgeLibrary.add(repeatState,"other","Other","another key");
+        var d=KnowledgeAnswerPolicy.plan(diverse,"key","Find key passages");
+        ok(d.includedSources==2&&d.excerpts.size()==3&&d.excerpts.get(1).sourceId.equals("other"));
+        ok(d.excerpts.get(2).sourceId.equals("repeat"));
+        var adjacent=KnowledgeLibrary.add(KnowledgeLibrary.empty(),"close","Close","key key key key");
+        ok(KnowledgeAnswerPolicy.plan(adjacent,"key","Question").excerpts.size()==1);
+        var tight=KnowledgeLibrary.add(KnowledgeLibrary.empty(),"tight","Tight",("漢".repeat(250)+"😀").repeat(4));
+        var tightPlan=KnowledgeAnswerPolicy.plan(tight,"😀","漢".repeat(300));
+        ok(DocumentBatchPolicy.fits(tightPlan.prompt,KnowledgeAnswerPolicy.TOKENS));
+        int end=0;
+        for(var x:tightPlan.excerpts){ok(x.start>end&&!Character.isLowSurrogate(x.text.charAt(0))&&!Character.isHighSurrogate(x.text.charAt(x.text.length()-1)));end=x.end;}
+        ok(KnowledgeAnswerPolicy.answer(repeat,"[K1] [K2] [K3] [K4]").known.equals(List.of("K1","K2","K3")));
         System.out.println("PASS: "+n+" bounded knowledge answer evidence, exact identity and citation-ID assertions");
     }
 }

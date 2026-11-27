@@ -259,7 +259,8 @@ final class KnowledgeWorkspaceUi {
         button(R.string.project_back,this::root);button(R.string.close,this::pause);
     }
     private void evidence(KnowledgeAnswerPolicy.Plan plan){
-        label(s(R.string.knowledge_evidence_count,plan.excerpts.size(),plan.matchingSources,KnowledgeAnswerPolicy.MAX_SOURCES),false);
+        label(s(R.string.knowledge_evidence_count,plan.includedSources,plan.matchingSources,KnowledgeAnswerPolicy.MAX_SOURCES),false);
+        label(s(R.string.knowledge_excerpt_count,plan.excerpts.size(),KnowledgeAnswerPolicy.MAX_EXCERPTS),false);
         for(KnowledgeAnswerPolicy.Excerpt e:plan.excerpts){
             label("["+e.marker+"] "+e.title,true);label(s(R.string.knowledge_id,e.sourceId),true);
             label(s(R.string.knowledge_range,e.start,e.end),false);showOrigin(e.origin);label(e.text,true);
@@ -313,6 +314,8 @@ final class KnowledgeWorkspaceUi {
     private void showHits(KnowledgeLibrary.State state,String query,List<KnowledgeLibrary.Hit> hits){
         reset();label(s(R.string.knowledge_search_notice),false);label(s(R.string.knowledge_hits,hits.size(),KnowledgeLibrary.MAX_HITS),false);
         final long token=session.token();final TextView screen=notice;
+        if(!answerModel.isEmpty()&&!hits.isEmpty())
+            button(s(R.string.knowledge_ask),answerEligible.getAsBoolean(),()->answerEditor(query,""));
         for(KnowledgeLibrary.Hit hit:hits){
             final KnowledgeLibrary.Source source=state.source(hit.id);
             label(hit.title,true);label(s(R.string.knowledge_id,hit.id),true);

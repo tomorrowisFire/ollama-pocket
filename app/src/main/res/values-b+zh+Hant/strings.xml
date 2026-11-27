@@ -1361,4 +1361,5 @@
     <string name="integration_form_row_invalid">請檢查節點 %1$d 的 ID、提示詞、條件及可達的後續節點。</string>
     <string name="integration_form_bind_model">驗證此草稿的已安裝模型</string>
     <string name="integration_form_bound">已驗證安裝模型的識別碼，其他草稿欄位維持不變。</string>
+    <string name="knowledge_excerpt_count">待審閱摘錄：最多 %2$d 段中的 %1$d 段。可能包含同一來源的不同相符片段。</string>
 </resources>

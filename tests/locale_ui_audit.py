@@ -27,7 +27,7 @@ variants=("values","values-ko","values-ja","values-b+zh+Hans","values-b+zh+Hant"
 for variant in variants:
     strings={item.get("name"):"".join(item.itertext()) for item in ET.parse(res/variant/"strings.xml").getroot().findall("string")}
     for key in ("batch_goal_templates","batch_goal_summary","batch_goal_compare","batch_goal_extract",
-                "batch_goal_review","batch_goal_code","chat_show_line_numbers","chat_hide_line_numbers","chat_code_line_count"):
+                "batch_goal_review","batch_goal_code","chat_show_line_numbers","chat_hide_line_numbers","chat_code_line_count","knowledge_excerpt_count"):
         assert strings.get(key,"").strip(),f"{variant}: missing {key}"
     for key in ("batch_default_goal","batch_goal_compare_text","batch_goal_extract_text","batch_goal_review_text","batch_goal_code_text"):
         goal=strings.get(key,"")
