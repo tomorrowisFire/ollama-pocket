@@ -306,6 +306,11 @@ jobs:
           mkdir -p /tmp/tool-json-tests
           javac --release 17 -d /tmp/tool-json-tests app/src/main/java/com/ollamapocket/app/ToolJsonPolicy.java tests/ToolJsonPolicyTest.java
           java -cp /tmp/tool-json-tests com.ollamapocket.app.ToolJsonPolicyTest
+      - name: Test independent one-shot tool call approval and budget
+        run: |
+          mkdir -p /tmp/tool-approval-tests
+          javac --release 17 -d /tmp/tool-approval-tests app/src/main/java/com/ollamapocket/app/ToolJsonPolicy.java app/src/main/java/com/ollamapocket/app/ToolCallApproval.java tests/ToolCallApprovalTest.java
+          java -cp /tmp/tool-approval-tests com.ollamapocket.app.ToolCallApprovalTest
       - name: Test exact vision model pair and private image request
         run: |
           mkdir -p /tmp/vision-request-tests
