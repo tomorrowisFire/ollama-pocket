@@ -40,12 +40,7 @@ public final class GpuRunner {
         Log.i("AiPocketGPU", msg);
         logBuffer.append(msg).append('\n');
         if (logBuffer.length() > 9000) logBuffer.delete(0, 4500);
-        String lc = msg.toLowerCase(java.util.Locale.ROOT);
-        // llama.cpp normally writes: "load_tensors: offloaded 25/25 layers to GPU"
-        if (lc.matches(".*offloaded\\s+[1-9][0-9]*/[0-9]+\\s+layers?\\s+to\\s+gpu.*")
-                || lc.matches(".*offloading\\s+[1-9][0-9]*\\s+layers?\\s+to\\s+gpu.*")) {
-            offloadConfirmed = true;
-        }
+
     }
 
     /** Resolve an Ollama-downloaded model from its manifest, never accepting arbitrary paths. */
@@ -94,6 +89,23 @@ public final class GpuRunner {
         finally { if (connection != null) connection.disconnect(); }
     }
 
+    /** Health probing may block; recheck identity and guards after the probe. */
+    private static boolean ready(Context context,Process expected,int expectedGeneration,
+                                 java.util.function.BooleanSupplier cancelled){
+        synchronized(GpuRunner.class){
+            if(expected==null||process!=expected||generation!=expectedGeneration||
+                    !expected.isAlive()||!offloadConfirmed||cancelled.getAsBoolean()||
+                    Thread.currentThread().isInterrupted())return false;
+        }
+        boolean health=healthy();
+        boolean safe=!InferenceSafety.blocked(context);
+        synchronized(GpuRunner.class){
+            return GpuOffloadEvidence.ready(process==expected&&generation==expectedGeneration,
+                expected.isAlive(),offloadConfirmed,health,cancelled.getAsBoolean(),
+                Thread.currentThread().isInterrupted(),safe);
+        }
+    }
+
     /** Called on a worker thread. Returns true only after verified GPU offload. */
     public static boolean ensure(Context context, String model, StringBuilder reason) {
         return ensure(context,model,reason,()->false);
@@ -108,9 +120,13 @@ public final class GpuRunner {
         File weights;String weightsKey;
         try { weights = modelFile(context, model);weightsKey=EngineLoadPolicy.weightKey(weights); }
         catch (Exception e) { reason.append(e.getMessage()); return false; }
-        Process resident=process;
-        if (resident != null && resident.isAlive() && activeModel.equals(model)&&activeWeightsKey.equals(weightsKey)
-                && offloadConfirmed && healthy()&&process==resident&&!cancelled.getAsBoolean()) return true;
+        final Process resident;final int residentGeneration;
+        synchronized(GpuRunner.class){
+            resident=activeModel.equals(model)&&activeWeightsKey.equals(weightsKey)?process:null;
+            residentGeneration=generation;
+        }
+        if(ready(context,resident,residentGeneration,cancelled))return true;
+        if(cancelled.getAsBoolean()||Thread.currentThread().isInterrupted()||InferenceSafety.blocked(context))return false;
         final int startup;
         synchronized (GpuRunner.class) { stopLocked(); startup=generation; }
         try {
@@ -142,15 +158,24 @@ public final class GpuRunner {
                         current.getInputStream(), StandardCharsets.UTF_8))) {
                     String line;
                     while ((line = br.readLine()) != null) {
-                        synchronized(GpuRunner.class){if (myGeneration == generation&&process==current) append(line);}
+                        synchronized(GpuRunner.class){
+                            if(myGeneration==generation&&process==current){
+                                append(line);
+                                if(GpuOffloadEvidence.completed(line))offloadConfirmed=true;
+                            }
+                        }
                     }
-                } catch (Exception e) { append("GPU logs: " + e.getMessage()); }
+                } catch (Exception e) {
+                    synchronized(GpuRunner.class){
+                        if(myGeneration==generation&&process==current)append("GPU logs: "+e.getMessage());
+                    }
+                }
             }, "gpu-llama-logs").start();
             long end = SystemClock.elapsedRealtime() + EngineLoadPolicy.gpuStartupMs(weights.length());
             while (SystemClock.elapsedRealtime() < end) {
                 if (process != current || !current.isAlive()||cancelled.getAsBoolean()||Thread.currentThread().isInterrupted()) break;
                 if(InferenceSafety.blocked(context)){reason.append("Unsafe inference resources");synchronized(GpuRunner.class){if(process==current)stopLocked();}return false;}
-                if (healthy() && offloadConfirmed&&process==current&&!cancelled.getAsBoolean()) return true;
+                if(ready(context,current,myGeneration,cancelled))return true;
                 Thread.sleep(500);
             }
             if (!current.isAlive()) reason.append("GPU 실행 파일이 종료됐습니다. Vulkan 드라이버·모델 호환 확인 필요");
