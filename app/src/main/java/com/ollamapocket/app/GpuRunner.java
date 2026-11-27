@@ -131,8 +131,9 @@ public final class GpuRunner {
         synchronized (GpuRunner.class) { stopLocked(); startup=generation; }
         try {
             DistributedRunner.stop();
+            if(cancelled.getAsBoolean()||Thread.currentThread().isInterrupted()||generation!=startup||InferenceSafety.blocked(context))return false;
             OllamaHttp.releaseResidentModels(cancelled);
-            if(cancelled.getAsBoolean()||generation!=startup||InferenceSafety.blocked(context))return false;
+            if(cancelled.getAsBoolean()||Thread.currentThread().isInterrupted()||generation!=startup||InferenceSafety.blocked(context))return false;
             File executable = new File(context.getApplicationInfo().nativeLibraryDir, "libllama-vulkan-server.so");
             ProcessBuilder pb = new ProcessBuilder(executable.getAbsolutePath(),
                     "-m", weights.getAbsolutePath(), "--host", "127.0.0.1", "--port", String.valueOf(PORT),
@@ -146,7 +147,7 @@ public final class GpuRunner {
             Process current;
             int myGeneration;
             synchronized (GpuRunner.class) {
-                if(generation!=startup||cancelled.getAsBoolean()||InferenceSafety.blocked(context))return false;
+                if(generation!=startup||cancelled.getAsBoolean()||Thread.currentThread().isInterrupted()||InferenceSafety.blocked(context))return false;
                 process = pb.start();
                 activeModel = model;activeWeightsKey=weightsKey;
                 offloadConfirmed = false;
@@ -184,6 +185,7 @@ public final class GpuRunner {
             synchronized (GpuRunner.class) { if(generation==startup)stopLocked(); }
             return false;
         } catch (Exception e) {
+            InferenceSafetyPolicy.restoreInterrupt(e);
             reason.append("GPU 실행 실패: ").append(e.getMessage());
             synchronized (GpuRunner.class) { if(generation==startup)stopLocked(); } return false;
         }

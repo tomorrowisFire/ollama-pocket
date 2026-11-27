@@ -3840,9 +3840,11 @@ public final class MainActivity extends Activity {
                         OllamaHttp.streamGpuChat(connection, OllamaHttp.gpuChatBody(modelAtStart, requestHistory),
                             item -> appendAnswer(item, answer, assistant), () -> chatCancelled);
                     } catch (Exception gpuError) {
-                        if(!InferenceSafetyPolicy.mayFallback(chatCancelled,Thread.currentThread().isInterrupted(),answer.length(),InferenceSafety.check(getApplicationContext())))throw gpuError;
+                        if(!InferenceSafetyPolicy.mayFallback(chatCancelled,Thread.currentThread().isInterrupted(),answer.length(),
+                            InferenceSafetyPolicy.retainRisk(chatSafetyReason,InferenceSafety.check(getApplicationContext()))))throw gpuError;
                         GpuRunner.stop();
-                        if(InferenceSafety.blocked(getApplicationContext()))throw gpuError;
+                        if(!InferenceSafetyPolicy.mayFallback(chatCancelled,Thread.currentThread().isInterrupted(),answer.length(),
+                            InferenceSafetyPolicy.retainRisk(chatSafetyReason,InferenceSafety.check(getApplicationContext()))))throw gpuError;
                         ui.post(() -> activeEngineLabel.setText(getString(R.string.engine_cpu_fallback)));
                         HttpURLConnection connection = OllamaHttp.newChatConnection();
                         publishChatConnection(connection);
@@ -3913,8 +3915,12 @@ public final class MainActivity extends Activity {
     }
     private void publishChatConnection(HttpURLConnection connection)throws Exception{
         chatConnection=connection;
-        if(chatCancelled||Thread.currentThread().isInterrupted()){
-            connection.disconnect();throw new java.io.InterruptedIOException("CHAT_CANCELLED");
+        InferenceSafetyPolicy.Reason risk=InferenceSafetyPolicy.retainRisk(chatSafetyReason,InferenceSafety.check(getApplicationContext()));
+        if(risk!=InferenceSafetyPolicy.Reason.NONE)chatSafetyReason=risk;
+        if(!InferenceSafetyPolicy.mayStart(chatCancelled,Thread.currentThread().isInterrupted(),risk)){
+            connection.disconnect();
+            checkChatCancelled();
+            throw new java.io.IOException("Unsafe inference resources");
         }
     }
     private void appendAnswer(JSONObject item,StringBuilder answer,TextView assistant)throws Exception{

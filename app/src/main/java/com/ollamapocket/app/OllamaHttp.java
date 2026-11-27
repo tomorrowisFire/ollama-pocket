@@ -41,7 +41,7 @@ public final class OllamaHttp {
 
     /** Release only model allocations in this app's loopback Ollama daemon. */
     public static void releaseResidentModels(java.util.function.BooleanSupplier cancelled)throws Exception{
-        if(cancelled.getAsBoolean())throw new java.io.InterruptedIOException("CHAT_CANCELLED");
+        if(cancelled.getAsBoolean()||Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("CHAT_CANCELLED");
         if(!OllamaForegroundService.isRunning())return;
         JSONArray models=get("/api/ps").optJSONArray("models");
         if(models==null||models.length()>128)throw new IOException("Invalid resident model list");

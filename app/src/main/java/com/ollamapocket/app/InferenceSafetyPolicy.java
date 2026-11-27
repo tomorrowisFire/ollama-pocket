@@ -9,8 +9,17 @@ final class InferenceSafetyPolicy {
         return Reason.NONE;
     }
     static boolean peerSafe(int thermal){return thermal<3;}
+    static boolean mayStart(boolean cancelled,boolean interrupted,Reason risk){
+        return !cancelled&&!interrupted&&risk==Reason.NONE;
+    }
     static boolean mayFallback(boolean cancelled,boolean interrupted,int partialLength,Reason risk){
-        return !cancelled&&!interrupted&&partialLength==0&&risk==Reason.NONE;
+        return partialLength==0&&mayStart(cancelled,interrupted,risk);
+    }
+    static Reason retainRisk(Reason previous,Reason current){
+        return previous==Reason.NONE?current:previous;
+    }
+    static void restoreInterrupt(Exception failure){
+        if(failure instanceof InterruptedException)Thread.currentThread().interrupt();
     }
     static boolean hasEndpoints(String expected,String available){
         if(expected==null||expected.isEmpty()||available==null||available.isEmpty())return false;
