@@ -11,8 +11,17 @@ final class ToolJsonPolicy {
     private ToolJsonPolicy() { }
 
     static void requireObject(String raw) {
-        if (raw == null || raw.length() > MAX_CHARS) throw new IllegalArgumentException("Tool JSON size");
-        Parser p = new Parser(raw);
+        requireObject(raw,MAX_CHARS,MAX_DEPTH,MAX_NODES);
+    }
+
+    // Reply limits are separate; never widen the admission of tool arguments.
+    static final int MAX_REPLY_CHARS=524288;
+    static void requireReplyObject(String raw) {
+        requireObject(raw,MAX_REPLY_CHARS,16,8192);
+    }
+    private static void requireObject(String raw,int maxChars,int maxDepth,int maxNodes) {
+        if (raw == null || raw.length() > maxChars) throw new IllegalArgumentException("Tool JSON size");
+        Parser p = new Parser(raw,maxDepth,maxNodes);
         p.space();
         if (!p.at('{')) throw p.invalid();
         p.value(0);
@@ -22,8 +31,9 @@ final class ToolJsonPolicy {
 
     private static final class Parser {
         final String text;
+        final int maxDepth,maxNodes;
         int pos, nodes;
-        Parser(String text) { this.text = text; }
+        Parser(String text,int maxDepth,int maxNodes) { this.text=text;this.maxDepth=maxDepth;this.maxNodes=maxNodes; }
         IllegalArgumentException invalid() { return new IllegalArgumentException("Invalid tool JSON at " + pos); }
         boolean at(char ch) { return pos < text.length() && text.charAt(pos) == ch; }
         boolean take(char ch) { if (!at(ch)) return false; pos++; return true; }
@@ -36,7 +46,7 @@ final class ToolJsonPolicy {
             }
         }
         void value(int depth) {
-            if (depth > MAX_DEPTH || ++nodes > MAX_NODES) throw invalid();
+            if (depth > maxDepth || ++nodes > maxNodes) throw invalid();
             space();
             if (at('{')) object(depth);
             else if (at('[')) array(depth);

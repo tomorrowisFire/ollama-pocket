@@ -386,6 +386,13 @@ jobs:
           java -cp /tmp/independent-module-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.ChartArtifactTest
           java -cp /tmp/independent-module-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.ActionLayoutPolicyTest
           java -cp /tmp/independent-module-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.AgentProfileTest
+      - name: Test independent vision request ownership, MCP replies and durable workflow attempts
+        run: |
+          mkdir -p /tmp/independent-lifecycle-tests
+          javac --release 17 -cp /tmp/cloud-stream-tests/json.jar -d /tmp/independent-lifecycle-tests app/src/main/java/com/ollamapocket/app/VisionImagePolicy.java app/src/main/java/com/ollamapocket/app/VisionModelProfile.java app/src/main/java/com/ollamapocket/app/VisionChatRequest.java app/src/main/java/com/ollamapocket/app/VisionTurnReview.java app/src/main/java/com/ollamapocket/app/ToolJsonPolicy.java app/src/main/java/com/ollamapocket/app/McpReplyPolicy.java app/src/main/java/com/ollamapocket/app/WorkflowBranchPlan.java app/src/main/java/com/ollamapocket/app/ProjectTransactions.java app/src/main/java/com/ollamapocket/app/WorkflowAttemptStore.java tests/VisionTurnReviewTest.java tests/McpReplyPolicyTest.java tests/WorkflowAttemptStoreTest.java
+          java -cp /tmp/independent-lifecycle-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.VisionTurnReviewTest
+          java -cp /tmp/independent-lifecycle-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.McpReplyPolicyTest
+          java -cp /tmp/independent-lifecycle-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.WorkflowAttemptStoreTest
       - name: Test bounded local workflow policy
         run: |
           mkdir -p /tmp/workflow-tests
