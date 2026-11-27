@@ -355,8 +355,8 @@ public final class DistributedRunner {
             if(!"application/vnd.ollama.image.model".equals(item.optString("mediaType")))continue;
             String sha=item.optString("digest");
             if(!sha.matches("sha256:[0-9a-fA-F]{64}"))continue;
-            File blob=new File(root,"blobs/sha256-"+sha.substring(7));
-            if(blob.isFile()&&blob.length()>1048576)return blob;
+            File blob=NativeWeightPreflight.resolve(root,sha,item.optLong("size",-1L));
+            if(blob!=null)return blob;
         }
         throw new Exception("GGUF 가중치를 찾지 못했습니다");
     }

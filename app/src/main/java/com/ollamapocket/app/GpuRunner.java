@@ -70,8 +70,8 @@ public final class GpuRunner {
             if (!"application/vnd.ollama.image.model".equals(layer.optString("mediaType"))) continue;
             String digest = layer.optString("digest", "");
             if (!digest.matches("sha256:[0-9a-fA-F]{64}")) continue;
-            File weights = new File(modelRoot, "blobs/sha256-" + digest.substring(7));
-            if (weights.isFile() && weights.length() > 1048576) return weights;
+            File weights = NativeWeightPreflight.resolve(modelRoot,digest,layer.optLong("size",-1L));
+            if (weights!=null) return weights;
         }
         throw new Exception("GGUF 가중치 파일을 찾을 수 없습니다");
     }

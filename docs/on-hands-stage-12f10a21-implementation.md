@@ -1,0 +1,10 @@
+# F10A21 / P1A5 — lightweight native weight preflight
+Base fecc06d409e57a1fc85531507fa7e806fa3ffc92; preceding exact Java and native CI accepted. Frozen KPI blob 41c7899ea99614ef588d8bf42a2d9965e113cf59.
+Both GPU and distributed model resolvers previously accepted any model-layer blob over 1 MiB. They now share a small local-file preflight that checks digest format, canonical blob directory and file path, regular file, existing size floor, positive manifest-declared size if available and exact GGUF magic. It reads only four header bytes, rechecks size and path, and skips invalid files while retaining existing layer order and error messages. This is a screening check, not a cryptographic content hash, complete GGUF parser, architecture support probe, or TOCTOU-proof file handle binding. CPU fallback, native flags, model identifiers, data, permissions, endpoints, signing, ads and all locales are unchanged. No external calls, no device run.
+Actual local OpenJDK 21.0.12.1 javac --release 17 and java execution: 254 assertions PASS, including 240 size/header/declared-size combinations, missing/invalid digest, directory, redirected blob and redirected directory cases. Git hash-object of locally executed helper and fixture matched repository blobs. Android integration source reviewed; candidate full CI pending.
+app/src/main/java/com/ollamapocket/app/GpuRunner.java bec5016f5387a9898ca6c591e80302c90650dc26 -> 40e8d826995cd239710334b58c816f64ad80112f
+app/src/main/java/com/ollamapocket/app/DistributedRunner.java b8b45c3a252171d2a2b2acef05eba596b7a185b8 -> 8df9b839c4c4cad2e6b7c47296fd63f94b95dc80
+.github/workflows/java-compile.yml e84de8a5ace0f67e510a8d613c4ace497aa5a751 -> 5327bab5d59b26e0b4092999582aff167f0cb082
+app/src/main/java/com/ollamapocket/app/NativeWeightPreflight.java new -> 38b58ea6225dbdd5f49a5f9b0e3780b8edc25786
+tests/NativeWeightPreflightTest.java new -> 15d70ab0e8a51667ac28385cf8fa8c8aa8784d91
+Full real model/backend compatibility, physical performance and independent reviewers remain FINAL. No NPU support or score uplift.
