@@ -374,6 +374,11 @@ jobs:
         run: |
           javac -cp /tmp/stage07-tests -d /tmp/stage07-tests app/src/main/java/com/ollamapocket/app/CoopCapacityAdvice.java tests/CoopCapacityAdviceTest.java
           java -cp /tmp/stage07-tests com.ollamapocket.app.CoopCapacityAdviceTest
+      - name: Test independent conditional workflow graph and checkpoint replay
+        run: |
+          mkdir -p /tmp/workflow-branch-tests
+          javac --release 17 -d /tmp/workflow-branch-tests app/src/main/java/com/ollamapocket/app/WorkflowBranchPlan.java tests/WorkflowBranchPlanTest.java
+          java -cp /tmp/workflow-branch-tests com.ollamapocket.app.WorkflowBranchPlanTest
       - name: Test bounded local workflow policy
         run: |
           mkdir -p /tmp/workflow-tests
