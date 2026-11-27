@@ -11,6 +11,7 @@ import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.LayerDrawable;
+import android.graphics.drawable.StateListDrawable;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Spinner;
@@ -112,13 +113,19 @@ final class OnHandGlyphs extends Drawable {
         v.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);v.setFocusable(false);v.setClickable(false);
         return v;
     }
+    private static GradientDrawable spinnerSurface(Context c,int fill,int stroke,int strokeDp){
+        GradientDrawable shape=new GradientDrawable();shape.setColor(fill);shape.setCornerRadius(dp(c,14));shape.setStroke(dp(c,strokeDp),stroke);return shape;
+    }
     static void spinner(Spinner view){
         Context c=view.getContext();WorkbenchVisualPolicy.Palette p=WorkbenchStyle.palette(c);
-        GradientDrawable shape=new GradientDrawable();shape.setColor(p.field);shape.setCornerRadius(dp(c,14));shape.setStroke(dp(c,1),p.border);
-        LayerDrawable layers=new LayerDrawable(new Drawable[]{shape,drawable(c,Kind.DOWN,p.muted,16)});
+        StateListDrawable surfaces=new StateListDrawable();
+        surfaces.addState(new int[]{-android.R.attr.state_enabled},spinnerSurface(c,p.disabled,p.border,1));
+        surfaces.addState(new int[]{android.R.attr.state_focused},spinnerSurface(c,p.field,p.focus,2));
+        surfaces.addState(new int[]{},spinnerSurface(c,p.field,p.border,1));
+        LayerDrawable layers=new LayerDrawable(new Drawable[]{surfaces,drawable(c,Kind.DOWN,p.muted,16)});
         layers.setLayerWidth(1,dp(c,16));layers.setLayerHeight(1,dp(c,16));
-        layers.setLayerGravity(1,Gravity.END|Gravity.CENTER_VERTICAL);layers.setLayerInset(1,0,0,dp(c,10),0);
-        view.setBackground(layers);view.setPadding(dp(c,12),dp(c,6),dp(c,32),dp(c,6));view.setMinimumHeight(dp(c,48));
+        layers.setLayerGravity(1,Gravity.END|Gravity.CENTER_VERTICAL);layers.setLayerInsetRelative(1,0,0,dp(c,10),0);
+        view.setBackground(layers);view.setPaddingRelative(dp(c,12),dp(c,6),dp(c,32),dp(c,6));view.setMinimumHeight(dp(c,48));
         view.setTag(R.id.onhand_spinner_spec,Boolean.TRUE);
     }
     static void refresh(View v){

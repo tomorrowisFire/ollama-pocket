@@ -116,5 +116,27 @@ assert "Math.max(dp(110),(space-gap*(columns-1))/columns)" not in main
 assert "TextView variant=text(exact,11,secondary,false)" in grid
 assert "variant.setEllipsize(TextUtils.TruncateAt.MIDDLE)" in grid
 assert "title.setMaxLines(2)" in listing and "details.setMaxLines(2)" in listing
+# F10A53: isolated popup, cloud form and spinner integration; no new transmission path.
+window=(src/"WorkbenchWindow.java").read_text()
+assert "fit(owner,dialog,false)" in window and "fit(owner,dialog,true)" in window
+assert "compact?WorkbenchLayoutPolicy.compactDialogWidthDp(usableDp,scale):WorkbenchLayoutPolicy.dialogWidthDp(usableDp,scale)" in window
+for filename,targets in (("OllamaQuantPicker.java",("loading","picker","help")),("OllamaFamilyPicker.java",("loading","chooser","errorDialog"))):
+    picker=(src/filename).read_text()
+    for target in targets:
+        assert "WorkbenchWindow.fitCompact(activity,"+target+")" in picker
+    assert ".setOnDismissListener(" in picker and ".setOnCancelListener(" in picker
+cloud=(src/"CloudChatActivity.java").read_text()
+assert "OnHandGlyphs.spinner(provider)" in cloud
+assert "WorkbenchStyle.fieldLabel(this,parent,label,field)" in cloud
+for field,label in (("model","cloud_model"),("key","cloud_key"),("prompt","cloud_prompt")):
+    assert "addLabeledField(fields,"+field+",R.string."+label+")" in cloud
+for required in ("FLAG_SECURE","TYPE_TEXT_VARIATION_PASSWORD","key.setSaveEnabled(false)","View.IMPORTANT_FOR_AUTOFILL_NO",
+    "setPositiveButton(R.string.send,(d,w)->request(p,id,token,q))","WorkbenchWindow.fitCompact(this,confirmation)","key.setText(\"\")"):
+    assert required in cloud,required
+glyph=(src/"OnHandGlyphs.java").read_text().split("static void spinner(Spinner view)",1)[1].split("static void refresh(View v)",1)[0]
+for required in ("state_enabled","state_focused","spinnerSurface(c,p.field,p.focus,2)","setLayerInsetRelative(","setPaddingRelative(","setMinimumHeight(dp(c,48))"):
+    assert required in glyph,required
+for forbidden in ("setAdapter(","setSelection(","setOnItemSelectedListener("):
+    assert forbidden not in glyph,forbidden
 assert "ads.register(downloadAdSlot,AdSupport.PLACEMENT_DOWNLOAD)" in main
 print("PASS: approved launcher SHA-256, both adaptive masks, light/dark dialog palettes and native UI wiring")

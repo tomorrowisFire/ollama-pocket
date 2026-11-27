@@ -11,6 +11,10 @@ final class WorkbenchLayoutPolicy {
         int margin=Math.min(usable/12,usable>=600?24:12);
         return Math.min(largeText(scale)?960:880,usable-2*margin);
     }
+    /** Short selections/confirmations keep a narrower reading measure than full workbenches. */
+    static int compactDialogWidthDp(int usable,float scale){
+        return Math.min(largeText(scale)?640:560,dialogWidthDp(usable,scale));
+    }
     static int columns(int innerWidth,float scale){
         return innerWidth>=(largeText(scale)?740:560)?2:1;
     }

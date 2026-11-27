@@ -12,7 +12,9 @@ import android.view.WindowMetrics;
 /** Size only explicitly opted-in workbench dialogs. Keep normal dialog height/IME behavior. */
 final class WorkbenchWindow {
     private WorkbenchWindow(){}
-    static void fit(Activity owner,Dialog dialog){
+    static void fit(Activity owner,Dialog dialog){fit(owner,dialog,false);}
+    static void fitCompact(Activity owner,Dialog dialog){fit(owner,dialog,true);}
+    private static void fit(Activity owner,Dialog dialog,boolean compact){
         if(owner.isFinishing()||owner.isDestroyed()||!dialog.isShowing()||dialog.getWindow()==null)return;
         WorkbenchStyle.dialogActions(owner,dialog);
         final Window window=dialog.getWindow();
@@ -32,7 +34,9 @@ final class WorkbenchWindow {
                 if(insets!=null&&usable>0)usable=Math.max(0,usable-insets.getStableInsetLeft()-insets.getStableInsetRight());
             }
             if(usable<=0)return;
-            int width=WorkbenchLayoutPolicy.dialogWidthDp((int)(usable/density),owner.getResources().getConfiguration().fontScale);
+            int usableDp=(int)(usable/density);
+            float scale=owner.getResources().getConfiguration().fontScale;
+            int width=compact?WorkbenchLayoutPolicy.compactDialogWidthDp(usableDp,scale):WorkbenchLayoutPolicy.dialogWidthDp(usableDp,scale);
             int target=Math.min(usable,Math.round(width*density));
             if(target>0&&window.getAttributes().width!=target)window.setLayout(target,window.getAttributes().height);
         };

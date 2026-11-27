@@ -40,6 +40,24 @@ public final class WorkbenchLayoutPolicyTest {
                 check(cells+(c-1)*10==dialog);
             }
         }
+        compactDialogChecks();
         System.out.println("PASS: "+n+" responsive workbench assertions");
+    }
+    private static void compactDialogChecks(){
+        check(WorkbenchLayoutPolicy.compactDialogWidthDp(0,1)==0);
+        check(WorkbenchLayoutPolicy.compactDialogWidthDp(-1,1)==0);
+        check(WorkbenchLayoutPolicy.compactDialogWidthDp(360,1)==336);
+        check(WorkbenchLayoutPolicy.compactDialogWidthDp(600,1)==552);
+        check(WorkbenchLayoutPolicy.compactDialogWidthDp(1400,1)==560);
+        check(WorkbenchLayoutPolicy.compactDialogWidthDp(1400,1.3f)==640);
+        for(float scale:new float[]{1,1.13f,1.2f,1.26f,2,Float.NaN,Float.POSITIVE_INFINITY}){
+            int last=0;
+            for(int width=1;width<=1600;width++){
+                int actual=WorkbenchLayoutPolicy.compactDialogWidthDp(width,scale);
+                check(actual>0&&actual<=width&&actual<=WorkbenchLayoutPolicy.dialogWidthDp(width,scale));
+                check(actual<=(WorkbenchLayoutPolicy.largeText(scale)?640:560));
+                check(width<=144||width==600||actual>=last);last=actual;
+            }
+        }
     }
 }

@@ -39,7 +39,7 @@ public final class OllamaFamilyPicker {
             .setMessage(activity.getString(R.string.picker_family_loading))
             .setNegativeButton(activity.getString(R.string.cancel),(d,w)->dismissed.set(true))
             .setOnCancelListener(d->dismissed.set(true)).create();
-        loading.show();
+        loading.show();WorkbenchWindow.fitCompact(activity,loading);
         Thread worker=new Thread(()->{
             String html="";
             String error=null;
@@ -76,7 +76,7 @@ public final class OllamaFamilyPicker {
                 }
                 if(results.isEmpty()){
                     OPEN.set(false);
-                    new AlertDialog.Builder(activity)
+                    AlertDialog errorDialog=new AlertDialog.Builder(activity)
                         .setTitle(activity.getString(R.string.picker_lookup_failed))
                         .setMessage(activity.getString(R.string.picker_no_fake)+(problem==null?"":"\n"+problem))
                         .setNegativeButton(activity.getString(R.string.close),null)
@@ -84,6 +84,7 @@ public final class OllamaFamilyPicker {
                             new Intent(Intent.ACTION_VIEW,
                                 Uri.parse("https://ollama.com/library/"+family+"/tags"))))
                         .show();
+                    WorkbenchWindow.fitCompact(activity,errorDialog);
                     return;
                 }
                 String[] labels=new String[results.size()];
@@ -101,7 +102,7 @@ public final class OllamaFamilyPicker {
                     .setNegativeButton(activity.getString(R.string.close),null)
                     .create();
                 chooser.setOnDismissListener(d->OPEN.set(false));
-                chooser.show();
+                chooser.show();WorkbenchWindow.fitCompact(activity,chooser);
             });
         },"ollama-search-family-tags");
         worker.setDaemon(true);worker.start();

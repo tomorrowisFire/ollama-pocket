@@ -32,28 +32,35 @@ public final class CloudChatActivity extends Activity {
         scroll.addView(form);setContentView(scroll);
         TextView title=new TextView(this);title.setText(R.string.cloud);WorkbenchStyle.label(this,title,24,false,true);
         OnHandGlyphs.accentLabel(title,OnHandGlyphs.Kind.CLOUD);form.addView(title,WorkbenchStyle.row(this));
-        TextView note=new TextView(this);note.setText(R.string.cloud_desc);form.addView(note);
+        TextView note=new TextView(this);note.setText(R.string.cloud_desc);WorkbenchStyle.label(this,note,13,true,false);form.addView(note,WorkbenchStyle.row(this));
+        LinearLayout fields=new LinearLayout(this);fields.setOrientation(LinearLayout.VERTICAL);WorkbenchStyle.card(this,fields,false);
+        form.addView(fields,WorkbenchStyle.row(this));
         provider=new Spinner(this);
         CloudApi.Provider[] values=CloudApi.Provider.hosted();
         String[] names=new String[values.length];for(int i=0;i<names.length;i++)names[i]=values[i].title;
-        provider.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,names));form.addView(provider);
-        model=edit(R.string.cloud_model,InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS,200);form.addView(model);
-        key=edit(R.string.cloud_key,InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD,4096);form.addView(key);
+        provider.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,names));
+        OnHandGlyphs.spinner(provider);WorkbenchStyle.fieldLabel(this,fields,R.string.cloud_provider_model,provider);fields.addView(provider,WorkbenchStyle.row(this));
+        model=edit(R.string.cloud_model,InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS,200);addLabeledField(fields,model,R.string.cloud_model);
+        key=edit(R.string.cloud_key,InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD,4096);addLabeledField(fields,key,R.string.cloud_key);
         key.setSaveEnabled(false);key.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
-        prompt=edit(R.string.cloud_prompt,InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE,16000);prompt.setMinLines(3);form.addView(prompt);
-        TextView single=new TextView(this);single.setText(R.string.cloud_single);form.addView(single);
+        prompt=edit(R.string.cloud_prompt,InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE,16000);prompt.setMinLines(3);addLabeledField(fields,prompt,R.string.cloud_prompt);
+        TextView single=new TextView(this);single.setText(R.string.cloud_single);WorkbenchStyle.label(this,single,12,true,false);form.addView(single,WorkbenchStyle.row(this));
         send=new Button(this);send.setText(R.string.send);WorkbenchStyle.button(this,send,R.string.send);form.addView(send,WorkbenchStyle.row(this));
         stop=new Button(this);stop.setText(R.string.stop);WorkbenchStyle.button(this,stop,R.string.stop);stop.setEnabled(false);form.addView(stop,WorkbenchStyle.row(this));
-        answer=new TextView(this);answer.setTextIsSelectable(true);answer.setTextSize(16);form.addView(answer);
+        answer=new TextView(this);answer.setTextIsSelectable(true);WorkbenchStyle.label(this,answer,16,false,false);form.addView(answer,WorkbenchStyle.row(this));
         Button close=new Button(this);close.setText(R.string.close);WorkbenchStyle.button(this,close,R.string.close);form.addView(close,WorkbenchStyle.row(this));
         close.setOnClickListener(v->finish());stop.setOnClickListener(v->cancel());
         send.setOnClickListener(v->{
             final CloudApi.Provider p=values[provider.getSelectedItemPosition()];
             String id=model.getText().toString().trim(), token=key.getText().toString().trim(), q=prompt.getText().toString().trim();
             if(id.isEmpty()||token.isEmpty()||q.isEmpty()){Toast.makeText(this,R.string.cloud_fields,Toast.LENGTH_SHORT).show();return;}
-            new AlertDialog.Builder(this).setTitle(p.title).setMessage(R.string.cloud_confirm)
+            AlertDialog confirmation=new AlertDialog.Builder(this).setTitle(p.title).setMessage(R.string.cloud_confirm)
                 .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.send,(d,w)->request(p,id,token,q)).show();
+            WorkbenchWindow.fitCompact(this,confirmation);
         });
+    }
+    private void addLabeledField(LinearLayout parent,EditText field,int label){
+        WorkbenchStyle.fieldLabel(this,parent,label,field);field.setHint(null);parent.addView(field,WorkbenchStyle.row(this));
     }
     private EditText edit(int hint,int type,int limit){
         EditText field=new EditText(this);field.setHint(hint);field.setInputType(type);

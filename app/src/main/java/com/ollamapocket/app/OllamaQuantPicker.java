@@ -40,7 +40,7 @@ public final class OllamaQuantPicker {
                 .setMessage(activity.getString(R.string.picker_quant_loading,baseTag))
                 .setNegativeButton(activity.getString(R.string.cancel),(d,w)->dismissed.set(true))
                 .setOnCancelListener(d->dismissed.set(true)).create();
-        loading.show();
+        loading.show();WorkbenchWindow.fitCompact(activity,loading);
 
         Thread job=new Thread(()->{
             String html="";
@@ -100,13 +100,16 @@ public final class OllamaQuantPicker {
                         OllamaQuantCatalog.Variant picked=variants.get(which);
                         selected.onChosen(picked.tag,picked.installed);
                     })
-                    .setNeutralButton(activity.getString(R.string.picker_version_help),(d,w)->new AlertDialog.Builder(activity)
-                        .setTitle(activity.getString(R.string.picker_quant_help)).setMessage(note)
-                        .setPositiveButton(activity.getString(R.string.ok),null).show())
+                    .setNeutralButton(activity.getString(R.string.picker_version_help),(d,w)->{
+                        AlertDialog help=new AlertDialog.Builder(activity)
+                            .setTitle(activity.getString(R.string.picker_quant_help)).setMessage(note)
+                            .setPositiveButton(activity.getString(R.string.ok),null).show();
+                        WorkbenchWindow.fitCompact(activity,help);
+                    })
                     .setNegativeButton(activity.getString(R.string.close),null)
                     .create();
                 picker.setOnDismissListener(d->active.set(false));
-                picker.show();
+                picker.show();WorkbenchWindow.fitCompact(activity,picker);
             });
         },"ollama-quant-tags");
         job.setDaemon(true);

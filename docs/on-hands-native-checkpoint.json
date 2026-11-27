@@ -1,6 +1,6 @@
 {
-  "stage": "F10A52-model-card-type-scale",
-  "revision": "F10A52",
-  "priorCandidate": "99deb6714b629b6ab41c468fc0daf39f9cf00bac",
-  "reason": "Shared font-aware model grid sizing and narrow-height fallback, larger metadata and two-line list labels; exact FULL Java/host/ads/locales, APK/QA AAB/16KiB required. No production or launcher changes."
+  "stage": "F10A53-independent-ui-batch",
+  "revision": "F10A53",
+  "priorCandidate": "dbd2820bbf526e3d582055f2bcacde43dc6fe8b9",
+  "reason": "Batch compact model selection dialogs, separate cloud form persistent labels and accessible spinner focus. Exact FULL Java/host/ad/locale and APK/QA AAB/16KiB required before acceptance. No production/launcher changes."
 }
