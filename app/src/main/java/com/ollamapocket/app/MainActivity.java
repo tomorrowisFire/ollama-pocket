@@ -4125,7 +4125,7 @@ public final class MainActivity extends Activity {
         if(!canRemoveLastAttachment()||isUiBusy()||cloudMode){toast(getString(R.string.attachment_scope_changed));return;}
         final String scope=loadedHistoryScope,hash=lastAttachmentDigest;
         final int length=lastAttachmentLength;
-        new AlertDialog.Builder(this).setTitle(R.string.attachment_remove_last).setMessage(R.string.attachment_remove_confirm)
+        AlertDialog confirmation=new AlertDialog.Builder(this).setTitle(R.string.attachment_remove_last).setMessage(R.string.attachment_remove_confirm)
             .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,(d,w)->{
                 if(isUiBusy()||cloudMode||!scope.equals(loadedHistoryScope)||length!=lastAttachmentLength||
                     !hash.equals(lastAttachmentDigest)||!canRemoveLastAttachment())return;
@@ -4133,6 +4133,7 @@ public final class MainActivity extends Activity {
                 chatInput.setText(draft.substring(0,draft.length()-length));chatInput.setSelection(chatInput.length());
                 forgetLastAttachment();saveLocalDraft();toast(getString(R.string.attachment_removed));
             }).show();
+        WorkbenchWindow.fitCompact(this,confirmation);
     }
     private void pickChatAttachment(){
         if(guestOnly||cloudMode||isUiBusy()||!historyReadable||!ownsLoadedScope()){toast(getString(R.string.busy));return;}
@@ -4140,23 +4141,23 @@ public final class MainActivity extends Activity {
         final String scope=loadedHistoryScope;
         String[] items=canRemoveLastAttachment()?new String[]{getString(R.string.attachment_select_range),getString(R.string.batch_title),getString(R.string.attachment_ocr),getString(R.string.integration_vision),getString(R.string.attachment_remove_last)}:
             new String[]{getString(R.string.attachment_select_range),getString(R.string.batch_title),getString(R.string.attachment_ocr),getString(R.string.integration_vision)};
-        new AlertDialog.Builder(this).setTitle(R.string.attachment_pick).setItems(items,(d,w)->{
+        AlertDialog chooser=new AlertDialog.Builder(this).setTitle(R.string.attachment_pick).setItems(items,(d,w)->{
             if(w==0)chooseAttachmentRange(scope);else if(w==1)chooseDocumentBatch(scope);else if(w==2)chooseAttachmentOcr(scope);
             else if(w==3){if(scope.equals(loadedHistoryScope)&&ownsLoadedScope())pickVisionForAutomation();}
             else if(w==4)removeLastAttachment();
         }).setNegativeButton(R.string.cancel,null).show();
+        WorkbenchWindow.fitCompact(this,chooser);
     }
     private void chooseDocumentBatch(String scope){
         if(isUiBusy()||cloudMode||guestOnly||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
         String[] encodings={getString(R.string.attachment_encoding_auto),"CP949 / MS949","Windows-31J (Shift-JIS)","GB18030","Big5"};
         LinearLayout panel=column();panel.setPadding(dp(16),dp(8),dp(16),dp(8));
         margin(text(getString(R.string.batch_notice),13,WHITE,false),panel,0,8);
-        margin(text(getString(R.string.attachment_encoding),13,WHITE,true),panel,0,4);
         Spinner encoding=new Spinner(this);
         ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,encodings);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);encoding.setAdapter(adapter);encoding.setMinimumHeight(dp(48));
-        margin(encoding,panel,0,4);
-        new AlertDialog.Builder(this).setTitle(R.string.batch_title).setView(panel).setNegativeButton(R.string.cancel,null)
+        OnHandGlyphs.spinner(encoding);WorkbenchStyle.fieldLabel(this,panel,R.string.attachment_encoding,encoding);margin(encoding,panel,0,4);
+        AlertDialog setup=new AlertDialog.Builder(this).setTitle(R.string.batch_title).setView(panel).setNegativeButton(R.string.cancel,null)
             .setPositiveButton(R.string.ok,(d,w)->{
                 if(isUiBusy()||cloudMode||guestOnly||!foreground||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
                 if(voice!=null)voice.cancel();
@@ -4170,6 +4171,7 @@ public final class MainActivity extends Activity {
                     startActivityForResult(picker,PICK_DOCUMENT_BATCH);
                 }catch(Exception e){batchScope="";batchModel="";toast(getString(R.string.chat_export_unavailable));}
             }).show();
+        WorkbenchWindow.fitCompact(this,setup);
     }
     private void finishDocumentBatch(int result,Intent data){
         final String scope=batchScope,model=batchModel;final int encoding=batchEncoding;
@@ -4197,23 +4199,20 @@ public final class MainActivity extends Activity {
         ScrollView scroll=new ScrollView(this);LinearLayout panel=column();panel.setPadding(dp(16),dp(8),dp(16),dp(8));scroll.addView(panel);
         margin(text(getString(R.string.attachment_formats),12,WHITE,false),panel,0,6);
         margin(text(getString(R.string.attachment_range_help),12,MUTED,false),panel,0,8);
-        margin(text(getString(R.string.attachment_segment),13,WHITE,true),panel,0,3);
         EditText segment=edit(getString(R.string.attachment_segment),"1",false);
         segment.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);segment.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(3)});
-        margin(segment,panel,0,6);
-        margin(text(getString(R.string.attachment_pdf_first),13,WHITE,true),panel,0,3);
+        WorkbenchStyle.fieldLabel(this,panel,R.string.attachment_segment,segment);margin(segment,panel,0,6);
         EditText page=edit(getString(R.string.attachment_pdf_first),"1",false);
         page.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);page.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(5)});
-        margin(page,panel,0,6);
-        margin(text(getString(R.string.attachment_encoding),13,WHITE,true),panel,0,3);
+        WorkbenchStyle.fieldLabel(this,panel,R.string.attachment_pdf_first,page);margin(page,panel,0,6);
         Spinner encoding=new Spinner(this);
         String[] encodings={getString(R.string.attachment_encoding_auto),"CP949 / MS949","Windows-31J (Shift-JIS)","GB18030","Big5"};
         ArrayAdapter<String> encAdapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,encodings);
         encAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);encoding.setAdapter(encAdapter);
-        encoding.setMinimumHeight(dp(48));margin(encoding,panel,0,6);
+        OnHandGlyphs.spinner(encoding);WorkbenchStyle.fieldLabel(this,panel,R.string.attachment_encoding,encoding);margin(encoding,panel,0,6);
         AlertDialog d=new AlertDialog.Builder(this).setTitle(R.string.attachment_select_range).setView(scroll)
             .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,null).create();
-        d.show();d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
+        d.show();WorkbenchWindow.fitCompact(this,d);d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
             try{
                 int seg=Integer.parseInt(segment.getText().toString().trim()),first=Integer.parseInt(page.getText().toString().trim());
                 if(!DocumentWindow.validSegment(seg)||!OcrPolicy.validPage(first))throw new NumberFormatException();
@@ -4225,21 +4224,20 @@ public final class MainActivity extends Activity {
         if(isUiBusy()||cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
         LinearLayout panel=column();panel.setPadding(dp(16),dp(8),dp(16),dp(8));
         margin(text(getString(R.string.attachment_ocr_notice),12,WHITE,false),panel,0,8);
-        margin(text(getString(R.string.attachment_ocr_language),13,WHITE,true),panel,0,4);
         Spinner language=new Spinner(this);
         String[] choices={"English / Latin","한국어","中文","日本語"};
         ArrayAdapter<String> adapter=new ArrayAdapter<>(this,android.R.layout.simple_spinner_item,choices);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);language.setAdapter(adapter);
         String locale=getResources().getConfiguration().getLocales().get(0).getLanguage();
         language.setSelection("ko".equals(locale)?1:"zh".equals(locale)?2:"ja".equals(locale)?3:0);
-        panel.addView(language,lp(-1,-2));
+        OnHandGlyphs.spinner(language);WorkbenchStyle.fieldLabel(this,panel,R.string.attachment_ocr_language,language);panel.addView(language,lp(-1,-2));
         EditText page=edit(getString(R.string.attachment_ocr_page),"1",false);
         page.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
         page.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(5)});
-        margin(page,panel,8,4);
+        WorkbenchStyle.fieldLabel(this,panel,R.string.attachment_ocr_page,page);margin(page,panel,0,4);
         AlertDialog d=new AlertDialog.Builder(this).setTitle(R.string.attachment_ocr).setView(panel)
             .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.attachment_ocr_image_pick,null).create();
-        d.show();d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
+        d.show();WorkbenchWindow.fitCompact(this,d);d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
             int number;
             try{number=Integer.parseInt(page.getText().toString().trim());if(!OcrPolicy.validPage(number))throw new NumberFormatException();}
             catch(NumberFormatException e){toast(getString(R.string.attachment_ocr_bad_page));return;}
@@ -4356,6 +4354,7 @@ public final class MainActivity extends Activity {
         attachmentPreviewDialog=dialog;
         dialog.setOnDismissListener(d->{if(attachmentPreviewDialog==dialog)attachmentPreviewDialog=null;});
         dialog.show();if(dialog.getWindow()!=null)dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        WorkbenchWindow.fit(this,dialog);
         saveKnowledge.setOnClickListener(v->{
             if(!foreground||guestOnly||attachmentPreviewDialog!=dialog||isUiBusy()||cloudMode||activeTab!=0||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
             if(!preview.text.equals(excerpt.getText().toString())){toast(getString(R.string.knowledge_import_edited));return;}
@@ -4367,12 +4366,13 @@ public final class MainActivity extends Activity {
             if(isUiBusy()||cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
             final String reviewed=excerpt.getText().toString();
             if(reviewed.trim().isEmpty())return;
-            new AlertDialog.Builder(this).setTitle(R.string.attachment_copy_excerpt).setMessage(R.string.attachment_copy_notice)
+            AlertDialog copyReview=new AlertDialog.Builder(this).setTitle(R.string.attachment_copy_excerpt).setMessage(R.string.attachment_copy_notice)
                 .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,(d,w)->{
                     if(isUiBusy()||cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
                     android.content.ClipboardManager cb=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
                     if(cb!=null)cb.setPrimaryClip(SensitiveClipboard.text(preview.sourceName(),preview.sourceName()+"\n"+reviewed));
                 }).show();
+            WorkbenchWindow.fitCompact(this,copyReview);
         });
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
             if(isUiBusy()||cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope)||activeTab!=0){
@@ -4393,9 +4393,10 @@ public final class MainActivity extends Activity {
     private void chooseChatExport(){
         if(isUiBusy()||cloudMode||guestOnly||!ownsLoadedScope()||!historyReadable)return;
         if(history.length()==0){toast(getString(R.string.chat_export_empty));return;}
-        new AlertDialog.Builder(this).setTitle(R.string.chat_export).setMessage(R.string.chat_export_notice)
+        AlertDialog chooser=new AlertDialog.Builder(this).setTitle(R.string.chat_export).setMessage(R.string.chat_export_notice)
             .setNegativeButton(R.string.cancel,null).setNeutralButton("JSON",(d,w)->beginChatExport(true))
             .setPositiveButton("Markdown",(d,w)->beginChatExport(false)).show();
+        WorkbenchWindow.fitCompact(this,chooser);
     }
     private void beginChatExport(boolean json){
         if(isUiBusy()||cloudMode||!ownsLoadedScope()||!historyReadable||history.length()==0)return;

@@ -111,7 +111,7 @@ final class KnowledgeWorkspaceUi {
             .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,(x,w)->{
                 if(valid(token)&&notice==screen&&confirmation==x&&!WORK.busy())action.run();
             }).create();
-        confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;});secure(d);d.show();secure(d);
+        confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;});secure(d);d.show();secure(d);WorkbenchWindow.fitCompact(owner,d);
     }
     private void lockControls(boolean locked){
         for(int i=0;i<body.getChildCount();i++){

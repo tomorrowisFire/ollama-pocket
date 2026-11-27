@@ -195,5 +195,24 @@ for required in ("d.labelColors=v.getTextColors()","d.setState(v.getDrawableStat
     "id==R.string.voice_model_install","id==R.string.voice_model_remove","id==R.string.voice_model_license"):
     assert required in glyph_source,required
 assert "assert " not in voice
+# F10A58: independent workbench confirmation and attachment presentation scope.
+for filename in ("ProjectWorkspaceUi.java","KnowledgeWorkspaceUi.java"):
+    source=(src/filename).read_text()
+    assert "secure(d);d.show();secure(d);WorkbenchWindow.fitCompact(owner,d)" in source,filename
+    assert "confirmation==x&&!WORK.busy())action.run()" in source,filename
+batch=(src/"DocumentBatchUi.java").read_text()
+assert "d.show();secure(d);WorkbenchWindow.fit(owner,d);\n    }\n    private void enabled()" in batch
+assert "chooser.show();secure(chooser);WorkbenchWindow.fitCompact(owner,chooser)" in batch
+assert "visible()&&dialog==screen&&confirmation==x&&!busy())action.run()" in batch
+assert main.count("WorkbenchWindow.fitCompact(this,d);d.getButton(AlertDialog.BUTTON_POSITIVE)")==2
+assert main.count("OnHandGlyphs.spinner(encoding);WorkbenchStyle.fieldLabel(this,panel,R.string.attachment_encoding,encoding)")==2
+for required in ("WorkbenchWindow.fitCompact(this,confirmation)","WorkbenchWindow.fitCompact(this,chooser)",
+    "WorkbenchWindow.fitCompact(this,setup)","WorkbenchWindow.fitCompact(this,copyReview)",
+    "WorkbenchStyle.fieldLabel(this,panel,R.string.attachment_segment,segment)",
+    "WorkbenchStyle.fieldLabel(this,panel,R.string.attachment_pdf_first,page)",
+    "WorkbenchStyle.fieldLabel(this,panel,R.string.attachment_ocr_page,page)",
+    "OnHandGlyphs.spinner(language)","WorkbenchWindow.fit(this,dialog);\n        saveKnowledge.setOnClickListener",
+    "SensitiveClipboard.text(preview.sourceName()"):
+    assert required in main,required
 assert "ads.register(downloadAdSlot,AdSupport.PLACEMENT_DOWNLOAD)" in main
 print("PASS: approved launcher SHA-256, both adaptive masks, light/dark dialog palettes and native UI wiring")

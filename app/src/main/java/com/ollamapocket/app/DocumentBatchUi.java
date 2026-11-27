@@ -72,7 +72,7 @@ final class DocumentBatchUi {
         final AlertDialog screen=dialog;
         AlertDialog d=new AlertDialog.Builder(owner).setTitle(title).setMessage(body).setNegativeButton(R.string.cancel,null)
             .setPositiveButton(R.string.ok,(x,w)->{if(visible()&&dialog==screen&&confirmation==x&&!busy())action.run();}).create();
-        confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;});d.show();secure(d);
+        confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;});d.show();secure(d);WorkbenchWindow.fit(owner,d);
     }
     private void enabled(){
         if(!visible())return;
@@ -372,7 +372,7 @@ final class DocumentBatchUi {
             });
         }).setNegativeButton(R.string.cancel,null).create();
         confirmation=chooser;chooser.setOnDismissListener(x->{if(confirmation==chooser)confirmation=null;});
-        chooser.show();secure(chooser);
+        chooser.show();secure(chooser);WorkbenchWindow.fitCompact(owner,chooser);
     }
     private void start(){
         if(!visible()||busy()||sources==null||!eligible.getAsBoolean())return;

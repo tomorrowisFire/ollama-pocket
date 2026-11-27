@@ -1,6 +1,6 @@
 {
-  "stage": "F10A57-voice-model-cards-and-glyph-state",
-  "revision": "F10A57",
-  "priorCandidate": "1fea8837eb0077056e3736af93f1866354b6f44d",
-  "reason": "Voice model manager cards, adaptive actions and status palette; stateful native glyph color and alpha. Exact FULL required after F10A56."
+  "stage": "F10A58-workbench-and-attachment-dialog-batch",
+  "revision": "F10A58",
+  "priorCandidate": "6f19e8e9f9f1693a12d4ded494ff655d1c36bf60",
+  "reason": "Detached project/knowledge/document confirmations and local attachment form branding/accessibility. Require exact FULL Java/host/ads/locales, APK/QA AAB/16KiB after F10A57. Production artwork and data unchanged."
 }
