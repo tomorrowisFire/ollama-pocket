@@ -68,8 +68,7 @@ final class LocalWorkflowPlanner {
                 }
                 if(Boolean.TRUE.equals(item.opt("done"))){
                     terminal[0]=true;
-                    String reason=item.optString("done_reason","");
-                    truncated[0]=!reason.isEmpty()&&!"stop".equals(reason);
+                    truncated[0]=StructuredInferenceTerminal.truncated(item.isNull("done_reason")?null:item.opt("done_reason"));
                     Object count=item.opt("eval_count");
                     if(count!=null&&count!=JSONObject.NULL){
                         if(!(count instanceof Number))throw new IOException("Invalid token count");
@@ -78,7 +77,7 @@ final class LocalWorkflowPlanner {
                             throw new IOException("Plan token limit");
                     }
                 }
-            });
+            },cancelled::get);
             check();
             if(!terminal[0])throw new IOException("Incomplete plan output");
             String plan=WorkflowGoalPlanner.compile(goal,output.toString(),truncated[0]);

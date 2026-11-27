@@ -107,8 +107,8 @@ final class DocumentBatchRunner {
                     if((long)text.length()+chunk.length()>maxChars)throw new IOException("Batch output limit");
                     text.append(chunk);
                 }
-                if(Boolean.TRUE.equals(item.opt("done")))truncated[0]="length".equals(item.optString("done_reason"));
-            });
+                if(Boolean.TRUE.equals(item.opt("done")))truncated[0]=StructuredInferenceTerminal.truncated(item.isNull("done_reason")?null:item.opt("done_reason"));
+            },()->reason!=Stop.NONE);
             if(stopped()||truncated[0])throw new IOException("Batch incomplete");
             return DocumentBatchPolicy.checked(text.toString(),maxChars);
         }finally{connection=null;c.disconnect();}

@@ -183,16 +183,16 @@ final class LocalWorkflow {
                         JSONObject message=item.optJSONObject("message");
                         if(message!=null){String part=message.optString("content","");
                             if((long)output.length()+part.length()>WorkflowPolicy.MAX_OUTPUT)throw new IOException("WORKFLOW_OUTPUT_LIMIT");output.append(part);}
-                        if(item.optBoolean("done",false)){
+                        if(Boolean.TRUE.equals(item.opt("done"))){
                             Object raw=item.opt("eval_count");
                             if(raw instanceof Number){
                                 double d=((Number)raw).doubleValue();
                                 if(!Double.isFinite(d)||d<0||d!=Math.floor(d)||d>WorkflowPolicy.MAX_TOKENS)throw new IOException("WORKFLOW_INVALID_TOKENS");
                                 tokens[0]=(long)d;
                             }
-                            truncated[0]="length".equals(item.optString("done_reason"));
+                            truncated[0]=StructuredInferenceTerminal.truncated(item.isNull("done_reason")?null:item.opt("done_reason"));
                         }
-                    });
+                    },()->abort.get()!=null||cancelled||paused);
                 }catch(Exception e){
                     watch.run();WorkflowRunJournal.Reason reason=stopReason.get();
                     stopped(c,reason!=null?reason:WorkflowRunJournal.failure(e));break; // no blind transport retry

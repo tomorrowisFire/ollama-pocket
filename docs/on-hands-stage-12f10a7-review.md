@@ -1,0 +1,4 @@
+# F10A7 simulated A/B/C source review — not independent reviewers
+A product: five structured task modes share fail-closed terminal validation and cancellation propagation; previously completed checkpoints and reviewed source snapshots remain governed by existing policies.
+B engineering: no terminal metadata string coercion; explicit unexpected terminal reasons fail as protocol errors instead of success or truncation retries. Legacy absent/empty reason and exact length behavior retained. Existing deadlines, watchdogs, CPU-only route, approvals and privacy boundaries remain.
+C QA: 126 exact-blob local pure-Java assertions passed; full candidate Java/native and policy regressions pending. No device/model execution, performance or accuracy proof. Provisional A–J scores remain 81,77,82,89,82,76,79,79,75,83 (mean 80.3, minimum 75), not measured independent reviews. Final requirements unchanged.

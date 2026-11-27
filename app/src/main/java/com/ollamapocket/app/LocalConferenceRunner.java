@@ -98,8 +98,7 @@ final class LocalConferenceRunner {
                 }
                 if(Boolean.TRUE.equals(item.opt("done"))){
                     terminal[0]=true;
-                    String why=item.optString("done_reason","");
-                    truncated[0]=!why.isEmpty()&&!"stop".equals(why);
+                    truncated[0]=StructuredInferenceTerminal.truncated(item.isNull("done_reason")?null:item.opt("done_reason"));
                     Object raw=item.opt("eval_count");
                     if(raw!=null&&raw!=JSONObject.NULL){
                         if(!(raw instanceof Number))throw new IOException("Invalid token count");
@@ -108,7 +107,7 @@ final class LocalConferenceRunner {
                             throw new IOException("Conference token limit");
                     }
                 }
-            });
+            },()->reason.get()!=null);
             check();
             if(!terminal[0])throw new IOException("Incomplete conference stream");
             return new ConferencePolicy.Reply(output.toString(),truncated[0]);
