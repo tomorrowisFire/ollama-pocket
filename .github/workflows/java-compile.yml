@@ -51,6 +51,7 @@ on:
       - 'tests/OcrPolicyTest.java'
       - 'tests/DocumentWindowTest.java'
       - 'tests/DocumentBatchPolicyTest.java'
+      - 'tests/DocumentRequestControlTest.java'
       - 'tests/DocumentBatchReportTest.java'
       - 'tests/VoiceQueuePolicyTest.java'
       - 'tests/VoiceInteractionPolicyTest.java'
@@ -190,6 +191,8 @@ jobs:
           java -cp /tmp/attachment-tests com.ollamapocket.app.OcrPolicyTest
           java -cp /tmp/attachment-tests com.ollamapocket.app.DocumentWindowTest
           java -cp /tmp/attachment-tests com.ollamapocket.app.DocumentBatchPolicyTest
+          javac -d /tmp/attachment-tests app/src/main/java/com/ollamapocket/app/DocumentRequestControl.java tests/DocumentRequestControlTest.java
+          java -cp /tmp/attachment-tests com.ollamapocket.app.DocumentRequestControlTest
       - name: Test voice queue policy and Unicode boundaries
         run: |
           mkdir -p /tmp/voice-tests

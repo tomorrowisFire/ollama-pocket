@@ -16,8 +16,7 @@ final class DocumentBatchRunner {
     enum Stop { NONE, USER, DEADLINE, THERMAL, MEMORY, SERVER, COOP }
     private final Context context;
     private final String model;
-    private volatile Stop reason=Stop.NONE;
-    private volatile HttpURLConnection connection;
+    private final DocumentRequestControl<Stop> control=new DocumentRequestControl<>();
     private volatile long deadline;
     // In-memory diagnostic counters: dispatched chat requests, including failed/cancelled streams.
     private volatile int requests;
@@ -25,14 +24,16 @@ final class DocumentBatchRunner {
     int requests(){return requests;}
     long elapsedMillis(){return elapsedMillis;}
     DocumentBatchRunner(Context context,String model){this.context=context.getApplicationContext();this.model=model;}
-    Stop reason(){return reason;}
+    Stop reason(){Stop value=control.reason();return value==null?Stop.NONE:value;}
+    // UI cancellation records intent only; the existing worker watchdog closes transport.
     void cancel(){stop(Stop.USER);}
-    private void stop(Stop value){
-        synchronized(this){if(reason==Stop.NONE)reason=value;}
-        HttpURLConnection c=connection;if(c!=null)c.disconnect();
+    private void stop(Stop value){control.stop(value);}
+    private static void disconnect(HttpURLConnection c){
+        if(c!=null)try{c.disconnect();}catch(RuntimeException ignored){}
     }
+    private void watchStop(){if(stopped())disconnect(control.takeStopped());}
     private boolean stopped(){
-        if(reason!=Stop.NONE)return true;
+        if(reason()!=Stop.NONE)return true;
         if(Thread.currentThread().isInterrupted()){stop(Stop.USER);return true;}
         if(deadline>0&&SystemClock.elapsedRealtime()>=deadline){stop(Stop.DEADLINE);return true;}
         InferenceSafetyPolicy.Reason risk=InferenceSafety.check(context);
@@ -43,18 +44,19 @@ final class DocumentBatchRunner {
         return false;
     }
     DocumentBatchPolicy.Result run(DocumentBatchPolicy.Plan plan,IntConsumer progress){
+        if(!control.begin())throw new IllegalStateException("Batch already used");
         long started=SystemClock.elapsedRealtime();
         deadline=started+DocumentBatchPolicy.MAX_MILLIS;
         ScheduledExecutorService watch=Executors.newSingleThreadScheduledExecutor(r->{Thread t=new Thread(r,"document-batch-safety");t.setDaemon(true);return t;});
         try{
             if(!stopped()){GpuRunner.stop();DistributedRunner.stop();}
-            watch.scheduleAtFixedRate(this::stopped,0,1,TimeUnit.SECONDS);
+            watch.scheduleAtFixedRate(this::watchStop,0,1,TimeUnit.SECONDS);
             return DocumentBatchPolicy.analyze(plan,this::generate,this::stopped,progress);
         }finally{
-            watch.shutdownNow();
-            HttpURLConnection c=connection;if(c!=null)c.disconnect();connection=null;
+            HttpURLConnection remaining=control.finish();
+            watch.shutdownNow();disconnect(remaining);
             elapsedMillis=Math.max(0,SystemClock.elapsedRealtime()-started);
-            if(reason==Stop.THERMAL||reason==Stop.MEMORY)try{
+            if(reason()==Stop.THERMAL||reason()==Stop.MEMORY)try{
                 OllamaHttp.post("/api/generate",new JSONObject().put("model",model).put("keep_alive",0).put("stream",false),"POST");
             }catch(Exception ignored){}
         }
@@ -63,20 +65,21 @@ final class DocumentBatchRunner {
     KnowledgeAnswerPolicy.Answer runKnowledge(KnowledgeAnswerPolicy.Plan plan)throws Exception{
         if(plan.excerpts.isEmpty()||!DocumentBatchPolicy.fits(plan.prompt,KnowledgeAnswerPolicy.TOKENS))
             throw new IllegalArgumentException("No fitting evidence");
+        if(!control.begin())throw new IllegalStateException("Batch already used");
         long started=SystemClock.elapsedRealtime();deadline=started+KnowledgeAnswerPolicy.MAX_MILLIS;
         ScheduledExecutorService watch=Executors.newSingleThreadScheduledExecutor(r->{Thread t=new Thread(r,"knowledge-answer-safety");t.setDaemon(true);return t;});
         try{
             if(stopped())throw new IOException("Knowledge stopped");
             GpuRunner.stop();DistributedRunner.stop();
-            watch.scheduleAtFixedRate(this::stopped,0,1,TimeUnit.SECONDS);
+            watch.scheduleAtFixedRate(this::watchStop,0,1,TimeUnit.SECONDS);
             String answer=generate(plan.prompt,KnowledgeAnswerPolicy.MAX_ANSWER,KnowledgeAnswerPolicy.TOKENS);
             if(stopped()||requests!=1)throw new IOException("Knowledge incomplete");
             return KnowledgeAnswerPolicy.answer(plan,answer);
         }finally{
-            watch.shutdownNow();
-            HttpURLConnection c=connection;if(c!=null)c.disconnect();connection=null;
+            HttpURLConnection remaining=control.finish();
+            watch.shutdownNow();disconnect(remaining);
             elapsedMillis=Math.max(0,SystemClock.elapsedRealtime()-started);
-            if(reason==Stop.THERMAL||reason==Stop.MEMORY)try{
+            if(reason()==Stop.THERMAL||reason()==Stop.MEMORY)try{
                 OllamaHttp.post("/api/generate",new JSONObject().put("model",model).put("keep_alive",0).put("stream",false),"POST");
             }catch(Exception ignored){}
         }
@@ -91,11 +94,12 @@ final class DocumentBatchRunner {
         if(!DocumentBatchPolicy.fits(prompt,maxTokens))throw new IOException("Estimated context limit");
         long remaining=deadline-SystemClock.elapsedRealtime();
         if(remaining<=0){stop(Stop.DEADLINE);throw new IOException("Batch deadline");}
-        HttpURLConnection c=OllamaHttp.newChatConnection();connection=c;
-        c.setConnectTimeout((int)Math.max(1,Math.min(3000L,remaining)));
-        c.setReadTimeout((int)Math.max(1,Math.min(90000L,remaining)));
-        StringBuilder text=new StringBuilder();boolean[] truncated={false};
+        HttpURLConnection c=OllamaHttp.newChatConnection();
         try{
+            if(!control.attach(c))throw new IOException("Batch stopped");
+            c.setConnectTimeout((int)Math.max(1,Math.min(3000L,remaining)));
+            c.setReadTimeout((int)Math.max(1,Math.min(90000L,remaining)));
+            StringBuilder text=new StringBuilder();boolean[] truncated={false};
             if(stopped())throw new IOException("Batch stopped");
             if(requests>=planRequestCeiling())throw new IOException("Batch request limit");
             requests++;
@@ -108,9 +112,9 @@ final class DocumentBatchRunner {
                     text.append(chunk);
                 }
                 if(Boolean.TRUE.equals(item.opt("done")))truncated[0]=StructuredInferenceTerminal.truncated(item.isNull("done_reason")?null:item.opt("done_reason"));
-            },()->reason!=Stop.NONE);
+            },()->reason()!=Stop.NONE);
             if(stopped()||truncated[0])throw new IOException("Batch incomplete");
             return DocumentBatchPolicy.checked(text.toString(),maxChars);
-        }finally{connection=null;c.disconnect();}
+        }finally{control.release(c);disconnect(c);}
     }
 }
