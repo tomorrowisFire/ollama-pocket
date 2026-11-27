@@ -58,6 +58,7 @@ on:
       - 'tests/WorkspaceDictationPolicyTest.java'
       - 'tests/WorkspaceReadPolicyTest.java'
       - 'tests/WorkspaceTextPolicyTest.java'
+      - 'tests/WorkspaceTextAnchorTest.java'
       - 'tests/CloudRequestAdviceTest.java'
       - 'tests/CloudProviderOverviewTest.java'
       - 'tests/CloudUsageLedgerTest.java'
@@ -142,8 +143,9 @@ jobs:
           java -cp /tmp/workspace-tests com.ollamapocket.app.WorkbenchVisualPolicyTest
           javac -cp /tmp/workspace-tests -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/CloudViewportPolicy.java tests/CloudViewportPolicyTest.java
           java -cp /tmp/workspace-tests com.ollamapocket.app.CloudViewportPolicyTest
-          javac -cp /tmp/workspace-tests -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/WorkspaceTextPolicy.java tests/WorkspaceTextPolicyTest.java
+          javac -cp /tmp/workspace-tests -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/WorkspaceTextPolicy.java tests/WorkspaceTextPolicyTest.java tests/WorkspaceTextAnchorTest.java
           java -cp /tmp/workspace-tests com.ollamapocket.app.WorkspaceTextPolicyTest
+          java -cp /tmp/workspace-tests com.ollamapocket.app.WorkspaceTextAnchorTest
           java -cp /tmp/workspace-tests com.ollamapocket.app.ChatWorkspacePolicyTest
       - name: Test diagnostic formatting and advisor display data (pure Java)
         run: |

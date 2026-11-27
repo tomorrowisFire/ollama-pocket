@@ -45,6 +45,14 @@ final class WorkspaceTextPolicy {
             require(value);if(value.start==0)return null;
             return window(ceil(Math.max(0,value.start-PAGE)),value.start,-1,-1);
         }
+        /** Open an already reviewed literal occurrence using zero-based half-open offsets. */
+        Window atMatch(String query,int start,int end){
+            validateQuery(query);
+            if(start<0||end<=start||end>length()||end-start!=query.length()||split(start)||split(end)||
+                !text.regionMatches(start,query,0,query.length()))throw new IllegalArgumentException("Invalid match anchor");
+            int a=floor(Math.max(0,start-600)),b=floor(Math.min(length(),a+PAGE));
+            return window(a,b,start,end);
+        }
         Window find(String query,Window previous,boolean forward){
             validateQuery(query);
             if(previous!=null){
@@ -55,8 +63,7 @@ final class WorkspaceTextPolicy {
             int from=previous==null?(forward?0:length()):forward?previous.matchEnd:previous.matchStart-query.length();
             int hit=forward?text.indexOf(query,from):text.lastIndexOf(query,from);
             if(hit<0)return null;
-            int a=floor(Math.max(0,hit-600)),b=floor(Math.min(length(),a+PAGE));
-            return window(a,b,hit,hit+query.length());
+            return atMatch(query,hit,hit+query.length());
         }
         String copy(Window selected,boolean full,String current){
             if(!matches(current))throw new IllegalArgumentException("Stale snapshot");

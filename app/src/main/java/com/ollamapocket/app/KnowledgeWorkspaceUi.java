@@ -302,10 +302,15 @@ final class KnowledgeWorkspaceUi {
     }
     private void showHits(KnowledgeLibrary.State state,String query,List<KnowledgeLibrary.Hit> hits){
         reset();label(s(R.string.knowledge_search_notice),false);label(s(R.string.knowledge_hits,hits.size(),KnowledgeLibrary.MAX_HITS),false);
+        final long token=session.token();
         for(KnowledgeLibrary.Hit hit:hits){
+            final KnowledgeLibrary.Source source=state.source(hit.id);
             label(hit.title,true);label(s(R.string.knowledge_id,hit.id),true);
             label(s(R.string.knowledge_range,hit.start,hit.end),false);label(hit.match,true);
-            button(R.string.knowledge_open_source,()->showSource(state.source(hit.id),()->showHits(state,query,hits)));
+            BooleanSupplier guard=()->valid(token)&&!WORK.get()&&confirmation==null&&dialog!=null&&dialog.isShowing()&&
+                snapshot!=null&&snapshot.value==state;
+            viewer.addMatch(body,R.string.knowledge_text,()->source.text,guard,hit.match,hit.start-1,hit.end);
+            button(R.string.knowledge_open_source,()->showSource(source,()->showHits(state,query,hits)));
         }
         button(R.string.project_back,()->searchEditor(query));button(R.string.close,this::pause);
     }

@@ -1076,6 +1076,7 @@
     <string name="knowledge_hits">显示%1$d条（上限%2$d条）</string>
     <string name="knowledge_range">资料UTF-16位置 %1$d–%2$d（含两端）</string>
     <string name="knowledge_open_source">查看完整资料</string>
+    <string name="knowledge_inspect_match">跳转到精确匹配位置</string>
     <string name="knowledge_input_limit">超过输入限制，本次编辑未被接受。</string>
     <string name="knowledge_ask">基于知识资料提问</string>
     <string name="knowledge_question">问题</string>

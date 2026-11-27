@@ -1076,6 +1076,7 @@
     <string name="knowledge_hits">顯示%1$d筆（上限%2$d筆）</string>
     <string name="knowledge_range">資料UTF-16位置 %1$d–%2$d（含兩端）</string>
     <string name="knowledge_open_source">檢視完整資料</string>
+    <string name="knowledge_inspect_match">跳至精確相符位置</string>
     <string name="knowledge_input_limit">超過輸入限制，本次編輯未被接受。</string>
     <string name="knowledge_ask">根據知識資料提問</string>
     <string name="knowledge_question">問題</string>

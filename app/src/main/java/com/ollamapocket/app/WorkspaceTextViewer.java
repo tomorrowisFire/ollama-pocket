@@ -32,14 +32,25 @@ final class WorkspaceTextViewer {
         catch(RuntimeException e){return false;}
     }
     Button add(LinearLayout panel,int subject,Supplier<String> source,BooleanSupplier guard){
-        Button b=new Button(owner);b.setText(owner.getString(R.string.workspace_text_open,owner.getString(subject)));
+        return add(panel,subject,source,guard,null,0,0);
+    }
+    Button addMatch(LinearLayout panel,int subject,Supplier<String> source,BooleanSupplier guard,String literal,int start,int end){
+        if(literal==null)throw new IllegalArgumentException("Missing match");
+        return add(panel,subject,source,guard,literal,start,end);
+    }
+    private Button add(LinearLayout panel,int subject,Supplier<String> source,BooleanSupplier guard,String literal,int start,int end){
+        Button b=new Button(owner);
+        b.setText(literal==null?owner.getString(R.string.workspace_text_open,owner.getString(subject)):owner.getString(R.string.knowledge_inspect_match));
         WorkbenchStyle.button(owner,b,WorkbenchVisualPolicy.Role.SECONDARY);panel.addView(b,WorkbenchStyle.row(owner));
         b.setOnClickListener(v->{
             if(!allowed(b,guard)||!b.hasWindowFocus()){toast(R.string.busy);return;}
             final WorkspaceTextPolicy.Snapshot snapshot;
-            try{snapshot=WorkspaceTextPolicy.review(source.get());}
-            catch(RuntimeException e){toast(R.string.workspace_text_invalid);return;}
-            cancel();Review next=new Review(b,subject,source,guard,snapshot);active=next;next.show();
+            final WorkspaceTextPolicy.Window initial;
+            try{
+                snapshot=WorkspaceTextPolicy.review(source.get());
+                initial=literal==null?snapshot.first():snapshot.atMatch(literal,start,end);
+            }catch(RuntimeException e){toast(R.string.workspace_text_invalid);return;}
+            cancel();Review next=new Review(b,subject,source,guard,snapshot,initial,literal);active=next;next.show();
         });
         return b;
     }
@@ -63,8 +74,11 @@ final class WorkspaceTextViewer {
             public void onViewAttachedToWindow(View v){}
             public void onViewDetachedFromWindow(View v){dispose();}
         };
-        Review(View anchor,int subject,Supplier<String> source,BooleanSupplier guard,WorkspaceTextPolicy.Snapshot snapshot){
-            this.anchor=anchor;this.subject=subject;this.source=source;this.guard=guard;this.snapshot=snapshot;current=snapshot.first();
+        Review(View anchor,int subject,Supplier<String> source,BooleanSupplier guard,WorkspaceTextPolicy.Snapshot snapshot,
+               WorkspaceTextPolicy.Window initial,String literal){
+            this.anchor=anchor;this.subject=subject;this.source=source;this.guard=guard;this.snapshot=snapshot;
+            current=initial;
+            if(initial.hasMatch()){lastMatch=initial;lastQuery=literal;}
         }
         boolean alive(){
             try{return !closed&&active==this&&allowed(anchor,guard)&&snapshot.matches(source.get())&&dialog!=null&&dialog.isShowing();}
@@ -98,6 +112,7 @@ final class WorkspaceTextViewer {
                 return dest.subSequence(c,d);
             }});
             query.setHint(R.string.workspace_text_query);WorkbenchStyle.field(owner,query);
+            if(lastMatch!=null){query.setText(lastQuery);query.setSelection(query.length());}
             WorkbenchStyle.fieldLabel(owner,body,R.string.workspace_text_query,query);body.addView(query,WorkbenchStyle.row(owner));
             LinearLayout find=actions(body);
             button(find,R.string.workspace_text_find_previous,()->search(false));

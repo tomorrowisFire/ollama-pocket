@@ -1076,6 +1076,7 @@
     <string name="knowledge_hits">Showing %1$d hits (limit %2$d)</string>
     <string name="knowledge_range">Snapshot UTF-16 positions %1$d–%2$d (inclusive)</string>
     <string name="knowledge_open_source">View full snapshot</string>
+    <string name="knowledge_inspect_match">Jump to exact match</string>
     <string name="knowledge_input_limit">Edit exceeds the input limit. No part of this edit was accepted.</string>
     <string name="knowledge_ask">Ask using knowledge</string>
     <string name="knowledge_question">Question</string>

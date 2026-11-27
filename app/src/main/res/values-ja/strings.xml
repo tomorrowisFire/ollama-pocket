@@ -1076,6 +1076,7 @@
     <string name="knowledge_hits">%1$d件表示（上限%2$d件）</string>
     <string name="knowledge_range">保存資料内のUTF-16位置 %1$d–%2$d（両端含む）</string>
     <string name="knowledge_open_source">資料全体を表示</string>
+    <string name="knowledge_inspect_match">一致箇所へ移動</string>
     <string name="knowledge_input_limit">入力上限を超えたため、この変更は反映されませんでした。</string>
     <string name="knowledge_ask">知識資料で質問</string>
     <string name="knowledge_question">質問</string>
