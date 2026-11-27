@@ -1,6 +1,6 @@
 {
-  "stage": "F10A62R1-soft-peach-signature",
-  "revision": "F10A62R1",
-  "priorCandidate": "8576bf9a37e6a430aa39ff710890c616f64373f1",
-  "reason": "Supersedes unintegrated F10A62 orange palette per user approval: peach primary fills, distinct accessible companion ink, contrast outlines and role-specific primary painting. Includes F10A62 signature layout. Exact FULL required after F10A61."
+  "stage": "F10A63-cloud-local-brand-parity",
+  "revision": "F10A63",
+  "priorCandidate": "c36c68bd9ff7ac1b3865a005d09773b319133b39",
+  "reason": "Detached brand polish: shared Soft Peach local/cloud composer, natural localized header measurement, compact one-action responsive layout, pixel-centered 48dp glyphs and shared jump control. Exact FULL required after F10A62R1."
 }

@@ -420,6 +420,7 @@ public final class MainActivity extends Activity {
                 (View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR):0);
         }
         styleLocalComposer(); // Restore stateful colors and outline after live theme recoloring.
+        if(cloudPanel!=null)cloudPanel.refreshBrandPaint();
         for(Button button:flatNavigationButtons)WorkbenchStyle.navigationRow(this,button);
         refreshQuickActionPaint();
         updateModelViewButtons();
@@ -1044,6 +1045,7 @@ public final class MainActivity extends Activity {
             if(action!=null)WorkbenchStyle.composerAction(this,action,false);
         for(Button action:new Button[]{sendButton,stopChatButton})
             if(action!=null)WorkbenchStyle.composerAction(this,action,true);
+        if(latestButton!=null)WorkbenchStyle.quickAction(this,latestButton);
     }
     private void createChatPage() {
         chatPage = column();

@@ -39,6 +39,21 @@ final class WorkbenchLayoutPolicy {
     }
     static int cloudContentDp(int width){return Math.max(0,Math.min(880,width));}
     static boolean cloudHeaderStacked(int width,float scale){return width<(largeText(scale)?360:260);}
-    static boolean cloudComposerStacked(int width,float scale){return WorkspaceLayoutPolicy.stackedComposer(width,scale);}
+    /** Equal-width header controls must fit their actual localized glyph and text measurements. */
+    static boolean cloudHeaderStacked(int width,float scale,int backNatural,int settingsNatural){
+        long needed=2L*Math.max(Math.max(0,backNatural),Math.max(0,settingsNatural))+GRID_GAP_DP;
+        return cloudHeaderStacked(width,scale)||needed>width;
+    }
+    /** Cloud send/stop are mutually exclusive, so budget only one 48dp action. */
+    static int cloudComposerMinimumDp(float scale){
+        double safe=Float.isFinite(scale)?Math.max(1d,Math.min(6d,scale)):1d;
+        return 16+8+48+(int)Math.ceil(160d*safe);
+    }
+    static boolean cloudComposerStacked(int width,float scale){return width<cloudComposerMinimumDp(scale);}
+    /** Balanced integer insets avoid one-pixel icon clipping at fractional densities. */
+    static int iconInsetPx(int targetPx,int iconPx,boolean trailing){
+        int remaining=Math.max(0,Math.max(0,targetPx)-Math.max(0,iconPx));
+        return remaining/2+(trailing?remaining%2:0);
+    }
     static boolean compactCloudHeight(int height,float scale){return height>0&&height<(largeText(scale)?440:360);}
 }

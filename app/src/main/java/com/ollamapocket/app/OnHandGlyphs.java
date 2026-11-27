@@ -117,7 +117,13 @@ final class OnHandGlyphs extends Drawable {
         d.setState(v.getDrawableState());
         v.setCompoundDrawablesRelative(d,null,null,null);
         v.setCompoundDrawablePadding(s.only?0:dp(c,10));
-        if(s.only){v.setText("");v.setGravity(Gravity.CENTER);v.setPadding(dp(c,13),dp(c,10),dp(c,13),dp(c,10));v.setMinWidth(dp(c,48));v.setMinimumWidth(dp(c,48));}
+        if(s.only){
+            v.setText("");v.setGravity(Gravity.CENTER);
+            int target=dp(c,48),glyph=d.getIntrinsicWidth();
+            int leading=WorkbenchLayoutPolicy.iconInsetPx(target,glyph,false),trailing=WorkbenchLayoutPolicy.iconInsetPx(target,glyph,true);
+            v.setPaddingRelative(leading,leading,trailing,trailing);
+            v.setMinWidth(target);v.setMinimumWidth(target);
+        }
     }
     /** Paint-only visual badge; never exposes a duplicate clickable/accessibility node. */
     static TextView tile(Context c,Kind kind){

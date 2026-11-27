@@ -25,8 +25,8 @@ public final class WorkbenchLayoutPolicyTest {
         check(WorkbenchLayoutPolicy.cloudContentDp(360)==360&&WorkbenchLayoutPolicy.cloudContentDp(1440)==880);
         check(WorkbenchLayoutPolicy.cloudHeaderStacked(259,1)&&!WorkbenchLayoutPolicy.cloudHeaderStacked(260,1));
         check(WorkbenchLayoutPolicy.cloudHeaderStacked(359,1.3f)&&!WorkbenchLayoutPolicy.cloudHeaderStacked(360,1.3f));
-        check(WorkbenchLayoutPolicy.cloudComposerStacked(419,1)&&!WorkbenchLayoutPolicy.cloudComposerStacked(420,1));
-        check(WorkbenchLayoutPolicy.cloudComposerStacked(519,1.3f)&&!WorkbenchLayoutPolicy.cloudComposerStacked(520,1.3f));
+        check(WorkbenchLayoutPolicy.cloudComposerStacked(231,1)&&!WorkbenchLayoutPolicy.cloudComposerStacked(232,1));
+        check(WorkbenchLayoutPolicy.cloudComposerStacked(273,1.26f)&&!WorkbenchLayoutPolicy.cloudComposerStacked(274,1.26f));
         check(WorkbenchLayoutPolicy.compactCloudHeight(359,1)&&!WorkbenchLayoutPolicy.compactCloudHeight(360,1));
         check(WorkbenchLayoutPolicy.compactCloudHeight(439,1.3f)&&!WorkbenchLayoutPolicy.compactCloudHeight(440,1.3f));
         check(!WorkbenchLayoutPolicy.compactCloudHeight(0,1));
@@ -42,7 +42,34 @@ public final class WorkbenchLayoutPolicyTest {
         }
         compactDialogChecks();
         continuousDialogAndTableChecks();
+        focusedBrandLayoutChecks();
         System.out.println("PASS: "+n+" responsive workbench assertions");
+    }
+    private static void focusedBrandLayoutChecks(){
+        check(WorkbenchLayoutPolicy.cloudComposerMinimumDp(1)==232);
+        check(WorkbenchLayoutPolicy.cloudComposerMinimumDp(1.26f)==274);
+        check(WorkbenchLayoutPolicy.cloudComposerStacked(231,1));
+        check(!WorkbenchLayoutPolicy.cloudComposerStacked(232,1));
+        check(WorkbenchLayoutPolicy.cloudComposerStacked(273,1.26f));
+        check(!WorkbenchLayoutPolicy.cloudComposerStacked(274,1.26f));
+        check(WorkbenchLayoutPolicy.cloudHeaderStacked(309,1,150,140));
+        check(!WorkbenchLayoutPolicy.cloudHeaderStacked(310,1,150,140));
+        check(WorkbenchLayoutPolicy.cloudHeaderStacked(1000,1,Integer.MAX_VALUE,100));
+        for(float scale:new float[]{.5f,1f,1.13f,1.26f,2f,3f,4f,6f,10f,Float.NaN,Float.POSITIVE_INFINITY}){
+            int min=WorkbenchLayoutPolicy.cloudComposerMinimumDp(scale);check(min>=232&&min<=1032);
+            for(int w=0;w<=1800;w++){
+                check(WorkbenchLayoutPolicy.cloudComposerStacked(w,scale)==(w<min));
+                check(WorkbenchLayoutPolicy.cloudHeaderStacked(w,scale,150,140)==(WorkbenchLayoutPolicy.cloudHeaderStacked(w,scale)||w<310));
+                if(!WorkbenchLayoutPolicy.cloudHeaderStacked(w,scale,150,140))check((w-10)/2>=150);
+            }
+        }
+        for(int d=750;d<=5000;d++){
+            float density=d/1000f;int target=Math.round(48*density),glyph=Math.round(22*density);
+            int a=WorkbenchLayoutPolicy.iconInsetPx(target,glyph,false),z=WorkbenchLayoutPolicy.iconInsetPx(target,glyph,true);
+            check(a>=0&&z>=0&&a+glyph+z==target);check(Math.abs(a-z)<=1);
+        }
+        check(WorkbenchLayoutPolicy.iconInsetPx(0,1,true)==0);
+        check(WorkbenchLayoutPolicy.iconInsetPx(Integer.MAX_VALUE,Integer.MIN_VALUE,true)==1073741824);
     }
     private static void continuousDialogAndTableChecks(){
         for(float scale:new float[]{1f,1.13f,1.2f,1.26f,2f,3f,Float.NaN,Float.POSITIVE_INFINITY,-1f}){

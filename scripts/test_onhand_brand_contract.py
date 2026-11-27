@@ -335,5 +335,30 @@ assert "badgeSurface.setStroke(dp(1),p.primaryOutline())" in main
 assert "ACCENT=p.primary" in main
 assert "#B83B12" not in (res/"values/onhand_brand_theme.xml").read_text()
 assert "#FFAD7B" not in (res/"values/onhand_brand_theme.xml").read_text()
+# F10A63: local/cloud chat visual parity, compact single action and pixel-centered glyphs.
+cloud_source=(src/"CloudChatPanel.java").read_text()
+cloud_paint=cloud_source.split("void refreshBrandPaint()",1)[1].split("private int headerNaturalDp(",1)[0]
+for required in ("WorkbenchStyle.navigationRow(owner,button)","WorkbenchStyle.quickAction(owner,latest)",
+    "WorkbenchStyle.composerSurface(owner,composer,prompt.hasFocus())",
+    "WorkbenchStyle.composerInput(owner,prompt)","WorkbenchStyle.composerAction(owner,send,true)",
+    "WorkbenchStyle.composerAction(owner,stop,true)"):
+    assert required in cloud_paint,required
+for forbidden in ("setText(","setEnabled(","setVisibility(","setOnClickListener(","render("):
+    assert forbidden not in cloud_paint,forbidden
+for required in ("composerActions.addView(send,new LayoutParams(dp(48),dp(48)))",
+    "composerActions.addView(stop,new LayoutParams(dp(48),dp(48)))",
+    "cloudHeaderStacked(width,scale,headerNaturalDp(back,density),headerNaturalDp(settings,density))",
+    "button.getPaint().measureText(button.getText().toString())","button.getCompoundPaddingStart()",
+    "prompt.setOnFocusChangeListener((v,focused)->WorkbenchStyle.composerSurface(owner,composer,focused))",
+    "send.setOnClickListener(v->prepareSend());stop.setOnClickListener(v->cancel())",
+    "notice.setText(R.string.cloud_context_notice)"):
+    assert required in cloud_source,required
+assert "send.setLayoutParams(cs?new LayoutParams(0,-2,1f)" not in cloud_source
+assert "if(cloudPanel!=null)cloudPanel.refreshBrandPaint()" in main
+assert "if(latestButton!=null)WorkbenchStyle.quickAction(this,latestButton)" in main
+glyph_src=(src/"OnHandGlyphs.java").read_text()
+assert "WorkbenchLayoutPolicy.iconInsetPx(target,glyph,false)" in glyph_src
+assert "WorkbenchLayoutPolicy.iconInsetPx(target,glyph,true)" in glyph_src
+assert "v.setPaddingRelative(leading,leading,trailing,trailing)" in glyph_src
 assert "ads.register(downloadAdSlot,AdSupport.PLACEMENT_DOWNLOAD)" in main
 print("PASS: approved launcher SHA-256, both adaptive masks, light/dark dialog palettes and native UI wiring")

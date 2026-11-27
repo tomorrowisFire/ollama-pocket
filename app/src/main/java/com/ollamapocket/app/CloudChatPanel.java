@@ -140,7 +140,8 @@ final class CloudChatPanel extends LinearLayout {
         header.addView(configure,cloudHeaderParams(false,false));
         addView(header,new LayoutParams(-1,-2));
         back.setOnClickListener(v->local.run());configure.setOnClickListener(v->showApiManager());
-        endpoint=new TextView(owner);WorkbenchStyle.label(owner,endpoint,16,false,true);OnHandGlyphs.accentLabel(endpoint,OnHandGlyphs.Kind.CLOUD);
+        endpoint=new TextView(owner);WorkbenchStyle.label(owner,endpoint,14,false,true);
+        endpoint.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));OnHandGlyphs.accentLabel(endpoint,OnHandGlyphs.Kind.CLOUD);
         endpoint.setSaveEnabled(false);
         addView(endpoint,new LayoutParams(-1,-2));
         usageSummary=new TextView(owner);WorkbenchStyle.label(owner,usageSummary,12,true,false);
@@ -174,34 +175,56 @@ final class CloudChatPanel extends LinearLayout {
         addView(status,new LayoutParams(-1,-2));
         composer=new LinearLayout(owner);composer.setOrientation(HORIZONTAL);
         composer.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        WorkbenchStyle.card(owner,composer,false);composer.setPadding(dp(8),dp(6),dp(8),dp(6));
+        WorkbenchStyle.composerSurface(owner,composer,false);
         prompt=input(R.string.message_hint,InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE,CloudHistory.MAX_PROMPT);
         prompt.setMinLines(1);prompt.setMaxLines(4);prompt.setMinimumHeight(dp(48));prompt.setSaveEnabled(false);
         prompt.setContentDescription(getResources().getString(R.string.message_hint));
         composer.addView(prompt,new LayoutParams(0,-2,1f));
         send=button(R.string.send);stop=button(R.string.stop);
         send.setContentDescription(getResources().getString(R.string.send));stop.setContentDescription(getResources().getString(R.string.stop));
+        send.setTooltipText(getResources().getString(R.string.send));stop.setTooltipText(getResources().getString(R.string.stop));
         OnHandGlyphs.label(send,OnHandGlyphs.Kind.SEND,true);OnHandGlyphs.label(stop,OnHandGlyphs.Kind.STOP,true);
         composerActions=new LinearLayout(owner);composerActions.setOrientation(HORIZONTAL);
-        composerActions.addView(send,new LayoutParams(-2,-2));composerActions.addView(stop,new LayoutParams(-2,-2));
+        composerActions.setGravity(android.view.Gravity.END|android.view.Gravity.CENTER_VERTICAL);
+        composerActions.addView(send,new LayoutParams(dp(48),dp(48)));composerActions.addView(stop,new LayoutParams(dp(48),dp(48)));
         composer.addView(composerActions,new LayoutParams(-2,-2));
         addView(composer,new LayoutParams(-1,-2));
         send.setOnClickListener(v->prepareSend());stop.setOnClickListener(v->cancel());
+        refreshBrandPaint();
+        prompt.setOnFocusChangeListener((v,focused)->WorkbenchStyle.composerSurface(owner,composer,focused));
         setBusy(false);render();
         addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
             if(r-l!=or-ol||b-t!=ob-ot)applyResponsiveLayout();
         });
         post(this::applyResponsiveLayout);
     }
+    /** Apply the same visual roles as local chat, without altering draft or request state. */
+    void refreshBrandPaint(){
+        if(closed)return;
+        for(Button button:new Button[]{back,settings,conversations})WorkbenchStyle.navigationRow(owner,button);
+        WorkbenchStyle.quickAction(owner,latest);
+        WorkbenchStyle.composerSurface(owner,composer,prompt.hasFocus());
+        WorkbenchStyle.composerInput(owner,prompt);
+        WorkbenchStyle.composerAction(owner,send,true);
+        WorkbenchStyle.composerAction(owner,stop,true);
+    }
+    private int headerNaturalDp(Button button,float density){
+        float measured=button.getPaint().measureText(button.getText().toString())+
+            button.getCompoundPaddingStart()+button.getCompoundPaddingEnd();
+        return (int)Math.ceil(Math.max(measured,Math.max(button.getMinimumWidth(),button.getMinWidth()))/density);
+    }
     private void applyResponsiveLayout(){
         if(closed||getWidth()<=0)return;
-        float density=getResources().getDisplayMetrics().density,scale=getResources().getConfiguration().fontScale;
+        float density=getResources().getDisplayMetrics().density;
+        if(!Float.isFinite(density)||density<=0)return;
+        float scale=WorkbenchVisualPolicy.textScale(owner.getPreferences(Context.MODE_PRIVATE).getString("font_size","normal"))*
+            Math.max(1f,getResources().getConfiguration().fontScale);
         int full=(int)(getWidth()/density);
         int max=dp(WorkbenchLayoutPolicy.cloudContentDp(full));
         int side=dp(6)+Math.max(0,(getWidth()-max)/2);
         if(getPaddingLeft()!=side||getPaddingRight()!=side)setPadding(side,dp(4),side,dp(6));
         int width=(int)(Math.max(0,getWidth()-side*2)/density),height=(int)(getHeight()/density);
-        boolean hs=WorkbenchLayoutPolicy.cloudHeaderStacked(width,scale);
+        boolean hs=WorkbenchLayoutPolicy.cloudHeaderStacked(width,scale,headerNaturalDp(back,density),headerNaturalDp(settings,density));
         if(stackedHeader==null||stackedHeader!=hs){
             stackedHeader=hs;header.setOrientation(hs?VERTICAL:HORIZONTAL);
             back.setLayoutParams(cloudHeaderParams(hs,true));
@@ -210,10 +233,10 @@ final class CloudChatPanel extends LinearLayout {
         boolean cs=WorkbenchLayoutPolicy.cloudComposerStacked(width,scale);
         if(stackedComposer==null||stackedComposer!=cs){
             stackedComposer=cs;composer.setOrientation(cs?VERTICAL:HORIZONTAL);
-            prompt.setLayoutParams(cs?new LayoutParams(-1,-2):new LayoutParams(0,-2,1f));
+            LayoutParams draft=cs?new LayoutParams(-1,-2):new LayoutParams(0,-2,1f);
+            if(cs)draft.bottomMargin=dp(4);else draft.setMarginEnd(dp(8));
+            prompt.setLayoutParams(draft);
             composerActions.setLayoutParams(new LayoutParams(cs?-1:-2,-2));
-            send.setLayoutParams(cs?new LayoutParams(0,-2,1f):new LayoutParams(-2,-2));
-            stop.setLayoutParams(cs?new LayoutParams(0,-2,1f):new LayoutParams(-2,-2));
         }
         boolean compact=WorkbenchLayoutPolicy.compactCloudHeight(height,scale);
         if(compactHeight==null||compactHeight!=compact){
