@@ -7,6 +7,8 @@ import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.OpenableColumns;
 import android.view.View;
 import android.view.WindowManager;
@@ -15,14 +17,13 @@ import java.io.InputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 /** Dedicated, in-memory document batch; no chat or workflow checkpoint mutation. */
 final class DocumentBatchUi {
-    private static final AtomicBoolean BUSY=new AtomicBoolean();
+    private static final ProjectWorkGate BUSY=new ProjectWorkGate();
     private final Activity owner;
     private final WorkspaceDictation dictation;
     private final WorkspaceReadAloud reading;
@@ -30,7 +31,7 @@ final class DocumentBatchUi {
     private final String model;
     private final BooleanSupplier eligible;
     private final AttachmentText.Encoding encoding;
-    private volatile Thread worker;
+    private final AtomicReference<Thread> worker=new AtomicReference<>();
     private volatile InputStream activeInput;
     private volatile DocumentBatchRunner runner;
     private volatile boolean closed,cancelRequested;
@@ -47,7 +48,7 @@ final class DocumentBatchUi {
     private ProgressBar progress;
     private Button preview,copy,inspect,copyJson,saveProject,dictateGoal,readReport,viewReport;
     private ProjectWorkspaceUi reportWorkspace;
-    static boolean busy(){return BUSY.get();}
+    static boolean busy(){return BUSY.busy();}
     DocumentBatchUi(Activity owner,String model,AttachmentText.Encoding encoding,BooleanSupplier eligible){
         this.owner=owner;this.model=model;this.encoding=encoding;this.eligible=eligible;this.dictation=new WorkspaceDictation(owner);this.reading=new WorkspaceReadAloud(owner);this.viewer=new WorkspaceTextViewer(owner);
     }
@@ -62,12 +63,15 @@ final class DocumentBatchUi {
         panel.addView(v,WorkbenchStyle.row(owner));return v;
     }
     private Button button(LinearLayout panel,int resource,Runnable action){
-        Button b=new Button(owner);b.setText(resource);WorkbenchStyle.button(owner,b,resource);b.setOnClickListener(v->action.run());panel.addView(b,WorkbenchStyle.row(owner));return b;
+        Button b=new Button(owner);b.setText(resource);WorkbenchStyle.button(owner,b,resource);
+        b.setOnClickListener(v->{if(visible()&&b.isAttachedToWindow()&&b.isEnabled()&&!busy()&&confirmation==null)action.run();});
+        panel.addView(b,WorkbenchStyle.row(owner));return b;
     }
     private void confirm(int title,String body,Runnable action){
         if(confirmation!=null)confirmation.dismiss();
+        final AlertDialog screen=dialog;
         AlertDialog d=new AlertDialog.Builder(owner).setTitle(title).setMessage(body).setNegativeButton(R.string.cancel,null)
-            .setPositiveButton(R.string.ok,(x,w)->{if(visible())action.run();}).create();
+            .setPositiveButton(R.string.ok,(x,w)->{if(visible()&&dialog==screen&&confirmation==x&&!busy())action.run();}).create();
         confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;});d.show();secure(d);
     }
     private void enabled(){
@@ -81,23 +85,47 @@ final class DocumentBatchUi {
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(idle&&sources!=null);
         dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setEnabled(!idle&&!cancelRequested);
     }
-    private <T> void work(Callable<T> task,Consumer<T> done,Consumer<Exception> failure){
-        if(!BUSY.compareAndSet(false,true)){toast(R.string.busy);return;}
-        viewer.cancel();reading.cancel();dictation.cancel();
-        cancelRequested=false;
-        Thread t=new Thread(()->{
-            T value=null;Exception problem=null;
-            try{value=task.call();}catch(Exception e){problem=e;}
-            finally{worker=null;}
-            final T completed=value;final Exception error=problem;
-            owner.runOnUiThread(()->{
-                BUSY.set(false);
-                if(!visible())return;
-                if(error!=null)failure.accept(error);else done.accept(completed);
-                enabled();
-            });
-        },"onhand-document-batch");
-        worker=t;t.start();enabled();
+    private interface Work<T>{
+        T run(ProjectWorkGate.Lease lease,AlertDialog screen,Handler main)throws Exception;
+    }
+    private <T> boolean work(Work<T> task,Consumer<T> done,Consumer<Exception> failure){
+        if(!visible())return false;
+        final AlertDialog screen=dialog;
+        final ProjectWorkGate.Lease lease=BUSY.acquire();
+        if(lease==null){toast(R.string.busy);return false;}
+        Thread launched=null;
+        try{
+            viewer.cancel();reading.cancel();dictation.cancel();cancelRequested=false;
+            final Handler main=new Handler(Looper.getMainLooper());
+            launched=new Thread(()->{
+                try{
+                    if(!lease.execute(()->{
+                        try{return task.run(lease,screen,main);}
+                        finally{worker.compareAndSet(Thread.currentThread(),null);}
+                    },main::post,(value,error)->{
+                        if(!visible()||dialog!=screen)return;
+                        if(error!=null)failure.accept(error);else done.accept(value);
+                        enabled();
+                    }))android.util.Log.w("OnHandAI","Document completion not delivered");
+                }finally{worker.compareAndSet(Thread.currentThread(),null);}
+            },"onhand-document-batch");
+            worker.set(launched);enabled();launched.start();return true;
+        }catch(RuntimeException e){
+            if(launched!=null)worker.compareAndSet(launched,null);
+            if(lease.release()&&visible()&&dialog==screen){failure.accept(e);enabled();}
+            return false;
+        }catch(Error fatal){
+            if(launched!=null)worker.compareAndSet(launched,null);
+            lease.release();throw fatal;
+        }
+    }
+    private void postProgress(ProjectWorkGate.Lease lease,AlertDialog screen,Handler main,Runnable update){
+        if(!lease.isCurrent()||closed||cancelRequested)return;
+        try{main.post(()->{
+            if(lease.isCurrent()&&visible()&&dialog==screen&&!cancelRequested)update.run();
+        });}catch(RuntimeException rejected){
+            // Progress is advisory; only terminal delivery controls ownership.
+        }
     }
     void pause(){
         viewer.cancel();reading.cancel();dictation.cancel();
@@ -108,9 +136,10 @@ final class DocumentBatchUi {
         sources=null;result=null;analyzed=null;
     }
     private void stop(){
+        if(cancelRequested)return;
         cancelRequested=true;
         DocumentBatchRunner r=runner;if(r!=null)r.cancel();
-        Thread t=worker;if(t!=null)t.interrupt();
+        Thread t=worker.get();if(t!=null)t.interrupt();
         InputStream input=activeInput;
         if(input!=null){
             Thread closer=new Thread(()->{try{input.close();}catch(Exception ignored){}},"document-batch-close");
@@ -121,6 +150,7 @@ final class DocumentBatchUi {
         if(closed||cancelRequested||Thread.currentThread().isInterrupted())throw new IOException("Batch stopped");
     }
     void show(List<Uri> selected){
+        if(closed||dialog!=null||busy()||!eligible.getAsBoolean()){toast(R.string.busy);return;}
         LinearLayout panel=column();
         label(panel,s(R.string.batch_notice),false);
         label(panel,s(R.string.model_label)+": "+model,false);
@@ -168,11 +198,11 @@ final class DocumentBatchUi {
             .setNegativeButton(R.string.close,null).setNeutralButton(R.string.stop,null).setPositiveButton(R.string.batch_start,null).create();
         dialog=d;d.setOnDismissListener(x->{if(dialog==d)pause();});d.show();secure(d);WorkbenchWindow.fit(owner,d);
         d.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v->{
-            if(busy()&&!cancelRequested){stop();status.setText(R.string.auto_pause_requested);enabled();}
+            if(visible()&&dialog==d&&v.isEnabled()&&busy()&&!cancelRequested){stop();status.setText(R.string.auto_pause_requested);enabled();}
         });
-        d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->start());
+        d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{if(visible()&&dialog==d&&v.isEnabled()&&confirmation==null)start();});
         final List<Uri> immutable=new ArrayList<>(selected);
-        work(()->load(immutable),loaded->{
+        work((lease,screen,main)->load(immutable,lease,screen,main),loaded->{
             sources=loaded;status.setText(R.string.batch_ready);output.setText(coverage(loaded));progress.setProgress(immutable.size());
         },error->{
             sources=null;status.setText(cancelRequested?R.string.batch_stopped:R.string.batch_extract_failed);
@@ -183,7 +213,7 @@ final class DocumentBatchUi {
         final String display;
         SourceFailure(String display){super("Source extraction failed");this.display=display;}
     }
-    private List<DocumentBatchPolicy.Source> load(List<Uri> selected)throws Exception{
+    private List<DocumentBatchPolicy.Source> load(List<Uri> selected,ProjectWorkGate.Lease lease,AlertDialog screen,Handler main)throws Exception{
         int limit=DocumentBatchPolicy.prefixLimit(selected.size());
         List<DocumentBatchPolicy.Source> out=new ArrayList<>();
         for(int i=0;i<selected.size();i++){
@@ -218,7 +248,7 @@ final class DocumentBatchUi {
                 throw new SourceFailure("D"+(i+1)+" · "+name+"\n"+s(errorLabel(e)));
             }
             final int complete=i+1;
-            owner.runOnUiThread(()->{if(visible()&&!cancelRequested)progress.setProgress(complete);});
+            postProgress(lease,screen,main,()->progress.setProgress(complete));
         }
         check();return out;
     }
@@ -332,10 +362,8 @@ final class DocumentBatchUi {
             if(!"off".equals(CoopSession.get(owner).role())){toast(R.string.guest_stop_first);return;}
             result=null;analyzed=null;reportRequests=0;reportElapsedMillis=0;reportStopReason=null;reportStatus=R.string.thinking;output.setText(coverage(sources)+"\n\n"+plannedCoverage(plan));status.setText(R.string.thinking);progress.setMax(plan.maxTotal());progress.setProgress(0);
             final DocumentBatchRunner active=new DocumentBatchRunner(owner,model);runner=active;
-            work(()->active.run(plan,done->owner.runOnUiThread(()->{
-                if(visible()&&!cancelRequested){
-                    progress.setProgress(done);status.setText(owner.getString(R.string.batch_progress,Integer.toString(done),"≤"+plan.maxTotal()));
-                }
+            boolean started=work((lease,screen,main)->active.run(plan,done->postProgress(lease,screen,main,()->{
+                progress.setProgress(done);status.setText(owner.getString(R.string.batch_progress,Integer.toString(done),"≤"+plan.maxTotal()));
             })),finished->{
                 runner=null;analyzed=plan;result=finished;
                 reportRequests=active.requests();reportElapsedMillis=active.elapsedMillis();
@@ -348,6 +376,9 @@ final class DocumentBatchUi {
                 if(finished.status==DocumentBatchPolicy.Status.COMPLETED)progress.setProgress(progress.getMax());
                 output.setText(report(plan,finished));
             },error->{runner=null;status.setText(R.string.batch_failed);});
+            if(!started&&runner==active){
+                runner=null;active.cancel();status.setText(R.string.batch_failed);enabled();
+            }
         });
     }
     private int stopLabel(DocumentBatchRunner.Stop stop){

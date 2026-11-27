@@ -82,6 +82,7 @@ on:
       - 'tests/ProjectSearchPolicyTest.java'
       - 'tests/ProjectWorkGateTest.java'
       - 'tests/KnowledgeWorkGateTest.java'
+      - 'tests/DocumentWorkGateTest.java'
       - 'tests/BenchmarkProfileTest.java'
       - 'tests/PrivacyPolicyTest.java'
       - 'tests/RpcSocketRegistryTest.java'
@@ -321,6 +322,8 @@ jobs:
           java -cp /tmp/project-tests com.ollamapocket.app.ProjectWorkGateTest
           javac -cp /tmp/project-tests -d /tmp/project-tests tests/KnowledgeWorkGateTest.java
           java -cp /tmp/project-tests com.ollamapocket.app.KnowledgeWorkGateTest
+          javac -cp /tmp/project-tests -d /tmp/project-tests tests/DocumentWorkGateTest.java
+          java -cp /tmp/project-tests com.ollamapocket.app.DocumentWorkGateTest
       - name: Test exact terminal report project handoff
         run: |
           javac -cp /tmp/project-tests:/tmp/workflow-tests:/tmp/attachment-tests:/tmp/cloud-stream-tests/json.jar -d /tmp/project-tests app/src/main/java/com/ollamapocket/app/ProjectReportHandoff.java tests/ProjectReportHandoffTest.java

@@ -24,6 +24,9 @@ final class ProjectWorkGate {
 
         private Lease(ProjectWorkGate gate) { this.gate = gate; }
 
+        /** Check the originating operation before delivering nonterminal progress. */
+        boolean isCurrent() { return gate.owner.get() == this; }
+
         boolean release() { return gate.owner.compareAndSet(this, null); }
 
         /** A poster must enqueue asynchronously, not call the completion inline. */
