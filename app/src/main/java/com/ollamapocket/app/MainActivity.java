@@ -1207,6 +1207,29 @@ public final class MainActivity extends Activity {
         card.setOnClickListener(v->action.run());return card;
     }
 
+    /** Reflow the same Spinner instances, retaining selections, adapters and listeners. */
+    private void responsiveModelFilterPair(LinearLayout pair,Spinner first,Spinner second){
+        pair.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams initial=lp(-1,-2);initial.bottomMargin=dp(WorkbenchVisualPolicy.GAP_DP);
+        first.setLayoutParams(initial);second.setLayoutParams(lp(-1,-2));
+        pair.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
+            int usable=r-l-pair.getPaddingLeft()-pair.getPaddingRight();
+            if(usable<=0)return;
+            float density=getResources().getDisplayMetrics().density;
+            if(!Float.isFinite(density)||density<=0)return;
+            float scale=uiTextScale*Math.max(1f,getResources().getConfiguration().fontScale);
+            boolean stack=WorkspaceLayoutPolicy.stackedModelFilters((int)(usable/density),scale);
+            int orientation=stack?LinearLayout.VERTICAL:LinearLayout.HORIZONTAL;
+            if(pair.getOrientation()==orientation)return;
+            pair.setOrientation(orientation);
+            LinearLayout.LayoutParams a=stack?lp(-1,-2):new LinearLayout.LayoutParams(0,-2,1f);
+            LinearLayout.LayoutParams z=stack?lp(-1,-2):new LinearLayout.LayoutParams(0,-2,1f);
+            if(stack)a.bottomMargin=dp(WorkbenchVisualPolicy.GAP_DP);
+            else a.setMarginEnd(dp(WorkspaceLayoutPolicy.GAP_DP));
+            first.setLayoutParams(a);second.setLayoutParams(z);
+        });
+    }
+
     private void createModelPage() {
         modelPage=column();
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);
@@ -1251,6 +1274,7 @@ public final class MainActivity extends Activity {
         sortFilter.setAdapter(makeFilterAdapter(java.util.Arrays.asList("추천 순","용량 작은 순","용량 큰 순","이름 순")));
         rowItem(searchOptions,sourceFilter,1,6);rowItem(searchOptions,sortFilter,1,0);
         OnHandGlyphs.spinner(sourceFilter);OnHandGlyphs.spinner(sortFilter);
+        responsiveModelFilterPair(searchOptions,sourceFilter,sortFilter);
         margin(searchOptions,searchPanel,0,8);
         sourceFilter.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
             @Override public void onNothingSelected(AdapterView<?> p){}
@@ -1285,6 +1309,7 @@ public final class MainActivity extends Activity {
         rowItem(filterRow,familyFilter,1,6);
         rowItem(filterRow,quantizationFilter,1,0);
         OnHandGlyphs.spinner(familyFilter);OnHandGlyphs.spinner(quantizationFilter);
+        responsiveModelFilterPair(filterRow,familyFilter,quantizationFilter);
         margin(filterRow,searchPanel,0,6);
         margin(text(getString(R.string.filter_label),11,MUTED,false),searchPanel,0,0);
         margin(top,content,2,8);margin(viewModeRow,content,0,10);

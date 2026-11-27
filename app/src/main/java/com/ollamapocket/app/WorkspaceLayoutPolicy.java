@@ -25,6 +25,11 @@ final class WorkspaceLayoutPolicy {
     static boolean compactHeader(int widthDp,float textScale){
         return widthDp<(Float.isFinite(textScale)&&textScale>1.2f?520:380);
     }
+    /** Keep two translated model filters wide enough for text and the trailing spinner glyph. */
+    static boolean stackedModelFilters(int contentDp,float textScale){
+        double scale=Float.isFinite(textScale)?Math.max(1f,textScale):1d;
+        return contentDp<2d*(40d+Math.ceil(132d*scale))+GAP_DP;
+    }
     static int readingColumnDp(int usableWidthDp){return Math.max(0,Math.min(880,usableWidthDp));}
     /** Return zero for compact layout. Input is actual usable content width, after root insets/padding. */
     static int railWidthDp(String mode,int usableWidthDp,float textScale){

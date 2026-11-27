@@ -83,5 +83,17 @@ assert "Intent.ACTION_OPEN_DOCUMENT" in vision and "PICK_VISION" in vision
 for locale in ("values","values-ko","values-ja","values-b+zh+Hans","values-b+zh+Hant"):
     strings=ET.parse(res/locale/"strings.xml").getroot()
     assert strings.find("string[@name='integration_vision']").text
+# F10A50: reflow both filter pairs without replacing their state or listeners.
+pair=main.split("private void responsiveModelFilterPair(",1)[1].split("private void createModelPage()",1)[0]
+for required in ("pair.setOrientation(LinearLayout.VERTICAL)","pair.addOnLayoutChangeListener(",
+    "getConfiguration().fontScale","WorkspaceLayoutPolicy.stackedModelFilters(",
+    "if(pair.getOrientation()==orientation)return","first.setLayoutParams(a);second.setLayoutParams(z)",
+    "a.setMarginEnd(dp(WorkspaceLayoutPolicy.GAP_DP))"):
+    assert required in pair,required
+for forbidden in ("setAdapter(","setSelection(","setOnItemSelectedListener(","removeView(","addView("):
+    assert forbidden not in pair,forbidden
+for required in ("responsiveModelFilterPair(searchOptions,sourceFilter,sortFilter)",
+    "responsiveModelFilterPair(filterRow,familyFilter,quantizationFilter)"):
+    assert required in main,required
 assert "ads.register(downloadAdSlot,AdSupport.PLACEMENT_DOWNLOAD)" in main
 print("PASS: approved launcher SHA-256, both adaptive masks, light/dark dialog palettes and native UI wiring")

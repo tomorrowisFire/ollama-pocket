@@ -1,6 +1,6 @@
 {
-  "stage": "F10A49-bottom-tools-and-existing-local-vision-entry",
-  "revision": "F10A49",
-  "priorCandidate": "1c23de9f63d653cebec459b1e5baa57a6b7a7bd2",
-  "reason": "Move existing local workbench actions to composer and expose guarded existing local vision workspace in attachment chooser; preserve scope, labels, callbacks, review and no-cloud semantics. Require exact FULL APK, QA AAB, ARM64 ELF/16KiB and Java/host/ads/locale regressions. No release icon or production change."
+  "stage": "F10A50-responsive-model-filters",
+  "revision": "F10A50",
+  "priorCandidate": "2a86018684118fbf9f361e9858cdc0ecf46d535b",
+  "reason": "Reflow both model filter pairs by actual measured width and combined font scale, retain Spinner identities, adapters, selection and callbacks. Exact FULL Java/host/ads/locales, APK/QA AAB/16KiB required. No production or launcher changes."
 }
