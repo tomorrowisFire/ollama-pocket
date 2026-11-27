@@ -199,6 +199,10 @@ public final class MainActivity extends Activity {
     private EditText modelFilter;
     private TextView modelSearchStatus;
     private Spinner familyFilter, quantizationFilter;
+    private Button modelFilterDetailsToggle;
+    private LinearLayout modelFilterDetails;
+    private boolean modelFilterDetailsExpanded;
+    private final java.util.List<Button> flatNavigationButtons=new java.util.ArrayList<>();
     private final List<ModelVariantCatalog.Variant> onlineVariants=new ArrayList<>();
     private final List<ModelVariantCatalog.Variant> recommendedVariants=new ArrayList<>();
     private final Map<String,ModelVariantCatalog.Variant> visibleVariants=new HashMap<>();
@@ -415,6 +419,7 @@ public final class MainActivity extends Activity {
                 (View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR):0);
         }
         styleLocalComposer(); // Restore stateful colors and outline after live theme recoloring.
+        for(Button button:flatNavigationButtons)WorkbenchStyle.navigationRow(this,button);
         updateModelViewButtons();
         renderInstalledModels();
         if(activeTab==3)refreshDiagnosticViews();
@@ -753,8 +758,12 @@ public final class MainActivity extends Activity {
     private void iconAction(Button button,OnHandGlyphs.Kind glyph){
         OnHandGlyphs.label(button,glyph,true);
     }
+    private void flatNavigationButton(Button button){
+        WorkbenchStyle.navigationRow(this,button);
+        flatNavigationButtons.add(button);
+    }
     private void settingAction(Button button,OnHandGlyphs.Kind glyph){
-        button.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);
+        flatNavigationButton(button);
         OnHandGlyphs.label(button,glyph,false);
     }
     private TextView sectionTitle(int title,OnHandGlyphs.Kind glyph){
@@ -764,9 +773,9 @@ public final class MainActivity extends Activity {
         return heading;
     }
     private LinearLayout brandSection(LinearLayout host,int title,OnHandGlyphs.Kind glyph){
-        LinearLayout section=column();section.setPadding(dp(14),dp(13),dp(14),dp(13));
-        GradientDrawable surface=bg(CARD,20);surface.setStroke(dp(1),borderTone());section.setBackground(surface);
-        margin(sectionTitle(title,glyph),section,0,10);
+        // Group by headings and spacing instead of nesting cards around every row.
+        LinearLayout section=column();section.setPadding(dp(4),dp(6),dp(4),dp(6));
+        margin(sectionTitle(title,glyph),section,0,6);
         margin(section,host,0,12);return section;
     }
     private android.widget.ImageView brandArtwork(int size){
@@ -776,6 +785,7 @@ public final class MainActivity extends Activity {
         art.setLayoutParams(lp(size,size));return art;
     }
     private void createUi() {
+        flatNavigationButtons.clear();
         LinearLayout root = column(); root.setBackgroundColor(BG);
         root.setPadding(dp(12),dp(15),dp(12),dp(10));
         // Android 15+ enforces edge-to-edge. Respect real status-bar/cutout
@@ -1247,6 +1257,17 @@ public final class MainActivity extends Activity {
         });
     }
 
+    private void refreshModelFilterDisclosure(){
+        if(modelFilterDetailsToggle==null||modelFilterDetails==null)return;
+        String selected=filterDisplay(selectedModelFamily)+" · "+filterDisplay(selectedQuantization);
+        String action=getString(modelFilterDetailsExpanded?R.string.collapse:R.string.expand);
+        String label=selected+(modelFilterDetailsExpanded?"  ▴":"  ▾");
+        if(!TextUtils.equals(modelFilterDetailsToggle.getText(),label))modelFilterDetailsToggle.setText(label);
+        modelFilterDetailsToggle.setContentDescription(getString(R.string.filter_label)+" · "+selected+" · "+action);
+        modelFilterDetailsToggle.setTooltipText(action);
+        int visibility=modelFilterDetailsExpanded?View.VISIBLE:View.GONE;
+        if(modelFilterDetails.getVisibility()!=visibility)modelFilterDetails.setVisibility(visibility);
+    }
     private void createModelPage() {
         modelPage=column();
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);
@@ -1316,6 +1337,9 @@ public final class MainActivity extends Activity {
             }
             @Override public void afterTextChanged(Editable s){}
         });
+        modelFilterDetailsToggle=button(getString(R.string.filter_label),false);
+        flatNavigationButton(modelFilterDetailsToggle);margin(modelFilterDetailsToggle,searchPanel,0,4);
+        modelFilterDetails=column();
         LinearLayout filterRow=row();
         familyFilter=new Spinner(this);
         familyFilter.setBackground(bg(FIELD,12));
@@ -1327,8 +1351,13 @@ public final class MainActivity extends Activity {
         rowItem(filterRow,quantizationFilter,1,0);
         OnHandGlyphs.spinner(familyFilter);OnHandGlyphs.spinner(quantizationFilter);
         responsiveModelFilterPair(filterRow,familyFilter,quantizationFilter);
-        margin(filterRow,searchPanel,0,6);
-        margin(text(getString(R.string.filter_label),11,MUTED,false),searchPanel,0,0);
+        margin(filterRow,modelFilterDetails,0,6);
+        margin(modelFilterDetails,searchPanel,0,0);
+        modelFilterDetailsToggle.setOnClickListener(v->{
+            modelFilterDetailsExpanded=!modelFilterDetailsExpanded;
+            refreshModelFilterDisclosure();
+        });
+        refreshModelFilterDisclosure();
         margin(top,content,2,8);margin(viewModeRow,content,0,10);
         populateModelFilters();
         modelRows=column();margin(modelRows,content,0,7);
@@ -2245,6 +2274,7 @@ public final class MainActivity extends Activity {
                 if(!next.equals(selectedQuantization)){selectedQuantization=next;renderInstalledModels();}
             }
         });
+        refreshModelFilterDisclosure();
     }
 
     private boolean matchesQuantization(String quant) {
@@ -2836,6 +2866,7 @@ public final class MainActivity extends Activity {
     }
 
     private void renderInstalledModels() {
+        refreshModelFilterDisclosure();
         if(modelRows==null)return;
         modelRows.removeAllViews();
         tileStatusLabels.clear();

@@ -1,6 +1,6 @@
 {
-  "stage": "F10A60-single-surface-composer",
-  "revision": "F10A60",
-  "priorCandidate": "91a6e762c86318d5d3f4bf768c1b431a5821f4ff",
-  "reason": "Chat-first single-surface composer, flat secondary and circular primary tools, compact list-style more menu; preserve existing inputs, operations and privacy. Exact FULL gate required before guarded integration."
+  "stage": "F10A61-flat-settings-model-filters",
+  "revision": "F10A61",
+  "priorCandidate": "060b2eb661260c0552ee3a877b52889a3d4e11af",
+  "reason": "Detached flat settings/navigation sections and compact family/quantization disclosure. Retain selection, search/status, settings operations, accessibility, and ads. Exact FULL candidate gate after F10A60."
 }

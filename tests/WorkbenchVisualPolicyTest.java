@@ -52,6 +52,9 @@ public final class WorkbenchVisualPolicyTest {
             contrast(p.text,p.accentSoft,4.5);contrast(p.primary,p.canvas,4.5);
             contrast(p.primary,p.surface,4.5);contrast(p.canvas,p.primary,4.5);
             contrast(p.muted,p.canvas,4.5);
+            // F10A61: flat navigation rows remain readable when disabled and focused.
+            contrast(p.disabledText,p.canvas,4.5);
+            contrast(p.focus,p.canvas,3);
             check(p.canvas!=p.surface&&p.bubble!=p.field&&p.accentSoft!=p.field);
             check(p.primary== (dark?0xffffad7b:0xffb83b12));
             contrast(p.muted,p.surface,4.5);contrast(p.muted,p.field,4.5);

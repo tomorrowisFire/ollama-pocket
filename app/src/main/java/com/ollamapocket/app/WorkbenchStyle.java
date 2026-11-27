@@ -110,6 +110,25 @@ final class WorkbenchStyle {
         button.setMinHeight(dp(a,WorkbenchVisualPolicy.MIN_TARGET_DP));button.setMinimumHeight(dp(a,WorkbenchVisualPolicy.MIN_TARGET_DP));
         OnHandGlyphs.refresh(button);
     }
+    /** Flat navigation/disclosure row: no state, text, or callback ownership. */
+    static void navigationRow(Activity a,Button b){
+        WorkbenchVisualPolicy.Palette p=palette(a);
+        StateListDrawable states=new StateListDrawable();
+        states.addState(new int[]{-android.R.attr.state_enabled},shape(a,p.canvas,p.border,0));
+        states.addState(new int[]{android.R.attr.state_focused},shape(a,p.canvas,p.focus,2));
+        states.addState(new int[]{},shape(a,p.canvas,p.border,0));
+        b.setForeground(null);b.setBackgroundTintList(null);
+        b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x33808080),states,shape(a,Color.WHITE,Color.TRANSPARENT,0)));
+        b.setTextColor(colors(p.text,p.disabledText));
+        b.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);
+        b.setSingleLine(false);b.setEllipsize(null);
+        b.setMinHeight(Math.max(b.getMinHeight(),dp(a,WorkbenchVisualPolicy.MIN_TARGET_DP)));
+        b.setMinimumHeight(Math.max(b.getMinimumHeight(),dp(a,WorkbenchVisualPolicy.MIN_TARGET_DP)));
+        b.setMinWidth(Math.max(b.getMinWidth(),dp(a,WorkbenchVisualPolicy.MIN_TARGET_DP)));
+        b.setMinimumWidth(Math.max(b.getMinimumWidth(),dp(a,WorkbenchVisualPolicy.MIN_TARGET_DP)));
+        b.setPaddingRelative(dp(a,12),dp(a,8),dp(a,12),dp(a,8));
+        OnHandGlyphs.refresh(b);
+    }
     static void field(Activity a,EditText e){
         WorkbenchVisualPolicy.Palette p=palette(a);
         StateListDrawable state=new StateListDrawable();

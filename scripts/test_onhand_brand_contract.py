@@ -269,5 +269,31 @@ tool_row=main.split("private View workbenchCard(",1)[1].split("private void resp
 assert "card=row()" in tool_row and "card.setMinimumHeight(dp(56))" in tool_row
 assert "margin(caption,labels,3,0)" in tool_row and 'card.setContentDescription(title+" · "+detail)' in tool_row
 assert "card.setOnClickListener(v->action.run())" in tool_row
+# F10A61: flat section hierarchy and non-destructive detailed-filter disclosure.
+flat_section=main.split("private LinearLayout brandSection(",1)[1].split("private android.widget.ImageView brandArtwork(",1)[0]
+assert "section.setBackground(" not in flat_section
+assert "margin(sectionTitle(title,glyph),section,0,6)" in flat_section
+nav_style=(src/"WorkbenchStyle.java").read_text().split("static void navigationRow(",1)[1].split("static void field(",1)[0]
+for required in ("p.canvas","p.disabledText","p.focus","state_focused","state_enabled",
+    "b.setSingleLine(false)","b.setEllipsize(null)","b.setMinimumHeight(Math.max(",
+    "b.setMinimumWidth(Math.max(","OnHandGlyphs.refresh(b)"):
+    assert required in nav_style,required
+for forbidden in ("setOnClickListener(","setEnabled(","setText(","setVisibility(","setSelected("):
+    assert forbidden not in nav_style,forbidden
+assert "for(Button button:flatNavigationButtons)WorkbenchStyle.navigationRow(this,button)" in main
+disclosure=main.split("private void refreshModelFilterDisclosure()",1)[1].split("private void createModelPage()",1)[0]
+for required in ("filterDisplay(selectedModelFamily)", "filterDisplay(selectedQuantization)",
+    "R.string.filter_label","R.string.collapse:R.string.expand","setContentDescription(","setTooltipText(",
+    "modelFilterDetails.setVisibility(visibility)"):
+    assert required in disclosure,required
+for forbidden in ("setSelection(","setAdapter(","onModelSearchChanged(","renderInstalledModels(","selectedModelFamily=","selectedQuantization="):
+    assert forbidden not in disclosure,forbidden
+model_page=main.split("private void createModelPage()",1)[1].split("private void createServerPage()",1)[0]
+assert "modelFilterDetailsExpanded=!modelFilterDetailsExpanded;" in model_page
+assert "margin(filterRow,modelFilterDetails,0,6)" in model_page
+assert "margin(modelSearchStatus,searchPanel,0,8)" in model_page
+assert "responsiveModelFilterPair(searchOptions,sourceFilter,sortFilter)" in model_page
+assert "responsiveModelFilterPair(filterRow,familyFilter,quantizationFilter)" in model_page
+assert "refreshModelFilterDisclosure();\n        if(modelRows==null)return;" in main
 assert "ads.register(downloadAdSlot,AdSupport.PLACEMENT_DOWNLOAD)" in main
 print("PASS: approved launcher SHA-256, both adaptive masks, light/dark dialog palettes and native UI wiring")
