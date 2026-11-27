@@ -6,6 +6,9 @@ final class ChatWorkspacePolicy {
     static int starterColumns(int widthDp,float scale){
         return widthDp>=(Float.isFinite(scale)&&scale>1.2f?580:440)?2:1;
     }
+    /** One-column phone cards use a leading glyph to reduce vertical density; two-column cards preserve the tile hierarchy. */
+    static boolean starterInlineIcon(int columns){return columns==1;}
+    static int starterMinHeightDp(boolean inlineIcon){return inlineIcon?72:104;}
     static boolean compactHeight(int heightDp,boolean keyboard,float scale){
         return keyboard||(heightDp>0&&heightDp<(Float.isFinite(scale)&&scale>1.2f?680:560));
     }

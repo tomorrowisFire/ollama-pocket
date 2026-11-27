@@ -1,6 +1,6 @@
 {
-  "stage": "F10A45-onhand-brand-and-native-interface-redesign",
-  "revision": "F10A45",
-  "priorCandidate": "ec0d0b71e873a4d5ef696bb87f0ca4cf4eec657c",
-  "reason": "Install confirmed English phone illustration as the adaptive launcher icon; integrate accessible warm brand palette, native vector action glyphs, grouped settings/model controls, icon-first chat and workbench, common light/dark alert themes. Full Java, host and APK/QA AAB/16KiB gate. No real-device or release claim."
+  "stage": "F10A47-compact-icon-led-starters",
+  "revision": "F10A47",
+  "priorCandidate": "f415eb63f3bbceaef27ad99be3ec7e2ebd6f0cd3",
+  "reason": "Responsive one-column starter card density improvement; preserve two-column layout, accessible names, details and original action guards. Require exact full APK/QA AAB/16 KiB, Java and regression evidence; no physical-device or release claim."
 }

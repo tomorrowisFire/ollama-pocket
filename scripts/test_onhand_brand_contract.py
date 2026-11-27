@@ -41,6 +41,14 @@ for required in ("BG=p.canvas","BUBBLE=p.bubble","brandSection(content,R.string.
     "brandArtwork(68)","OnHandGlyphs.spinner(modelChooser)","OnHandGlyphs.tile(this,glyph)",
     "iconAction(sendButton,OnHandGlyphs.Kind.SEND)","OnHandGlyphs.refresh(v)"):
     assert required in main,required
+starter=main.split("private LinearLayout starterCard(",1)[1].split("private void openKnowledgeWorkspace()",1)[0]
+assert "card.setOrientation(inlineIcon?LinearLayout.HORIZONTAL:LinearLayout.VERTICAL)" in starter
+assert "card.setMinimumHeight(dp(ChatWorkspacePolicy.starterMinHeightDp(inlineIcon)))" in starter
+assert "iconParams.setMarginEnd(dp(12))" in starter
+assert "margin(heading,labels,0,0);margin(caption,labels,3,0)" in starter
+assert 'card.setContentDescription(title+" · "+detail)' in starter
+assert "card.setOnClickListener(v->action.run())" in starter
+assert "glyphs[index],ChatWorkspacePolicy.starterInlineIcon(columns)" in main
 for f in ("AutomationUi.java","ProjectWorkspaceUi.java","KnowledgeWorkspaceUi.java","DocumentBatchUi.java","VoiceModelsUi.java","CloudChatPanel.java"):
     source=(src/f).read_text()
     assert "WorkbenchStyle." in source and "WorkbenchWindow.fit(" in source,f

@@ -3692,14 +3692,23 @@ public final class MainActivity extends Activity {
         else new AlertDialog.Builder(this).setTitle(R.string.workspace_starter_add).setMessage(R.string.workspace_starter_preserve)
             .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,(d,w)->apply.run()).show();
     }
-    private LinearLayout starterCard(String title,String detail,OnHandGlyphs.Kind glyph,Runnable action){
-        LinearLayout card=column();card.setPadding(dp(12),dp(12),dp(12),dp(12));card.setMinimumHeight(dp(104));
+    private LinearLayout starterCard(String title,String detail,OnHandGlyphs.Kind glyph,boolean inlineIcon,Runnable action){
+        LinearLayout card=column();card.setOrientation(inlineIcon?LinearLayout.HORIZONTAL:LinearLayout.VERTICAL);
+        card.setPadding(dp(12),dp(inlineIcon?10:12),dp(12),dp(inlineIcon?10:12));
+        card.setMinimumHeight(dp(ChatWorkspacePolicy.starterMinHeightDp(inlineIcon)));
+        if(inlineIcon)card.setGravity(Gravity.CENTER_VERTICAL);
         GradientDrawable surface=bg(CARD,18);surface.setStroke(dp(1),borderTone());
         card.setBackground(surface);card.setClickable(true);card.setFocusable(true);AdaptiveAnswerActions.feedback(card,18);
-        TextView icon=OnHandGlyphs.tile(this,glyph);card.addView(icon,lp(40,40));
+        TextView icon=OnHandGlyphs.tile(this,glyph);
         TextView heading=text(title,14,WHITE,true);heading.setMaxLines(2);heading.setEllipsize(TextUtils.TruncateAt.END);
         TextView caption=text(detail,12,MUTED,false);caption.setMaxLines(3);caption.setEllipsize(TextUtils.TruncateAt.END);
-        margin(heading,card,8,0);margin(caption,card,3,0);
+        if(inlineIcon){
+            LinearLayout.LayoutParams iconParams=lp(40,40);iconParams.setMarginEnd(dp(12));card.addView(icon,iconParams);
+            LinearLayout labels=column();card.addView(labels,new LinearLayout.LayoutParams(0,-2,1f));
+            margin(heading,labels,0,0);margin(caption,labels,3,0);
+        }else{
+            card.addView(icon,lp(40,40));margin(heading,card,8,0);margin(caption,card,3,0);
+        }
         card.setContentDescription(title+" · "+detail);
         heading.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);caption.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         card.setOnClickListener(v->action.run());return card;
@@ -3792,7 +3801,7 @@ public final class MainActivity extends Activity {
             LinearLayout line=row();line.setGravity(Gravity.TOP);int count=Math.min(columns,names.length-i);
             for(int j=0;j<count;j++){
                 final int index=i+j;
-                LinearLayout card=starterCard(getString(names[index]),getString(details[index]),glyphs[index],()->{
+                LinearLayout card=starterCard(getString(names[index]),getString(details[index]),glyphs[index],ChatWorkspacePolicy.starterInlineIcon(columns),()->{
                     if(index<3)fillStarter(getString(details[index]));
                     else if(index==3){if(!isUiBusy()&&ownsLoadedScope()&&!cloudMode){if(currentModel.isEmpty()){toast(getString(R.string.need_model));showTab(1);}else chooseDocumentBatch(loadedHistoryScope);}}
                     else if(index==4)openLocalAutomation();

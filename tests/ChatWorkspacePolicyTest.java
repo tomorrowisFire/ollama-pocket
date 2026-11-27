@@ -11,6 +11,16 @@ public final class ChatWorkspacePolicyTest {
         ok(ChatWorkspacePolicy.starterColumns(579,1.26f)==1);
         ok(ChatWorkspacePolicy.starterColumns(580,1.26f)==2);
         ok(ChatWorkspacePolicy.starterColumns(440,Float.NaN)==2);
+        ok(ChatWorkspacePolicy.starterInlineIcon(1));
+        ok(!ChatWorkspacePolicy.starterInlineIcon(2));
+        ok(!ChatWorkspacePolicy.starterInlineIcon(0));
+        ok(ChatWorkspacePolicy.starterMinHeightDp(true)==72);
+        ok(ChatWorkspacePolicy.starterMinHeightDp(false)==104);
+        ok(ChatWorkspacePolicy.starterMinHeightDp(true)>=48);
+        for(int width:new int[]{280,320,360,439,440,580,840})for(float font:new float[]{1f,1.13f,1.26f,2f}){
+            int columns=ChatWorkspacePolicy.starterColumns(width,font);
+            ok(ChatWorkspacePolicy.starterInlineIcon(columns)==(columns==1));
+        }
         ok(!ChatWorkspacePolicy.compactHeight(0,false,1f));
         ok(ChatWorkspacePolicy.compactHeight(900,true,1f));
         ok(ChatWorkspacePolicy.compactHeight(559,false,1f));
