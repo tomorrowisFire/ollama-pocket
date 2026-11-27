@@ -9,31 +9,33 @@ final class WorkbenchVisualPolicy {
         return downloading?ModelStatus.DOWNLOADING:installed?(selected?ModelStatus.ACTIVE:ModelStatus.INSTALLED):ModelStatus.AVAILABLE;
     }
     static final class Palette {
-        final int canvas,surface,field,bubble,accentSoft,text,muted,border,focus,primary,primaryText,danger,dangerText,disabled,disabledText;
-        Palette(int canvas,int surface,int field,int bubble,int accentSoft,int text,int muted,int border,int focus,int primary,int primaryText,
+        final int canvas,surface,field,bubble,accentSoft,text,muted,border,focus,primary,primaryFill,primaryText,danger,dangerText,disabled,disabledText;
+        Palette(int canvas,int surface,int field,int bubble,int accentSoft,int text,int muted,int border,int focus,int primary,int primaryFill,int primaryText,
                 int danger,int dangerText,int disabled,int disabledText){
             this.canvas=canvas;this.surface=surface;this.field=field;this.bubble=bubble;this.accentSoft=accentSoft;
             this.text=text;this.muted=muted;this.border=border;this.focus=focus;
-            this.primary=primary;this.primaryText=primaryText;this.danger=danger;this.dangerText=dangerText;
+            this.primary=primary;this.primaryFill=primaryFill;this.primaryText=primaryText;this.danger=danger;this.dangerText=dangerText;
             this.disabled=disabled;this.disabledText=disabledText;
         }
         int fill(Role role,boolean enabled){
             if(!enabled)return disabled;
-            return role==Role.PRIMARY?primary:role==Role.DESTRUCTIVE?danger:field;
+            return role==Role.PRIMARY?primaryFill:role==Role.DESTRUCTIVE?danger:field;
         }
         int ink(Role role,boolean enabled){
             if(!enabled)return disabledText;
             return role==Role.PRIMARY?primaryText:role==Role.DESTRUCTIVE?dangerText:text;
         }
         int modelStatusFill(ModelStatus status){
-            return status==ModelStatus.ACTIVE?primary:status==ModelStatus.DOWNLOADING?accentSoft:status==ModelStatus.INSTALLED?bubble:field;
+            return status==ModelStatus.ACTIVE?primaryFill:status==ModelStatus.DOWNLOADING?accentSoft:status==ModelStatus.INSTALLED?bubble:field;
         }
         int modelStatusInk(ModelStatus status){
             return status==ModelStatus.ACTIVE?primaryText:status==ModelStatus.AVAILABLE?muted:text;
         }
+        // Use the readable accent as a boundary for the softer filled control.
+        int primaryOutline(){return primary;}
         // Secondary composer actions blend into the single input surface.
         int composerActionFill(boolean primaryAction,boolean enabled){
-            return primaryAction?(enabled?primary:disabled):surface;
+            return primaryAction?(enabled?primaryFill:disabled):surface;
         }
         int composerActionInk(boolean primaryAction,boolean enabled){
             return !enabled?disabledText:primaryAction?primaryText:text;
@@ -45,14 +47,14 @@ final class WorkbenchVisualPolicy {
         int dialogRipple(){return (primary&0x00ffffff)|0x24000000;}
         int focusInk(Role role){return role==Role.PRIMARY?primaryText:role==Role.DESTRUCTIVE?dangerText:focus;}
     }
-    // OnHand: warm ivory, restrained burnt orange, muted lavender and plum-charcoal.
-    // Accent is deliberately darker than the artwork in light mode for text contrast.
-    private static final Palette LIGHT=new Palette(0xfffaf6f1,0xfffffcfa,0xfff2edf6,0xfffce7dc,0xfff9e4d7,
-        0xff272330,0xff655d6a,0xffded5de,0xff7a4a95,0xffb83b12,0xffffffff,
-        0xfffceef0,0xff9f2437,0xffefe8e8,0xff70616b);
-    private static final Palette DARK=new Palette(0xff221c24,0xff2d2730,0xff352d3e,0xff49362d,0xff4b3028,
-        0xfff7f0f5,0xffc6bacb,0xff584a5d,0xffc7a7e2,0xffffad7b,0xff241a1b,
-        0xff4b2933,0xffffb2be,0xff3f3742,0xffc4b7c8);
+    // OnHand Soft Peach: quiet warm neutrals, peach fills, and readable companion ink.
+    // Primary foreground and primary fill are distinct roles; never use peach as light-mode text.
+    private static final Palette LIGHT=new Palette(0xfff9f8f5,0xfffffefc,0xfff0eeea,0xfff8ebe4,0xfffbede4,
+        0xff252522,0xff625e57,0xffd9d5cf,0xff79503e,0xff79503e,0xffe5bba6,0xff30221d,
+        0xfffceef0,0xff9f2437,0xffebe8e3,0xff655e58);
+    private static final Palette DARK=new Palette(0xff191a19,0xff242523,0xff30312e,0xff3f3029,0xff48352c,
+        0xfff3f2ed,0xffc1beb6,0xff4c4d48,0xffddbcaa,0xffe7c1ad,0xffd4a58e,0xff30221d,
+        0xff4b2933,0xffffb2be,0xff373835,0xffc4bfb5);
     private WorkbenchVisualPolicy(){}
     static Palette palette(boolean dark){return dark?DARK:LIGHT;}
     static float textScale(String preference){return "large".equals(preference)?1.13f:"extra".equals(preference)?1.26f:1f;}

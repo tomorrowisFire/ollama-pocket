@@ -1,6 +1,6 @@
 {
-  "stage": "F10A61-flat-settings-model-filters",
-  "revision": "F10A61",
-  "priorCandidate": "060b2eb661260c0552ee3a877b52889a3d4e11af",
-  "reason": "Detached flat settings/navigation sections and compact family/quantization disclosure. Retain selection, search/status, settings operations, accessibility, and ads. Exact FULL candidate gate after F10A60."
+  "stage": "F10A62R1-soft-peach-signature",
+  "revision": "F10A62R1",
+  "priorCandidate": "8576bf9a37e6a430aa39ff710890c616f64373f1",
+  "reason": "Supersedes unintegrated F10A62 orange palette per user approval: peach primary fills, distinct accessible companion ink, contrast outlines and role-specific primary painting. Includes F10A62 signature layout. Exact FULL required after F10A61."
 }

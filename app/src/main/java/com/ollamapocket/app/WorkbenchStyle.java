@@ -61,7 +61,9 @@ final class WorkbenchStyle {
         StateListDrawable state=new StateListDrawable();
         state.addState(new int[]{-android.R.attr.state_enabled},shape(a,p.disabled,p.border,1));
         state.addState(new int[]{android.R.attr.state_focused},shape(a,p.fill(role,true),p.focusInk(role),2));
-        state.addState(new int[]{},shape(a,p.fill(role,true),role==WorkbenchVisualPolicy.Role.SECONDARY?p.border:p.fill(role,true),1));
+        int outline=role==WorkbenchVisualPolicy.Role.PRIMARY?p.primaryOutline():
+            role==WorkbenchVisualPolicy.Role.SECONDARY?p.border:p.fill(role,true);
+        state.addState(new int[]{},shape(a,p.fill(role,true),outline,1));
         b.setBackgroundTintList(null);
         b.setBackground(new RippleDrawable(ColorStateList.valueOf(role==WorkbenchVisualPolicy.Role.PRIMARY?0x25808080:0x33808080),
             state,shape(a,Color.WHITE,Color.TRANSPARENT,0)));
@@ -85,6 +87,35 @@ final class WorkbenchStyle {
         GradientDrawable d=new GradientDrawable();d.setColor(fill);d.setCornerRadius(dp(c,radius));
         if(width>0)d.setStroke(dp(c,width),stroke);return d;
     }
+    /** Preserve the role across automatic theme changes without overwriting custom backgrounds. */
+    private static final class PrimaryPaint {
+        final int radius;
+        final android.graphics.drawable.Drawable background;
+        PrimaryPaint(int radius,android.graphics.drawable.Drawable background){this.radius=radius;this.background=background;}
+    }
+    static void primaryButtonPaint(Activity a,Button b,int radius){
+        WorkbenchVisualPolicy.Palette p=palette(a);
+        StateListDrawable states=new StateListDrawable();
+        states.addState(new int[]{-android.R.attr.state_enabled},composerShape(a,p.disabled,p.border,1,radius));
+        states.addState(new int[]{android.R.attr.state_focused},composerShape(a,p.primaryFill,p.primaryText,2,radius));
+        states.addState(new int[]{},composerShape(a,p.primaryFill,p.primaryOutline(),1,radius));
+        int start=b.getPaddingStart(),top=b.getPaddingTop(),end=b.getPaddingEnd(),bottom=b.getPaddingBottom();
+        b.setForeground(null);b.setBackgroundTintList(null);
+        b.setBackground(new RippleDrawable(ColorStateList.valueOf(p.dialogRipple()),states,
+            composerShape(a,Color.WHITE,Color.TRANSPARENT,0,radius)));
+        b.setPaddingRelative(start,top,end,bottom);
+        b.setTextColor(colors(p.primaryText,p.disabledText));
+        b.setTag(R.id.onhand_primary_paint,new PrimaryPaint(radius,b.getBackground()));
+        OnHandGlyphs.refresh(b);
+    }
+    static void refreshPrimaryButtonPaint(Activity a,View v){
+        if(!(v instanceof Button))return;
+        Object raw=v.getTag(R.id.onhand_primary_paint);
+        if(!(raw instanceof PrimaryPaint))return;
+        PrimaryPaint previous=(PrimaryPaint)raw;
+        if(v.getBackground()==previous.background)primaryButtonPaint(a,(Button)v,previous.radius);
+        else v.setTag(R.id.onhand_primary_paint,null);
+    }
     static void composerSurface(Activity a,LinearLayout layout,boolean focused){
         WorkbenchVisualPolicy.Palette p=palette(a);
         layout.setBackground(composerShape(a,p.surface,focused?p.focus:p.border,focused?2:1,26));
@@ -102,13 +133,31 @@ final class WorkbenchStyle {
         StateListDrawable states=new StateListDrawable();
         states.addState(new int[]{-android.R.attr.state_enabled},composerShape(a,p.composerActionFill(primary,false),p.border,0,24));
         states.addState(new int[]{android.R.attr.state_focused},composerShape(a,p.composerActionFill(primary,true),p.composerActionFocus(primary),2,24));
-        states.addState(new int[]{},composerShape(a,p.composerActionFill(primary,true),p.border,0,24));
+        states.addState(new int[]{},composerShape(a,p.composerActionFill(primary,true),primary?p.primaryOutline():p.border,primary?1:0,24));
         button.setForeground(null);button.setBackgroundTintList(null);
         button.setBackground(new RippleDrawable(ColorStateList.valueOf(0x33808080),states,composerShape(a,Color.WHITE,Color.TRANSPARENT,0,24)));
         button.setTextColor(colors(p.composerActionInk(primary,true),p.composerActionInk(primary,false)));
         button.setMinWidth(dp(a,WorkbenchVisualPolicy.MIN_TARGET_DP));button.setMinimumWidth(dp(a,WorkbenchVisualPolicy.MIN_TARGET_DP));
         button.setMinHeight(dp(a,WorkbenchVisualPolicy.MIN_TARGET_DP));button.setMinimumHeight(dp(a,WorkbenchVisualPolicy.MIN_TARGET_DP));
         OnHandGlyphs.refresh(button);
+    }
+    /** Quiet outlined quick action. Primary color is reserved for explicit primary actions. */
+    static void quickAction(Activity a,Button b){
+        WorkbenchVisualPolicy.Palette p=palette(a);
+        StateListDrawable states=new StateListDrawable();
+        states.addState(new int[]{-android.R.attr.state_enabled},composerShape(a,p.disabled,p.border,1,24));
+        states.addState(new int[]{android.R.attr.state_focused},composerShape(a,p.surface,p.focus,2,24));
+        states.addState(new int[]{},composerShape(a,p.surface,p.border,1,24));
+        b.setForeground(null);b.setBackgroundTintList(null);
+        b.setBackground(new RippleDrawable(ColorStateList.valueOf(p.dialogRipple()),states,composerShape(a,Color.WHITE,Color.TRANSPARENT,0,24)));
+        b.setTextColor(colors(p.text,p.disabledText));
+        b.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);
+        b.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));
+        b.setPaddingRelative(dp(a,12),dp(a,8),dp(a,12),dp(a,8));
+        b.setSingleLine(false);b.setEllipsize(null);
+        b.setMinimumHeight(Math.max(b.getMinimumHeight(),dp(a,WorkbenchVisualPolicy.MIN_TARGET_DP)));
+        b.setMinimumWidth(Math.max(b.getMinimumWidth(),dp(a,WorkbenchVisualPolicy.MIN_TARGET_DP)));
+        OnHandGlyphs.refresh(b);
     }
     /** Flat navigation/disclosure row: no state, text, or callback ownership. */
     static void navigationRow(Activity a,Button b){

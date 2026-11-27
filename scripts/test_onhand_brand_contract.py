@@ -44,7 +44,7 @@ for required in ("BG=p.canvas","BUBBLE=p.bubble","brandSection(content,R.string.
 # F10A59: chat-first home replaces the large hero and six descriptive cards.
 starter=main.split("private Button starterChip(",1)[1].split("private void openKnowledgeWorkspace()",1)[0]
 for required in ("ChatWorkspacePolicy.starterMinHeightDp()", "chip.setMinimumWidth(dp(48))",
-    "chip.setSingleLine(false)", "chip.setEllipsize(null)", "chip.setBackground(bg(FIELD,24))",
+    "chip.setSingleLine(false)", "chip.setEllipsize(null)", "WorkbenchStyle.quickAction(this,chip)",
     "OnHandGlyphs.label(chip,glyph,false)", 'chip.setContentDescription(detail.isEmpty()?title:title+" · "+detail)',
     "chip.setOnClickListener(v->action.run())"):
     assert required in starter,required
@@ -295,5 +295,45 @@ assert "margin(modelSearchStatus,searchPanel,0,8)" in model_page
 assert "responsiveModelFilterPair(searchOptions,sourceFilter,sortFilter)" in model_page
 assert "responsiveModelFilterPair(filterRow,familyFilter,quantizationFilter)" in model_page
 assert "refreshModelFilterDisclosure();\n        if(modelRows==null)return;" in main
+# F10A62: shared warm-neutral signature and quiet outline hierarchy.
+assert "flatNavigationButton(menu)" in main and "flatNavigationButton(fresh)" in main
+assert 'topPageTitle.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL))' in main
+assert 'greeting.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL))' in main
+assert "refreshQuickActionPaint();" in main
+quick=(src/"WorkbenchStyle.java").read_text().split("static void quickAction(",1)[1].split("static void navigationRow(",1)[0]
+for required in ("composerShape(a,p.surface,p.border,1,24)","composerShape(a,p.surface,p.focus,2,24)",
+    "composerShape(a,p.disabled,p.border,1,24)","colors(p.text,p.disabledText)","OnHandGlyphs.refresh(b)",
+    "b.setSingleLine(false)","b.setEllipsize(null)"):
+    assert required in quick,required
+for forbidden in ("setOnClickListener(","setEnabled(","setText(","setSelected(","setVisibility("):
+    assert forbidden not in quick,forbidden
+assert colors["onhand_canvas_light"]=="#F9F8F5" and colors["onhand_canvas_dark"]=="#191A19"
+assert colors["onhand_accent_light"]=="#79503E" and colors["onhand_accent_dark"]=="#E7C1AD"
+# F10A62R1: distinguish the user-approved peach fill from accessible companion ink.
+assert colors["onhand_primary_fill_light"]=="#E5BBA6" and colors["onhand_primary_fill_dark"]=="#D4A58E"
+for mode in ("light","dark"):
+    assert colors["onhand_primary_ink_"+mode]=="#30221D"
+    for token in ("primary_fill","primary_ink"):
+        assert "0xff"+colors["onhand_"+token+"_"+mode][1:].lower() in policy
+assert "this.primaryFill=primaryFill" in policy
+assert "role==Role.PRIMARY?primaryFill" in policy and "status==ModelStatus.ACTIVE?primaryFill" in policy
+assert "return primaryAction?(enabled?primaryFill:disabled):surface" in policy
+assert "positive?primary:muted" in policy
+style_source=(src/"WorkbenchStyle.java").read_text()
+primary_paint=style_source.split("static void primaryButtonPaint(",1)[1].split("static void composerSurface(",1)[0]
+for required in ("p.primaryFill,p.primaryOutline(),1,radius","p.primaryFill,p.primaryText,2,radius",
+    "colors(p.primaryText,p.disabledText)","b.setPaddingRelative(start,top,end,bottom)",
+    "v.getBackground()==previous.background","R.id.onhand_primary_paint"):
+    assert required in primary_paint,required
+for forbidden in ("setOnClickListener(","setText(","setEnabled(","setVisibility("):
+    assert forbidden not in primary_paint,forbidden
+assert "WorkbenchStyle.primaryButtonPaint(this,b,14)" in main
+assert "WorkbenchStyle.primaryButtonPaint(this,buttons[i],10)" in main
+assert "WorkbenchStyle.refreshPrimaryButtonPaint(this,v)" in main
+assert "primary?p.primaryOutline():p.border,primary?1:0,24" in style_source
+assert "badgeSurface.setStroke(dp(1),p.primaryOutline())" in main
+assert "ACCENT=p.primary" in main
+assert "#B83B12" not in (res/"values/onhand_brand_theme.xml").read_text()
+assert "#FFAD7B" not in (res/"values/onhand_brand_theme.xml").read_text()
 assert "ads.register(downloadAdSlot,AdSupport.PLACEMENT_DOWNLOAD)" in main
 print("PASS: approved launcher SHA-256, both adaptive masks, light/dark dialog palettes and native UI wiring")

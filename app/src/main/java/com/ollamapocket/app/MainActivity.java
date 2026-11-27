@@ -399,6 +399,7 @@ public final class MainActivity extends Activity {
             int old=solid.getColor(),next=mappedColor(old,before,after);
             if(next!=old)solid.setColor(next);
         }
+        WorkbenchStyle.refreshPrimaryButtonPaint(this,v);
         OnHandGlyphs.refresh(v);
         if(v instanceof ViewGroup){
             ViewGroup group=(ViewGroup)v;
@@ -420,6 +421,7 @@ public final class MainActivity extends Activity {
         }
         styleLocalComposer(); // Restore stateful colors and outline after live theme recoloring.
         for(Button button:flatNavigationButtons)WorkbenchStyle.navigationRow(this,button);
+        refreshQuickActionPaint();
         updateModelViewButtons();
         renderInstalledModels();
         if(activeTab==3)refreshDiagnosticViews();
@@ -741,12 +743,16 @@ public final class MainActivity extends Activity {
     }
     private Button button(String label, boolean primary) {
         Button b = new Button(this); b.setText(label); b.setAllCaps(false);
-        b.setTextSize(13*uiTextScale); b.setTextColor(primary ? BG : WHITE);
+        b.setTextSize(13*uiTextScale); b.setTextColor(WHITE);
         b.setPadding(dp(11), dp(6), dp(11), dp(6)); b.setMinHeight(dp(48)); b.setMinimumHeight(dp(48));
-        b.setBackgroundTintList(null);b.setStateListAnimator(null);
-        b.setBackground(bg(primary ? ACCENT : FIELD, 14));
-        if(primary)b.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
-        b.setElevation(0);AdaptiveAnswerActions.feedback(b,14);return b;
+        b.setBackgroundTintList(null);b.setStateListAnimator(null);b.setElevation(0);
+        if(primary){
+            b.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+            WorkbenchStyle.primaryButtonPaint(this,b,14);
+        }else{
+            b.setBackground(bg(FIELD,14));AdaptiveAnswerActions.feedback(b,14);
+        }
+        return b;
     }
     private void margin(View v, LinearLayout host, int top, int bottom) {
         LinearLayout.LayoutParams p = lp(-1, -2); p.topMargin = dp(top); p.bottomMargin = dp(bottom); host.addView(v, p);
@@ -768,6 +774,7 @@ public final class MainActivity extends Activity {
     }
     private TextView sectionTitle(int title,OnHandGlyphs.Kind glyph){
         TextView heading=text(getString(title),16,WHITE,true);
+        heading.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));
         OnHandGlyphs.accentLabel(heading,glyph);
         if(Build.VERSION.SDK_INT>=28)heading.setAccessibilityHeading(true);
         return heading;
@@ -825,10 +832,12 @@ public final class MainActivity extends Activity {
         menu.setContentDescription(getString(R.string.menu));
         menu.setTextSize(20);
         menu.setMinWidth(dp(48));menu.setMinimumWidth(dp(48));menu.setTooltipText(getString(R.string.menu));
-        iconAction(menu,OnHandGlyphs.Kind.MENU);rowItem(header, menu, 0, 9);
+        iconAction(menu,OnHandGlyphs.Kind.MENU);flatNavigationButton(menu);rowItem(header, menu, 0, 9);
         menu.setOnClickListener(v -> showNavigationDrawer());
         LinearLayout branding = column();
         topPageTitle = text(getString(R.string.app_name), 20, WHITE, true);
+        topPageTitle.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));
+        topPageTitle.setLetterSpacing(0.005f);
         topPageTitle.setSingleLine(true);topPageTitle.setEllipsize(TextUtils.TruncateAt.END);
         branding.addView(topPageTitle);
         topPageSubtitle=text(getString(R.string.coop_select_model),12,MUTED,false);
@@ -837,7 +846,7 @@ public final class MainActivity extends Activity {
         rowItem(header, branding, 1, 5);
         Button fresh = button(getString(R.string.new_chat), false);
         newChatShortcut=fresh;fresh.setContentDescription(getString(R.string.new_chat));fresh.setTooltipText(getString(R.string.new_chat));
-        iconAction(fresh,OnHandGlyphs.Kind.NEW_CHAT);
+        iconAction(fresh,OnHandGlyphs.Kind.NEW_CHAT);flatNavigationButton(fresh);
         rowItem(header, fresh, 0, 0);
         fresh.setOnClickListener(v -> newChat());
         header.setMinimumHeight(dp(52));
@@ -2367,8 +2376,12 @@ public final class MainActivity extends Activity {
         Button[] buttons={modelListViewButton,modelGridViewButton};
         boolean[] active={modelListView,!modelListView};
         for(int i=0;i<buttons.length;i++){
-            buttons[i].setBackground(bg(active[i]?ACCENT:FIELD,10));
-            buttons[i].setTextColor(active[i]?BG:WHITE);
+            if(active[i])WorkbenchStyle.primaryButtonPaint(this,buttons[i],10);
+            else{
+                buttons[i].setTag(R.id.onhand_primary_paint,null);
+                buttons[i].setBackground(bg(FIELD,10));buttons[i].setTextColor(WHITE);
+                AdaptiveAnswerActions.feedback(buttons[i],10);OnHandGlyphs.refresh(buttons[i]);
+            }
             buttons[i].setSelected(active[i]);
         }
         modelListViewButton.setContentDescription(getString(R.string.list_view)+(modelListView?" · "+getString(R.string.workspace_selected):""));
@@ -2382,7 +2395,7 @@ public final class MainActivity extends Activity {
     private int tileMutedColor(){return MUTED;}
     private GradientDrawable tileBackground(boolean selected){
         GradientDrawable shape=bg(tileBackgroundColor(selected),18);
-        // Orange focus indicates selection, while the actual status label remains authoritative.
+        // Readable companion ink outlines selection; the status label remains authoritative.
         shape.setStroke(dp(selected?2:1),selected?ACCENT:borderTone());
         return shape;
     }
@@ -2474,7 +2487,9 @@ public final class MainActivity extends Activity {
     private TextView modelStatusBadge(WorkbenchVisualPolicy.ModelStatus status,boolean compact){
         WorkbenchVisualPolicy.Palette p=WorkbenchStyle.palette(this);
         TextView badge=text(modelCardStatusLabel(status),compact?10:11,p.modelStatusInk(status),true);
-        badge.setBackground(bg(p.modelStatusFill(status),10));
+        GradientDrawable badgeSurface=bg(p.modelStatusFill(status),10);
+        if(status==WorkbenchVisualPolicy.ModelStatus.ACTIVE)badgeSurface.setStroke(dp(1),p.primaryOutline());
+        badge.setBackground(badgeSurface);
         badge.setPadding(dp(compact?4:10),dp(compact?0:5),dp(compact?4:10),dp(compact?0:5));
         return badge;
     }
@@ -3656,6 +3671,7 @@ public final class MainActivity extends Activity {
             messages.setGravity(Gravity.CENTER_VERTICAL);
             TextView greeting=text(getString(R.string.welcome),24,WHITE,true);
             greeting.setGravity(Gravity.CENTER);
+            greeting.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));
             if(Build.VERSION.SDK_INT>=28)greeting.setAccessibilityHeading(true);
             margin(greeting,messages,12,20);
             if(knownModels.isEmpty()){
@@ -3806,6 +3822,18 @@ public final class MainActivity extends Activity {
         else new AlertDialog.Builder(this).setTitle(R.string.workspace_starter_add).setMessage(R.string.workspace_starter_preserve)
             .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,(d,w)->apply.run()).show();
     }
+    private void refreshQuickActionPaint(){
+        if(starterPanel==null)return;
+        for(int i=0;i<starterPanel.getChildCount();i++){
+            View row=starterPanel.getChildAt(i);
+            if(!(row instanceof LinearLayout))continue;
+            LinearLayout line=(LinearLayout)row;
+            for(int j=0;j<line.getChildCount();j++){
+                View child=line.getChildAt(j);
+                if(child instanceof Button)WorkbenchStyle.quickAction(this,(Button)child);
+            }
+        }
+    }
     private Button starterChip(String title,String detail,OnHandGlyphs.Kind glyph,Runnable action){
         Button chip=button(title,false);
         chip.setMinHeight(dp(ChatWorkspacePolicy.starterMinHeightDp()));
@@ -3814,7 +3842,7 @@ public final class MainActivity extends Activity {
         chip.setSingleLine(false);chip.setEllipsize(null);
         chip.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);
         chip.setPaddingRelative(dp(12),dp(8),dp(12),dp(8));
-        chip.setBackground(bg(FIELD,24));AdaptiveAnswerActions.feedback(chip,24);
+        WorkbenchStyle.quickAction(this,chip);
         OnHandGlyphs.label(chip,glyph,false);
         chip.setContentDescription(detail.isEmpty()?title:title+" · "+detail);
         chip.setOnClickListener(v->action.run());return chip;

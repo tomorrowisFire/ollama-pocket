@@ -41,7 +41,7 @@ public final class WorkbenchVisualPolicyTest {
             for(boolean primary:new boolean[]{false,true})for(boolean enabled:new boolean[]{false,true}){
                 int fill=p.composerActionFill(primary,enabled),ink=p.composerActionInk(primary,enabled);
                 contrast(ink,fill,4.5);
-                check(fill==(primary?(enabled?p.primary:p.disabled):p.surface));
+                check(fill==(primary?(enabled?p.primaryFill:p.disabled):p.surface));
                 check(ink==(!enabled?p.disabledText:primary?p.primaryText:p.text));
                 if(enabled)contrast(p.composerActionFocus(primary),fill,3);
             }
@@ -52,11 +52,26 @@ public final class WorkbenchVisualPolicyTest {
             contrast(p.text,p.accentSoft,4.5);contrast(p.primary,p.canvas,4.5);
             contrast(p.primary,p.surface,4.5);contrast(p.canvas,p.primary,4.5);
             contrast(p.muted,p.canvas,4.5);
+            // F10A62: quiet signature palette, outlined quick actions and selected/recommended states.
+            contrast(p.primary,p.bubble,4.9);
+            contrast(p.focus,p.bubble,3);contrast(p.focus,p.accentSoft,3);
+            check(p.text!=p.primary&&p.canvas!=p.surface&&p.surface!=p.field);
+            contrast(p.disabledText,p.disabled,4.5);contrast(p.focus,p.surface,3);
             // F10A61: flat navigation rows remain readable when disabled and focused.
             contrast(p.disabledText,p.canvas,4.5);
             contrast(p.focus,p.canvas,3);
             check(p.canvas!=p.surface&&p.bubble!=p.field&&p.accentSoft!=p.field);
-            check(p.primary== (dark?0xffffad7b:0xffb83b12));
+            check(p.primary==(dark?0xffe7c1ad:0xff79503e));
+            check(p.primaryFill==(dark?0xffd4a58e:0xffe5bba6));
+            check(p.primaryText==0xff30221d&&p.primaryFill!=p.primary);
+            check(p.fill(WorkbenchVisualPolicy.Role.PRIMARY,true)==p.primaryFill);
+            check(p.modelStatusFill(WorkbenchVisualPolicy.ModelStatus.ACTIVE)==p.primaryFill);
+            check(p.composerActionFill(true,true)==p.primaryFill);
+            contrast(p.primaryText,p.primaryFill,4.5);
+            contrast(p.primaryOutline(),p.canvas,3);contrast(p.primaryOutline(),p.surface,3);
+            check(WorkbenchVisualPolicy.contrast(p.primaryFill,p.surface)>=3||WorkbenchVisualPolicy.contrast(p.primaryOutline(),p.primaryFill)>=3);
+            check(p.canvas==(dark?0xff191a19:0xfff9f8f5));
+            check(p.focus==(dark?0xffddbcaa:0xff79503e));
             contrast(p.muted,p.surface,4.5);contrast(p.muted,p.field,4.5);
             contrast(p.disabledText,p.disabled,4.5);contrast(p.focus,p.field,3);contrast(p.focus,p.surface,3);
             check(WorkbenchVisualPolicy.darkFromPrimaryText(p.text)==dark);
