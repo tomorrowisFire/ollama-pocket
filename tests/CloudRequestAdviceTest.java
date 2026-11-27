@@ -25,6 +25,7 @@ public final class CloudRequestAdviceTest {
         check(CloudRequestAdvice.inputUnits(question("中文"))==150);
         check(CloudRequestAdvice.inputUnits(question(""))==-1);
         check(CloudRequestAdvice.inputUnits(question(" "))==-1);
+        check(CloudRequestAdvice.inputUnits(question("\u00a0\u200d"))==-1);
         check(CloudRequestAdvice.inputUnits(question(null))==-1);
         check(CloudRequestAdvice.inputUnits(question("\uD800"))==-1);
         check(CloudRequestAdvice.inputUnits(question("\uDC00"))==-1);

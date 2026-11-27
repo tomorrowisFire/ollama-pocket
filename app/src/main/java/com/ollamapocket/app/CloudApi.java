@@ -47,6 +47,10 @@ final class CloudApi {
         if(port<1||port>65535||!(ip[0]==10||ip[0]==172&&ip[1]>=16&&ip[1]<=31||ip[0]==192&&ip[1]==168))throw new IllegalArgumentException("Private IPv4:port required");
         return "http://"+pair[0]+":"+port;
     }
+    static String remoteAddress(String address){return remoteBase(address).substring("http://".length());}
+    private static void checkCancelled()throws java.io.InterruptedIOException{
+        if(Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("Cloud request cancelled");
+    }
     /** Exact POST target for the review UI and connection; no network activity here. */
     static String requestTarget(Provider p,String address){
         if(p==null)throw new IllegalArgumentException("Provider required");
@@ -64,7 +68,7 @@ final class CloudApi {
         return open(p,key,catalogUrl(p),false);
     }
     static java.util.List<String> catalog(java.net.HttpURLConnection c)throws Exception{
-        int status=c.getResponseCode();
+        checkCancelled();int status=c.getResponseCode();checkCancelled();
         if(status<200||status>=300)throw new HttpFailure(status);
         JSONObject json=readJson(c);JSONArray rows=json.optJSONArray("data");
         java.util.TreeSet<String> ids=new java.util.TreeSet<>();
@@ -208,9 +212,11 @@ final class CloudApi {
         return executeReply(provider,c,model,messages).text;
     }
     static Reply executeReply(Provider provider,java.net.HttpURLConnection c,String model,java.util.List<CloudHistory.Message> messages) throws Exception {
-        byte[] payload=request(provider,model,messages).toString().getBytes(StandardCharsets.UTF_8);
+        checkCancelled();byte[] payload=request(provider,model,messages).toString().getBytes(StandardCharsets.UTF_8);
         c.setFixedLengthStreamingMode(payload.length);
-        try(java.io.OutputStream stream=c.getOutputStream()){stream.write(payload);}
+        checkCancelled();
+        try(java.io.OutputStream stream=c.getOutputStream()){checkCancelled();stream.write(payload);}
+        checkCancelled();
         int status=c.getResponseCode();
         if(status<200||status>=300)throw new HttpFailure(status); // Never expose response bodies containing secrets.
         return parseReply(provider,readJson(c));
@@ -221,12 +227,14 @@ final class CloudApi {
         StreamFailure(String reason,boolean incomplete){super(reason);this.incomplete=incomplete;}
     }
     static Reply streamReply(Provider provider,java.net.HttpURLConnection c,String model,java.util.List<CloudHistory.Message> messages,Progress progress)throws Exception{
-        JSONObject body=request(provider,model,messages).put("stream",true);
+        checkCancelled();JSONObject body=request(provider,model,messages).put("stream",true);
         if(provider==Provider.DEEPSEEK||provider==Provider.OPENROUTER)body.put("stream_options",new JSONObject().put("include_usage",true));
         c.setRequestProperty("Accept","text/event-stream");
         byte[] payload=body.toString().getBytes(StandardCharsets.UTF_8);
         c.setFixedLengthStreamingMode(payload.length);
-        try(java.io.OutputStream stream=c.getOutputStream()){stream.write(payload);}
+        checkCancelled();
+        try(java.io.OutputStream stream=c.getOutputStream()){checkCancelled();stream.write(payload);}
+        checkCancelled();
         int status=c.getResponseCode();if(status<200||status>=300)throw new HttpFailure(status);
         String contentType=c.getContentType();
         if(contentType==null||!contentType.toLowerCase(java.util.Locale.ROOT).contains("text/event-stream"))throw new java.io.IOException("Expected SSE");
@@ -341,6 +349,7 @@ final class CloudApi {
         try(InputStream stream=c.getInputStream();ByteArrayOutputStream buffer=new ByteArrayOutputStream()){
             byte[] b=new byte[8192];int n;
             while((n=stream.read(b))!=-1){
+                checkCancelled();
                 if(buffer.size()+n>2_000_000)throw new java.io.IOException("Response limit");
                 buffer.write(b,0,n);
             }

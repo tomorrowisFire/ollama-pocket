@@ -35,8 +35,8 @@ final class CloudChatPanel extends LinearLayout {
             String raw=profilePrefs.getString(p.name(),null);if(raw==null)continue;
             org.json.JSONObject j=new org.json.JSONObject(raw);
             String id=j.getString("model"),address=j.optString("address","");
-            if(id.trim().isEmpty()||id.length()>200||id.indexOf('\0')>=0)continue;
-            if(p.remote())CloudApi.remoteBase(address);else address="";
+            if(!PrivacyPolicy.validModelId(id))continue;
+            if(p.remote())address=CloudApi.remoteAddress(address);else address="";
             double in=rate(j.optString("in","")),out=rate(j.optString("out","")),limit=rate(j.optString("budget",""));
             profiles.put(p,new Profile(id,address,in,out,limit));
         }catch(Exception ignored){}
@@ -88,6 +88,26 @@ final class CloudChatPanel extends LinearLayout {
     private String scope(CloudApi.Provider p){return p.remote()?p.name()+"@"+pcAddress:p.name();}
     private double inputRate=-1,outputRate=-1;
     private volatile HttpURLConnection catalogRequest;
+    private volatile long catalogSerial;
+    private java.util.concurrent.Future<?> catalogTask,activeRequest;
+    private static void disconnect(HttpURLConnection c){
+        if(c!=null)try{c.disconnect();}catch(RuntimeException ignored){}
+    }
+    private static void disconnectAsync(HttpURLConnection c){
+        if(c==null)return;
+        try{
+            Thread t=new Thread(()->disconnect(c),"onhand-cloud-cancel");
+            t.setDaemon(true);t.start();
+        }catch(RuntimeException|OutOfMemoryError unavailable){
+            android.util.Log.w("OnHandAI","Cloud cancellation worker unavailable");
+        }
+    }
+    private void cancelCatalog(){
+        catalogSerial++;
+        java.util.concurrent.Future<?> task=catalogTask;catalogTask=null;
+        if(task!=null)task.cancel(true);
+        disconnectAsync(catalogRequest);
+    }
     private int errorLabel(Exception e){
         if(e instanceof CloudApi.StreamFailure)return R.string.chat_stream_incomplete;
         if(e instanceof java.net.SocketTimeoutException)return R.string.cloud_timeout;
@@ -212,7 +232,7 @@ final class CloudChatPanel extends LinearLayout {
         viewportPolicy.invalidate();scroll.removeCallbacks(followTask);
         if(actionDialog!=null){actionDialog.dismiss();actionDialog=null;}
         if(keyDialog!=null){keyDialog.dismiss();keyDialog=null;}
-        HttpURLConnection catalog=catalogRequest;if(catalog!=null)catalog.disconnect();
+        cancelCatalog();
         if(busy)cancel();token="";
     }
     void resume(){if(!closed)active=true;}
@@ -540,21 +560,38 @@ final class CloudChatPanel extends LinearLayout {
         AlertDialog dialog=new AlertDialog.Builder(owner).setTitle(R.string.api_manager_title).setView(sc)
             .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,null).create();
         keyDialog=dialog;
-        dialog.setOnDismissListener(d->{key.setText("");if(keyDialog==dialog)keyDialog=null;HttpURLConnection c=catalogRequest;if(c!=null)c.disconnect();});
+        dialog.setOnDismissListener(d->{key.setText("");if(keyDialog==dialog){keyDialog=null;cancelCatalog();}});
         fetch.setOnClickListener(v->{
             final CloudApi.Provider selected=values[pick.getSelectedItemPosition()];final String secret=selected.remote()?address.getText().toString().trim():key.getText().toString().trim();
             if(selected.remote()){try{CloudApi.remoteBase(secret);}catch(RuntimeException e){toast(R.string.cloud_pc_address);return;}}
             if(secret.isEmpty()){toast(R.string.cloud_key_needed);return;}
             new AlertDialog.Builder(owner).setMessage(selected.remote()?getResources().getString(R.string.cloud_pc_notice)+"\n"+secret:getResources().getString(R.string.cloud_fetch_notice)).setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,(d,w)->{
                 if(!active||closed||keyDialog!=dialog||!dialog.isShowing()||values[pick.getSelectedItemPosition()]!=selected||!secret.equals((selected.remote()?address:key).getText().toString().trim()))return;fetch.setEnabled(false);
-                io.execute(()->{HttpURLConnection c=null;List<String> models=null;int err=R.string.cloud_fail;
-                    try{c=selected.remote()?CloudApi.remoteConnection(selected,secret,false):CloudApi.catalogConnection(selected,secret);catalogRequest=c;models=CloudApi.catalog(c);}catch(Exception e){err=errorLabel(e);}finally{if(c!=null)c.disconnect();if(catalogRequest==c)catalogRequest=null;}
+                cancelCatalog();final long ticket=catalogSerial;
+                try{catalogTask=io.submit(()->{
+                    HttpURLConnection c=null;List<String> models=null;int err=R.string.cloud_fail;
+                    try{
+                        if(closed||ticket!=catalogSerial||Thread.currentThread().isInterrupted())return;
+                        c=selected.remote()?CloudApi.remoteConnection(selected,secret,false):CloudApi.catalogConnection(selected,secret);
+                        catalogRequest=c;
+                        if(closed||ticket!=catalogSerial||Thread.currentThread().isInterrupted())return;
+                        models=CloudApi.catalog(c);
+                    }catch(Exception e){err=errorLabel(e);}
+                    finally{disconnect(c);if(catalogRequest==c)catalogRequest=null;}
                     final List<String> result=models;final int failure=err;owner.runOnUiThread(()->{
-                        if(!active||closed||keyDialog!=dialog||!dialog.isShowing())return;fetch.setEnabled(true);
+                        if(!active||closed||ticket!=catalogSerial||keyDialog!=dialog||!dialog.isShowing())return;
+                        catalogTask=null;fetch.setEnabled(true);
                         if(values[pick.getSelectedItemPosition()]!=selected||!secret.equals((selected.remote()?address:key).getText().toString().trim()))return;
-                        if(result==null){toast(failure);return;}new AlertDialog.Builder(owner).setTitle(R.string.cloud_fetch_models).setItems(result.toArray(new String[0]),(x,i)->{if(keyDialog==dialog&&values[pick.getSelectedItemPosition()]==selected)chosenModel.setText(result.get(i));}).setNegativeButton(R.string.cancel,null).show();
+                        if(result==null){toast(failure);return;}
+                        AlertDialog choices=new AlertDialog.Builder(owner).setTitle(R.string.cloud_fetch_models)
+                            .setItems(result.toArray(new String[0]),(x,i)->{
+                                if(active&&!closed&&ticket==catalogSerial&&keyDialog==dialog&&dialog.isShowing()&&
+                                    values[pick.getSelectedItemPosition()]==selected&&secret.equals((selected.remote()?address:key).getText().toString().trim()))
+                                    chosenModel.setText(result.get(i));
+                            }).setNegativeButton(R.string.cancel,null).create();
+                        choices.show();if(choices.getWindow()!=null)choices.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
                     });
-                });
+                });}catch(java.util.concurrent.RejectedExecutionException unavailable){fetch.setEnabled(true);toast(R.string.cloud_fail);}
             }).show();
         });
         dialog.show();
@@ -565,7 +602,7 @@ final class CloudChatPanel extends LinearLayout {
             CloudApi.Provider selected=values[pick.getSelectedItemPosition()];
             String id=chosenModel.getText().toString().trim(),apiKey=key.getText().toString().trim();
             String target=address.getText().toString().trim();
-            if(selected.remote()){try{CloudApi.remoteBase(target);}catch(RuntimeException e){toast(R.string.cloud_pc_address);return;}}
+            if(selected.remote()){try{target=CloudApi.remoteAddress(target);}catch(RuntimeException e){toast(R.string.cloud_pc_address);return;}}
             if(!PrivacyPolicy.validModelId(id)||(!selected.remote()&&!PrivacyPolicy.validApiKey(apiKey))){toast(R.string.cloud_fields);return;}
             try{history.session(selected.remote()?selected.name()+"@"+target:selected.name(),id);}catch(IllegalStateException e){toast(R.string.cloud_session_capacity);return;}
             catch(IllegalArgumentException e){toast(R.string.cloud_fields);return;}
@@ -624,7 +661,8 @@ final class CloudChatPanel extends LinearLayout {
         final String target=p.remote()?pcAddress:token;
         final double ir=inputRate,or=outputRate,limit=budget;
         if(!ledger.canTrack(usageScope(p))){toast(R.string.api_overview_ledger_full);return;}
-        final List<CloudHistory.Message> messages=s.request(q);
+        final List<CloudHistory.Message> messages;
+        try{messages=s.request(q);}catch(IllegalArgumentException invalid){toast(R.string.transfer_review_failed);return;}
         final String destination;
         try{destination=CloudApi.requestTarget(p,pcAddress);}
         catch(IllegalArgumentException e){toast(R.string.cloud_fields);return;}
@@ -668,18 +706,18 @@ final class CloudChatPanel extends LinearLayout {
         s.draft(q);int request=++serial;viewportPolicy.reset();setBusy(true);status.setText(R.string.thinking);
         TextView question=new TextView(owner);question.setText(q);question.setTextSize(15);question.setPadding(dp(10),dp(10),dp(10),dp(10));transcript.addView(question,new LayoutParams(-1,-2));
         TextView partial=new TextView(owner);partial.setTextSize(15);partial.setPadding(dp(10),dp(10),dp(10),dp(10));partial.setAutoLinkMask(0);partial.setTextIsSelectable(true);transcript.addView(partial,new LayoutParams(-1,-2));
-        io.execute(()->{
+        try{activeRequest=io.submit(()->{
             HttpURLConnection c=null;CloudApi.Reply result=null;int err=R.string.cloud_fail;
             try{
-                if(closed||request!=serial)return;
+                if(closed||request!=serial||Thread.currentThread().isInterrupted())return;
                 c=p.remote()?CloudApi.remoteConnection(p,apiKey,true):CloudApi.connection(p,apiKey);connection=c;
-                if(closed||request!=serial)return;
+                if(closed||request!=serial||Thread.currentThread().isInterrupted())return;
                 result=CloudApi.streamReply(p,c,id,messages,value->owner.runOnUiThread(()->{if(!closed&&active&&request==serial){partial.setText(value);scheduleFollow();}}));
-            }catch(Exception e){err=errorLabel(e);}finally{if(c!=null)c.disconnect();if(connection==c)connection=null;}
+            }catch(Exception e){err=errorLabel(e);}finally{disconnect(c);if(connection==c)connection=null;}
             CloudApi.Reply output=result;final int failure=err;
             owner.runOnUiThread(()->{
                 if(closed||request!=serial||!active)return;
-                setBusy(false);
+                activeRequest=null;setBusy(false);
                 if(!current(p,id,s,revision)){status.setText(R.string.cloud_context_changed);return;}
                 if(output==null){ledger.record(ledgerScope,-1,-1,ir,or);String recovered=partial.getText().toString();render(false);prompt.setText(q);
                     if(!recovered.trim().isEmpty()){TextView fragment=new TextView(owner);fragment.setText(getResources().getString(R.string.chat_stream_incomplete)+"\n\n"+recovered);fragment.setTextIsSelectable(true);fragment.setAutoLinkMask(0);transcript.addView(fragment,new LayoutParams(-1,-2));}
@@ -688,11 +726,16 @@ final class CloudChatPanel extends LinearLayout {
                 try{s.complete(q,output.text);prompt.setText("");status.setText(usageLabel(output));render(false);}
                 catch(IllegalArgumentException e){status.setText(R.string.cloud_fail);}
             });
-        });
+        });}catch(java.util.concurrent.RejectedExecutionException unavailable){
+            activeRequest=null;setBusy(false);render(false);prompt.setText(q);status.setText(R.string.cloud_fail);
+        }
     }
     private void cancel(){
         if(busy)ledger.record(usageScope(provider),-1,-1,-1,-1);
-        serial++;HttpURLConnection c=connection;if(c!=null)c.disconnect();
+        serial++;
+        java.util.concurrent.Future<?> task=activeRequest;activeRequest=null;
+        if(task!=null)task.cancel(true);
+        disconnectAsync(connection);
         setBusy(false);render(false);status.setText(R.string.cloud_cancel_cost);
     }
 }

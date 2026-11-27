@@ -22,22 +22,13 @@ final class CloudRequestAdvice {
     private CloudRequestAdvice(){}
     static boolean validRate(double value){return Double.isFinite(value)&&value>=0&&value<=1000000;}
     static boolean validBudget(double value){return value==-1||validRate(value);}
-    private static boolean validUnicode(String value){
-        for(int i=0;i<value.length();i++){
-            char ch=value.charAt(i);
-            if(Character.isHighSurrogate(ch)){
-                if(i+1>=value.length()||!Character.isLowSurrogate(value.charAt(++i)))return false;
-            }else if(Character.isLowSurrogate(ch))return false;
-        }
-        return true;
-    }
     static long inputUnits(List<CloudHistory.Message> messages){
         if(messages==null||messages.isEmpty()||messages.size()>25||messages.size()%2==0)return -1;
         long units=128;int chars=0;
         for(int i=0;i<messages.size();i++){
             CloudHistory.Message m=messages.get(i);
             if(m==null||!(i%2==0?"user":"assistant").equals(m.role)||m.content==null||
-                m.content.length()>CloudHistory.MAX_CONTEXT||m.content.trim().isEmpty()||!validUnicode(m.content))return -1;
+                !CloudHistory.validMessage(m.content,CloudHistory.MAX_CONTEXT))return -1;
             chars+=m.content.length();if(chars>CloudHistory.MAX_CONTEXT)return -1;
             units+=16L+m.content.getBytes(StandardCharsets.UTF_8).length;
         }

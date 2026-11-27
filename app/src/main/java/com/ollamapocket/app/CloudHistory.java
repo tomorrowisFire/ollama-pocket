@@ -83,8 +83,11 @@ final class CloudHistory {
         return Collections.unmodifiableList(new ArrayList<>(groups.get(scope(provider,model)).items));
     }
     Session newSession(String provider,String model){
-        session(provider,model);
-        return allocate(groups.get(scope(provider,model)),false);
+        String key=scope(provider,model);
+        Group g=groups.get(key);
+        if(g!=null)return allocate(g,false);
+        Group fresh=new Group();
+        Session first=allocate(fresh,false);groups.put(key,fresh);return first;
     }
     boolean isCurrent(String provider,String model,Session source,long revision){
         Group g=groups.get(scope(provider,model));

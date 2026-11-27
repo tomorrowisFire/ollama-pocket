@@ -36,6 +36,12 @@ public final class CloudBranchTest {
         fails(()->h.session("CLAUDE","a"),"global cap includes providers");
         h.clear();
         ok(h.session("CLAUDE","a").turns().isEmpty()&&original.turns().isEmpty(),"memory clear");
+        CloudHistory empty=new CloudHistory();
+        CloudHistory.Session only=empty.newSession("OPENAI","new-model");
+        ok(empty.conversations("OPENAI","new-model").equals(List.of(only)),"first new session allocates once");
+        for(int i=0;i<15;i++)empty.newSession("OPENAI","scope-"+i);
+        fails(()->empty.newSession("OPENAI","overflow"),"exact global capacity");
+        ok(empty.conversations("OPENAI","new-model").size()==1,"failed allocation preserves sessions");
         System.out.println("CloudBranchTest PASS: "+n+" assertions");
     }
 }

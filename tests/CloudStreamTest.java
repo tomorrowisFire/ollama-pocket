@@ -29,6 +29,7 @@ public final class CloudStreamTest {
             "https://api.anthropic.com/v1/messages","https://api.x.ai/v1/responses","https://api.deepseek.com/chat/completions",
             "https://openrouter.ai/api/v1/chat/completions","http://192.168.1.9:1234/v1/chat/completions","http://192.168.1.9:1234/v1/chat/completions"};
         check(CloudApi.Provider.values().length==targets.length&&CloudApi.OUTPUT_TOKEN_LIMIT==2048);
+        check(CloudApi.remoteAddress("192.168.1.9:01234").equals("192.168.1.9:1234"));
         for(CloudApi.Provider p:CloudApi.Provider.values()){
             check(targets[p.ordinal()].equals(CloudApi.requestTarget(p,"192.168.1.9:01234")));
             org.json.JSONObject body=CloudApi.request(p,"model","offline");

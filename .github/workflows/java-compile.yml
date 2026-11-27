@@ -144,6 +144,8 @@ jobs:
         with:
           path: /tmp/onhand-voice-test-deps
           key: ${{ runner.os }}-onhand-voice-jars-v1-${{ hashFiles('scripts/test_voice_models.sh', 'scripts/fetch_pinned_test_jar.sh') }}
+      - name: Verify shared sidebar and model search contract
+        run: python3 scripts/test_sidebar_contract.py
       - name: Test model search partial results and cache admission
         run: |
           mkdir -p /tmp/search-batch-tests

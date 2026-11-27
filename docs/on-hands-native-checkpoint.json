@@ -1,6 +1,6 @@
 {
-  "stage": "P3-P8-integrated-search-knowledge-quality-remediation",
-  "revision": "F10A43",
-  "priorCandidate": "19a5b597d539f3ce349791942fe61edc45e86c08",
-  "reason": "Integrate bounded multi-excerpt knowledge retrieval and explicit partial model search results with complete-only cache admission. Require full packaging and Java regression gates."
+  "stage": "P3-P8-integrated-cloud-transport-quality-remediation",
+  "revision": "F10A44",
+  "priorCandidate": "399ebcb9f31bd46376e66ec5c8f153edfb706b39",
+  "reason": "Correct stale native sidebar contract for the detailed provider search APIs; integrate strict cloud protocol/Unicode validation, canonical LAN scope, cancellable catalog and generation tasks, and session capacity correction. Full Java, host, APK/QA AAB and compatibility gates required."
 }
