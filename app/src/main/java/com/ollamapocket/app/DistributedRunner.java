@@ -212,6 +212,7 @@ public final class DistributedRunner {
         return ensure(context,model,reason,cancelled,null);
     }
     public static boolean ensure(Context context,String model,StringBuilder reason,java.util.function.BooleanSupplier cancelled,String approvedEndpoints){
+        final long entryGeneration=generation;
         if(cancelled.getAsBoolean()||Thread.currentThread().isInterrupted())return false;
         CoopSession coop=CoopSession.get(context);
         final String session=coop.sessionId();
@@ -233,6 +234,7 @@ public final class DistributedRunner {
         final long observedGeneration;
         final String residentEndpoints;
         synchronized(DistributedRunner.class){
+            if(entryGeneration!=generation)return false;
             observedGeneration=generation;
             resident=activeModel.equals(model)&&activeWeightsKey.equals(weightsKey)&&session.equals(activeSessionId)?process:null;
             residentEndpoints=rpcEndpointSet;
@@ -243,13 +245,15 @@ public final class DistributedRunner {
             if(observedGeneration!=generation||!canContinue(context,coop,session,cancelled))return false;
             stop();startup=generation;
         }
+        java.util.function.BooleanSupplier abort=EngineTransitionPolicy.abortSignal(startup,()->generation,cancelled,
+            ()->InferenceSafetyPolicy.sameHostSession(session,coop.sessionId(),coop.role())&&!InferenceSafety.blocked(context));
         try{
-            if(startup!=generation||!canContinue(context,coop,session,cancelled))return false;
+            if(abort.getAsBoolean())return false;
             GpuRunner.stop();
-            if(startup!=generation||!canContinue(context,coop,session,cancelled))return false;
-            OllamaHttp.releaseResidentModels(cancelled);
+            if(abort.getAsBoolean())return false;
+            OllamaHttp.releaseResidentModels(abort);
         }catch(Exception e){InferenceSafetyPolicy.restoreInterrupt(e);reason.append(e.getMessage());return false;}
-        if(startup!=generation||!canContinue(context,coop,session,cancelled))return false;
+        if(abort.getAsBoolean())return false;
 
         BudgetSelection selection=plan(context,weights);
         CoopMemoryPlanner.Plan budget=selection.budget;
@@ -289,7 +293,7 @@ public final class DistributedRunner {
             pb.environment().put("TMPDIR",context.getCacheDir().getAbsolutePath());
             final Process current;
             synchronized(DistributedRunner.class){
-                if(startup!=generation||!canContinue(context,coop,session,cancelled))return false;
+                if(abort.getAsBoolean())return false;
                 if(!InferenceSafetyPolicy.hasEndpoints(selection.endpoints,coop.connectedRpcEndpoints())||
                         (approvedEndpoints!=null&&!InferenceSafetyPolicy.hasEndpoints(selection.endpoints,approvedEndpoints)))return false;
                 current=pb.start();process=current;activeModel=model;activeWeightsKey=weightsKey;rpcEndpointSet=selection.endpoints;activeSessionId=session;

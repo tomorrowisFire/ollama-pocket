@@ -98,8 +98,8 @@ public final class GpuRunner {
                     Thread.currentThread().isInterrupted())return false;
         }
         boolean health=healthy();
-        boolean safe=!InferenceSafety.blocked(context);
         synchronized(GpuRunner.class){
+            boolean safe=!InferenceSafety.blocked(context);
             return GpuOffloadEvidence.ready(process==expected&&generation==expectedGeneration,
                 expected.isAlive(),offloadConfirmed,health,cancelled.getAsBoolean(),
                 Thread.currentThread().isInterrupted(),safe);
@@ -111,6 +111,7 @@ public final class GpuRunner {
         return ensure(context,model,reason,()->false);
     }
     public static boolean ensure(Context context,String model,StringBuilder reason,java.util.function.BooleanSupplier cancelled){
+        final int entryGeneration=generation;
         if(cancelled.getAsBoolean()||Thread.currentThread().isInterrupted())return false;
         InferenceSafetyPolicy.Reason risk=InferenceSafety.check(context);
         if(risk!=InferenceSafetyPolicy.Reason.NONE){reason.append(OnHandsLocale.wrap(context).getString(InferenceSafety.label(risk)));return false;}
@@ -122,18 +123,23 @@ public final class GpuRunner {
         catch (Exception e) { reason.append(e.getMessage()); return false; }
         final Process resident;final int residentGeneration;
         synchronized(GpuRunner.class){
+            if(entryGeneration!=generation)return false;
             resident=activeModel.equals(model)&&activeWeightsKey.equals(weightsKey)?process:null;
             residentGeneration=generation;
         }
         if(ready(context,resident,residentGeneration,cancelled))return true;
-        if(cancelled.getAsBoolean()||Thread.currentThread().isInterrupted()||InferenceSafety.blocked(context))return false;
         final int startup;
-        synchronized (GpuRunner.class) { stopLocked(); startup=generation; }
+        synchronized (GpuRunner.class) {
+            if(residentGeneration!=generation||cancelled.getAsBoolean()||Thread.currentThread().isInterrupted()||InferenceSafety.blocked(context))return false;
+            stopLocked(); startup=generation;
+        }
+        java.util.function.BooleanSupplier abort=EngineTransitionPolicy.abortSignal(startup,()->generation,cancelled,()->!InferenceSafety.blocked(context));
         try {
+            if(abort.getAsBoolean())return false;
             DistributedRunner.stop();
-            if(cancelled.getAsBoolean()||Thread.currentThread().isInterrupted()||generation!=startup||InferenceSafety.blocked(context))return false;
-            OllamaHttp.releaseResidentModels(cancelled);
-            if(cancelled.getAsBoolean()||Thread.currentThread().isInterrupted()||generation!=startup||InferenceSafety.blocked(context))return false;
+            if(abort.getAsBoolean())return false;
+            OllamaHttp.releaseResidentModels(abort);
+            if(abort.getAsBoolean())return false;
             File executable = new File(context.getApplicationInfo().nativeLibraryDir, "libllama-vulkan-server.so");
             ProcessBuilder pb = new ProcessBuilder(executable.getAbsolutePath(),
                     "-m", weights.getAbsolutePath(), "--host", "127.0.0.1", "--port", String.valueOf(PORT),
@@ -147,7 +153,7 @@ public final class GpuRunner {
             Process current;
             int myGeneration;
             synchronized (GpuRunner.class) {
-                if(generation!=startup||cancelled.getAsBoolean()||Thread.currentThread().isInterrupted()||InferenceSafety.blocked(context))return false;
+                if(abort.getAsBoolean())return false;
                 process = pb.start();
                 activeModel = model;activeWeightsKey=weightsKey;
                 offloadConfirmed = false;
@@ -178,6 +184,10 @@ public final class GpuRunner {
                 if(InferenceSafety.blocked(context)){reason.append("Unsafe inference resources");synchronized(GpuRunner.class){if(process==current)stopLocked();}return false;}
                 if(ready(context,current,myGeneration,cancelled))return true;
                 Thread.sleep(500);
+            }
+            if(abort.getAsBoolean()){
+                synchronized(GpuRunner.class){if(generation==startup)stopLocked();}
+                return false;
             }
             if (!current.isAlive()) reason.append("GPU 실행 파일이 종료됐습니다. Vulkan 드라이버·모델 호환 확인 필요");
             else if (healthy()) reason.append("서버는 시작됐지만 GPU 레이어 오프로드는 확인되지 않았습니다");
