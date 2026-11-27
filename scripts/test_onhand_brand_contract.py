@@ -138,5 +138,24 @@ for required in ("state_enabled","state_focused","spinnerSurface(c,p.field,p.foc
     assert required in glyph,required
 for forbidden in ("setAdapter(","setSelection(","setOnItemSelectedListener("):
     assert forbidden not in glyph,forbidden
+# F10A54: synchronize card status semantics and live/history cloud presentation.
+assert "case DOWNLOADING:return modelDownloadStatusLabel();" in main
+assert main.count("registerModelDownloadAccessibility(item,card);")==2
+assert "tileDownloadAccessibility.clear();" in main
+a11y=main.split("private void registerModelDownloadAccessibility(",1)[1].split("private TextView modelStatusBadge(",1)[0]
+assert "if(!TextUtils.equals(card.getContentDescription(),next))card.setContentDescription(next)" in a11y
+progress=main.split("private void updateTileDownloadProgress()",1)[1].split("/** Search both providers",1)[0]
+for required in ("String next=modelDownloadStatusLabel()", "if(!TextUtils.equals(status.getText(),next))", "tileDownloadAccessibility.get(downloadingCardId)", "if(refreshAccessibility!=null)refreshAccessibility.run()"):
+    assert required in progress,required
+panel=(src/"CloudChatPanel.java").read_text()
+for required in ("TextView text=conversationText(user,true)", "TextView question=conversationText(true,false)",
+    "TextView partial=conversationText(false,true)", "TextView fragment=conversationText(false,true)", "p.text,p.field,scale",
+    "status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE)",
+    "conversations.setContentDescription(getResources().getString(R.string.cloud_conversations))",
+    "cloudHeaderParams(hs,true)", "cloudHeaderParams(hs,false)",
+    "content.setAutoLinkMask(0)", "content.setTextIsSelectable(false)", "content.setSaveEnabled(false)",
+    "request(p,id,target,q,s,revision,messages)"):
+    assert required in panel,required
+assert "showAction(dialog);WorkbenchWindow.fit(owner,dialog)" not in panel
 assert "ads.register(downloadAdSlot,AdSupport.PLACEMENT_DOWNLOAD)" in main
 print("PASS: approved launcher SHA-256, both adaptive masks, light/dark dialog palettes and native UI wiring")

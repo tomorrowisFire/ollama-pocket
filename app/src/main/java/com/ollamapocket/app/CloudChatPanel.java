@@ -133,11 +133,11 @@ final class CloudChatPanel extends LinearLayout {
         setPadding(dp(6),dp(4),dp(6),dp(6));
         header=new LinearLayout(owner);
         header.setOrientation(HORIZONTAL);
-        back=button(R.string.cloud_return);
+        back=button(R.string.cloud_return);OnHandGlyphs.label(back,OnHandGlyphs.Kind.BACK,false);
         Button configure=button(R.string.api_manager_title);
         settings=configure;
-        header.addView(back,new LayoutParams(0,-2,1f));
-        header.addView(configure,new LayoutParams(0,-2,1f));
+        header.addView(back,cloudHeaderParams(false,true));
+        header.addView(configure,cloudHeaderParams(false,false));
         addView(header,new LayoutParams(-1,-2));
         back.setOnClickListener(v->local.run());configure.setOnClickListener(v->showApiManager());
         endpoint=new TextView(owner);WorkbenchStyle.label(owner,endpoint,16,false,true);OnHandGlyphs.accentLabel(endpoint,OnHandGlyphs.Kind.CLOUD);
@@ -148,7 +148,7 @@ final class CloudChatPanel extends LinearLayout {
         conversations=button(R.string.cloud_conversations);
         conversations.setOnClickListener(v->chooseConversation());
         addView(conversations,new LayoutParams(-1,-2));
-        TextView notice=new TextView(owner);notice.setText(R.string.cloud_context_notice);notice.setTextSize(11);notice.setPadding(0,dp(5),0,dp(5));
+        TextView notice=new TextView(owner);notice.setText(R.string.cloud_context_notice);WorkbenchStyle.label(owner,notice,12,false,false);notice.setPadding(dp(4),dp(5),dp(4),dp(5));
         addView(notice,new LayoutParams(-1,-2));
         scroll=new ScrollView(owner);scroll.setFillViewport(true);
         transcript=new LinearLayout(owner);transcript.setOrientation(VERTICAL);
@@ -169,7 +169,8 @@ final class CloudChatPanel extends LinearLayout {
             if(b-t!=ob-ot&&viewportPolicy.following())scheduleFollow();else refreshLatest();
         });
         addView(viewport,new LayoutParams(-1,0,1f));
-        status=new TextView(owner);status.setTextSize(12);status.setPadding(0,dp(3),0,dp(3));
+        status=new TextView(owner);WorkbenchStyle.label(owner,status,12,false,false);status.setPadding(dp(4),dp(3),dp(4),dp(3));
+        status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         addView(status,new LayoutParams(-1,-2));
         composer=new LinearLayout(owner);composer.setOrientation(HORIZONTAL);
         composer.setGravity(android.view.Gravity.CENTER_VERTICAL);
@@ -203,8 +204,8 @@ final class CloudChatPanel extends LinearLayout {
         boolean hs=WorkbenchLayoutPolicy.cloudHeaderStacked(width,scale);
         if(stackedHeader==null||stackedHeader!=hs){
             stackedHeader=hs;header.setOrientation(hs?VERTICAL:HORIZONTAL);
-            back.setLayoutParams(hs?new LayoutParams(-1,-2):new LayoutParams(0,-2,1f));
-            settings.setLayoutParams(hs?new LayoutParams(-1,-2):new LayoutParams(0,-2,1f));
+            back.setLayoutParams(cloudHeaderParams(hs,true));
+            settings.setLayoutParams(cloudHeaderParams(hs,false));
         }
         boolean cs=WorkbenchLayoutPolicy.cloudComposerStacked(width,scale);
         if(stackedComposer==null||stackedComposer!=cs){
@@ -220,6 +221,11 @@ final class CloudChatPanel extends LinearLayout {
             prompt.setMaxLines(compact?2:4);
             usageSummary.setVisibility(compact?GONE:VISIBLE);
         }
+    }
+    private LayoutParams cloudHeaderParams(boolean stacked,boolean first){
+        LayoutParams p=stacked?new LayoutParams(-1,-2):new LayoutParams(0,-2,1f);
+        if(first){if(stacked)p.bottomMargin=dp(WorkbenchVisualPolicy.GAP_DP);else p.setMarginEnd(dp(WorkbenchVisualPolicy.GAP_DP));}
+        return p;
     }
     private int dp(int v){return Math.round(v*getResources().getDisplayMetrics().density);}
     private Button button(int label){
@@ -288,7 +294,10 @@ final class CloudChatPanel extends LinearLayout {
                 conversations.setContentDescription(getResources().getString(R.string.cloud_conversations)+" · "+title(s));
                 for(int i=0;i<turns.size();i++){CloudHistory.Turn t=turns.get(i);bubble(t.question,true,i);bubble(t.answer,false,i);}
             }catch(IllegalStateException e){toast(R.string.cloud_session_capacity);}
-        }else conversations.setText(R.string.cloud_conversations);
+        }else{
+            conversations.setText(R.string.cloud_conversations);
+            conversations.setContentDescription(getResources().getString(R.string.cloud_conversations));
+        }
         }finally{programmaticScroll=false;}
         if(follow)scheduleFollow();
         else scroll.post(()->{
@@ -317,18 +326,25 @@ final class CloudChatPanel extends LinearLayout {
         finally{programmaticScroll=false;}
         refreshLatest();
     }
-    private void bubble(String value,boolean user,int turn){
-        TextView text=new TextView(owner);text.setTextSize(15);text.setTextIsSelectable(true);
+    /** Same brand treatment for saved turns, live requests and recovered partial text. */
+    private TextView conversationText(boolean user,boolean selectable){
+        TextView text=new TextView(owner);WorkbenchStyle.label(owner,text,15,false,false);text.setTextIsSelectable(selectable);
         text.setPadding(dp(10),dp(10),dp(10),dp(10));text.setLineSpacing(dp(3),1f);text.setAutoLinkMask(0);
-        View rich=user?null:ChatRichView.create(owner,provider.title,value,"",text.getCurrentTextColor(),0x22808080,1f);
+        if(user){
+            WorkbenchVisualPolicy.Palette p=WorkbenchStyle.palette(owner);
+            android.graphics.drawable.GradientDrawable bubble=new android.graphics.drawable.GradientDrawable();
+            bubble.setColor(p.bubble);bubble.setCornerRadius(dp(18));text.setBackground(bubble);text.setTextColor(p.text);
+        }
+        return text;
+    }
+    private void bubble(String value,boolean user,int turn){
+        TextView text=conversationText(user,true);
+        WorkbenchVisualPolicy.Palette p=WorkbenchStyle.palette(owner);
+        float scale=WorkbenchVisualPolicy.textScale(owner.getPreferences(Context.MODE_PRIVATE).getString("font_size","normal"));
+        View rich=user?null:ChatRichView.create(owner,provider.title,value,"",p.text,p.field,scale);
         if(rich!=null)transcript.addView(rich,new LayoutParams(-1,-2));
         else{
             text.setText(user?value:ChatPresentation.format(provider.title+"\n",value,"",0x33808080));
-            if(user){
-                WorkbenchVisualPolicy.Palette p=WorkbenchStyle.palette(owner);
-                android.graphics.drawable.GradientDrawable bubble=new android.graphics.drawable.GradientDrawable();
-                bubble.setColor(p.bubble);bubble.setCornerRadius(dp(18));text.setBackground(bubble);text.setTextColor(p.text);
-            }
             transcript.addView(text,new LayoutParams(-1,-2));
         }
         LinearLayout actions=new AdaptiveAnswerActions(owner);
@@ -478,7 +494,7 @@ final class CloudChatPanel extends LinearLayout {
                 dialog.dismiss();configure(p);
             });
          }
-        showAction(dialog);WorkbenchWindow.fit(owner,dialog);
+        showAction(dialog);
     }
     private void configure(){configure(provider);}
     private void configure(CloudApi.Provider initial){
@@ -691,8 +707,8 @@ final class CloudChatPanel extends LinearLayout {
         }catch(Exception e){toast(R.string.transfer_review_failed);return;}
         ScrollView review=new ScrollView(owner);LinearLayout panel=new LinearLayout(owner);panel.setOrientation(VERTICAL);panel.setPadding(dp(16),dp(10),dp(16),dp(10));review.addView(panel);
         TextView notice=new TextView(owner);notice.setText(getResources().getString(R.string.cloud_send_context,p.title,messages.size())+"\n\n"+advice+"\n\n"+getResources().getString(R.string.transfer_cloud_notice)+(p.remote()?"\n\n"+getResources().getString(R.string.cloud_pc_notice):""));
-        notice.setTextSize(13);panel.addView(notice,new LinearLayout.LayoutParams(-1,-2));
-        TextView content=new TextView(owner);content.setText(preview);content.setTextSize(13);content.setAutoLinkMask(0);content.setTextIsSelectable(false);content.setSaveEnabled(false);
+        WorkbenchStyle.label(owner,notice,13,false,false);panel.addView(notice,WorkbenchStyle.row(owner));
+        TextView content=new TextView(owner);content.setText(preview);WorkbenchStyle.label(owner,content,13,false,false);content.setAutoLinkMask(0);content.setTextIsSelectable(false);content.setSaveEnabled(false);
         panel.addView(content,new LinearLayout.LayoutParams(-1,-2));
         showAction(new AlertDialog.Builder(owner).setTitle(p.title+" · "+getResources().getString(R.string.transfer_review))
             .setView(review)
@@ -715,8 +731,8 @@ final class CloudChatPanel extends LinearLayout {
     private void request(CloudApi.Provider p,String id,String apiKey,String q,CloudHistory.Session s,long revision,List<CloudHistory.Message> messages){
         final String ledgerScope=usageScope(p);final double ir=p.remote()?-1:inputRate,or=p.remote()?-1:outputRate;
         s.draft(q);int request=++serial;viewportPolicy.reset();setBusy(true);status.setText(R.string.thinking);
-        TextView question=new TextView(owner);question.setText(q);question.setTextSize(15);question.setPadding(dp(10),dp(10),dp(10),dp(10));transcript.addView(question,new LayoutParams(-1,-2));
-        TextView partial=new TextView(owner);partial.setTextSize(15);partial.setPadding(dp(10),dp(10),dp(10),dp(10));partial.setAutoLinkMask(0);partial.setTextIsSelectable(true);transcript.addView(partial,new LayoutParams(-1,-2));
+        TextView question=conversationText(true,false);question.setText(q);transcript.addView(question,new LayoutParams(-1,-2));
+        TextView partial=conversationText(false,true);transcript.addView(partial,new LayoutParams(-1,-2));
         try{activeRequest=io.submit(()->{
             HttpURLConnection c=null;CloudApi.Reply result=null;int err=R.string.cloud_fail;
             try{
@@ -731,7 +747,7 @@ final class CloudChatPanel extends LinearLayout {
                 activeRequest=null;setBusy(false);
                 if(!current(p,id,s,revision)){status.setText(R.string.cloud_context_changed);return;}
                 if(output==null){ledger.record(ledgerScope,-1,-1,ir,or);String recovered=partial.getText().toString();render(false);prompt.setText(q);
-                    if(!recovered.trim().isEmpty()){TextView fragment=new TextView(owner);fragment.setText(getResources().getString(R.string.chat_stream_incomplete)+"\n\n"+recovered);fragment.setTextIsSelectable(true);fragment.setAutoLinkMask(0);transcript.addView(fragment,new LayoutParams(-1,-2));}
+                    if(!recovered.trim().isEmpty()){TextView fragment=conversationText(false,true);fragment.setText(getResources().getString(R.string.chat_stream_incomplete)+"\n\n"+recovered);transcript.addView(fragment,new LayoutParams(-1,-2));}
                     status.setText(getResources().getString(failure)+"\n"+getResources().getString(R.string.chat_draft_recovered)+"\n"+getResources().getString(R.string.cloud_cancel_cost));return;}
                 ledger.record(ledgerScope,output.inputTokens,output.outputTokens,ir,or);
                 try{s.complete(q,output.text);prompt.setText("");status.setText(usageLabel(output));render(false);}

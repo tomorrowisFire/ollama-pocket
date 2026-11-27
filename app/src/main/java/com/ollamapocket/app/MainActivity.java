@@ -228,6 +228,7 @@ public final class MainActivity extends Activity {
     private final Map<String,String> modelDigests = new HashMap<>();
     private String benchmarkRuntime;
     private final Map<String,TextView> tileStatusLabels = new HashMap<>();
+    private final Map<String,Runnable> tileDownloadAccessibility = new HashMap<>();
     private final Map<String,ProgressBar> tileDownloadBars = new HashMap<>();
     private boolean animateNextTileUpdate = false;
     private volatile String downloadingModel = "";
@@ -2408,9 +2409,19 @@ public final class MainActivity extends Activity {
         switch(status){
             case ACTIVE:return getString(R.string.model_active);
             case INSTALLED:return getString(R.string.model_installed);
-            case DOWNLOADING:return getString(R.string.model_downloading);
+            case DOWNLOADING:return modelDownloadStatusLabel();
             default:return getString(R.string.model_not_installed);
         }
+    }
+    /** The visible and spoken status use the same localized layer progress (not total progress). */
+    private String modelDownloadStatusLabel(){
+        return downloadingPercent<0?getString(R.string.model_download_preparing):getString(R.string.tile_layer_percent,downloadingPercent);
+    }
+    private void registerModelDownloadAccessibility(ModelTileCatalog.Tile item,LinearLayout card){
+        tileDownloadAccessibility.put(item.id,()->{
+            String next=modelCardAccessibility(item,WorkbenchVisualPolicy.ModelStatus.DOWNLOADING);
+            if(!TextUtils.equals(card.getContentDescription(),next))card.setContentDescription(next);
+        });
     }
     private TextView modelStatusBadge(WorkbenchVisualPolicy.ModelStatus status,boolean compact){
         WorkbenchVisualPolicy.Palette p=WorkbenchStyle.palette(this);
@@ -2440,6 +2451,7 @@ public final class MainActivity extends Activity {
         card.setFocusable(true);
         card.setElevation(0);
         card.setContentDescription(modelCardAccessibility(item,cardStatus));
+        registerModelDownloadAccessibility(item,card);
         TypedValue ripple=new TypedValue();
         if(getTheme().resolveAttribute(android.R.attr.selectableItemBackground,ripple,true)
                 &&ripple.resourceId!=0)
@@ -2517,6 +2529,7 @@ public final class MainActivity extends Activity {
         card.setFocusable(true);
         card.setElevation(0);
         card.setContentDescription(modelCardAccessibility(item,cardStatus));
+        registerModelDownloadAccessibility(item,card);
         TypedValue ripple=new TypedValue();
         if(getTheme().resolveAttribute(android.R.attr.selectableItemBackground,ripple,true)
                 &&ripple.resourceId!=0)card.setForeground(getDrawable(ripple.resourceId));
@@ -2576,9 +2589,11 @@ public final class MainActivity extends Activity {
         if(!pullBusy||downloadingModel.isEmpty())return;
         TextView status=tileStatusLabels.get(downloadingCardId);
         if(status!=null){
-            status.setText(downloadingPercent<0?getString(R.string.model_download_preparing):
-                getString(R.string.tile_layer_percent,downloadingPercent));
+            String next=modelDownloadStatusLabel();
+            if(!TextUtils.equals(status.getText(),next))status.setText(next);
         }
+        Runnable refreshAccessibility=tileDownloadAccessibility.get(downloadingCardId);
+        if(refreshAccessibility!=null)refreshAccessibility.run();
         ProgressBar bar=tileDownloadBars.get(downloadingCardId);
         if(bar!=null){
             bar.setVisibility(View.VISIBLE);
@@ -2806,6 +2821,7 @@ public final class MainActivity extends Activity {
         if(modelRows==null)return;
         modelRows.removeAllViews();
         tileStatusLabels.clear();
+        tileDownloadAccessibility.clear();
         tileDownloadBars.clear();
         String filter=modelFilter==null?"":modelFilter.getText().toString().trim();
         boolean searching=!filter.isEmpty();
