@@ -1312,4 +1312,20 @@
     <string name="integration_retained_output">保存済み確認結果</string>
     <string name="integration_live_answer">最新の実行回答（未保存）</string>
     <string name="integration_retained_help">retainOutputsをtrueにすると、条件を満たしたテキストを保存します。先頭以外のノードにusePrevious: trueを指定すると、直前の成功出力全体をデータとして渡します。タスクのgate: containsは指定文字列の有無を確認し、既定値はexactです。文字列の確認は事実の正しさを証明しません。</string>
+    <string name="integration_form_editor">ビジュアル下書きエディター</string>
+    <string name="integration_form_notice">JSONを使わず項目を編集できます。適用は下書きのみを変更し、保存と実行には従来の確認が必要です。モデルのハッシュは前の画面で現在のインストール済みモデルを使用して確認できます。</string>
+    <string name="integration_form_name">プロファイル名</string>
+    <string name="integration_form_digest">モデルマニフェスト SHA-256</string>
+    <string name="integration_form_instruction">エージェントの指示</string>
+    <string name="integration_form_temperature">温度 × 1000 (0–2000)</string>
+    <string name="integration_form_tokens">最大トークン数 (1–512)</string>
+    <string name="integration_form_retain">承認済みの出力を非公開で保持</string>
+    <string name="integration_form_edges">前方のノードIDを指定します。!complete は完了、!blocked はブロックです。全ノードに到達可能である必要があり、追加や削除でリンクは自動変更されません。</string>
+    <string name="integration_form_node">ノードID</string>
+    <string name="integration_form_condition">真偽条件</string>
+    <string name="integration_form_previous">直前の承認済み出力を使用（保持が必要、最初のノードを除く）</string>
+    <string name="integration_form_next">次のノードまたは終了</string>
+    <string name="integration_form_true">真：次のノードまたは終了</string>
+    <string name="integration_form_false">偽：次のノードまたは終了</string>
+    <string name="integration_form_invalid">下書きが無効です。モデル識別子、ノードID、前方リンク、到達可能性、条件、出力保持を確認してください。</string>
 </resources>

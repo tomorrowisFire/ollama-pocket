@@ -1312,4 +1312,20 @@
     <string name="integration_retained_output">已儲存的驗證結果</string>
     <string name="integration_live_answer">最近的即時回答（未保留）</string>
     <string name="integration_retained_help">將 retainOutputs 設為 true 可儲存通過驗證的文字。非入口節點設定 usePrevious: true 可將最近一次成功的完整輸出作為資料傳遞。任務的 gate: contains 檢查是否包含指定文字，預設值為 exact（完全相符）。文字檢查不證明事實的真實性。</string>
+    <string name="integration_form_editor">視覺化草稿編輯器</string>
+    <string name="integration_form_notice">無須 JSON 即可編輯欄位。套用僅修改草稿，儲存及執行仍須原有審查。可在上一層畫面使用目前已安裝模型取得模型雜湊。</string>
+    <string name="integration_form_name">設定檔名稱</string>
+    <string name="integration_form_digest">模型資訊清單 SHA-256</string>
+    <string name="integration_form_instruction">代理指令</string>
+    <string name="integration_form_temperature">溫度 × 1000 (0–2000)</string>
+    <string name="integration_form_tokens">最大權杖數 (1–512)</string>
+    <string name="integration_form_retain">私密保留已通過驗證的輸出</string>
+    <string name="integration_form_edges">使用節點 ID 建立向前連結。!complete 表示完成，!blocked 表示封鎖。所有節點均須可達，新增或刪除節點不會自動修改連結。</string>
+    <string name="integration_form_node">節點 ID</string>
+    <string name="integration_form_condition">真假條件</string>
+    <string name="integration_form_previous">使用最近通過驗證的輸出（須啟用保留，首節點除外）</string>
+    <string name="integration_form_next">下一節點或終點</string>
+    <string name="integration_form_true">為真：下一節點或終點</string>
+    <string name="integration_form_false">為假：下一節點或終點</string>
+    <string name="integration_form_invalid">草稿無效。請檢查模型識別碼、節點 ID、向前連結、可達性、條件及保留設定。</string>
 </resources>

@@ -1312,4 +1312,20 @@
     <string name="integration_retained_output">Saved verified output</string>
     <string name="integration_live_answer">Latest live answer (not retained)</string>
     <string name="integration_retained_help">Set retainOutputs to true to store accepted text. On non-entry nodes, usePrevious: true passes the full last accepted output as data. A task may use gate: contains for a literal match; exact is the default. These are text checks, not proof of factual truth.</string>
+    <string name="integration_form_editor">Visual draft editor</string>
+    <string name="integration_form_notice">Edit fields without JSON. Apply changes only to the draft; saving and execution still require the existing review. For a model digest, use the current installed model in the parent screen.</string>
+    <string name="integration_form_name">Profile name</string>
+    <string name="integration_form_digest">Model manifest SHA-256</string>
+    <string name="integration_form_instruction">Agent instruction</string>
+    <string name="integration_form_temperature">Temperature × 1000 (0–2000)</string>
+    <string name="integration_form_tokens">Maximum tokens (1–512)</string>
+    <string name="integration_form_retain">Retain accepted outputs privately</string>
+    <string name="integration_form_edges">Use node IDs for forward links; !complete finishes, !blocked blocks. Each node must be reachable. Adding or deleting nodes does not rewrite links.</string>
+    <string name="integration_form_node">Node ID</string>
+    <string name="integration_form_condition">True/false condition</string>
+    <string name="integration_form_previous">Use last accepted output (requires retention; not entry node)</string>
+    <string name="integration_form_next">Next node or terminal</string>
+    <string name="integration_form_true">If true: next node or terminal</string>
+    <string name="integration_form_false">If false: next node or terminal</string>
+    <string name="integration_form_invalid">Invalid draft. Check the model identity, node IDs, forward links, reachability, conditions and retention settings.</string>
 </resources>
