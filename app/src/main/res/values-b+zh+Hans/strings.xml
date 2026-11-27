@@ -1026,6 +1026,16 @@
     <string name="project_compare_identical">两个版本的文本完全相同。</string>
     <string name="project_compare_empty">此范围没有文本。</string>
     <string name="project_compare_invalid">无法比较版本，请返回版本列表。</string>
+    <string name="project_search_open">搜索项目</string>
+    <string name="project_search_scope">搜索项目和成果标题、指示及当前成果文本。区分大小写，每个字段显示首个匹配项，最多40个字段。不含历史版本和关联聊天。</string>
+    <string name="project_search_query">搜索文本</string>
+    <string name="project_search_go">搜索</string>
+    <string name="project_search_invalid">请输入非纯空白的有效文本（最多160个 UTF-16 单元）。</string>
+    <string name="project_search_failed">无法完成搜索。未修改已保存的数据。</string>
+    <string name="project_search_count">显示的匹配字段：%1$d</string>
+    <string name="project_search_truncated">还有更多匹配字段。请缩小搜索范围。</string>
+    <string name="project_search_range">匹配位置：UTF-16 %1$d–%2$d（含两端）</string>
+    <string name="project_search_open_item">打开项目或成果</string>
     <string name="project_restore_message">将此历史文本原样追加为新版本？</string>
     <string name="project_delete">删除</string>
     <string name="project_delete_project_message">永久删除此项目及其所有成果和版本？</string>

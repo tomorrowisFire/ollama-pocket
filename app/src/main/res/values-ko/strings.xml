@@ -1026,6 +1026,16 @@
     <string name="project_compare_identical">두 버전의 내용이 동일합니다.</string>
     <string name="project_compare_empty">이 구간에는 내용이 없습니다.</string>
     <string name="project_compare_invalid">버전을 비교할 수 없습니다. 버전 목록으로 돌아가세요.</string>
+    <string name="project_search_open">프로젝트 검색</string>
+    <string name="project_search_scope">프로젝트·산출물 제목, 지침, 현재 산출물 내용을 검색합니다. 대소문자를 구분하며 각 항목의 첫 일치 위치를 최대 40개 항목까지 표시합니다. 이전 버전과 연결 대화는 제외합니다.</string>
+    <string name="project_search_query">검색어</string>
+    <string name="project_search_go">검색</string>
+    <string name="project_search_invalid">공백만으로 구성되지 않은 유효한 검색어를 입력하세요(최대 160 UTF-16 단위).</string>
+    <string name="project_search_failed">검색을 완료할 수 없습니다. 저장 데이터는 변경되지 않았습니다.</string>
+    <string name="project_search_count">표시된 일치 항목: %1$d개</string>
+    <string name="project_search_truncated">일치 항목이 더 있습니다. 검색 범위를 좁히세요.</string>
+    <string name="project_search_range">일치 위치: UTF-16 %1$d–%2$d(양 끝 포함)</string>
+    <string name="project_search_open_item">프로젝트 또는 산출물 열기</string>
     <string name="project_restore_message">이 버전의 내용을 새 버전으로 추가하시겠습니까?</string>
     <string name="project_delete">삭제</string>
     <string name="project_delete_project_message">이 프로젝트와 모든 산출물·버전을 영구 삭제하시겠습니까?</string>

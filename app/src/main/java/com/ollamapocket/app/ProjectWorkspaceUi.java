@@ -9,6 +9,8 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.*;
 import java.text.DateFormat;
 import java.util.Date;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
@@ -190,6 +192,7 @@ final class ProjectWorkspaceUi {
             label(s(R.string.project_usage,state.projects.size(),ProjectLibrary.MAX_PROJECTS,snapshot.storedByteCount(),ProjectLibrary.MAX_BYTES),false);
             label(s(R.string.project_limits),false);
             if(state.projects.isEmpty())label(s(R.string.project_empty),false);
+            button(s(R.string.project_search_open),!state.projects.isEmpty(),()->searchEditor(state,""));
             button(s(R.string.project_new),state.projects.size()<ProjectLibrary.MAX_PROJECTS,()->projectEditor(null));
             for(ProjectLibrary.Project p:state.projects)button(p.title,true,()->{selection=new ProjectWorkspacePolicy.Selection(p.id,null,0);render();});
         }else{
@@ -229,6 +232,64 @@ final class ProjectWorkspaceUi {
             }
         }
         nav();
+    }
+    private boolean searchCurrent(ProjectLibrary.State state,TextView screen){
+        return report==null&&snapshot!=null&&snapshot.value==state&&selection.project==null&&notice==screen;
+    }
+    private List<ProjectSearchPolicy.Source> searchSources(ProjectLibrary.State state){
+        List<ProjectSearchPolicy.Source> fields=new ArrayList<>();
+        for(ProjectLibrary.Project p:state.projects){
+            fields.add(new ProjectSearchPolicy.Source(p.id,null,p.title,null,ProjectSearchPolicy.Kind.PROJECT_TITLE,0,p.title));
+            fields.add(new ProjectSearchPolicy.Source(p.id,null,p.title,null,ProjectSearchPolicy.Kind.INSTRUCTIONS,0,p.instructions));
+            for(ProjectLibrary.Artifact a:p.artifacts){
+                fields.add(new ProjectSearchPolicy.Source(p.id,a.id,p.title,a.title,ProjectSearchPolicy.Kind.ARTIFACT_TITLE,0,a.title));
+                ProjectLibrary.Version v=a.current();
+                fields.add(new ProjectSearchPolicy.Source(p.id,a.id,p.title,a.title,ProjectSearchPolicy.Kind.CURRENT_TEXT,v.ordinal,v.text));
+            }
+        }
+        return fields;
+    }
+    private void searchEditor(ProjectLibrary.State state,String previous){
+        if(report!=null||snapshot==null||snapshot.value!=state||selection.project!=null)return;
+        reset();label(s(R.string.project_search_scope),false);
+        final TextView screen=notice;
+        EditText query=field(R.string.project_search_query,previous,WorkspaceTextPolicy.MAX_QUERY,false);
+        button(R.string.project_search_go,()->{
+            if(!searchCurrent(state,screen))return;
+            final String literal=query.getText().toString();
+            try{WorkspaceTextPolicy.validateQuery(literal);}catch(IllegalArgumentException e){status(R.string.project_search_invalid);return;}
+            work(()->ProjectSearchPolicy.search(searchSources(state),literal),result->{
+                if(searchCurrent(state,screen))showSearchResults(state,literal,result);
+            },error->{if(searchCurrent(state,screen))status(R.string.project_search_failed);});
+        });
+        button(R.string.project_back,this::render);button(R.string.close,this::pause);
+    }
+    private int searchField(ProjectSearchPolicy.Kind kind){
+        switch(kind){
+            case PROJECT_TITLE:case ARTIFACT_TITLE:return R.string.project_title;
+            case INSTRUCTIONS:return R.string.project_instructions;
+            default:return R.string.project_text;
+        }
+    }
+    private void showSearchResults(ProjectLibrary.State state,String literal,ProjectSearchPolicy.Result result){
+        if(snapshot==null||snapshot.value!=state||selection.project!=null||report!=null)return;
+        reset();label(s(R.string.project_search_scope),false);label(literal,true);
+        label(s(R.string.project_search_count,result.hits.size()),false);
+        if(result.truncated)label(s(R.string.project_search_truncated),false);
+        final TextView screen=notice;final long token=session.token();
+        for(ProjectSearchPolicy.Hit hit:result.hits){
+            ProjectSearchPolicy.Source source=hit.source;int heading=searchField(source.kind);
+            label(source.projectTitle+(source.artifactTitle==null?"":" / "+source.artifactTitle),true);
+            label(s(heading)+(source.ordinal==0?"":" · "+s(R.string.project_version,source.ordinal)),false);
+            label(s(R.string.project_search_range,hit.start+1,hit.end),false);label(hit.context(),true);
+            BooleanSupplier guard=()->valid(token)&&!WORK.get()&&confirmation==null&&dialog!=null&&dialog.isShowing()&&searchCurrent(state,screen);
+            if(hit.viewerCompatible(literal))viewer.addMatch(body,heading,()->source.text,guard,literal,hit.start,hit.end);
+            button(R.string.project_search_open_item,()->{
+                if(!searchCurrent(state,screen))return;
+                selection=new ProjectWorkspacePolicy.Selection(source.projectId,source.artifactId,0);render();
+            });
+        }
+        button(R.string.project_back,()->{if(searchCurrent(state,screen))searchEditor(state,literal);});button(R.string.close,this::pause);
     }
     private int linkStatus(ProjectChatLinkPolicy.Status state){
         switch(state){

@@ -1026,6 +1026,16 @@
     <string name="project_compare_identical">The two versions have identical text.</string>
     <string name="project_compare_empty">No text in this region.</string>
     <string name="project_compare_invalid">Cannot compare these versions. Return to the version list.</string>
+    <string name="project_search_open">Search projects</string>
+    <string name="project_search_scope">Search project and artifact titles, instructions and current artifact text. Case-sensitive literal search; first match per field, up to 40 fields. Historical versions and linked chats are excluded.</string>
+    <string name="project_search_query">Search text</string>
+    <string name="project_search_go">Search</string>
+    <string name="project_search_invalid">Enter nonblank valid text (up to 160 UTF-16 units).</string>
+    <string name="project_search_failed">Search could not be completed. No saved data was changed.</string>
+    <string name="project_search_count">Matching fields shown: %1$d</string>
+    <string name="project_search_truncated">More matching fields exist. Narrow the search.</string>
+    <string name="project_search_range">Match: UTF-16 positions %1$d–%2$d (inclusive)</string>
+    <string name="project_search_open_item">Open project or artifact</string>
     <string name="project_restore_message">Append this exact historical text as a new version?</string>
     <string name="project_delete">Delete</string>
     <string name="project_delete_project_message">Permanently delete this project and all its artifacts and versions?</string>

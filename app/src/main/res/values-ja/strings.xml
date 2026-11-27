@@ -1026,6 +1026,16 @@
     <string name="project_compare_identical">両バージョンの内容は同一です。</string>
     <string name="project_compare_empty">この範囲にはテキストがありません。</string>
     <string name="project_compare_invalid">バージョンを比較できません。バージョン一覧に戻ってください。</string>
+    <string name="project_search_open">プロジェクトを検索</string>
+    <string name="project_search_scope">プロジェクトと成果物のタイトル、指示、現在の成果物テキストを検索します。大文字と小文字を区別し、各項目の最初の一致を最大40項目表示します。過去の版とリンクしたチャットは対象外です。</string>
+    <string name="project_search_query">検索語</string>
+    <string name="project_search_go">検索</string>
+    <string name="project_search_invalid">空白のみではない有効な検索語を入力してください（最大160 UTF-16単位）。</string>
+    <string name="project_search_failed">検索を完了できませんでした。保存データは変更されていません。</string>
+    <string name="project_search_count">表示した一致項目：%1$d</string>
+    <string name="project_search_truncated">さらに一致項目があります。検索条件を絞ってください。</string>
+    <string name="project_search_range">一致位置：UTF-16 %1$d–%2$d（両端を含む）</string>
+    <string name="project_search_open_item">プロジェクトまたは成果物を開く</string>
     <string name="project_restore_message">この履歴の内容をそのまま新しい版として追加しますか？</string>
     <string name="project_delete">削除</string>
     <string name="project_delete_project_message">このプロジェクトとすべての成果物・版を完全に削除しますか？</string>
