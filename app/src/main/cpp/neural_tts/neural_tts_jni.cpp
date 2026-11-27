@@ -25,6 +25,14 @@ struct StringChars {
     ~StringChars() { if (chars) env->ReleaseStringUTFChars(value, chars); }
 };
 
+// Native handle owns its model family as well as the runtime. Callers cannot
+// switch a loaded Supertonic engine into a VITS language route.
+struct Engine {
+    const SherpaOnnxOfflineTts *tts = nullptr;
+    bool melo = false;
+    ~Engine() { if (tts) SherpaOnnxDestroyOfflineTts(tts); }
+};
+
 struct AudioDeleter {
     void operator()(const SherpaOnnxGeneratedAudio *audio) const {
         if (audio) SherpaOnnxDestroyOfflineTtsGeneratedAudio(audio);
@@ -81,7 +89,7 @@ bool valid_utf8(const std::string &text) {
 }
 
 extern "C" JNIEXPORT jlong JNICALL
-Java_com_ollamapocket_app_NativeNeuralTts_nativeOpen(JNIEnv *env, jclass, jstring directory) {
+Java_com_ollamapocket_app_NativeNeuralTts_nativeOpen(JNIEnv *env, jclass, jstring directory, jboolean melo_candidate) {
     if (!directory || env->GetStringLength(directory) > 4096) {
         error(env, "Invalid TTS directory"); return 0;
     }
@@ -89,31 +97,52 @@ Java_com_ollamapocket_app_NativeNeuralTts_nativeOpen(JNIEnv *env, jclass, jstrin
         StringChars raw(env, directory);
         if (!raw.chars) return 0;
         std::string base(raw.chars);
-        const char *names[] = {"duration_predictor.int8.onnx", "text_encoder.int8.onnx",
-            "vector_estimator.int8.onnx", "vocoder.int8.onnx", "tts.json",
-            "unicode_indexer.bin", "voice.bin"};
-        std::string paths[7];
-        for (int i = 0; i < 7; ++i) paths[i] = base + "/" + names[i];
+        auto engine = std::make_unique<Engine>();
+        engine->melo = melo_candidate == JNI_TRUE;
         SherpaOnnxOfflineTtsConfig config{};
-        config.model.supertonic.duration_predictor = paths[0].c_str();
-        config.model.supertonic.text_encoder = paths[1].c_str();
-        config.model.supertonic.vector_estimator = paths[2].c_str();
-        config.model.supertonic.vocoder = paths[3].c_str();
-        config.model.supertonic.tts_json = paths[4].c_str();
-        config.model.supertonic.unicode_indexer = paths[5].c_str();
-        config.model.supertonic.voice_style = paths[6].c_str();
+        std::string paths[7];
+        std::string rules;
+        if (engine->melo) {
+            // Host qualification only; the Android player still opens Supertonic.
+            // Pinned sherpa-onnx v2.0.3 uses the lexicon directly, not dict_dir.
+            if (base.find(',') != std::string::npos) {
+                error(env, "Invalid VITS rule directory"); return 0;
+            }
+            const char *names[] = {"model.onnx", "lexicon.txt", "tokens.txt",
+                "date.fst", "number.fst", "phone.fst"};
+            for (int i = 0; i < 6; ++i) paths[i] = base + "/" + names[i];
+            rules = paths[3] + "," + paths[4] + "," + paths[5];
+            config.model.vits.model = paths[0].c_str();
+            config.model.vits.lexicon = paths[1].c_str();
+            config.model.vits.tokens = paths[2].c_str();
+            config.model.vits.noise_scale = .667f;
+            config.model.vits.noise_scale_w = .8f;
+            config.model.vits.length_scale = 1.f;
+            config.rule_fsts = rules.c_str();
+        } else {
+            const char *names[] = {"duration_predictor.int8.onnx", "text_encoder.int8.onnx",
+                "vector_estimator.int8.onnx", "vocoder.int8.onnx", "tts.json",
+                "unicode_indexer.bin", "voice.bin"};
+            for (int i = 0; i < 7; ++i) paths[i] = base + "/" + names[i];
+            config.model.supertonic.duration_predictor = paths[0].c_str();
+            config.model.supertonic.text_encoder = paths[1].c_str();
+            config.model.supertonic.vector_estimator = paths[2].c_str();
+            config.model.supertonic.vocoder = paths[3].c_str();
+            config.model.supertonic.tts_json = paths[4].c_str();
+            config.model.supertonic.unicode_indexer = paths[5].c_str();
+            config.model.supertonic.voice_style = paths[6].c_str();
+        }
         config.model.num_threads = 2;
         config.model.provider = "cpu";
         config.model.debug = 0;
         config.max_num_sentences = 1;
-        const SherpaOnnxOfflineTts *tts = SherpaOnnxCreateOfflineTts(&config);
-        if (!tts) { error(env, "TTS model load failed"); return 0; }
-        if (SherpaOnnxOfflineTtsSampleRate(tts) != kSampleRate ||
-                SherpaOnnxOfflineTtsNumSpeakers(tts) != 10) {
-            SherpaOnnxDestroyOfflineTts(tts);
+        engine->tts = SherpaOnnxCreateOfflineTts(&config);
+        if (!engine->tts) { error(env, "TTS model load failed"); return 0; }
+        if (SherpaOnnxOfflineTtsSampleRate(engine->tts) != kSampleRate ||
+                SherpaOnnxOfflineTtsNumSpeakers(engine->tts) != (engine->melo ? 1 : 10)) {
             error(env, "Unexpected TTS model metadata"); return 0;
         }
-        return static_cast<jlong>(reinterpret_cast<intptr_t>(tts));
+        return static_cast<jlong>(reinterpret_cast<intptr_t>(engine.release()));
     } catch (...) { error(env, "TTS model load failed"); return 0; }
 }
 
@@ -142,17 +171,21 @@ Java_com_ollamapocket_app_NativeNeuralTts_nativeGenerate(
         if (!valid_utf8(text)) { error(env, "Invalid UTF-8 input"); return nullptr; }
         StringChars lang(env, language);
         if (!lang.chars) return nullptr;
-        bool supported = std::strcmp(lang.chars, "en") == 0 || std::strcmp(lang.chars, "ko") == 0 || std::strcmp(lang.chars, "ja") == 0;
-        std::string extra = "{\"lang\":\"" + std::string(lang.chars) + "\",\"max_len\":120,\"silence_duration\":0}";
-        if (!supported) { error(env, "Unsupported TTS language"); return nullptr; }
+        auto *engine = reinterpret_cast<const Engine *>(static_cast<intptr_t>(handle));
+        bool supported = engine->melo ? std::strcmp(lang.chars, "zh") == 0 :
+            (std::strcmp(lang.chars, "en") == 0 || std::strcmp(lang.chars, "ko") == 0 || std::strcmp(lang.chars, "ja") == 0);
+        if (!supported || !engine->tts) { error(env, "Unsupported TTS language or model"); return nullptr; }
         SherpaOnnxGenerationConfig config{};
         config.sid = 0;
         config.speed = rate;
-        config.num_steps = 5;
-        config.extra = extra.c_str();
-        auto *tts = reinterpret_cast<const SherpaOnnxOfflineTts *>(static_cast<intptr_t>(handle));
+        std::string extra;
+        if (!engine->melo) {
+            extra = "{\"lang\":\"" + std::string(lang.chars) + "\",\"max_len\":120,\"silence_duration\":0}";
+            config.num_steps = 5;
+            config.extra = extra.c_str();
+        }
         std::unique_ptr<const SherpaOnnxGeneratedAudio, AudioDeleter> audio(
-            SherpaOnnxOfflineTtsGenerateWithConfig(tts, text.c_str(), &config, progress, &state));
+            SherpaOnnxOfflineTtsGenerateWithConfig(engine->tts, text.c_str(), &config, progress, &state));
         if (state.cancelled()) return nullptr;
         if (state.invalid || !audio || !audio->samples || audio->sample_rate != kSampleRate ||
                 audio->n <= 0 || audio->n > kMaxFrames) {
@@ -171,6 +204,5 @@ Java_com_ollamapocket_app_NativeNeuralTts_nativeGenerate(
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_ollamapocket_app_NativeNeuralTts_nativeClose(JNIEnv *, jclass, jlong handle) {
-    if (handle) SherpaOnnxDestroyOfflineTts(
-        reinterpret_cast<const SherpaOnnxOfflineTts *>(static_cast<intptr_t>(handle)));
+    delete reinterpret_cast<Engine *>(static_cast<intptr_t>(handle));
 }

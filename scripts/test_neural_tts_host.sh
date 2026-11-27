@@ -66,3 +66,11 @@ LIB="$CACHE/sherpa-onnx-v2.0.3-linux-x64-shared-lib/lib"
 LD_LIBRARY_PATH="$LIB${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
   "$JDK_ROOT/bin/java" -Djava.library.path="$BUILD" -cp "$BUILD/classes" \
   com.ollamapocket.app.NeuralTtsNativeSmokeTest "$CACHE/sherpa-onnx-supertonic-3-tts-int8-2026-05-11"
+
+# Separate qualification after the retained Supertonic test: no Android activation.
+MELO_DIR="$(mktemp -d "$BUILD/melo.XXXXXX")"
+trap 'rm -rf -- "$MELO_DIR"' EXIT
+python3 "$ROOT/scripts/fetch_melo_candidate.py" "$MELO_DIR"
+LD_LIBRARY_PATH="$LIB${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+  "$JDK_ROOT/bin/java" -Djava.library.path="$BUILD" -cp "$BUILD/classes" \
+  com.ollamapocket.app.NeuralTtsNativeSmokeTest --melo "$MELO_DIR"
