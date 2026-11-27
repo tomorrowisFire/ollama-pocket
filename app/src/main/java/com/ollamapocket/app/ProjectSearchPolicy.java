@@ -24,19 +24,25 @@ final class ProjectSearchPolicy {
     }
     static final class Hit {
         final Source source;final int start,end,contextStart,contextEnd;
-        private Hit(Source source,int start,int end){
-            this.source=source;this.start=start;this.end=end;
+        private final String matchedQuery;
+        private final boolean inspectable;
+        private Hit(Source source,int start,String query){
+            this.source=source;this.start=start;this.end=start+query.length();
+            matchedQuery=query;
             String text=source.text;
             int a=Math.max(0,start-CONTEXT),b=Math.min(text.length(),end+CONTEXT);
             if(a>0&&Character.isLowSurrogate(text.charAt(a)))a--;
             if(b<text.length()&&Character.isLowSurrogate(text.charAt(b)))b++;
             contextStart=a;contextEnd=b;
+            // Compute the full-text review once on the search worker, not while building result views.
+            inspectable=reviewAnchor(text,query,start,end);
         }
-        String context(){return source.text.substring(contextStart,contextEnd);}
-        boolean viewerCompatible(String query){
-            try{WorkspaceTextPolicy.review(source.text).atMatch(query,start,end);return true;}
+        private static boolean reviewAnchor(String text,String query,int start,int end){
+            try{WorkspaceTextPolicy.review(text).atMatch(query,start,end);return true;}
             catch(IllegalArgumentException e){return false;}
         }
+        String context(){return source.text.substring(contextStart,contextEnd);}
+        boolean viewerCompatible(String query){return inspectable&&matchedQuery.equals(query);}
     }
     static final class Result {
         final List<Hit> hits;final boolean truncated;
@@ -52,7 +58,7 @@ final class ProjectSearchPolicy {
             int at=source.text.indexOf(query);
             if(at<0)continue;
             if(hits.size()==MAX_HITS)return new Result(hits,true);
-            hits.add(new Hit(source,at,at+query.length()));
+            hits.add(new Hit(source,at,query));
         }
         return new Result(hits,false);
     }

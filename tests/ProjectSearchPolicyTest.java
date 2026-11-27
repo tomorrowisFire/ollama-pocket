@@ -53,6 +53,27 @@ public final class ProjectSearchPolicyTest {
             ok(hit.context().substring(hit.start-hit.contextStart,hit.end-hit.contextStart).equals("target"));
             ok(hit.context().length()<=128&&hit.viewerCompatible("target"));
         }
+        // Maximum displayed result count, with invalid viewer text outside the short preview.
+        List<ProjectSearchPolicy.Source> stress=new ArrayList<>();
+        for(int i=0;i<40;i++){
+            String value="x".repeat(16000)+"😀needle"+"y".repeat(15991)+(i%2==0?"z":"\u0000");
+            stress.add(source("stress"+i,ProjectSearchPolicy.Kind.CURRENT_TEXT,value));
+        }
+        var cached=search(stress,"needle");
+        ok(cached.hits.size()==40&&!cached.truncated);
+        for(int i=0;i<40;i++){
+            var hit=cached.hits.get(i);
+            boolean expected;
+            try{WorkspaceTextPolicy.review(hit.source.text).atMatch("needle",hit.start,hit.end);expected=true;}
+            catch(IllegalArgumentException e){expected=false;}
+            ok(expected==(i%2==0));ok(hit.viewerCompatible(new String("needle"))==expected);
+            ok(!hit.viewerCompatible(null));ok(!hit.viewerCompatible("needlE"));ok(!hit.viewerCompatible("need"));
+            ok(hit.context().indexOf('\u0000')<0);
+            for(int j=0;j<50;j++)ok(hit.viewerCompatible("needle")==expected);
+        }
+        var different=search(stress,"😀needle");
+        ok(different.hits.get(0).viewerCompatible("😀needle")&&!different.hits.get(0).viewerCompatible("needle"));
+        ok(cached.hits.get(0).viewerCompatible("needle"));
         System.out.println("PASS: "+n+" project search assertions");
     }
 }

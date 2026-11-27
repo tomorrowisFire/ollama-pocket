@@ -1,0 +1,2 @@
+# F10A11 / P0A1 simulated A/B/C review
+A: no additional feature claims; same UI and search scope. B: source scan moved out of result-rendering path; immutable exact query and anchor validation preserved, secure viewer open-time validation intact. C: exact local blob hashes and 3823 assertions verified; Android runtime speed and new CI not yet verified. No numerical uplift. Ten provisional perspectives carried forward 81,77,82,89,82,76,79,79,75,83 (mean 80.3/min 75). Independent reviewer gate, 22 release gates, zero unresolved P0/P1 and production approval remain unchanged.
