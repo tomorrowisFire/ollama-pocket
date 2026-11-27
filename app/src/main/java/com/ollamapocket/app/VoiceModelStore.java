@@ -130,18 +130,32 @@ final class VoiceModelStore {
             synchronized(this){if(activeDownload!=null)throw new BusyException();activeDownload=download;}
             cleanupAbandoned(state.root,model.id);
             staging=Files.createTempDirectory(state.root.toPath(),".install-"+model.id+"-").toFile();
-            File archive=new File(staging,".download.part");
-            download.download(model,archive,progress);
-            download.check();
-            if(model.format==VoiceModelCatalog.Format.RAW){
-                VoiceModelCatalog.Entry entry=model.entries.values().iterator().next();
-                Files.move(archive.toPath(),new File(staging,entry.name).toPath(),StandardCopyOption.ATOMIC_MOVE);
-            }else{
-                try(InputStream raw=new FileInputStream(archive);
-                    InputStream decoded=new BZip2CompressorInputStream(raw,false)){
-                    extractTar(decoded,staging,model,download::cancelled);
+            if(model.format==VoiceModelCatalog.Format.FILES){
+                long completed=0;
+                for(VoiceModelCatalog.Entry entry:model.entries.values()){
+                    download.check();
+                    long offset=completed;
+                    File output=new File(staging,entry.name);
+                    if(!output.getCanonicalFile().equals(output))throw new IOException("Linked model output");
+                    download.download(model.fileUrl(entry),entry.bytes,entry.sha256,output,
+                        progress==null?null:(done,ignored)->progress.update(offset+done,model.archiveBytes));
+                    completed=Math.addExact(completed,entry.bytes);
                 }
-                Files.delete(archive.toPath());
+                if(completed!=model.archiveBytes)throw new IOException("Incomplete model file set");
+            }else{
+                File archive=new File(staging,".download.part");
+                download.download(model.url,model.archiveBytes,model.sha256,archive,progress);
+                download.check();
+                if(model.format==VoiceModelCatalog.Format.RAW){
+                    VoiceModelCatalog.Entry entry=model.entries.values().iterator().next();
+                    Files.move(archive.toPath(),new File(staging,entry.name).toPath(),StandardCopyOption.ATOMIC_MOVE);
+                }else{
+                    try(InputStream raw=new FileInputStream(archive);
+                        InputStream decoded=new BZip2CompressorInputStream(raw,false)){
+                        extractTar(decoded,staging,model,download::cancelled);
+                    }
+                    Files.delete(archive.toPath());
+                }
             }
             download.check();
             for(VoiceModelCatalog.Entry entry:model.entries.values())verify(checkedFile(staging,entry.name),entry.bytes,entry.sha256,download::cancelled);
@@ -177,8 +191,8 @@ final class VoiceModelStore {
             HttpURLConnection current=connection;connection=null;if(current!=null)current.disconnect();
             InputStream currentInput=input;input=null;if(currentInput!=null)try{currentInput.close();}catch(IOException ignored){}
         }
-        InputStream network(VoiceModelCatalog.Model model)throws IOException{
-            URL url=new URL(model.url);
+        InputStream network(String address,long expectedBytes)throws IOException{
+            URL url=new URL(address);
             for(int redirects=0;redirects<=5;redirects++){
                 check();validateDownloadUrl(url);
                 HttpURLConnection request=(HttpURLConnection)url.openConnection();connection=request;
@@ -194,23 +208,26 @@ final class VoiceModelStore {
                 String encoding=request.getHeaderField("Content-Encoding");
                 if(encoding!=null&&!encoding.isEmpty()&&!"identity".equalsIgnoreCase(encoding))throw new IOException("Encoded voice model response");
                 long length=request.getContentLengthLong();
-                if(length>=0&&length!=model.archiveBytes)throw new IOException("Voice model response size changed");
+                if(length>=0&&length!=expectedBytes)throw new IOException("Voice model response size changed");
                 return request.getInputStream();
             }
             throw new IOException("Voice model redirect limit");
         }
-        void download(VoiceModelCatalog.Model model,File output,Progress progress)throws IOException{
+        void download(String url,long expectedBytes,String expectedSha,File output,Progress progress)throws IOException{
             MessageDigest digest=digest();long count=0;byte[] buffer=new byte[65536];
-            check();input=source==null?network(model):source.open(model.url);
-            try(InputStream in=input;FileOutputStream out=new FileOutputStream(output)){
+            check();input=source==null?network(url,expectedBytes):source.open(url);
+            try(InputStream in=input;
+                java.nio.channels.FileChannel file=java.nio.channels.FileChannel.open(output.toPath(),
+                    StandardOpenOption.CREATE_NEW,StandardOpenOption.WRITE,LinkOption.NOFOLLOW_LINKS);
+                OutputStream out=java.nio.channels.Channels.newOutputStream(file)){
                 for(;;){
                     check();int read=in.read(buffer);if(read<0)break;if(read==0)throw new IOException("Empty model read");
-                    count+=read;if(count>model.archiveBytes)throw new IOException("Voice model exceeds expected size");
+                    count+=read;if(count>expectedBytes)throw new IOException("Voice model exceeds expected size");
                     digest.update(buffer,0,read);out.write(buffer,0,read);
-                    if(progress!=null)progress.update(count,model.archiveBytes);
+                    if(progress!=null)progress.update(count,expectedBytes);
                 }
-                check();if(count!=model.archiveBytes||!hex(digest.digest()).equals(model.sha256))throw new IOException("Voice model checksum or size mismatch");
-                out.getFD().sync();
+                check();if(count!=expectedBytes||!hex(digest.digest()).equals(expectedSha))throw new IOException("Voice model checksum or size mismatch");
+                file.force(true);
             }finally{disconnect();}
         }
     }

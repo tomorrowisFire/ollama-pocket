@@ -206,6 +206,97 @@ public final class VoiceModelStoreTest {
         fails(IOException.class,()->VoiceModelStore.extractTar(new ByteArrayInputStream(nestedTar("dict/","dict/sub/")),
             extraction,model,()->false),"Linked nested parent accepted");
     }
+    private static final String FILE_BASE="https://huggingface.co/test/voice/resolve/0123456789abcdef0123456789abcdef01234567/";
+    private static VoiceModelCatalog.Model fileSet()throws Exception{
+        return VoiceModelCatalog.fileSet("files-fixture","Test file set",FILE_BASE,"MIT",
+            "https://huggingface.co/test/voice","zh-Hans",
+            new VoiceModelCatalog.Entry("tokens.txt",SMALL.length,hash(SMALL)),
+            new VoiceModelCatalog.Entry("model.onnx",DATA.length,hash(DATA)));
+    }
+    private static void fileSetTests(Path sandbox)throws Exception{
+        VoiceModelCatalog.Model model=fileSet();
+        VoiceModelCatalog.Entry tokens=model.entries.get("tokens.txt"),weights=model.entries.get("model.onnx");
+        ok(model.archiveBytes==SMALL.length+DATA.length&&model.expandedBytes==model.archiveBytes,"File set size");
+        ok(model.requiredSpace()==model.archiveBytes+64L*1024*1024,"File set free space");
+        ok(model.directories.isEmpty()&&model.format==VoiceModelCatalog.Format.FILES,"Flat file set");
+        ok(model.sha256.equals(fileSet().sha256),"File set manifest identity");
+        ok(model.fileUrl(tokens).equals(FILE_BASE+"tokens.txt"),"Pinned asset URL");
+        fails(IllegalArgumentException.class,()->model.fileUrl(new VoiceModelCatalog.Entry(tokens.name,tokens.bytes,tokens.sha256)),"Foreign entry admitted");
+        for(String url:new String[]{FILE_BASE.replace("https:","http:"),FILE_BASE.replace("huggingface.co","example.com"),
+            FILE_BASE.replace("0123456789abcdef0123456789abcdef01234567","main"),FILE_BASE+"?x=1",
+            FILE_BASE.substring(0,FILE_BASE.length()-1),FILE_BASE.replace("/test/","/../")})
+            fails(IllegalArgumentException.class,()->VoiceModelCatalog.fileSet("bad","Bad",url,"MIT","https://huggingface.co/test/voice","zh",tokens,weights),"Unpinned URL admitted");
+        fails(IllegalArgumentException.class,()->VoiceModelCatalog.fileSet("nested","Nested",FILE_BASE,"MIT","https://huggingface.co/test/voice","zh",
+            new VoiceModelCatalog.Entry("dict/tokens.txt",tokens.bytes,tokens.sha256)),"Nested file set admitted");
+        fails(IllegalArgumentException.class,()->VoiceModelCatalog.fileSet("duplicate","Duplicate",FILE_BASE,"MIT","https://huggingface.co/test/voice","zh",tokens,tokens),"Duplicate file admitted");
+        fails(IllegalArgumentException.class,()->new VoiceModelCatalog.Model("bad-manifest","Bad",FILE_BASE,model.archiveBytes,
+            "0".repeat(64),VoiceModelCatalog.Format.FILES,null,"MIT","https://huggingface.co/test/voice","zh",tokens,weights),"Wrong manifest accepted");
+        fails(IllegalArgumentException.class,()->new VoiceModelCatalog.Model("bad-size","Bad",FILE_BASE,model.archiveBytes+1,
+            model.sha256,VoiceModelCatalog.Format.FILES,null,"MIT","https://huggingface.co/test/voice","zh",tokens,weights),"Wrong aggregate size accepted");
+        File root=root(sandbox,"files");
+        List<String> requests=new ArrayList<>();
+        VoiceModelStore store=new VoiceModelStore(root,url->{
+            requests.add(url);
+            if(url.equals(model.fileUrl(tokens)))return new ByteArrayInputStream(SMALL);
+            if(url.equals(model.fileUrl(weights)))return new ByteArrayInputStream(DATA);
+            throw new IOException("Unexpected source");
+        });
+        AtomicLong last=new AtomicLong();
+        store.install(model,()->false,(done,total)->{ok(total==model.archiveBytes&&done>last.get()&&done<=total,"Aggregate progress");last.set(done);});
+        ok(last.get()==model.archiveBytes&&requests.equals(List.of(model.fileUrl(tokens),model.fileUrl(weights))),"Exact source requests and total");
+        ok(store.ready(model),"File set not ready");noStage(root);
+        try(VoiceModelStore.Lease lease=store.acquire(model,()->false)){
+            ok(Arrays.equals(SMALL,Files.readAllBytes(lease.file(tokens.name).toPath())),"Token bytes");
+            ok(Arrays.equals(DATA,Files.readAllBytes(lease.file(weights.name).toPath())),"Weight bytes");
+            fails(VoiceModelStore.BusyException.class,()->store.remove(model),"Removed leased file set");
+        }
+        Path installed=root.toPath().resolve(model.id).resolve(tokens.name);
+        Files.delete(installed);
+        ok(!store.ready(model),"Missing file accepted");
+        fails(IOException.class,()->store.acquire(model,()->false),"Missing file leased");
+        store.remove(model);ok(!store.present(model),"Remove file set");
+        for(String defect:new String[]{"short","long","digest","transport"}){
+            byte[] corrupt=DATA.clone();corrupt[0]^=1;
+            VoiceModelStore broken=new VoiceModelStore(root,url->{
+                if(url.equals(model.fileUrl(tokens)))return new ByteArrayInputStream(SMALL);
+                if(defect.equals("transport"))throw new IOException("Second file unavailable");
+                return new ByteArrayInputStream(defect.equals("short")?Arrays.copyOf(DATA,DATA.length-1):
+                    defect.equals("long")?Arrays.copyOf(DATA,DATA.length+1):corrupt);
+            });
+            fails(IOException.class,()->broken.install(model,()->false,null),"Bad later file activated");
+            ok(!broken.present(model)&&!broken.ready(model),"Partial model visible");noStage(root);
+        }
+        AtomicBoolean stop=new AtomicBoolean();requests.clear();
+        fails(VoiceModelStore.CancelledException.class,()->store.install(model,stop::get,
+            (done,total)->{if(done>=tokens.bytes)stop.set(true);}),"Between-file cancellation ignored");
+        ok(requests.equals(List.of(model.fileUrl(tokens))),"Cancelled operation requested later file");
+        ok(!store.present(model),"Cancelled model visible");noStage(root);
+        // A failed operation must not poison the next valid install.
+        store.install(model,()->false,null);store.remove(model);ok(!store.present(model),"Recovery remove");
+        ok(!VoiceModelCatalog.ALL.contains(VoiceModelCatalog.MELO),"Unverified installer exposed in settings");
+    }
+    private static void realMelo(Path sandbox,String directory)throws Exception{
+        VoiceModelCatalog.Model model=VoiceModelCatalog.MELO;
+        File fixture=new File(directory).getCanonicalFile();
+        File root=root(sandbox,"real-melo");
+        VoiceModelStore store=new VoiceModelStore(root,url->{
+            if(!url.startsWith(model.url))throw new IOException("Unexpected Melo URL");
+            VoiceModelCatalog.Entry entry=model.entries.get(url.substring(model.url.length()));
+            if(entry==null||!url.equals(model.fileUrl(entry)))throw new IOException("Unlisted Melo asset");
+            File file=new File(fixture,entry.name);
+            if(!file.getCanonicalFile().equals(file))throw new IOException("Linked fixture");
+            return new FileInputStream(file);
+        });
+        AtomicLong last=new AtomicLong();
+        store.install(model,()->false,(done,total)->{ok(total==model.archiveBytes&&done>last.get()&&done<=total,"Real Melo progress");last.set(done);});
+        ok(last.get()==model.archiveBytes&&model.entries.size()==7&&store.ready(model),"Real Melo install");
+        try(VoiceModelStore.Lease lease=store.acquire(model,()->false)){
+            for(VoiceModelCatalog.Entry entry:model.entries.values())ok(lease.file(entry.name).length()==entry.bytes,"Real Melo file");
+            fails(VoiceModelStore.BusyException.class,()->store.remove(model),"Removed real Melo lease");
+        }
+        store.remove(model);ok(!store.present(model),"Real Melo cleanup");noStage(root);
+        System.out.println("PASS: real pinned seven-file MeloTTS install, acquire and removal, bytes="+model.archiveBytes);
+    }
     private static void urls()throws Exception{
         for(String good:new String[]{"https://huggingface.co/ggerganov/model","https://cas-bridge.xethub.hf.co/x?signature=test","https://cdn-lfs-us-1.huggingface.co/model","https://github.com/k2-fsa/release","https://release-assets.githubusercontent.com/x","https://objects.githubusercontent.com/x"}){
             VoiceModelStore.validateDownloadUrl(new URL(good));ok(true,"Allowed model URL");
@@ -222,7 +313,12 @@ public final class VoiceModelStoreTest {
     }
     public static void main(String[] args)throws Exception{
         new Random(48).nextBytes(DATA);Path sandbox=Files.createTempDirectory("onhand-voice-model-test-");
-        try{rawTests(sandbox);concurrency(sandbox);archiveTests(sandbox);nestedTests(sandbox);urls();if(args.length==1)realArchive(sandbox,args[0]);}
+        try{
+            rawTests(sandbox);concurrency(sandbox);archiveTests(sandbox);nestedTests(sandbox);fileSetTests(sandbox);urls();
+            if(args.length==1)realArchive(sandbox,args[0]);
+            else if(args.length==2&&"--melo".equals(args[0]))realMelo(sandbox,args[1]);
+            else if(args.length!=0)throw new IllegalArgumentException("Unexpected fixture arguments");
+        }
         finally{clean(sandbox.toFile());}
         System.out.println("PASS: "+checks+" voice model storage, archive, integrity and cancellation checks");
     }

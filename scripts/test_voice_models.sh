@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Host-only integrity/lifecycle fixtures. Optional argument: the pinned Supertonic archive.
+# Host-only integrity/lifecycle fixtures. Optional: pinned Supertonic archive or --melo verified fixture directory.
 voice_repo_root=$(cd "$(dirname "$0")/.." && pwd)
 voice_dependency_dir=${ONHAND_VOICE_TEST_DEPS:-${TMPDIR:-/tmp}/onhand-voice-test-deps}
 voice_test_dir=$(mktemp -d "${TMPDIR:-/tmp}/onhand-voice-model-tests.XXXXXX")
