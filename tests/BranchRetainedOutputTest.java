@@ -116,14 +116,17 @@ public final class BranchRetainedOutputTest {
         ok(store.read().value.pending(),"Rejected writes preserve pending reservation");
         String actual="private result";
         store.finish(one,key,WorkflowAttemptStore.Outcome.VERIFIED,evidence(actual),actual,1001);
+        var reopened=new WorkflowAttemptStore(root.toFile(),RUN,plan,1000,true).read().value;
+        ok(actual.equals(reopened.previousOutput())&&evidence(actual).equals(reopened.last().evidence),"Persisted text and evidence reopen before tamper");
         Path file=root.resolve("attempts-v1.bin");byte[] bytes=Files.readAllBytes(file);
         ok(ByteBuffer.wrap(bytes).getInt()==2,"Opt-in ledger version");
         byte[] needle=actual.getBytes(StandardCharsets.UTF_8);int offset=-1;
-        outer:for(int i=0;i+needle.length<bytes.length-32;i++){
+        outer:for(int i=0;i+needle.length<=bytes.length-32;i++){
             for(int j=0;j<needle.length;j++)if(bytes[i+j]!=needle[j])continue outer;
             offset=i;break;
         }
         ok(offset>=0,"Retained bytes exist");
+        ok(offset+needle.length==bytes.length-32,"Fixture covers output ending exactly at checksum boundary");
         bytes[offset]='X';
         byte[] outer=MessageDigest.getInstance("SHA-256").digest(Arrays.copyOf(bytes,bytes.length-32));
         System.arraycopy(outer,0,bytes,bytes.length-32,32);Files.write(file,bytes);
