@@ -3341,8 +3341,7 @@ public final class MainActivity extends Activity {
             JSONArray sessions = new JSONArray(getPreferences(MODE_PRIVATE).getString(listKey(), "[]"));
             for (int i = 0; i < sessions.length(); i++)
                 if (id.equals(sessions.getJSONObject(i).optString("id"))) return;
-            String title = firstMessage.replace('\n', ' ').trim();
-            if (title.length() > 38) title = title.substring(0, 38) + "…";
+            String title = LocalChatLibrary.shortTitle(firstMessage);
             JSONArray newer = new JSONArray();
             newer.put(new JSONObject().put("id", id).put("title", title));
             for (int i = 0; i < sessions.length(); i++) newer.put(sessions.get(i));
@@ -3388,8 +3387,7 @@ public final class MainActivity extends Activity {
         return request;
     }
     private static String shortTitle(String prompt){
-        String title=prompt.replace('\n',' ').trim();
-        return title.length()>38?title.substring(0,38)+"…":title;
+        return LocalChatLibrary.shortTitle(prompt);
     }
     private JSONArray indexWith(String id,String title)throws Exception{
         JSONArray previous=new JSONArray(getPreferences(MODE_PRIVATE).getString(listKey(),"[]"));

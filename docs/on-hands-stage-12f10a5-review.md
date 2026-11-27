@@ -1,0 +1,4 @@
+# F10A5 A/B/C simulated source review — not independent reviewers
+A product: generated conversation titles and search previews retain original visible characters; validated previews contain the normalized search term and direct message navigation remains available even if an excerpt is omitted. Existing history is not rewritten.
+B engineering: normalization length changes are handled by a verified bounded fallback, source substrings are not normalized for display, and valid surrogate pairs are preserved at title/query/preview boundaries. Explicit renames, exports, source records and privacy policies unchanged. This does not guarantee full grapheme boundaries or physical search performance.
+C QA: 69 exact-blob local assertions passed; Java Android compilation and full native/16 KiB/ad/locale/regression gates remain pending. Real device accessibility, IME and independent reviewers remain unverified. No score uplift.
