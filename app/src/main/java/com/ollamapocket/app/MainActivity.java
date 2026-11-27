@@ -120,11 +120,12 @@ public final class MainActivity extends Activity {
         if(chatInput==null||sendButton==null)return;
         boolean busy=isUiBusy();
         if(!chatBusy)sendButton.setEnabled(!busy&&ChatWorkspacePolicy.canSend(chatInput.getText().toString(),LocalChatTurns.MAX_PROMPT));
-        if(modelChooser!=null)modelChooser.setEnabled(!busy&&!knownModels.isEmpty());
+        if(modelHeader!=null)modelHeader.setEnabled(!busy);
         if(attachFileButton!=null)attachFileButton.setEnabled(!busy);
         if(chatActionsButton!=null)chatActionsButton.setEnabled(!busy);
         if(cloudShortcut!=null)cloudShortcut.setEnabled(!busy);
         if(newChatShortcut!=null)newChatShortcut.setEnabled(!busy);
+        refreshStarterVisibility();
     }
     private void refreshVoiceState(){
         if(voiceStateView==null||voiceButton==null)return;
@@ -253,7 +254,7 @@ public final class MainActivity extends Activity {
     private Dialog navigationDrawer;
     private LinearLayout messages, modelRows;
     private ScrollView messageScroll;
-    private Spinner modelChooser;
+    private LinearLayout modelHeader;
     private TextView serverStatus, miniStatus, progressStatus, logText, activeEngineLabel;
     private EditText chatInput, modelInput;
     private Button sendButton, stopChatButton, pullButton, cancelPullButton, downloadRetryButton;
@@ -835,7 +836,9 @@ public final class MainActivity extends Activity {
         menu.setMinWidth(dp(48));menu.setMinimumWidth(dp(48));menu.setTooltipText(getString(R.string.menu));
         iconAction(menu,OnHandGlyphs.Kind.MENU);flatNavigationButton(menu);rowItem(header, menu, 0, 9);
         menu.setOnClickListener(v -> showNavigationDrawer());
-        LinearLayout branding = column();
+        LinearLayout branding = column();modelHeader=branding;
+        branding.setMinimumHeight(dp(48));branding.setGravity(Gravity.CENTER_VERTICAL);
+        branding.setOnClickListener(v->openHeaderModelPicker());
         topPageTitle = text(getString(R.string.app_name), 20, WHITE, true);
         topPageTitle.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));
         topPageTitle.setLetterSpacing(0.005f);
@@ -845,6 +848,15 @@ public final class MainActivity extends Activity {
         topPageSubtitle.setSingleLine(true);topPageSubtitle.setEllipsize(TextUtils.TruncateAt.END);
         branding.addView(topPageSubtitle);
         rowItem(header, branding, 1, 5);
+        cloudShortcut=button(getString(R.string.header_cloud),false);
+        cloudShortcut.setTextSize(11*uiTextScale);
+        cloudShortcut.setContentDescription(getString(R.string.cloud));cloudShortcut.setTooltipText(getString(R.string.cloud));
+        flatNavigationButton(cloudShortcut);OnHandGlyphs.stackedLabel(cloudShortcut,OnHandGlyphs.Kind.CLOUD);
+        rowItem(header,cloudShortcut,0,4);
+        cloudShortcut.setOnClickListener(v->{
+            if(isUiBusy()){toast(getString(R.string.busy));return;}
+            if(cloudMode)returnToLocal();else openCloud();
+        });
         Button fresh = button(getString(R.string.new_chat), false);
         newChatShortcut=fresh;fresh.setContentDescription(getString(R.string.new_chat));fresh.setTooltipText(getString(R.string.new_chat));
         iconAction(fresh,OnHandGlyphs.Kind.NEW_CHAT);flatNavigationButton(fresh);
@@ -946,9 +958,9 @@ public final class MainActivity extends Activity {
             performanceHudView.setMaxLines(activeTab==0?2:4);
         }
         if(miniStatus!=null)miniStatus.setVisibility(compactChatHeight?View.GONE:View.VISIBLE);
-        if(activeEngineLabel!=null)activeEngineLabel.setVisibility(compactChatHeight?View.GONE:View.VISIBLE);
+        if(activeEngineLabel!=null)activeEngineLabel.setVisibility(!compactChatHeight&&chatBusy?View.VISIBLE:View.GONE);
         if(chatInput!=null)chatInput.setMaxLines(compactChatHeight?3:5);
-        updateDraftBudget();
+        refreshStarterVisibility();updateDraftBudget();
     }
     private void applyChatLayout(){
         if(localChatContent==null||chatComposer==null||composerActionScroll==null||composerActions==null||chatInput==null||isFinishing()||isDestroyed())return;
@@ -965,7 +977,6 @@ public final class MainActivity extends Activity {
             chatInput.setLayoutParams(inputParams);
             composerActionScroll.setLayoutParams(lp(stacked?-1:-2,-2));
         }
-        if(cloudShortcut!=null)cloudShortcut.setVisibility(WorkspaceLayoutPolicy.directCloud(width,scale)?View.VISIBLE:View.GONE);
         if(starterPanel!=null&&starterPanel.getParent()!=null){int columns=ChatWorkspacePolicy.starterColumns(width,scale);if(columns!=starterColumns)populateStarterCards(columns);}
     }
     private ScrollView createTabletRail(){
@@ -999,6 +1010,7 @@ public final class MainActivity extends Activity {
         tabletSearch.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(LocalChatLibrary.MAX_QUERY)});
         tabletSearch.setSingleLine(true);tabletSearch.setMinHeight(dp(48));margin(tabletSearch,rail,0,7);
         tabletChats=column();margin(tabletChats,rail,0,4);
+        TextView help=drawerHelpItem();margin(help,rail,4,0);help.setOnClickListener(v->showHelp());
         tabletSearch.addTextChangedListener(new TextWatcher(){
             @Override public void beforeTextChanged(CharSequence s,int start,int count,int after){}
             @Override public void onTextChanged(CharSequence s,int start,int before,int count){refreshTabletRail();}
@@ -1059,35 +1071,11 @@ public final class MainActivity extends Activity {
             if(v.getPaddingLeft()!=side||v.getPaddingRight()!=side)v.setPadding(side,0,side,0);
             applyChatLayout();
         });
-        LinearLayout modelRow = row();
-        modelChooser = new Spinner(this); modelChooser.setBackground(bg(FIELD, 12));
-        modelChooser.setContentDescription(getString(R.string.model_label));modelChooser.setMinimumHeight(dp(48));
-        OnHandGlyphs.spinner(modelChooser);
-        rowItem(modelRow, modelChooser, 1, 6);
-        cloudShortcut=button(getString(R.string.cloud_short),false);
-        cloudShortcut.setContentDescription(getString(R.string.cloud));
-        rowItem(modelRow,cloudShortcut,0,5);
-        cloudShortcut.setOnClickListener(v->openCloud());
-        margin(modelRow, localChatContent, 2, 3);
         activeEngineLabel = text(getString(R.string.engine_idle), 11, MUTED, false);
         activeEngineLabel.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         activeEngineLabel.setOnClickListener(v->{if(!isUiBusy())showComputeChoiceDialog();});
         activeEngineLabel.setFocusable(true);
-        margin(activeEngineLabel,localChatContent,0,3);
-        modelChooser.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override public void onNothingSelected(AdapterView<?> parent) { }
-            @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                if (ignoreSelection || knownModels.isEmpty() || position >= knownModels.size()) return;
-                String model = knownModels.get(position);
-                if (model.equals(currentModel)) return;
-                if (isUiBusy()) {int prior=knownModels.indexOf(currentModel);if(prior>=0&&prior!=position)modelChooser.setSelection(prior);toast(getString(R.string.model_wait));return;}
-                if(voice!=null)voice.cancel();
-                saveLocalDraft();
-                currentModel = model;
-                getPreferences(MODE_PRIVATE).edit().putString("model", model).apply();
-                loadHistory(); renderHistory();
-            }
-        });
+        activeEngineLabel.setVisibility(View.GONE);margin(activeEngineLabel,localChatContent,0,3);
         messageScroll = new ScrollView(this); messageScroll.setFillViewport(true);
         messageScroll.setBackgroundColor(BG);messageScroll.setVerticalScrollBarEnabled(false);
         messages = column(); messages.setPadding(dp(4), dp(10), dp(4), dp(12));
@@ -1107,7 +1095,7 @@ public final class MainActivity extends Activity {
             refreshLatestButton();
         });
         messages.addOnLayoutChangeListener((v,l,t,right,b,ol,ot,or,ob)->{
-            if(b-t!=ob-ot&&followWanted&&starterPanel==null)scrollBottom();else refreshLatestButton();
+            if(b-t!=ob-ot&&followWanted&&!isHomeConversation())scrollBottom();else refreshLatestButton();
         });
         LinearLayout.LayoutParams scrollParam = new LinearLayout.LayoutParams(-1, 0, 1);
         localChatContent.addView(viewport, scrollParam);
@@ -1163,6 +1151,8 @@ public final class MainActivity extends Activity {
         voiceEndButton=button(getString(R.string.voice_end_session),false);voiceEndButton.setOnClickListener(v->endVoiceSession());
         rowItem(voiceControls,voiceFinishButton,0,0);rowItem(voiceControls,voicePauseButton,0,0);rowItem(voiceControls,voiceEndButton,0,0);voicePanel.addView(voiceControls,lp(-1,-2));
         voicePanel.setVisibility(View.GONE);margin(voicePanel,localChatContent,4,0);
+        starterPanel=column();starterPanel.setVisibility(View.GONE);
+        margin(starterPanel,localChatContent,0,0);
         margin(composer, localChatContent, 4, 2);
         draftBudgetView=text("",11,MUTED,false);draftBudgetView.setVisibility(View.GONE);draftBudgetView.setGravity(Gravity.END);
         margin(draftBudgetView,localChatContent,0,2);
@@ -1920,16 +1910,20 @@ public final class MainActivity extends Activity {
             topPageSubtitle.setText(getString(subtitles[activeTab])+"  ·  "+getString(R.string.local));
             topPageSubtitle.setTooltipText(null);
         }
-        refreshChatHeader();updateTypingChrome();refreshLatestButton();
+        refreshChatHeader();refreshHeaderAccess();updateTypingChrome();refreshLatestButton();
         if(activeTab==1)loadRecommendedVariants(false);
         if(activeTab==3)refreshDiagnosticViews();
         refreshTabletRail();
     }
 
     private void showFirstRunGuide() {
+        if(isFinishing()||isDestroyed()||guestOnly||ads==null||getPreferences(MODE_PRIVATE).getBoolean("welcome_v2_seen",false))return;
+        // Tutorial is now available on demand. Keep only the previously authorized first-run ad.
+        if(!ads.isEnabled()){
+            getPreferences(MODE_PRIVATE).edit().putBoolean("welcome_v2_seen",true).apply();
+            ads.prepareConsent();return;
+        }
         LinearLayout guide = column(); guide.setPadding(dp(20), dp(12), dp(20), dp(5));
-        margin(text(getString(R.string.onboarding_title), 20, WHITE, true), guide, 0, 8);
-        margin(text(getString(R.string.onboarding_body),13,WHITE,false),guide,0,11);
         // Preserve the original first-run banner placement and ad unit; keep it separate from dialog controls.
         margin(text(getString(BuildConfig.DEBUG?R.string.ad_test:R.string.ad_label),11,MUTED,false),guide,0,4);
         FrameLayout guideAd = new FrameLayout(this);
@@ -1937,9 +1931,7 @@ public final class MainActivity extends Activity {
         margin(guideAd,guide,0,12);
         ads.register(guideAd,AdSupport.PLACEMENT_ONBOARDING);
         AlertDialog dialog = new AlertDialog.Builder(this).setView(guide)
-            .setNegativeButton(R.string.chat, (d,w) -> showTab(0))
-            .setNeutralButton(R.string.guest, (d,w) -> enterGuestMode())
-            .setPositiveButton(R.string.install_model, (d,w) -> showTab(1)).create();
+            .setPositiveButton(R.string.close,null).create();
         dialog.setOnDismissListener(d -> {
             getPreferences(MODE_PRIVATE).edit().putBoolean("welcome_v2_seen", true).apply();
             ads.detach(guideAd);
@@ -1949,6 +1941,17 @@ public final class MainActivity extends Activity {
         ads.prepareConsent();
     }
 
+    private void showHelp(){
+        if(isFinishing()||isDestroyed()||!foreground)return;
+        ScrollView scroll=new ScrollView(this);LinearLayout body=column();
+        body.setPadding(dp(16),dp(12),dp(16),dp(12));scroll.addView(body);
+        TextView instructions=text(getString(R.string.onboarding_body)+"\n\n"+getString(R.string.help_body),14,WHITE,false);
+        instructions.setTextIsSelectable(true);instructions.setAutoLinkMask(0);
+        margin(instructions,body,0,0);
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle(R.string.help_title).setView(scroll)
+            .setPositiveButton(R.string.close,null).create();
+        dialog.show();WorkbenchWindow.fit(this,dialog);
+    }
     private void startServer() {
         Intent intent = new Intent(this, OllamaForegroundService.class).setAction(OllamaForegroundService.ACTION_START);
         try {
@@ -2047,31 +2050,13 @@ public final class MainActivity extends Activity {
         modelQuantization.clear();modelQuantization.putAll(quantizations);
         modelBytes.clear();modelBytes.putAll(sizes);
         modelDigests.clear();modelDigests.putAll(digests);
-        List<String> shown=names.isEmpty()
-            ?java.util.Collections.singletonList(getString(R.string.model_none_installed)):names;
-        ArrayAdapter<String> adapter=new ArrayAdapter<String>(this,
-                android.R.layout.simple_spinner_item,shown){
-            @Override public View getView(int position,View convertView,ViewGroup parent){
-                TextView item=text(getItem(position),14,WHITE,true);
-                item.setPadding(dp(12),dp(7),dp(8),dp(7));
-                return item;
-            }
-            @Override public View getDropDownView(int position,View convertView,ViewGroup parent){
-                TextView item=text(getItem(position),14,WHITE,false);
-                item.setPadding(dp(14),dp(12),dp(10),dp(12));
-                item.setBackground(bg(CARD,0));return item;
-            }
-        };
-        modelChooser.setAdapter(adapter);
         int idx=names.indexOf(currentModel);
         if(!names.isEmpty()&&idx<0&&!isUiBusy()){
             saveLocalDraft();
             currentModel=names.get(0);
             getPreferences(MODE_PRIVATE).edit().putString("model",currentModel).apply();
-            loadHistory();renderHistory();idx=0;
+            loadHistory();renderHistory();
         }
-        if(idx>=0)modelChooser.setSelection(idx);
-        modelChooser.setEnabled(!names.isEmpty()&&!chatBusy);
         refreshChatHeader();
         if(installedPickerButton!=null){
             installedPickerButton.setText(getString(R.string.installed_count,names.size()));
@@ -2082,7 +2067,7 @@ public final class MainActivity extends Activity {
         populateModelFilters();
         animateNextTileUpdate=true;
         renderInstalledModels();
-        if(activeTab==0&&history.length()==0&&!isUiBusy()&&historyReadable&&(starterPanel==null||starterNeedsModel!=knownModels.isEmpty()))renderHistory(false);
+        if(activeTab==0&&history.length()==0&&!isUiBusy()&&historyReadable&&starterNeedsModel!=knownModels.isEmpty())renderHistory(false);
         if(activeTab==3)refreshDiagnosticViews();
     }
 
@@ -2975,22 +2960,37 @@ public final class MainActivity extends Activity {
         updateTileDownloadProgress();
     }
 
+    private void openHeaderModelPicker(){
+        if(activeTab!=0||cloudMode||guestOnly||!foreground)return;
+        if(isUiBusy()){toast(getString(R.string.model_wait));return;}
+        if(knownModels.isEmpty()){showTab(1);return;}
+        showAllInstalledModels();
+    }
     private void showAllInstalledModels() {
+        if(isUiBusy()||guestOnly||cloudMode||!foreground){toast(getString(R.string.busy));return;}
         if(knownModels.isEmpty()){
             toast(getString(R.string.model_none_installed));
             return;
         }
         String[] entries=knownModels.toArray(new String[0]);
-        new AlertDialog.Builder(this)
+        int checked=java.util.Arrays.asList(entries).indexOf(currentModel);
+        showCompactSettingsDialog(new AlertDialog.Builder(this)
             .setTitle(getString(R.string.model_picker))
-            .setItems(entries,(dialog,index)->{
-                if(isUiBusy()){
+            .setSingleChoiceItems(entries,checked,(dialog,index)->{
+                dialog.dismiss();
+                if(isUiBusy()||guestOnly||cloudMode||!foreground){
                     toast(getString(R.string.busy));return;
                 }
-                selectModel(entries[index]);
+                if(index<0||index>=entries.length||!knownModels.contains(entries[index])){
+                    toast(getString(R.string.model_none_installed));return;
+                }
+                if(!entries[index].equals(currentModel)){
+                    if(voice!=null)voice.cancel();
+                    selectModel(entries[index]);
+                }
                 showTab(0);
             })
-            .setNegativeButton(getString(R.string.close),null).show();
+            .setNegativeButton(getString(R.string.close),null));
     }
 
     private void selectModel(String name) {
@@ -2998,9 +2998,6 @@ public final class MainActivity extends Activity {
         saveLocalDraft();
         currentModel=name;
         getPreferences(MODE_PRIVATE).edit().putString("model",name).apply();
-        ignoreSelection=true;
-        if(modelChooser!=null)modelChooser.setSelection(knownModels.indexOf(name));
-        ignoreSelection=false;
         loadHistory();renderHistory();renderInstalledModels();
         if(activeTab==3)refreshDiagnosticViews();
     }
@@ -3410,6 +3407,13 @@ public final class MainActivity extends Activity {
         return item;
     }
 
+    private TextView drawerHelpItem(){
+        TextView item=text(getString(R.string.help),14,WHITE,false);
+        item.setMinHeight(dp(48));item.setPadding(dp(12),dp(8),dp(12),dp(8));
+        item.setBackground(bg(BG,14));item.setFocusable(true);item.setClickable(true);
+        AdaptiveAnswerActions.feedback(item,14);return item;
+    }
+
     /**
      * Chat-style left sidebar with scrollable history and pinned app navigation.
      * The previous bottom navigation strip is intentionally removed.
@@ -3500,6 +3504,8 @@ public final class MainActivity extends Activity {
         models.setOnClickListener(v->{drawer.dismiss();showTab(1);});
         settings.setOnClickListener(v->{drawer.dismiss();showTab(2);});
         diagnostics.setOnClickListener(v->{drawer.dismiss();showTab(3);});
+        TextView help=drawerHelpItem();margin(help,shell,0,0);
+        help.setOnClickListener(v->{drawer.dismiss();showHelp();});
 
         drawer.setContentView(shell);
         drawer.setOnDismissListener(d->{
@@ -3660,7 +3666,7 @@ public final class MainActivity extends Activity {
         refreshChatHeader();
         if(chatActionsButton!=null)chatActionsButton.setEnabled(!chatBusy&&!KnowledgeWorkspaceUi.busy()&&!ProjectWorkspaceUi.busy()&&!AutomationUi.busy());
         int oldY=messageScroll==null?0:messageScroll.getScrollY();
-        followWanted=follow;scrollRevision++;starterPanel=null;
+        followWanted=follow;scrollRevision++;refreshStarterVisibility();
         messages.removeAllViews();
         messages.setGravity(Gravity.TOP);
         if(!historyReadable){
@@ -3678,13 +3684,18 @@ public final class MainActivity extends Activity {
             margin(greeting,messages,12,20);
             if(knownModels.isEmpty()){
                 Button install=button(getString(R.string.install_model),true);
-                margin(install,messages,0,10);install.setOnClickListener(v->{if(!isUiBusy())showTab(1);});
+                install.setPaddingRelative(dp(16),dp(8),dp(16),dp(8));
+                WorkbenchStyle.primaryButtonPaint(this,install,24);OnHandGlyphs.label(install,OnHandGlyphs.Kind.EXPORT,false);
+                LinearLayout.LayoutParams installParams=lp(-2,-2);installParams.gravity=Gravity.CENTER_HORIZONTAL;
+                installParams.bottomMargin=dp(10);messages.addView(install,installParams);
+                install.setOnClickListener(v->{if(!isUiBusy())showTab(1);});
             }
-            starterPanel=column();margin(starterPanel,messages,0,4);
             int width=localChatContent==null?0:(int)((localChatContent.getWidth()-localChatContent.getPaddingLeft()-localChatContent.getPaddingRight())/getResources().getDisplayMetrics().density);
-            populateStarterCards(ChatWorkspacePolicy.starterColumns(width,uiTextScale*Math.max(1f,getResources().getConfiguration().fontScale)));
+            int columns=ChatWorkspacePolicy.starterColumns(width,uiTextScale*Math.max(1f,getResources().getConfiguration().fontScale));
+            if(starterPanel!=null&&(starterPanel.getChildCount()==0||starterColumns!=columns))populateStarterCards(columns);
+            refreshStarterVisibility();
             followWanted=false;scrollRevision++;
-            if(messageScroll!=null)messageScroll.post(()->{if(starterPanel!=null)messageScroll.scrollTo(0,0);});
+            if(messageScroll!=null)messageScroll.post(()->{if(isHomeConversation())messageScroll.scrollTo(0,0);});
             refreshChatHeader();updateDraftBudget();refreshTabletRail();refreshLatestButton();return;
         }
         for (int i = 0; i < history.length(); i++) {
@@ -3789,8 +3800,18 @@ public final class MainActivity extends Activity {
             refreshLatestButton();
         });
     }
+    private boolean isHomeConversation(){
+        return ChatWorkspacePolicy.homeActionsVisible(true,historyReadable,history.length(),!pendingLocalPrompt.isEmpty(),chatBusy,false);
+    }
+    private void refreshStarterVisibility(){
+        if(starterPanel==null)return;
+        boolean show=ChatWorkspacePolicy.homeActionsVisible(activeTab==0&&!cloudMode,historyReadable,history.length(),
+            !pendingLocalPrompt.isEmpty(),isUiBusy(),keyboardVisible||compactChatHeight);
+        int visibility=show?View.VISIBLE:View.GONE;
+        if(starterPanel.getVisibility()!=visibility)starterPanel.setVisibility(visibility);
+    }
     private void refreshLatestButton(){
-        if(latestButton!=null)latestButton.setVisibility(starterPanel==null&&!cloudMode&&activeTab==0&&!followsLatest()?View.VISIBLE:View.GONE);
+        if(latestButton!=null)latestButton.setVisibility(!isHomeConversation()&&!cloudMode&&activeTab==0&&!followsLatest()?View.VISIBLE:View.GONE);
     }
     private void updateDraftBudget(){
         if(chatInput==null||draftBudgetView==null)return;
@@ -3805,9 +3826,25 @@ public final class MainActivity extends Activity {
         if(topPageSubtitle==null||activeTab!=0)return;
         String selected=cloudMode?(cloudPanel==null?"":cloudPanel.selectedModelName()):
             (currentModel!=null&&knownModels.contains(currentModel)?currentModel:"");
-        String label=selected.isEmpty()?getString(R.string.coop_select_model):selected;
+        String label=selected.isEmpty()?getString(cloudMode?R.string.coop_select_model:R.string.models):selected;
+        if(!cloudMode)label+=" ▾";
         if(!TextUtils.equals(topPageSubtitle.getText(),label))topPageSubtitle.setText(label);
         topPageSubtitle.setTooltipText(selected.isEmpty()?null:selected);
+        refreshHeaderAccess();
+    }
+    private void refreshHeaderAccess(){
+        boolean local=activeTab==0&&!cloudMode;
+        if(modelHeader!=null){
+            modelHeader.setClickable(local);modelHeader.setFocusable(local);
+            modelHeader.setContentDescription(local?getString(R.string.app_name)+" · "+topPageSubtitle.getText()+" · "+getString(R.string.model_picker):null);
+            topPageTitle.setImportantForAccessibility(local?View.IMPORTANT_FOR_ACCESSIBILITY_NO:View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
+            topPageSubtitle.setImportantForAccessibility(local?View.IMPORTANT_FOR_ACCESSIBILITY_NO:View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
+        }
+        if(cloudShortcut!=null){
+            int description=cloudMode?R.string.cloud_return:R.string.cloud;
+            cloudShortcut.setContentDescription(getString(description));cloudShortcut.setTooltipText(getString(description));
+            cloudShortcut.setSelected(cloudMode);
+        }
     }
     private void fillStarter(String hint){
         if(!foreground||guestOnly||cloudMode||activeTab!=0||isUiBusy()||!historyReadable||!ownsLoadedScope())return;
@@ -3956,11 +3993,11 @@ public final class MainActivity extends Activity {
         sendButton.setEnabled(!busy&&chatInput!=null&&ChatWorkspacePolicy.canSend(chatInput.getText().toString(),LocalChatTurns.MAX_PROMPT));sendButton.setVisibility(busy?View.GONE:View.VISIBLE);
         stopChatButton.setEnabled(busy);stopChatButton.setVisibility(busy?View.VISIBLE:View.GONE);
         if(cloudShortcut!=null)cloudShortcut.setEnabled(!busy);
-        modelChooser.setEnabled(!busy && !knownModels.isEmpty());
+        if(modelHeader!=null)modelHeader.setEnabled(!busy);
         if(voiceButton!=null)voiceButton.setEnabled(!busy||(voice!=null&&voice.continuous()));
         if(attachFileButton!=null)attachFileButton.setEnabled(!busy&&!attachmentReading);
         if(chatActionsButton!=null)chatActionsButton.setEnabled(!busy&&!KnowledgeWorkspaceUi.busy()&&!ProjectWorkspaceUi.busy()&&!AutomationUi.busy()&&!DocumentBatchUi.busy());
-        updateDraftBudget();
+        updateTypingChrome();
     }
     private void sendChat(){sendChat(null);}
     private void confirmCooperativeTransfer(String fingerprint,JSONArray requestHistory,boolean speak,CoopSession.ApprovalRoster roster){
@@ -4019,7 +4056,7 @@ public final class MainActivity extends Activity {
         forgetLastAttachment();chatInput.setText("");
         ((InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(chatInput.getWindowToken(),0);
         renderHistory();
-        if(history.length()==0){starterPanel=null;messages.removeAllViews();messages.setGravity(Gravity.TOP);}
+        if(history.length()==0){refreshStarterVisibility();messages.removeAllViews();messages.setGravity(Gravity.TOP);}
         bubble("user",prompt);
         TextView assistant=bubble("assistant",getString(R.string.thinking),true);
         lastStreamUi=0;

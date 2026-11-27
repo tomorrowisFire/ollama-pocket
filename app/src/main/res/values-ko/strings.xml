@@ -1366,4 +1366,8 @@
     <string name="brand_quick_actions">빠른 실행</string>
     <string name="brand_app_preferences">앱 설정</string>
     <string name="brand_model_filters">모델 찾기</string>
+    <string name="header_cloud">Cloud</string>
+    <string name="help">도움말</string>
+    <string name="help_title">OnHand AI 사용 방법</string>
+    <string name="help_body">4. OnHand AI 아래 모델명을 누르면 설치된 모델을 선택할 수 있습니다.\n5. 홈 화면의 입력창 위 빠른 실행 4개를 이용하거나 클립 아이콘으로 파일을 첨부하세요.\n6. Cloud에서 별도로 설정한 클라우드 제공사 또는 PC AI를 이용할 수 있습니다. API 비용이 발생할 수 있으며 로컬 대화는 전송하지 않습니다.\n7. 설정에서 추론 방식, 언어, 음성, 화면을 변경하고 기기 연결 진단에서 호환성을 확인하세요.</string>
 </resources>

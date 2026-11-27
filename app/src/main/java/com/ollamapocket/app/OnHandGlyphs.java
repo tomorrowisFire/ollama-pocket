@@ -100,11 +100,15 @@ final class OnHandGlyphs extends Drawable {
         c.restore();
     }
     private static final class Spec{
-        final Kind kind;final boolean only,accent;
-        Spec(Kind kind,boolean only,boolean accent){this.kind=kind;this.only=only;this.accent=accent;}
+        final Kind kind;final boolean only,accent,above;
+        Spec(Kind kind,boolean only,boolean accent){this(kind,only,accent,false);}
+        Spec(Kind kind,boolean only,boolean accent,boolean above){this.kind=kind;this.only=only;this.accent=accent;this.above=above;}
     }
     static void label(TextView view,Kind kind,boolean iconOnly){
         view.setTag(R.id.onhand_glyph_spec,new Spec(kind,iconOnly,false));apply(view);
+    }
+    static void stackedLabel(TextView view,Kind kind){
+        view.setTag(R.id.onhand_glyph_spec,new Spec(kind,false,false,true));apply(view);
     }
     static void accentLabel(TextView view,Kind kind){
         view.setTag(R.id.onhand_glyph_spec,new Spec(kind,false,true));apply(view);
@@ -112,9 +116,15 @@ final class OnHandGlyphs extends Drawable {
     private static void apply(TextView v){
         Object raw=v.getTag(R.id.onhand_glyph_spec);if(!(raw instanceof Spec))return;
         Spec s=(Spec)raw;Context c=v.getContext();WorkbenchVisualPolicy.Palette p=WorkbenchStyle.palette(c);
-        OnHandGlyphs d=(OnHandGlyphs)drawable(c,s.kind,s.accent?p.focus:v.getCurrentTextColor(),s.only?22:20);
+        OnHandGlyphs d=(OnHandGlyphs)drawable(c,s.kind,s.accent?p.focus:v.getCurrentTextColor(),s.only||s.above?22:20);
         if(!s.accent)d.labelColors=v.getTextColors();
         d.setState(v.getDrawableState());
+        if(s.above){
+            v.setCompoundDrawablesRelative(null,d,null,null);v.setCompoundDrawablePadding(dp(c,2));
+            v.setGravity(Gravity.CENTER);v.setPaddingRelative(dp(c,8),dp(c,4),dp(c,8),dp(c,4));
+            v.setMinWidth(dp(c,48));v.setMinimumWidth(dp(c,48));v.setMinHeight(dp(c,48));v.setMinimumHeight(dp(c,48));
+            return;
+        }
         v.setCompoundDrawablesRelative(d,null,null,null);
         v.setCompoundDrawablePadding(s.only?0:dp(c,10));
         if(s.only){

@@ -29,6 +29,10 @@ public final class ChatWorkspacePolicyTest {
                 previous=cols;
             }
         }
+        for(int mask=0;mask<32;mask++)for(int turns:new int[]{-1,0,1,100,Integer.MAX_VALUE}){
+            boolean local=(mask&1)!=0,readable=(mask&2)!=0,pending=(mask&4)!=0,busy=(mask&8)!=0,compact=(mask&16)!=0;
+            ok(ChatWorkspacePolicy.homeActionsVisible(local,readable,turns,pending,busy,compact)==(mask==3&&turns==0));
+        }
         ok(!ChatWorkspacePolicy.compactHeight(0,false,1f));
         ok(ChatWorkspacePolicy.compactHeight(900,true,1f));
         ok(ChatWorkspacePolicy.compactHeight(559,false,1f));

@@ -78,4 +78,10 @@ assert 'performanceHudView.setText(identity+' in src
 assert 'updateTileDownloadProgress()' in src
 assert 'AiPocketDrawerMotion' in src
 assert 'ViewPropertyAnimator' not in src or 'animate()' in src
-print('PASS: drawer navigation, max-six square device models, dynamic HUD, statusbar safe-area')
+# Plain-text Help follows the existing three navigation items.
+drawer=src.split("private void showNavigationDrawer()",1)[1].split("private void ensureSessionListed(",1)[0]
+assert drawer.index("margin(diagnostics,shell")<drawer.index("TextView help=drawerHelpItem()")<drawer.index("drawer.setContentView(shell)")
+help_item=src.split("private TextView drawerHelpItem()",1)[1].split("private void showNavigationDrawer()",1)[0]
+assert "R.string.help" in help_item and "OnHandGlyphs" not in help_item
+assert "help.setOnClickListener(v->{drawer.dismiss();showHelp();})" in drawer
+print('PASS: drawer navigation, plain help, max-six square device models, dynamic HUD, statusbar safe-area')

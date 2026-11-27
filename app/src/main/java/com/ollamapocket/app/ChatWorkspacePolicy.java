@@ -16,6 +16,9 @@ final class ChatWorkspacePolicy {
         return usable>=4L*minimum+3*STARTER_GAP_DP?4:usable>=2L*minimum+STARTER_GAP_DP?2:1;
     }
     static int starterMinHeightDp(){return 48;}
+    static boolean homeActionsVisible(boolean localChat,boolean readable,int historyCount,boolean pending,boolean busy,boolean compact){
+        return localChat&&readable&&historyCount==0&&!pending&&!busy&&!compact;
+    }
     static boolean compactHeight(int heightDp,boolean keyboard,float scale){
         return keyboard||(heightDp>0&&heightDp<(Float.isFinite(scale)&&scale>1.2f?680:560));
     }

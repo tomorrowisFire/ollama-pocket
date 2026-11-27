@@ -38,7 +38,7 @@ main=(src/"MainActivity.java").read_text()
 for required in ("BG=p.canvas","BUBBLE=p.bubble","brandSection(content,R.string.brand_model_filters",
     "brandSection(content,R.string.brand_app_preferences","brandSection(content,R.string.display",
     "brandSection(content,R.string.local_inference","brandSection(content,R.string.privacy",
-    "brandArtwork(36)","OnHandGlyphs.spinner(modelChooser)","OnHandGlyphs.tile(this,glyph)",
+    "brandArtwork(36)","OnHandGlyphs.tile(this,glyph)",
     "iconAction(sendButton,OnHandGlyphs.Kind.SEND)","OnHandGlyphs.refresh(v)"):
     assert required in main,required
 # F10A59: chat-first home replaces the large hero and six descriptive cards.
@@ -57,7 +57,7 @@ for required in ("R.string.workspace_starter_write,R.string.workspace_starter_do
 assert "R.string.workspace_starter_plan" not in home and "R.string.workspace_starter_code" not in home
 assert "brandArtwork(68)" not in main
 assert "messages.setGravity(Gravity.CENTER_VERTICAL)" in main
-assert "starterPanel=null;messages.removeAllViews();messages.setGravity(Gravity.TOP)" in main
+assert "refreshStarterVisibility();messages.removeAllViews();messages.setGravity(Gravity.TOP)" in main
 tools=main.split("private void showChatActions()",1)[1].split("private View workbenchCard(",1)[0]
 assert "() ->fillStarter" not in tools
 for required in ("()->fillStarter(getString(R.string.example_plan))", "()->fillStarter(getString(R.string.example_code))",
@@ -237,11 +237,11 @@ assert "newChatShortcut.setText(" not in main
 assert "topPageSubtitle=text(getString(R.string.coop_select_model),12,MUTED,false)" in main
 header=main.split("void refreshChatHeader(){",1)[1].split("private void fillStarter(",1)[0]
 for required in ("cloudPanel.selectedModelName()", "knownModels.contains(currentModel)",
-    "getString(R.string.coop_select_model)", "topPageSubtitle.setText(label)",
+    "getString(cloudMode?R.string.coop_select_model:R.string.models)", "topPageSubtitle.setText(label)",
     "topPageSubtitle.setTooltipText(selected.isEmpty()?null:selected)"):
     assert required in header,required
 assert "currentSessionId()" not in header and "getPreferences(" not in header
-assert "modelChooser.setEnabled(!names.isEmpty()&&!chatBusy);\n        refreshChatHeader();" in main
+assert "modelChooser" not in main
 assert "if (messages == null) return;\n        refreshChatHeader();" in main
 cloud=(src/"CloudChatPanel.java").read_text()
 assert "String selectedModelName(){return model;}" in cloud
@@ -360,5 +360,27 @@ glyph_src=(src/"OnHandGlyphs.java").read_text()
 assert "WorkbenchLayoutPolicy.iconInsetPx(target,glyph,false)" in glyph_src
 assert "WorkbenchLayoutPolicy.iconInsetPx(target,glyph,true)" in glyph_src
 assert "v.setPaddingRelative(leading,leading,trailing,trailing)" in glyph_src
+# F10A64: user-approved real-device home feedback.
+assert main.index("rowItem(header,cloudShortcut,0,4)")<main.index("rowItem(header, fresh, 0, 0)")
+assert "OnHandGlyphs.stackedLabel(cloudShortcut,OnHandGlyphs.Kind.CLOUD)" in main
+assert "branding.setOnClickListener(v->openHeaderModelPicker())" in main
+assert "modelChooser" not in main and "LinearLayout modelRow = row()" not in main
+assert "margin(starterPanel,localChatContent,0,0)" in main
+assert main.index("margin(starterPanel,localChatContent,0,0)")<main.index("margin(composer, localChatContent, 4, 2)")
+assert "margin(starterPanel,messages" not in main and "starterPanel=null" not in main
+assert "ChatWorkspacePolicy.homeActionsVisible(activeTab==0&&!cloudMode" in main
+assert "installParams=lp(-2,-2)" in main and "installParams.gravity=Gravity.CENTER_HORIZONTAL" in main
+assert "WorkbenchStyle.primaryButtonPaint(this,install,24)" in main
+picker=main.split("private void openHeaderModelPicker()",1)[1].split("private void selectModel(",1)[0]
+for required in ("if(knownModels.isEmpty()){showTab(1);return;}",".setSingleChoiceItems(entries,checked",
+    "!knownModels.contains(entries[index])","selectModel(entries[index])","if(voice!=null)voice.cancel()"):
+    assert required in picker,required
+guide=main.split("private void showFirstRunGuide() {",1)[1].split("private void showHelp()",1)[0]
+assert "R.string.onboarding_title" not in guide and "R.string.onboarding_body" not in guide
+for required in ("ads.register(guideAd,AdSupport.PLACEMENT_ONBOARDING)","ads.showBanner(guideAd)","ads.detach(guideAd)"):
+    assert required in guide,required
+help_body=main.split("private void showHelp()",1)[1].split("private void startServer()",1)[0]
+assert "R.string.onboarding_body" in help_body and "R.string.help_body" in help_body
+assert "ads." not in help_body
 assert "ads.register(downloadAdSlot,AdSupport.PLACEMENT_DOWNLOAD)" in main
 print("PASS: approved launcher SHA-256, both adaptive masks, light/dark dialog palettes and native UI wiring")

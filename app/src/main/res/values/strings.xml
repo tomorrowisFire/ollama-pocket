@@ -1366,4 +1366,8 @@
     <string name="brand_quick_actions">Quick actions</string>
     <string name="brand_app_preferences">App preferences</string>
     <string name="brand_model_filters">Find a model</string>
+    <string name="header_cloud">Cloud</string>
+    <string name="help">Help</string>
+    <string name="help_title">OnHand AI user guide</string>
+    <string name="help_body">4. Tap the model name under OnHand AI to choose an installed model.\n5. On the home screen, use the four shortcuts above the message box or attach files with the paperclip.\n6. Tap Cloud for a separately configured provider or PC AI. Cloud requests may incur API charges. Local chat history is not sent.\n7. Change inference, language, voice and appearance in Settings. Use Device diagnostics to check compatibility.</string>
 </resources>

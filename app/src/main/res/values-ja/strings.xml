@@ -1366,4 +1366,8 @@
     <string name="brand_quick_actions">クイック操作</string>
     <string name="brand_app_preferences">アプリ設定</string>
     <string name="brand_model_filters">モデルを探す</string>
+    <string name="header_cloud">Cloud</string>
+    <string name="help">ヘルプ</string>
+    <string name="help_title">OnHand AI の使い方</string>
+    <string name="help_body">4. OnHand AI の下のモデル名をタップしてインストール済みモデルを選択します。\n5. ホーム画面の入力欄の上にある4つのショートカットを使うか、クリップでファイルを添付します。\n6. Cloud から別途設定したサービスや PC AI を利用できます。API 料金が発生する場合があります。ローカル履歴は送信されません。\n7. 設定で推論方式、言語、音声、表示を変更し、機器診断で互換性を確認します。</string>
 </resources>
