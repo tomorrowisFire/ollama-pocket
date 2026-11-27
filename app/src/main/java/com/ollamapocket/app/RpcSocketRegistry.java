@@ -21,6 +21,33 @@ final class RpcSocketRegistry implements AutoCloseable {
         }
         sockets.add(socket);return true;
     }
+    /** Atomically reserve both relay endpoints before any worker is dispatched. */
+    synchronized Pair trackPair(Socket first,Socket second){
+        if(closed||first==null||second==null||first==second||first.isClosed()||second.isClosed()||
+                sockets.contains(first)||sockets.contains(second)||sockets.size()>limit-2){
+            // Never close an endpoint already owned by a different live lease.
+            if(first!=null&&!sockets.contains(first))closeSocket(first);
+            if(second!=null&&second!=first&&!sockets.contains(second))closeSocket(second);
+            return null;
+        }
+        sockets.add(first);sockets.add(second);
+        return new Pair(this,first,second);
+    }
+    static final class Pair implements AutoCloseable {
+        private final RpcSocketRegistry owner;
+        private final Socket first,second;
+        private boolean released;
+        private Pair(RpcSocketRegistry owner,Socket first,Socket second){
+            this.owner=owner;this.first=first;this.second=second;
+        }
+        @Override public void close(){owner.release(this);}
+    }
+    private synchronized void release(Pair pair){
+        if(pair.released)return;
+        pair.released=true;
+        closeSocket(pair.first);closeSocket(pair.second);
+        sockets.remove(pair.first);sockets.remove(pair.second);
+    }
     synchronized void untrack(Socket socket){sockets.remove(socket);}
     synchronized boolean active(){return !closed;}
     @Override public synchronized void close(){

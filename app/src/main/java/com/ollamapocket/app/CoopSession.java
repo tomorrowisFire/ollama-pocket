@@ -724,14 +724,10 @@ public final class CoopSession {
         private final int remotePort;
         private final byte[] key;
         private final String approvalId=randomId(12);
-        private final java.util.Set<Socket> activeSockets=new java.util.HashSet<>();
+        // The guest gateway admits three connections; reserve both sockets per host relay.
+        private final RpcSocketRegistry sockets=new RpcSocketRegistry(6);
         private boolean closed;
         private ServerSocket localListener;
-        private synchronized boolean track(Socket socket){
-            if(closed){try{socket.close();}catch(Exception ignored){}return false;}
-            activeSockets.add(socket);return true;
-        }
-        private synchronized void untrack(Socket socket){activeSockets.remove(socket);}
         RpcRelay(String ip,int port,byte[] secret){remoteIp=ip;remotePort=port;key=secret.clone();}
         void start() throws Exception {
             localListener=new ServerSocket(0,4,InetAddress.getByName("127.0.0.1"));
@@ -740,17 +736,16 @@ public final class CoopSession {
                 while(!l.isClosed() && "host".equals(role)){
                     try{
                         Socket local=l.accept();
-                        if(!track(local))continue;
+                        Socket remote=new Socket();
+                        RpcSocketRegistry.Pair lease=sockets.trackPair(local,remote);
+                        if(lease==null)continue;
                         try{threads.execute(()->{
-                            Socket remote=new Socket();
-                            try(Socket origin=local;Socket outbound=remote){
-                                if(!track(outbound))return;
-                                outbound.connect(new java.net.InetSocketAddress(remoteIp,remotePort),4000);
-                                SecureRpcTransport.Channel c=SecureRpcTransport.connect(outbound,key);
-                                try(c){bridge(origin,c);}
+                            try(RpcSocketRegistry.Pair owned=lease){
+                                remote.connect(new java.net.InetSocketAddress(remoteIp,remotePort),4000);
+                                SecureRpcTransport.Channel c=SecureRpcTransport.connect(remote,key);
+                                try(c){bridge(local,c);}
                             }catch(Exception e){Log.w(TAG,"Node RPC relay failed",e);}
-                            finally{untrack(local);untrack(remote);}
-                        });}catch(RuntimeException e){untrack(local);try{local.close();}catch(Exception ignored){}throw e;}
+                        });}catch(RuntimeException e){lease.close();throw e;}
                     }catch(IOException e){if(!l.isClosed())Log.w(TAG,"Local relay failed",e);}
                 }
             });
@@ -759,8 +754,7 @@ public final class CoopSession {
         @Override public synchronized void close(){
             closed=true;
             try{if(localListener!=null)localListener.close();}catch(Exception ignored){}
-            for(Socket socket:activeSockets)try{socket.close();}catch(Exception ignored){}
-            activeSockets.clear();
+            sockets.close();
             java.util.Arrays.fill(key,(byte)0);
         }
     }
