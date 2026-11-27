@@ -61,6 +61,21 @@ final class ToolCallApproval implements AutoCloseable {
         return true;
     }
 
+    synchronized boolean approveExact(Review review,String currentEndpoint,String name,String identity,String rawArgs){
+        if(!matchesLive(review,currentEndpoint,name,identity,rawArgs)||approved)return false;
+        approved=true;return true;
+    }
+    synchronized boolean approvedForDispatch(Review review,String currentEndpoint,String name,String identity,String rawArgs){
+        return approved&&matchesLive(review,currentEndpoint,name,identity,rawArgs);
+    }
+    private boolean matchesLive(Review review,String currentEndpoint,String name,String identity,String rawArgs){
+        if(!live(review))return false;
+        try{
+            if(endpoint.equals(currentEndpoint)&&MessageDigest.isEqual(review.fingerprint,fingerprint(endpoint,name,identity,rawArgs))&&fresh(review))return true;
+        }catch(IllegalArgumentException ignored){}
+        clearReview();return false;
+    }
+
     synchronized void decline(Review review) {
         if (review != null && pending == review) clearReview();
     }

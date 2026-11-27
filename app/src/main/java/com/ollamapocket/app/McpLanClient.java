@@ -4,7 +4,6 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.Proxy;
 import java.net.URL;
@@ -24,13 +23,23 @@ final class McpLanClient {
     private int next=1;
     private final Map<String,Tool> catalog=new LinkedHashMap<>();
     private final java.util.concurrent.ConcurrentHashMap<String,String> permissions=new java.util.concurrent.ConcurrentHashMap<>();
-    McpLanClient(String address){endpoint=CloudApi.remoteBase(address)+"/mcp";}
+    interface ConnectionFactory {HttpURLConnection open(String endpoint)throws IOException;}
+    private final ConnectionFactory connections;
+    private final ToolCallApproval approvals;
+    McpLanClient(String address){this(address,target->(HttpURLConnection)new URL(target).openConnection(Proxy.NO_PROXY));}
+    // Host fixture only; production always uses the fixed validated private-LAN endpoint.
+    McpLanClient(String address,ConnectionFactory connections){
+        endpoint=CloudApi.remoteBase(address)+"/mcp";
+        this.connections=java.util.Objects.requireNonNull(connections);
+        approvals=new ToolCallApproval(endpoint,ToolCallApproval.MAX_ATTEMPTS);
+    }
     String endpoint(){return endpoint;}
     static final class Tool {
         final String name,description,schema,identity;
         final boolean eligible;
         final JSONObject inputSchema;
         Tool(JSONObject t)throws Exception{
+            if(!(t.opt("name") instanceof String))throw new IOException("Invalid tool name");
             name=t.getString("name");if(!name.matches("[A-Za-z0-9_.-]{1,128}"))throw new IOException("Invalid tool name");
             description=t.optString("description","");if(description.length()>4000)throw new IOException("Tool description limit");
             JSONObject s=t.optJSONObject("inputSchema");if(s==null)throw new IOException("Missing schema");
@@ -38,15 +47,28 @@ final class McpLanClient {
             JSONObject a=t.optJSONObject("annotations"),execution=t.optJSONObject("execution");
             eligible=a!=null&&Boolean.TRUE.equals(a.opt("readOnlyHint"))&&!Boolean.TRUE.equals(a.opt("destructiveHint"))&&
                 (execution==null||!"required".equals(execution.optString("taskSupport")))&&McpInputPolicy.supportsObject(inputSchema);
-            identity=t.toString();
+            identity=t.toString();if(identity.length()>ToolCallApproval.MAX_IDENTITY_CHARS)throw new IOException("Tool identity limit");
         }
     }
     boolean permitted(Tool tool){return !closed&&tool!=null&&tool.identity.equals(permissions.get(tool.name));}
-    void authorize(Tool tool){if(closed||tool==null||!tool.eligible)throw new IllegalArgumentException("Tool not allowed");permissions.put(tool.name,tool.identity);}
-    void revoke(Tool tool){if(tool!=null)permissions.remove(tool.name);}
-    boolean validArguments(Tool tool,String raw){try{return tool!=null&&tool.eligible&&McpInputPolicy.valid(tool.inputSchema,McpInputPolicy.arguments(raw));}catch(Exception e){return false;}}
-    void cancel(){closed=true;permissions.clear();HttpURLConnection c=active;if(c!=null)c.disconnect();}
-    List<Tool> connect()throws Exception{
+    int remaining(){return approvals.remaining();}
+    ToolCallApproval.Review prepareReview(Tool tool,String raw){
+        if(closed)throw new IllegalStateException("Closed MCP session");
+        return approvals.prepare(tool==null?null:tool.name,tool==null?null:tool.identity,raw,validArguments(tool,raw));
+    }
+    boolean approve(ToolCallApproval.Review review,Tool tool,String raw){
+        if(closed||!validArguments(tool,raw)||!approvals.approveExact(review,endpoint,tool.name,tool.identity,raw))return false;
+        permissions.put(tool.name,tool.identity);return true;
+    }
+    void decline(ToolCallApproval.Review review){approvals.decline(review);}
+    void revoke(Tool tool){
+        if(tool!=null)permissions.remove(tool.name);
+        approvals.revoke();
+        if(approvals.inFlight())cancel();
+    }
+    boolean validArguments(Tool tool,String raw){try{return !closed&&tool!=null&&tool.eligible&&McpInputPolicy.valid(tool.inputSchema,McpInputPolicy.arguments(raw));}catch(Exception e){return false;}}
+    void cancel(){closed=true;approvals.close();permissions.clear();HttpURLConnection c=active;if(c!=null)c.disconnect();}
+    synchronized List<Tool> connect()throws Exception{
         JSONObject init=call("initialize",new JSONObject().put("protocolVersion",VERSION).put("capabilities",new JSONObject())
             .put("clientInfo",new JSONObject().put("name","OnHand AI").put("version","0.12")));
         if(!VERSION.equals(init.optString("protocolVersion"))||init.optJSONObject("capabilities")==null||
@@ -70,14 +92,24 @@ final class McpLanClient {
         }
         throw new IOException("Catalog pagination limit");
     }
-    JSONObject invoke(Tool reviewed,String rawArgs)throws Exception{
-        if(reviewed==null||!reviewed.eligible||rawArgs==null||rawArgs.length()>16000)throw new IOException("Tool not allowed");
-        if(!permitted(reviewed)||!validArguments(reviewed,rawArgs))throw new IOException("Missing permission or invalid arguments");
-        JSONObject args=McpInputPolicy.arguments(rawArgs);
-        refresh();Tool now=catalog.get(reviewed.name);
-        if(now==null||!now.eligible||!now.identity.equals(reviewed.identity)||!permitted(now)||!McpInputPolicy.valid(now.inputSchema,args)){revoke(reviewed);throw new IOException("Tool changed; review again");}
-        // All arguments are entered and approved by the user. No chat/model access.
-        return call("tools/call",new JSONObject().put("name",now.name).put("arguments",args));
+    synchronized JSONObject invoke(ToolCallApproval.Review review,Tool reviewed,String rawArgs)throws Exception{
+        if(closed||!permitted(reviewed)||!validArguments(reviewed,rawArgs)||!approvals.approvedForDispatch(review,endpoint,reviewed.name,reviewed.identity,rawArgs)){
+            approvals.decline(review);throw new IOException("Missing reviewed tool permission");
+        }
+        try{
+            JSONObject args=McpInputPolicy.arguments(rawArgs);
+            refresh();Tool now=catalog.get(reviewed.name);
+            if(now==null||!now.eligible||!now.identity.equals(reviewed.identity)||!permitted(now)||!McpInputPolicy.valid(now.inputSchema,args)){
+                revoke(reviewed);throw new IOException("Tool changed; review again");
+            }
+            ToolCallApproval.Lease lease=approvals.begin(review,endpoint,now.name,now.identity,rawArgs,permitted(now)&&!closed);
+            if(lease==null)throw new IOException("Tool approval expired or changed");
+            try(ToolCallApproval.Lease owned=lease){
+                if(closed||!permitted(now))throw new IOException("Tool permission revoked");
+                // One explicitly reviewed request. Never refund or replay an uncertain call.
+                return call("tools/call",new JSONObject().put("name",now.name).put("arguments",args));
+            }
+        }finally{approvals.decline(review);}
     }
     private JSONObject call(String method,JSONObject params)throws Exception{
         int id=next++;
@@ -88,7 +120,7 @@ final class McpLanClient {
     }
     private JSONObject exchange(JSONObject request,int id)throws Exception{
         if(closed||Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException();
-        HttpURLConnection c=(HttpURLConnection)new URL(endpoint).openConnection(Proxy.NO_PROXY);
+        HttpURLConnection c=connections.open(endpoint);
         active=c;
         try{
             if(closed)throw new java.io.InterruptedIOException();
@@ -97,47 +129,20 @@ final class McpLanClient {
             c.setRequestProperty("Content-Type","application/json");c.setRequestProperty("Accept","application/json, text/event-stream");
             if(!"initialize".equals(request.getString("method")))c.setRequestProperty("MCP-Protocol-Version",VERSION);
             if(!session.isEmpty())c.setRequestProperty("Mcp-Session-Id",session);
-            byte[] payload=request.toString().getBytes(StandardCharsets.UTF_8);c.setFixedLengthStreamingMode(payload.length);
+            byte[] payload=request.toString().getBytes(StandardCharsets.UTF_8);
+            if(payload.length>128*1024)throw new IOException("MCP request limit");
+            c.setFixedLengthStreamingMode(payload.length);
             try(java.io.OutputStream out=c.getOutputStream()){out.write(payload);}
             int code=c.getResponseCode();if(code<200||code>=300)throw new IOException("MCP HTTP "+code);
             String token=c.getHeaderField("Mcp-Session-Id");
             if(token!=null){if(!token.matches("[!-~]{1,512}")||(!session.isEmpty()&&!session.equals(token)))throw new IOException("Invalid MCP session");session=token;}
             if(id<0){if(code!=202&&code!=204)throw new IOException("Invalid notification response");return new JSONObject();}
-            String mime=c.getContentType();
-            if(mime==null)throw new IOException("Missing content type");
-            mime=mime.toLowerCase(java.util.Locale.ROOT).split(";",2)[0].trim();
             try(InputStream input=c.getInputStream()){
-                JSONObject response;
-                if("application/json".equals(mime))response=new JSONObject(readBounded(input));
-                else if("text/event-stream".equals(mime))response=readSse(input,id);
-                else throw new IOException("Unsupported MCP response");
-                if(!"2.0".equals(response.optString("jsonrpc"))||response.optInt("id",-1)!=id||
-                    !response.isNull("error")||response.optJSONObject("result")==null)throw new IOException("MCP request rejected");
-                return response.getJSONObject("result");
+                McpReplyPolicy.Reply reply=McpReplyPolicy.read(input,c.getContentType(),id,
+                    "tools/call".equals(request.getString("method")),()->closed);
+                if(reply.kind==McpReplyPolicy.Kind.RPC_ERROR)throw new IOException("MCP RPC rejected");
+                return reply.payload;
             }
         }finally{active=null;c.disconnect();}
-    }
-    private String readBounded(InputStream input)throws Exception{
-        InputStreamReader reader=new InputStreamReader(input,StandardCharsets.UTF_8);
-        StringBuilder s=new StringBuilder();char[] buf=new char[2048];long deadline=System.nanoTime()+30_000_000_000L;int n;
-        while((n=reader.read(buf))!=-1){if(closed||System.nanoTime()-deadline>=0||s.length()+n>524288)throw new IOException("MCP response limit");s.append(buf,0,n);}
-        return s.toString();
-    }
-    private JSONObject readSse(InputStream input,int id)throws Exception{
-        InputStreamReader reader=new InputStreamReader(input,StandardCharsets.UTF_8);
-        StringBuilder line=new StringBuilder(),data=new StringBuilder();int ch,count=0;long deadline=System.nanoTime()+30_000_000_000L;
-        while((ch=reader.read())!=-1){
-            if(closed||++count>524288||System.nanoTime()-deadline>=0)throw new IOException("MCP SSE limit");
-            if(ch=='\r')continue;
-            if(ch!='\n'){line.append((char)ch);continue;}
-            String row=line.toString();line.setLength(0);
-            if(row.startsWith("data:")){if(data.length()>0)data.append('\n');String part=row.substring(5);data.append(part.startsWith(" ")?part.substring(1):part);}
-            else if(row.isEmpty()&&data.length()>0){
-                JSONObject message=new JSONObject(data.toString());data.setLength(0);
-                if(message.has("method")&&message.has("id"))throw new IOException("Server requests unsupported");
-                if(message.optInt("id",-1)==id)return message;
-            }
-        }
-        throw new IOException("Incomplete MCP response; no automatic replay");
     }
 }

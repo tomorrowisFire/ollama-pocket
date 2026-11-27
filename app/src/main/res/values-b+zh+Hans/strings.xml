@@ -1258,4 +1258,23 @@
     <string name="voice_model_cancelling">正在取消下载…</string>
     <string name="voice_model_removed">模型已删除</string>
     <string name="voice_model_android_requirement">神经网络语音播放需要Android 8.1或更新版本。旧设备可使用已安装的系统离线语音。</string>
+    <string name="integration_chart">图表</string>
+    <string name="integration_chart_notice">粘贴图表 JSON 以预览柱状图或折线图。聊天中的 chart 代码块也支持此格式。导出仅包含静态数据。</string>
+    <string name="integration_chart_json">图表 JSON</string>
+    <string name="integration_chart_invalid">图表数据无效或不受支持。</string>
+    <string name="integration_preview">预览</string>
+    <string name="integration_copy_csv">复制 CSV</string>
+    <string name="integration_copy_html">复制 HTML</string>
+    <string name="integration_agent">智能体配置</string>
+    <string name="integration_agent_notice">保存或复制前请检查仅限本地使用的 JSON 配置，其中可能包含敏感指令。保存不会启动智能体、授予工具权限或下载模型。</string>
+    <string name="integration_agent_json">配置 JSON</string>
+    <string name="integration_agent_invalid">配置无效。请检查准确的模型标签、SHA-256 摘要、指令和参数。</string>
+    <string name="integration_agent_load">加载已保存的配置</string>
+    <string name="integration_agent_save">保存已检查的配置</string>
+    <string name="integration_agent_copy">复制已检查的 JSON</string>
+    <string name="integration_agent_delete">删除已保存的配置</string>
+    <string name="integration_agent_empty">没有已保存的配置。</string>
+    <string name="integration_agent_saved">配置已私密保存。</string>
+    <string name="integration_agent_conflict">无法验证已保存的配置。请重新加载后再修改。</string>
+    <string name="integration_tool_budget">剩余已批准工具调用次数：%1$d</string>
 </resources>

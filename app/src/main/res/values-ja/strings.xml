@@ -1258,4 +1258,23 @@
     <string name="voice_model_cancelling">ダウンロードをキャンセル中…</string>
     <string name="voice_model_removed">モデルを削除しました</string>
     <string name="voice_model_android_requirement">ニューラル音声の再生にはAndroid 8.1以降が必要です。それ以前の端末ではインストール済みのシステムのオフライン音声を使えます。</string>
+    <string name="integration_chart">チャート</string>
+    <string name="integration_chart_notice">チャートのJSONを貼り付けて棒グラフまたは折れ線グラフをプレビューします。チャットのchartコードブロックも同じ形式に対応します。エクスポートは静的データのみです。</string>
+    <string name="integration_chart_json">チャートJSON</string>
+    <string name="integration_chart_invalid">無効な、または未対応のチャートデータです。</string>
+    <string name="integration_preview">プレビュー</string>
+    <string name="integration_copy_csv">CSVをコピー</string>
+    <string name="integration_copy_html">HTMLをコピー</string>
+    <string name="integration_agent">エージェントプロファイル</string>
+    <string name="integration_agent_notice">保存またはコピーする前にローカル専用JSONプロファイルを確認してください。機密性の高い指示が含まれる場合があります。保存してもエージェントの実行、ツールの許可、モデルのダウンロードは行われません。</string>
+    <string name="integration_agent_json">プロファイルJSON</string>
+    <string name="integration_agent_invalid">無効なプロファイルです。正確なモデルタグ、SHA-256ダイジェスト、指示、パラメータを確認してください。</string>
+    <string name="integration_agent_load">保存済みプロファイルを読み込む</string>
+    <string name="integration_agent_save">確認したプロファイルを保存</string>
+    <string name="integration_agent_copy">確認したJSONをコピー</string>
+    <string name="integration_agent_delete">保存済みプロファイルを削除</string>
+    <string name="integration_agent_empty">保存済みプロファイルはありません。</string>
+    <string name="integration_agent_saved">プロファイルを非公開で保存しました。</string>
+    <string name="integration_agent_conflict">保存済みプロファイルを検証できませんでした。変更前に再読み込みしてください。</string>
+    <string name="integration_tool_budget">残りの承認済みツール呼び出し回数：%1$d</string>
 </resources>

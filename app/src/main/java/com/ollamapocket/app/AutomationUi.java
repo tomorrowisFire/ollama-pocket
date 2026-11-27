@@ -47,12 +47,15 @@ final class AutomationUi {
     private Button button(LinearLayout l,int id,Runnable run){Button b=new Button(owner);b.setText(id);WorkbenchStyle.button(owner,b,id);b.setOnClickListener(v->run.run());l.addView(b,WorkbenchStyle.row(owner));return b;}
     private boolean valid(int token){return token==epoch&&!stopped&&!owner.isFinishing()&&!owner.isDestroyed();}
     private void secure(AlertDialog d){if(d.getWindow()!=null)d.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);}
-    private void confirm(String title,String body,Runnable action){
+    private void confirm(String title,String body,Runnable action){confirm(title,body,action,()->{});}
+    private void confirm(String title,String body,Runnable action,Runnable abandoned){
         if(confirmation!=null)confirmation.dismiss();
-        final int token=epoch;
+        final int token=epoch;final boolean[] accepted={false};
         AlertDialog d=new AlertDialog.Builder(owner).setTitle(title).setMessage(body)
-            .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,(x,w)->{if(valid(token))action.run();}).create();
-        confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;});d.show();secure(d);
+            .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,(x,w)->{
+                if(valid(token)){accepted[0]=true;action.run();}
+            }).create();
+        confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;if(!accepted[0])abandoned.run();});d.show();secure(d);
     }
     private void show(String title,LinearLayout l){
         ScrollView scroll=new ScrollView(owner);scroll.addView(l);
@@ -90,9 +93,11 @@ final class AutomationUi {
         stopped=false;epoch++;
         final int token=epoch;
         AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.auto_title)
-            .setItems(new String[]{s(R.string.auto_mcp),s(R.string.auto_workflow),s(R.string.conference_title)},(x,w)->{
+            .setItems(new String[]{s(R.string.auto_mcp),s(R.string.auto_workflow),s(R.string.conference_title),
+                s(R.string.integration_chart),s(R.string.integration_agent)},(x,w)->{
                 if(!valid(token))return;
-                if(w==0)showMcp();else if(w==1)showWorkflow(model);else showConference(model);
+                if(w==0)showMcp();else if(w==1)showWorkflow(model);else if(w==2)showConference(model);
+                else if(w==3)showChart();else if(w==4)showAgentProfile();
             }).setNegativeButton(R.string.cancel,null).create();
         confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;});d.show();secure(d);
     }
@@ -337,7 +342,7 @@ final class AutomationUi {
                 work(client::connect,list->{
                     scan[0].setEnabled(true);
                     long eligible=list.stream().filter(tool->tool.eligible).count();
-                    status.setText(s(R.string.auto_mcp_tools)+" "+eligible+"/"+list.size()+"\n"+s(R.string.auto_schema_notice));
+                    status.setText(s(R.string.auto_mcp_tools)+" "+eligible+"/"+list.size()+"\n"+s(R.string.auto_schema_notice)+"\n"+owner.getString(R.string.integration_tool_budget,client.remaining()));
                     for(McpLanClient.Tool tool:list){
                         if(!tool.eligible)continue;
                         Button b=new Button(owner);b.setAllCaps(false);b.setText(tool.name);b.setMinHeight(dp(48));
@@ -364,14 +369,101 @@ final class AutomationUi {
             final String value=args.getText().toString();
             if(!allowed.isChecked()){toast(R.string.auto_tool_allow);return;}
             if(!client.validArguments(tool,value)){toast(R.string.auto_schema_notice);return;}
+            final ToolCallApproval.Review review;
+            try{review=client.prepareReview(tool,value);}catch(RuntimeException e){
+                status.setText(owner.getString(R.string.integration_tool_budget,client.remaining()));toast(R.string.auto_mcp_failed);return;
+            }
             d.dismiss();
-            confirm(tool.name,client.endpoint()+"\n\n"+value+"\n\n"+s(R.string.auto_mcp_call_notice),()->{
-                if(mcp!=client||busy())return;
-                client.authorize(tool);
+            confirm(tool.name,client.endpoint()+"\n\n"+value+"\n\n"+s(R.string.auto_mcp_call_notice)+"\n"+
+                    owner.getString(R.string.integration_tool_budget,client.remaining()),()->{
+                if(mcp!=client||busy()||!client.approve(review,tool,value)){
+                    client.decline(review);status.setText(R.string.auto_mcp_failed);return;
+                }
                 status.setText(R.string.thinking);
-                work(()->client.invoke(tool,value),result->status.setText((result.optBoolean("isError",false)?s(R.string.auto_mcp_failed)+"\n":"")+result.toString()),()->status.setText(R.string.auto_mcp_failed));
+                work(()->client.invoke(review,tool,value),result->status.setText(
+                    (result.optBoolean("isError",false)?s(R.string.auto_mcp_failed)+"\n":"")+result.toString()+"\n"+
+                    owner.getString(R.string.integration_tool_budget,client.remaining())),
+                    ()->status.setText(s(R.string.auto_mcp_failed)+"\n"+owner.getString(R.string.integration_tool_budget,client.remaining())));
+            },()->client.decline(review));
+        });
+    }
+    private void showChart(){
+        LinearLayout l=column();label(l,s(R.string.integration_chart_notice));
+        EditText raw=field(l,R.string.integration_chart_json,
+            "{\"kind\":\"bar\",\"title\":\"Example\",\"points\":[{\"label\":\"A\",\"value\":3},{\"label\":\"B\",\"value\":-2}]}",
+            ToolJsonPolicy.MAX_CHARS,true);
+        TextView status=output(l);
+        LinearLayout preview=column();preview.setPadding(0,0,0,0);
+        button(l,R.string.integration_preview,()->{
+            if(busy())return;
+            try{
+                ChartArtifact chart=ChartArtifactParser.parse(raw.getText().toString());
+                preview.removeAllViews();preview.addView(ChartArtifactView.create(owner,chart,status.getCurrentTextColor(),1f),
+                        new LinearLayout.LayoutParams(-1,-2));
+                status.setText("");
+            }catch(Exception invalid){preview.removeAllViews();status.setText(R.string.integration_chart_invalid);}
+        });
+        l.addView(preview,WorkbenchStyle.row(owner));show(s(R.string.integration_chart),l);
+    }
+    private void showAgentProfile(){
+        LinearLayout l=column();label(l,s(R.string.integration_agent_notice));
+        EditText raw=field(l,R.string.integration_agent_json,"",ToolJsonPolicy.MAX_CHARS,true);
+        TextView status=output(l);
+        final AgentProfile[] saved={null};final boolean[] loaded={false};
+        Runnable load=()->{
+            if(busy())return;
+            loaded[0]=false;raw.setEnabled(false);status.setText(R.string.thinking);
+            work(()->new AgentProfileStore(owner.getNoBackupFilesDir().getCanonicalFile()).read(),profile->{
+                saved[0]=profile;loaded[0]=true;raw.setEnabled(true);raw.setText(profile==null?"":profile.encode());
+                status.setText(profile==null?s(R.string.integration_agent_empty):profile.reviewDigest());
+            },()->{raw.setEnabled(true);status.setText(R.string.integration_agent_conflict);});
+        };
+        button(l,R.string.integration_agent_load,()->{
+            if(!busy())confirm(s(R.string.integration_agent_load),s(R.string.integration_agent_notice),load);
+        });
+        button(l,R.string.integration_agent_save,()->{
+            if(busy()||!loaded[0]){toast(R.string.integration_agent_conflict);return;}
+            final String original=raw.getText().toString();
+            final AgentProfile reviewed;
+            try{reviewed=AgentProfile.decode(original);}catch(Exception invalid){toast(R.string.integration_agent_invalid);return;}
+            final String expected=saved[0]==null?null:saved[0].reviewDigest();
+            confirm(s(R.string.integration_agent_save),s(R.string.integration_agent_notice)+"\n\n"+reviewed.encode()+"\n\n"+reviewed.reviewDigest(),()->{
+                if(busy()||!original.equals(raw.getText().toString()))return;
+                raw.setEnabled(false);status.setText(R.string.thinking);
+                work(()->new AgentProfileStore(owner.getNoBackupFilesDir().getCanonicalFile()).save(expected,reviewed),profile->{
+                    saved[0]=profile;loaded[0]=true;raw.setEnabled(true);raw.setText(profile.encode());
+                    status.setText(s(R.string.integration_agent_saved)+"\n"+profile.reviewDigest());
+                },()->{loaded[0]=false;raw.setEnabled(true);status.setText(R.string.integration_agent_conflict);});
             });
         });
+        button(l,R.string.integration_agent_copy,()->{
+            if(busy())return;
+            final String original=raw.getText().toString();final AgentProfile reviewed;
+            try{reviewed=AgentProfile.decode(original);}catch(Exception invalid){toast(R.string.integration_agent_invalid);return;}
+            confirm(s(R.string.integration_agent_copy),s(R.string.integration_agent_notice)+"\n\n"+reviewed.encode(),()->{
+                if(busy()||!original.equals(raw.getText().toString()))return;
+                try{
+                    android.content.ClipboardManager clipboard=(android.content.ClipboardManager)owner.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                    if(clipboard==null)throw new IllegalStateException();
+                    clipboard.setPrimaryClip(SensitiveClipboard.text(s(R.string.integration_agent),reviewed.encode()));toast(R.string.copied);
+                }catch(RuntimeException e){toast(R.string.chat_block_copy_failed);}
+            });
+        });
+        button(l,R.string.integration_agent_delete,()->{
+            if(busy()||!loaded[0]||saved[0]==null)return;
+            final AgentProfile reviewed=saved[0];
+            confirm(s(R.string.integration_agent_delete),reviewed.name+"\n"+reviewed.reviewDigest(),()->{
+                if(busy()||saved[0]!=reviewed)return;
+                final String draft=raw.getText().toString();
+                raw.setEnabled(false);
+                work(()->{new AgentProfileStore(owner.getNoBackupFilesDir().getCanonicalFile()).delete(reviewed.reviewDigest());return true;},ignored->{
+                    saved[0]=null;raw.setEnabled(true);
+                    if(draft.equals(reviewed.encode())&&draft.equals(raw.getText().toString()))raw.setText("");
+                    status.setText(R.string.integration_agent_empty);
+                },()->{loaded[0]=false;raw.setEnabled(true);status.setText(R.string.integration_agent_conflict);});
+            });
+        });
+        show(s(R.string.integration_agent),l);load.run();
     }
     private void showWorkflow(String model){
         LinearLayout l=column();label(l,s(R.string.auto_workflow_notice));label(l,s(R.string.auto_verifier_help));label(l,s(R.string.model_label)+": "+model);

@@ -76,10 +76,18 @@ final class ChatRichView {
             TextView name=label(c,prefix,ink,13*scale,false);name.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
             name.setTextIsSelectable(false);root.addView(name,new LinearLayout.LayoutParams(-1,-2));
         }
+        int renderedCharts=0;
         for(ChatBlocks.Block b:blocks){
             if(b.kind==ChatBlocks.Kind.TEXT){
                 root.addView(label(c,ChatPresentation.format("",b.body,"",surface),ink,15*scale,false),new LinearLayout.LayoutParams(-1,-2));
             }else if(b.kind==ChatBlocks.Kind.CODE){
+                ChartArtifact chart=renderedCharts<2?ChartArtifactParser.fromFence(b.language,b.body):null;
+                if(chart!=null){
+                    renderedCharts++;
+                    section(c,root,c.getString(R.string.integration_chart),R.string.chat_copy_code,b.body,
+                        ChartArtifactView.create(c,chart,ink,scale),ink,surface,scale);
+                    continue;
+                }
                 TextView code=label(c,b.body,ink,14*scale,true);
                 code.setHorizontallyScrolling(true);
                 LinearLayout holder=column(c);

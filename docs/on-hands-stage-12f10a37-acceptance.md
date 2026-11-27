@@ -1,0 +1,5 @@
+# F10A37 acceptance — independent lifecycle modules
+
+Exact app 877b6a4da9807ed7fd4999dcc39c64f69d6cad05. [Java 45975244236](https://github.com/tomorrowisFire/ollama-pocket/actions/runs/45975244236) SUCCESS: compile 140425231128 passed 32 exact vision request-review checks, 110 bounded MCP reply checks, 74 durable workflow reservation/retry checks, 589 strict tool JSON, 133 one-shot approvals, 16899 conditional workflow, 1312 chart, 38472 layout, 83 agent profile and all previous ad/locale/Android compile/typed AAR regressions. Voice host 140425231742 SUCCESS. Vision host 140425231626 SUCCESS: real pair install/lease/corruption rejection/remove and correct red/blue image-conditioned answers.
+
+[Scope and relay 45975244254](https://github.com/tomorrowisFire/ollama-pocket/actions/runs/45975244254) SUCCESS. Scope 140425231507 explicitly DEFERRED_TO_STAGE_CHECKPOINT; relay 140425231976 SUCCESS; cooperative-apk 140425402184 SKIPPED. Native APK, QA AAB and 16 KiB on this candidate NOT_RUN / DEFERRED_TO_BATCH_INTEGRATION. Planned independent source modules accepted; no integrated Android route, physical test, actual independent review or score increase inferred.

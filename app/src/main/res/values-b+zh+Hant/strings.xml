@@ -1258,4 +1258,23 @@
     <string name="voice_model_cancelling">正在取消下載…</string>
     <string name="voice_model_removed">已刪除模型</string>
     <string name="voice_model_android_requirement">神經網路語音播放需要Android 8.1或更新版本。舊裝置可使用已安裝的系統離線語音。</string>
+    <string name="integration_chart">圖表</string>
+    <string name="integration_chart_notice">貼上圖表 JSON 以預覽長條圖或折線圖。聊天中的 chart 程式碼區塊也支援此格式。匯出僅包含靜態資料。</string>
+    <string name="integration_chart_json">圖表 JSON</string>
+    <string name="integration_chart_invalid">圖表資料無效或不受支援。</string>
+    <string name="integration_preview">預覽</string>
+    <string name="integration_copy_csv">複製 CSV</string>
+    <string name="integration_copy_html">複製 HTML</string>
+    <string name="integration_agent">代理程式設定</string>
+    <string name="integration_agent_notice">儲存或複製前請檢查僅供本機使用的 JSON 設定，其中可能包含敏感指示。儲存不會啟動代理程式、授予工具權限或下載模型。</string>
+    <string name="integration_agent_json">設定 JSON</string>
+    <string name="integration_agent_invalid">設定無效。請檢查正確的模型標籤、SHA-256 摘要、指示和參數。</string>
+    <string name="integration_agent_load">載入已儲存的設定</string>
+    <string name="integration_agent_save">儲存已檢查的設定</string>
+    <string name="integration_agent_copy">複製已檢查的 JSON</string>
+    <string name="integration_agent_delete">刪除已儲存的設定</string>
+    <string name="integration_agent_empty">沒有已儲存的設定。</string>
+    <string name="integration_agent_saved">設定已私密儲存。</string>
+    <string name="integration_agent_conflict">無法驗證已儲存的設定。請重新載入後再修改。</string>
+    <string name="integration_tool_budget">剩餘已核准工具呼叫次數：%1$d</string>
 </resources>

@@ -1258,4 +1258,23 @@
     <string name="voice_model_cancelling">Cancelling download…</string>
     <string name="voice_model_removed">Model removed</string>
     <string name="voice_model_android_requirement">Neural speech playback requires Android 8.1 or later. Older devices can use installed offline system voices.</string>
+    <string name="integration_chart">Charts</string>
+    <string name="integration_chart_notice">Paste chart JSON to preview a bar or line chart. Chat code blocks named chart also support this format. Exports are static data only.</string>
+    <string name="integration_chart_json">Chart JSON</string>
+    <string name="integration_chart_invalid">Invalid or unsupported chart data.</string>
+    <string name="integration_preview">Preview</string>
+    <string name="integration_copy_csv">Copy CSV</string>
+    <string name="integration_copy_html">Copy HTML</string>
+    <string name="integration_agent">Agent profiles</string>
+    <string name="integration_agent_notice">Review a local-only JSON profile before saving or copying. It may contain sensitive instructions. Saving does not activate the agent, grant tools, or download a model.</string>
+    <string name="integration_agent_json">Profile JSON</string>
+    <string name="integration_agent_invalid">Invalid profile. Check the exact model tag, SHA-256 digest, instructions and parameters.</string>
+    <string name="integration_agent_load">Load saved profile</string>
+    <string name="integration_agent_save">Save reviewed profile</string>
+    <string name="integration_agent_copy">Copy reviewed JSON</string>
+    <string name="integration_agent_delete">Delete saved profile</string>
+    <string name="integration_agent_empty">No saved profile.</string>
+    <string name="integration_agent_saved">Profile saved privately.</string>
+    <string name="integration_agent_conflict">Could not verify the saved profile. Reload before changing it.</string>
+    <string name="integration_tool_budget">Remaining approved tool calls: %1$d</string>
 </resources>

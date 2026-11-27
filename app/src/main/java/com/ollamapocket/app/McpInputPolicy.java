@@ -14,6 +14,7 @@ final class McpInputPolicy {
     private static final Set<String> COMMON=new HashSet<>(Arrays.asList("type","title","description","default","examples","$schema","enum","const"));
     private static final Set<String> TYPES=new HashSet<>(Arrays.asList("object","array","string","integer","number","boolean","null"));
     static JSONObject arguments(String raw)throws Exception{
+        ToolJsonPolicy.requireObject(raw);
         if(raw==null||raw.length()>16000)throw new IllegalArgumentException("Argument limit");
         JSONTokener t=new JSONTokener(raw);Object x=t.nextValue();
         if(!(x instanceof JSONObject)||t.nextClean()!=0)throw new IllegalArgumentException("Expected JSON object");
