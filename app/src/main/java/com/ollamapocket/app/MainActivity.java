@@ -3811,7 +3811,7 @@ public final class MainActivity extends Activity {
                     publishChatConnection(connection);
                     ui.post(() -> activeEngineLabel.setText(getString(R.string.engine_rpc_test)));
                     OllamaHttp.streamGpuChat(connection, OllamaHttp.gpuChatBody(modelAtStart, requestHistory),
-                        item -> appendAnswer(item, answer, assistant));
+                        item -> appendAnswer(item, answer, assistant), () -> chatCancelled);
                 } else {
                 String choice = computeAtStart;
                 String recentRoute=null;
@@ -3840,7 +3840,7 @@ public final class MainActivity extends Activity {
                         HttpURLConnection connection = OllamaHttp.newGpuChatConnection();
                         publishChatConnection(connection);
                         OllamaHttp.streamGpuChat(connection, OllamaHttp.gpuChatBody(modelAtStart, requestHistory),
-                            item -> appendAnswer(item, answer, assistant));
+                            item -> appendAnswer(item, answer, assistant), () -> chatCancelled);
                     } catch (Exception gpuError) {
                         if(!InferenceSafetyPolicy.mayFallback(chatCancelled,Thread.currentThread().isInterrupted(),answer.length(),InferenceSafety.check(getApplicationContext())))throw gpuError;
                         GpuRunner.stop();
@@ -3849,7 +3849,7 @@ public final class MainActivity extends Activity {
                         HttpURLConnection connection = OllamaHttp.newChatConnection();
                         publishChatConnection(connection);
                         OllamaHttp.streamChat(connection, OllamaHttp.chatBody(modelAtStart, requestHistory),
-                            item -> appendAnswer(item, answer, assistant));
+                            item -> appendAnswer(item, answer, assistant), () -> chatCancelled);
                     }
                 } else {
                     GpuRunner.stop();DistributedRunner.stop();
@@ -3858,7 +3858,7 @@ public final class MainActivity extends Activity {
                     HttpURLConnection connection = OllamaHttp.newChatConnection();
                     publishChatConnection(connection);
                     OllamaHttp.streamChat(connection, OllamaHttp.chatBody(modelAtStart, requestHistory),
-                        item -> appendAnswer(item, answer, assistant));
+                        item -> appendAnswer(item, answer, assistant), () -> chatCancelled);
                 }
                 }
                 checkChatCancelled();
@@ -3931,7 +3931,7 @@ public final class MainActivity extends Activity {
         if(lastStreamUi!=0&&now-lastStreamUi<80)return;
         lastStreamUi=now;
         String display=answer.toString();
-        ui.post(()->{if(isFinishing()||isDestroyed())return;boolean follow=followWanted;assistant.setText(getString(R.string.app_name)+"\n"+display);if(follow)scrollBottom();else refreshLatestButton();});
+        ui.post(()->{if(isFinishing()||isDestroyed()||chatCancelled)return;boolean follow=followWanted;assistant.setText(getString(R.string.app_name)+"\n"+display);if(follow)scrollBottom();else refreshLatestButton();});
     }
     private void stopChat() {
         chatCancelled = true;

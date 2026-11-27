@@ -3,6 +3,9 @@ package com.ollamapocket.app;
 import java.io.BufferedReader;
 import java.io.StringReader;
 import java.io.IOException;
+import java.io.InterruptedIOException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.json.JSONObject;
 
 public final class LocalInferenceStreamTest {
@@ -11,6 +14,9 @@ public final class LocalInferenceStreamTest {
     private static BufferedReader reader(String data){return new BufferedReader(new StringReader(data));}
     private static void ok(boolean pass){if(!pass)throw new AssertionError("check "+n);n++;}
     private static void rejects(Action a)throws Exception{boolean rejected=false;try{a.run();}catch(IOException expected){rejected=true;}ok(rejected);}
+    private static void cancelled(Action a)throws Exception{
+        boolean rejected=false;try{a.run();}catch(InterruptedIOException expected){rejected="CHAT_CANCELLED".equals(expected.getMessage());}ok(rejected);
+    }
     private static String nd(String data)throws Exception{
         StringBuilder out=new StringBuilder();
         LocalInferenceStream.ndjson(reader(data),item->{JSONObject m=item.optJSONObject("message");if(m!=null)out.append(m.optString("content"));},true);
@@ -41,6 +47,24 @@ public final class LocalInferenceStreamTest {
         rejects(()->sse("data: {\"error\":\"private message\"}\n\n"));
         ok(sse("data: {\"choices\":[\n"+"data: {\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\n").equals("ok"));
         rejects(()->sse("data:"+("x".repeat(LocalInferenceStream.MAX_LINE+1))+"\n\n"));
+        AtomicBoolean stop=new AtomicBoolean();
+        AtomicInteger callbacks=new AtomicInteger();
+        cancelled(()->LocalInferenceStream.ndjson(reader("{\"done\":true}\n"),m->callbacks.incrementAndGet(),true,()->true));
+        ok(callbacks.get()==0);
+        cancelled(()->LocalInferenceStream.ndjson(reader("{\"message\":{\"content\":\"partial\"},\"done\":true}\n"),m->{callbacks.incrementAndGet();stop.set(true);},true,stop::get));
+        ok(callbacks.get()==1);
+        stop.set(false);
+        cancelled(()->LocalInferenceStream.sse(reader(event("partial","stop")),m->{callbacks.incrementAndGet();stop.set(true);},true,stop::get));
+        ok(callbacks.get()==2);
+        AtomicInteger polls=new AtomicInteger();
+        cancelled(()->LocalInferenceStream.ndjson(reader("\n".repeat(100)),m->{throw new AssertionError("blank callback");},true,()->polls.incrementAndGet()>=8));
+        polls.set(0);
+        cancelled(()->LocalInferenceStream.sse(reader(": keepalive\n\n".repeat(100)),m->{throw new AssertionError("comment callback");},true,()->polls.incrementAndGet()>=8));
+        stop.set(false);
+        LocalInferenceStream.ndjson(reader("{\"done\":true}\n"),m->callbacks.incrementAndGet(),true,stop::get);
+        LocalInferenceStream.sse(reader(event("ok","stop")),m->callbacks.incrementAndGet(),true,stop::get);
+        LocalInferenceStream.ndjson(reader("{\"status\":\"pulling\"}\n"),m->callbacks.incrementAndGet(),false);
+        ok(callbacks.get()==5);
         System.out.println("PASS: "+n+" local inference protocol assertions");
     }
 }

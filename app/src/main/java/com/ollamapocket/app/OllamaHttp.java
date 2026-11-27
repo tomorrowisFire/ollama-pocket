@@ -11,6 +11,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.function.BooleanSupplier;
 
 /** API requests never leave the device. */
 public final class OllamaHttp {
@@ -116,11 +117,17 @@ public final class OllamaHttp {
 
     /** Only interactive chat requires a normal terminal marker. Pulls and diagnostics keep their existing API. */
     public static void streamChat(HttpURLConnection connection,JSONObject request,ChunkListener listener)throws Exception{
+        streamChat(connection,request,listener,()->false);
+    }
+    public static void streamChat(HttpURLConnection connection,JSONObject request,ChunkListener listener,BooleanSupplier cancelled)throws Exception{
         try{
+            LocalStreamCancellation.check(cancelled);
             write(connection,request);
+            LocalStreamCancellation.check(cancelled);
             try(BufferedReader reader=new BufferedReader(new InputStreamReader(checkedStream(connection),StandardCharsets.UTF_8))){
-                LocalInferenceStream.ndjson(reader,listener::onChunk,true);
+                LocalInferenceStream.ndjson(reader,listener::onChunk,true,cancelled);
             }
+            LocalStreamCancellation.check(cancelled);
         }finally{connection.disconnect();}
     }
     public static HttpURLConnection newGpuChatConnection() throws Exception {
@@ -160,17 +167,23 @@ public final class OllamaHttp {
 
     /** OpenAI compatible SSE returned by the local Vulkan llama.cpp server. */
     public static void streamGpu(HttpURLConnection connection,JSONObject request,ChunkListener onChunk)throws Exception{
-        streamGpuInternal(connection,request,onChunk,false);
+        streamGpuInternal(connection,request,onChunk,false,null);
     }
     public static void streamGpuChat(HttpURLConnection connection,JSONObject request,ChunkListener onChunk)throws Exception{
-        streamGpuInternal(connection,request,onChunk,true);
+        streamGpuChat(connection,request,onChunk,()->false);
     }
-    private static void streamGpuInternal(HttpURLConnection connection,JSONObject request,ChunkListener onChunk,boolean requireTerminal)throws Exception{
+    public static void streamGpuChat(HttpURLConnection connection,JSONObject request,ChunkListener onChunk,BooleanSupplier cancelled)throws Exception{
+        streamGpuInternal(connection,request,onChunk,true,cancelled);
+    }
+    private static void streamGpuInternal(HttpURLConnection connection,JSONObject request,ChunkListener onChunk,boolean requireTerminal,BooleanSupplier cancelled)throws Exception{
         try{
+            LocalStreamCancellation.check(cancelled);
             write(connection,request);
+            LocalStreamCancellation.check(cancelled);
             try(BufferedReader reader=new BufferedReader(new InputStreamReader(checkedStream(connection),StandardCharsets.UTF_8))){
-                LocalInferenceStream.sse(reader,onChunk::onChunk,requireTerminal);
+                LocalInferenceStream.sse(reader,onChunk::onChunk,requireTerminal,cancelled);
             }
+            LocalStreamCancellation.check(cancelled);
         }finally{connection.disconnect();}
     }
 

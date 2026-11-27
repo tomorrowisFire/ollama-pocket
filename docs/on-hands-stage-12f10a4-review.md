@@ -1,0 +1,4 @@
+# F10A4 simulated A/B/C source review — not independent reviewers
+A: cancelled local chat should retain its existing draft and partial output without being accepted as a successful turn, including cancellation around the terminal frame. No automatic retry or new mode.
+B: actual local interactive routes carry the same cancellation flag through request and parsing; line bounds, legacy noninteractive behavior, terminal validation and cooperative consent are preserved. This is a bounded parser check, not a claim that a blocked socket or native kernel is immediately interruptible.
+C: exact local pure reader fixtures passed 36 assertions; JSON callbacks, blank/comment frames, normal and legacy behavior are added to the GitHub Java fixture and must pass along with APK/QA AAB/16KiB and regressions. Real device, thermal/performance and independent reviewer outcomes remain unverified. No score uplift.
