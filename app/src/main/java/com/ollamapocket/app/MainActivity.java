@@ -2401,9 +2401,33 @@ public final class MainActivity extends Activity {
         return " · "+getString(R.string.model_measured_badge,localeDecimal(speed),gpu!=null&&(cpu==null||gpu>cpu)?"GPU":"CPU");
     }
 
+    private WorkbenchVisualPolicy.ModelStatus modelCardStatus(ModelTileCatalog.Tile item,boolean selected){
+        return WorkbenchVisualPolicy.modelStatus(item.installed,selected,item.id.equals(downloadingCardId)&&pullBusy);
+    }
+    private String modelCardStatusLabel(WorkbenchVisualPolicy.ModelStatus status){
+        switch(status){
+            case ACTIVE:return getString(R.string.model_active);
+            case INSTALLED:return getString(R.string.model_installed);
+            case DOWNLOADING:return getString(R.string.model_downloading);
+            default:return getString(R.string.model_not_installed);
+        }
+    }
+    private TextView modelStatusBadge(WorkbenchVisualPolicy.ModelStatus status,boolean compact){
+        WorkbenchVisualPolicy.Palette p=WorkbenchStyle.palette(this);
+        TextView badge=text(modelCardStatusLabel(status),compact?10:11,p.modelStatusInk(status),true);
+        badge.setBackground(bg(p.modelStatusFill(status),10));
+        badge.setPadding(dp(compact?4:10),dp(compact?0:5),dp(compact?4:10),dp(compact?0:5));
+        return badge;
+    }
+    private String modelCardAccessibility(ModelTileCatalog.Tile item,WorkbenchVisualPolicy.ModelStatus status){
+        return getString(R.string.model_card_access,item.title,item.id,modelCardStatusLabel(status),
+            filterDisplay(item.quantization)+(item.featured?" · "+getString(R.string.model_recommend_mark):""))+" · "+UiText.modelDescription(this,item.description);
+    }
+
     /** Compact contents fit inside an actual square at narrow phone widths. */
     private LinearLayout buildModelTile(ModelTileCatalog.Tile item,int sideDp) {
         boolean selected=item.installed&&OllamaQuantCatalog.belongsToModel(item.id,currentModel);
+        WorkbenchVisualPolicy.ModelStatus cardStatus=modelCardStatus(item,selected);
         int ink=tileTextColor(), secondary=tileMutedColor();
         LinearLayout card=column();
         card.setPadding(dp(10),dp(9),dp(10),dp(9));
@@ -2411,19 +2435,14 @@ public final class MainActivity extends Activity {
         card.setClickable(true);
         card.setFocusable(true);
         card.setElevation(0);
-        card.setContentDescription(getString(R.string.model_card_access,item.title,item.id,
-            getString(item.id.equals(downloadingCardId)?R.string.model_downloading:item.installed?R.string.model_installed:R.string.model_not_installed),
-            filterDisplay(item.quantization))+" · "+UiText.modelDescription(this,item.description));
+        card.setContentDescription(modelCardAccessibility(item,cardStatus));
         TypedValue ripple=new TypedValue();
         if(getTheme().resolveAttribute(android.R.attr.selectableItemBackground,ripple,true)
                 &&ripple.resourceId!=0)
             card.setForeground(getDrawable(ripple.resourceId));
         tilePressEffect(card);
 
-        TextView statusText=text(
-            (item.id.equals(downloadingCardId)&&pullBusy)?getString(R.string.model_downloading):
-            item.installed?(selected?getString(R.string.model_active):getString(R.string.model_installed)):getString(R.string.model_not_installed),
-            10,ink,true);
+        TextView statusText=modelStatusBadge(cardStatus,true);
         statusText.setSingleLine(true);
         statusText.setEllipsize(TextUtils.TruncateAt.END);
         statusText.setGravity(Gravity.CENTER_VERTICAL|Gravity.START);
@@ -2484,6 +2503,7 @@ public final class MainActivity extends Activity {
     /** Full-width accessible model row. Uses the same selection and progress state as square cards. */
     private LinearLayout buildModelListRow(ModelTileCatalog.Tile item){
         boolean selected=item.installed&&OllamaQuantCatalog.belongsToModel(item.id,currentModel);
+        WorkbenchVisualPolicy.ModelStatus cardStatus=modelCardStatus(item,selected);
         int ink=tileTextColor(),secondary=tileMutedColor();
         LinearLayout card=column();
         card.setPadding(dp(13),dp(11),dp(13),dp(11));
@@ -2492,9 +2512,7 @@ public final class MainActivity extends Activity {
         card.setClickable(true);
         card.setFocusable(true);
         card.setElevation(0);
-        card.setContentDescription(getString(R.string.model_card_access,item.title,item.id,
-            getString(item.id.equals(downloadingCardId)?R.string.model_downloading:item.installed?R.string.model_installed:R.string.model_not_installed),
-            filterDisplay(item.quantization)+(item.featured?" · "+getString(R.string.model_recommend_mark):""))+" · "+UiText.modelDescription(this,item.description));
+        card.setContentDescription(modelCardAccessibility(item,cardStatus));
         TypedValue ripple=new TypedValue();
         if(getTheme().resolveAttribute(android.R.attr.selectableItemBackground,ripple,true)
                 &&ripple.resourceId!=0)card.setForeground(getDrawable(ripple.resourceId));
@@ -2525,10 +2543,7 @@ public final class MainActivity extends Activity {
         TextView chevron=OnHandGlyphs.tile(this,OnHandGlyphs.Kind.CHEVRON);
         rowItem(line,chevron,0,0);margin(line,card,0,6);
         AdaptiveAnswerActions badges=new AdaptiveAnswerActions(this);
-        TextView status=text(item.id.equals(downloadingCardId)&&pullBusy?getString(R.string.model_downloading):
-            item.installed?(selected?getString(R.string.model_active):getString(R.string.model_installed)):getString(R.string.model_not_installed),
-            11,item.installed?WHITE:MUTED,true);
-        status.setPadding(dp(10),dp(5),dp(10),dp(5));status.setBackground(bg(item.installed?BUBBLE:FIELD,10));
+        TextView status=modelStatusBadge(cardStatus,false);
         status.setMaxLines(2);
         badges.addView(status,lp(-2,-2));
         if(item.featured){

@@ -4,6 +4,10 @@ package com.ollamapocket.app;
 final class WorkbenchVisualPolicy {
     static final int MIN_TARGET_DP=48, RADIUS_DP=16, GAP_DP=10;
     enum Role { SECONDARY, PRIMARY, DESTRUCTIVE }
+    enum ModelStatus { AVAILABLE, INSTALLED, ACTIVE, DOWNLOADING }
+    static ModelStatus modelStatus(boolean installed,boolean selected,boolean downloading){
+        return downloading?ModelStatus.DOWNLOADING:installed?(selected?ModelStatus.ACTIVE:ModelStatus.INSTALLED):ModelStatus.AVAILABLE;
+    }
     static final class Palette {
         final int canvas,surface,field,bubble,accentSoft,text,muted,border,focus,primary,primaryText,danger,dangerText,disabled,disabledText;
         Palette(int canvas,int surface,int field,int bubble,int accentSoft,int text,int muted,int border,int focus,int primary,int primaryText,
@@ -20,6 +24,12 @@ final class WorkbenchVisualPolicy {
         int ink(Role role,boolean enabled){
             if(!enabled)return disabledText;
             return role==Role.PRIMARY?primaryText:role==Role.DESTRUCTIVE?dangerText:text;
+        }
+        int modelStatusFill(ModelStatus status){
+            return status==ModelStatus.ACTIVE?primary:status==ModelStatus.DOWNLOADING?accentSoft:status==ModelStatus.INSTALLED?bubble:field;
+        }
+        int modelStatusInk(ModelStatus status){
+            return status==ModelStatus.ACTIVE?primaryText:status==ModelStatus.AVAILABLE?muted:text;
         }
         // Dialog action slots describe platform placement, not semantic risk.
         int dialogFill(boolean enabled){return enabled?surface:disabled;}

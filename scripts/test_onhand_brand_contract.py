@@ -95,5 +95,18 @@ for forbidden in ("setAdapter(","setSelection(","setOnItemSelectedListener(","re
 for required in ("responsiveModelFilterPair(searchOptions,sourceFilter,sortFilter)",
     "responsiveModelFilterPair(filterRow,familyFilter,quantizationFilter)"):
     assert required in main,required
+# F10A51: shared status precedence and contrast in both grid/list renderers.
+status=main.split("private WorkbenchVisualPolicy.ModelStatus modelCardStatus(",1)[1].split("private LinearLayout buildModelTile(",1)[0]
+assert "item.id.equals(downloadingCardId)&&pullBusy" in status
+assert "p.modelStatusInk(status)" in status and "p.modelStatusFill(status)" in status
+assert "modelCardStatusLabel(status)" in status and "R.string.model_recommend_mark" in status
+grid=main.split("private LinearLayout buildModelTile(",1)[1].split("private LinearLayout buildModelListRow(",1)[0]
+listing=main.split("private LinearLayout buildModelListRow(",1)[1].split("private void updateTileDownloadProgress()",1)[0]
+for block,compact in ((grid,"true"),(listing,"false")):
+    assert "modelCardStatus(item,selected)" in block
+    assert "modelCardAccessibility(item,cardStatus)" in block
+    assert "modelStatusBadge(cardStatus,"+compact+")" in block
+    assert "card.setOnClickListener(v->activateTile(item))" in block
+    assert "tileDownloadBars.put(item.id,progress)" in block
 assert "ads.register(downloadAdSlot,AdSupport.PLACEMENT_DOWNLOAD)" in main
 print("PASS: approved launcher SHA-256, both adaptive masks, light/dark dialog palettes and native UI wiring")

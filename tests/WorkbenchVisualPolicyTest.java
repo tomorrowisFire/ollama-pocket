@@ -15,6 +15,17 @@ public final class WorkbenchVisualPolicyTest {
                 contrast(p.focusInk(role),p.fill(role,true),3);
                 check(p.fill(role,false)==p.disabled&&p.ink(role,false)==p.disabledText);
             }
+            for(boolean installed:new boolean[]{false,true})for(boolean selected:new boolean[]{false,true})for(boolean downloading:new boolean[]{false,true}){
+                WorkbenchVisualPolicy.ModelStatus status=WorkbenchVisualPolicy.modelStatus(installed,selected,downloading);
+                WorkbenchVisualPolicy.ModelStatus expected=downloading?WorkbenchVisualPolicy.ModelStatus.DOWNLOADING:
+                    !installed?WorkbenchVisualPolicy.ModelStatus.AVAILABLE:selected?WorkbenchVisualPolicy.ModelStatus.ACTIVE:WorkbenchVisualPolicy.ModelStatus.INSTALLED;
+                check(status==expected);
+                contrast(p.modelStatusInk(status),p.modelStatusFill(status),4.5);
+            }
+            java.util.Set<Integer> statusFills=new java.util.HashSet<>();
+            for(WorkbenchVisualPolicy.ModelStatus status:WorkbenchVisualPolicy.ModelStatus.values())statusFills.add(p.modelStatusFill(status));
+            check(statusFills.size()==4);
+            check(p.modelStatusInk(WorkbenchVisualPolicy.ModelStatus.ACTIVE)==p.primaryText);
             for(boolean positive:new boolean[]{false,true})for(boolean enabled:new boolean[]{false,true}){
                 contrast(p.dialogInk(positive,enabled),p.dialogFill(enabled),4.5);
                 check(p.dialogFill(enabled)==(enabled?p.surface:p.disabled));
