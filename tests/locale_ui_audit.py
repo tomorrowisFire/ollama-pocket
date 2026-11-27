@@ -36,3 +36,14 @@ for variant in variants:
                 "condition","previous","next","true","false","invalid","advanced","empty","branch_summary","agent_summary","bad_summary"):
         assert strings.get("integration_form_"+key,"").strip(),f"{variant}: missing form {key}"
 print("Visual form, code and document goal localization: five locale resource sets verified")
+
+# Localized display labels only: machine-readable status/stop enums remain unchanged.
+status_keys=["integration_branch_ready","integration_outcome_pending","integration_outcome_verified","integration_outcome_true","integration_outcome_false","integration_outcome_uncertain","batch_status_stopped","batch_status_failed","run_stop_user","run_stop_interrupted","run_stop_unknown"]
+base_strings={item.get("name"):"".join(item.itertext()) for item in ET.parse(res/"values"/"strings.xml").getroot().findall("string")}
+for variant in variants:
+    labels={item.get("name"):"".join(item.itertext()) for item in ET.parse(res/variant/"strings.xml").getroot().findall("string")}
+    for key in status_keys:
+        assert labels.get(key,"").strip(),f"{variant}: missing localized execution status {key}"
+        if variant!="values":
+            assert labels[key]!=base_strings[key],f"{variant}: untranslated execution status {key}"
+print("Branch, conference and document execution status localization verified")

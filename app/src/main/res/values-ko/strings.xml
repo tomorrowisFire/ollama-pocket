@@ -1346,4 +1346,15 @@
     <string name="chat_show_line_numbers">줄 번호 표시</string>
     <string name="chat_hide_line_numbers">줄 번호 숨기기</string>
     <string name="chat_code_line_count">%1$d줄</string>
+    <string name="integration_branch_ready">재개 준비</string>
+    <string name="integration_outcome_pending">검증 대기</string>
+    <string name="integration_outcome_verified">검증 완료</string>
+    <string name="integration_outcome_true">조건 참</string>
+    <string name="integration_outcome_false">조건 거짓</string>
+    <string name="integration_outcome_uncertain">결과 불확실 · 재시도 전 검토 필요</string>
+    <string name="batch_status_stopped">중단</string>
+    <string name="batch_status_failed">실패</string>
+    <string name="run_stop_user">사용자가 중단함</string>
+    <string name="run_stop_interrupted">실행 중단됨</string>
+    <string name="run_stop_unknown">중단 원인 불명</string>
 </resources>

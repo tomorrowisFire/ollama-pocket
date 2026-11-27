@@ -1346,4 +1346,15 @@
     <string name="chat_show_line_numbers">行番号を表示</string>
     <string name="chat_hide_line_numbers">行番号を非表示</string>
     <string name="chat_code_line_count">%1$d 行</string>
+    <string name="integration_branch_ready">再開可能</string>
+    <string name="integration_outcome_pending">検証待ち</string>
+    <string name="integration_outcome_verified">検証済み</string>
+    <string name="integration_outcome_true">条件は真</string>
+    <string name="integration_outcome_false">条件は偽</string>
+    <string name="integration_outcome_uncertain">結果不明 · 再試行前に確認</string>
+    <string name="batch_status_stopped">停止</string>
+    <string name="batch_status_failed">失敗</string>
+    <string name="run_stop_user">ユーザーが停止</string>
+    <string name="run_stop_interrupted">実行が中断されました</string>
+    <string name="run_stop_unknown">停止理由不明</string>
 </resources>

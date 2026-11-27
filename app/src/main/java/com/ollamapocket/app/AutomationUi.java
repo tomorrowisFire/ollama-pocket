@@ -179,10 +179,22 @@ final class AutomationUi {
         }
         return out.toString();
     }
+    private String conferenceStopLabel(String reason){
+        switch(reason){
+            case "USER":return s(R.string.run_stop_user);
+            case "DEADLINE":return s(R.string.batch_deadline);
+            case "THERMAL":return s(R.string.bench_hot);
+            case "MEMORY":return s(R.string.bench_memory);
+            case "SERVER":return s(R.string.test_need_server);
+            case "COOP":return s(R.string.guest_stop_first);
+            case "INTERRUPTED":return s(R.string.run_stop_interrupted);
+            default:return s(R.string.run_stop_unknown);
+        }
+    }
     private String conferenceTerminalReport(ConferenceReport report){
         return conferenceReport(report.request,report.result)+"\n\n"+
             owner.getString(R.string.conference_elapsed,Long.toString(report.elapsedMillis))+
-            (report.stopReason==null?"":"\n"+s(R.string.conference_stop_reason)+": "+report.stopReason);
+            (report.stopReason==null?"":"\n"+s(R.string.conference_stop_reason)+": "+conferenceStopLabel(report.stopReason));
     }
     private void copyConference(ConferenceReport[] current,int title,String value,String extra){
         if(busy()||current[0]==null)return;
@@ -821,15 +833,37 @@ final class AutomationUi {
         });
         show(s(R.string.integration_agent),l);load.run();
     }
+    private String branchStatus(WorkflowBranchPlan.Status value){
+        switch(value){
+            case READY:return s(R.string.integration_branch_ready);
+            case COMPLETED:return s(R.string.auto_state_completed);
+            case BLOCKED:return s(R.string.auto_state_blocked);
+            case CANCELLED:return s(R.string.auto_state_cancelled);
+            default:throw new IllegalArgumentException("Branch status");
+        }
+    }
+    private String branchOutcome(WorkflowAttemptStore.Outcome value){
+        switch(value){
+            case PENDING:return s(R.string.integration_outcome_pending);
+            case VERIFIED:return s(R.string.integration_outcome_verified);
+            case CONDITION_TRUE:return s(R.string.integration_outcome_true);
+            case CONDITION_FALSE:return s(R.string.integration_outcome_false);
+            case RETRY_SAFE:return s(R.string.auto_state_retry);
+            case BLOCKED:return s(R.string.auto_state_blocked);
+            case UNCERTAIN:return s(R.string.integration_outcome_uncertain);
+            case CANCELLED:return s(R.string.auto_state_cancelled);
+            default:throw new IllegalArgumentException("Branch outcome");
+        }
+    }
     private String branchSummary(BranchWorkflowRun run,BranchWorkflowRun.Progress progress){
         WorkflowAttemptStore.Ledger value=progress.snapshot.value;
         StringBuilder text=new StringBuilder(s(R.string.integration_run_id)+": "+run.id+"\n"+
-                s(R.string.model_label)+": "+run.definition.model+"\n"+value.cursor.status.name()+"\n");
+                s(R.string.model_label)+": "+run.definition.model+"\n"+branchStatus(value.cursor.status)+"\n");
         if(value.pending())text.append(s(R.string.integration_pending)).append('\n');
         if(value.cursor.nextNode!=null)text.append(s(R.string.integration_next_node)).append(": ").append(value.cursor.nextNode).append('\n');
         text.append(run.definition.retainOutputs?s(R.string.integration_retained_notice):s(R.string.integration_metadata_only)).append('\n');
         for(WorkflowAttemptStore.Attempt a:value.attempts){
-            text.append(a.node).append(" · ").append(a.outcome.name()).append('\n');
+            text.append(a.node).append(" · ").append(branchOutcome(a.outcome)).append('\n');
             if(a.output!=null)text.append(s(R.string.integration_retained_output)).append(": ").append(a.output).append('\n');
         }
         if(!progress.lastAnswer.isEmpty()&&!java.util.Objects.equals(value.previousOutput(),progress.lastAnswer))

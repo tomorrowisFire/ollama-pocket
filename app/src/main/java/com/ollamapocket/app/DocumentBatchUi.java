@@ -183,7 +183,7 @@ final class DocumentBatchUi {
             try{
                 ProjectReportHandoff handoff=ProjectReportHandoff.of(snapshot());
                 reportWorkspace=new ProjectWorkspaceUi(owner,()->visible()&&!busy()&&result==reviewed);
-                reportWorkspace.openReport(handoff,s(R.string.batch_title)+" · "+handoff.status);
+                reportWorkspace.openReport(handoff,s(R.string.batch_title)+" · "+batchState(reviewed.status));
             }catch(ProjectReportHandoff.TooLarge e){toast(R.string.project_report_too_large);}
             catch(Exception e){toast(R.string.batch_export_failed);}
         });
@@ -414,10 +414,18 @@ final class DocumentBatchUi {
             default:return R.string.batch_stopped;
         }
     }
+    private String batchState(DocumentBatchPolicy.Status value){
+        switch(value){
+            case COMPLETED:return s(R.string.auto_state_completed);
+            case STOPPED:return s(R.string.batch_status_stopped);
+            case FAILED:return s(R.string.batch_status_failed);
+            default:throw new IllegalArgumentException("Batch status");
+        }
+    }
     private String report(DocumentBatchPolicy.Plan plan,DocumentBatchPolicy.Result result){
-        StringBuilder b=new StringBuilder(s(R.string.batch_report_status)).append(": ").append(result.status.name())
+        StringBuilder b=new StringBuilder(s(R.string.batch_report_status)).append(": ").append(batchState(result.status))
             .append(" · ").append(s(reportStatus)).append("\n").append(s(R.string.model_label)).append(": ").append(model);
-        if(reportStopReason!=null)b.append(" [").append(reportStopReason).append("]");
+        if("UNKNOWN".equals(reportStopReason))b.append(" · ").append(s(R.string.run_stop_unknown));
         b.append("\n\n").append(coverage(plan.sources)).append("\n\n").append(plannedCoverage(plan)).append("\n\n").append(s(R.string.batch_goal)).append(": ").append(plan.goal);
         b.append("\n\n").append(owner.getString(R.string.batch_processed,Integer.toString(result.notes.size()),Integer.toString(plan.units.size())));
         b.append('\n').append(s(R.string.batch_quality_notice));

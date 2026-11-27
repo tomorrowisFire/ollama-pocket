@@ -1346,4 +1346,15 @@
     <string name="chat_show_line_numbers">Show line numbers</string>
     <string name="chat_hide_line_numbers">Hide line numbers</string>
     <string name="chat_code_line_count">%1$d lines</string>
+    <string name="integration_branch_ready">Ready to resume</string>
+    <string name="integration_outcome_pending">Pending verification</string>
+    <string name="integration_outcome_verified">Verified</string>
+    <string name="integration_outcome_true">Condition true</string>
+    <string name="integration_outcome_false">Condition false</string>
+    <string name="integration_outcome_uncertain">Uncertain outcome; review before retrying</string>
+    <string name="batch_status_stopped">Stopped</string>
+    <string name="batch_status_failed">Failed</string>
+    <string name="run_stop_user">Stopped by user</string>
+    <string name="run_stop_interrupted">Interrupted</string>
+    <string name="run_stop_unknown">Stop reason unknown</string>
 </resources>
