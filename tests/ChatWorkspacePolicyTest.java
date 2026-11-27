@@ -5,21 +5,29 @@ public final class ChatWorkspacePolicyTest {
     private static void ok(boolean pass){if(!pass)throw new AssertionError("check "+n);n++;}
     private static void rejects(Runnable r){boolean failed=false;try{r.run();}catch(IllegalArgumentException e){failed=true;}ok(failed);}
     public static void main(String[] args){
-        ok(ChatWorkspacePolicy.starterColumns(360,1f)==1);
-        ok(ChatWorkspacePolicy.starterColumns(439,1f)==1);
-        ok(ChatWorkspacePolicy.starterColumns(440,1f)==2);
-        ok(ChatWorkspacePolicy.starterColumns(579,1.26f)==1);
-        ok(ChatWorkspacePolicy.starterColumns(580,1.26f)==2);
-        ok(ChatWorkspacePolicy.starterColumns(440,Float.NaN)==2);
-        ok(ChatWorkspacePolicy.starterInlineIcon(1));
-        ok(!ChatWorkspacePolicy.starterInlineIcon(2));
-        ok(!ChatWorkspacePolicy.starterInlineIcon(0));
-        ok(ChatWorkspacePolicy.starterMinHeightDp(true)==72);
-        ok(ChatWorkspacePolicy.starterMinHeightDp(false)==104);
-        ok(ChatWorkspacePolicy.starterMinHeightDp(true)>=48);
-        for(int width:new int[]{280,320,360,439,440,580,840})for(float font:new float[]{1f,1.13f,1.26f,2f}){
-            int columns=ChatWorkspacePolicy.starterColumns(width,font);
-            ok(ChatWorkspacePolicy.starterInlineIcon(columns)==(columns==1));
+        ok(ChatWorkspacePolicy.STARTER_COUNT==4);
+        ok(ChatWorkspacePolicy.STARTER_GAP_DP==8);
+        ok(ChatWorkspacePolicy.starterMinHeightDp()==48);
+        ok(ChatWorkspacePolicy.starterColumns(331,1)==1);
+        ok(ChatWorkspacePolicy.starterColumns(332,1)==2);
+        ok(ChatWorkspacePolicy.starterColumns(360,1)==2);
+        ok(ChatWorkspacePolicy.starterColumns(663,1)==2);
+        ok(ChatWorkspacePolicy.starterColumns(664,1)==4);
+        ok(ChatWorkspacePolicy.starterColumns(360,1.26f)==1);
+        ok(ChatWorkspacePolicy.starterColumns(390,1.26f)==2);
+        ok(ChatWorkspacePolicy.starterColumns(Integer.MIN_VALUE,1)==1);
+        ok(ChatWorkspacePolicy.starterColumns(Integer.MAX_VALUE,3)==4);
+        for(float scale:new float[]{.5f,1,1.13f,1.26f,1.5f,2,3,4,Float.NaN,Float.POSITIVE_INFINITY}){
+            int previous=1;
+            for(int width=0;width<=1800;width++){
+                int cols=ChatWorkspacePolicy.starterColumns(width,scale);
+                int min=ChatWorkspacePolicy.starterMinWidthDp(scale);
+                ok(cols==1||cols==2||cols==4);
+                ok(ChatWorkspacePolicy.STARTER_COUNT%cols==0);
+                ok(cols>=previous);
+                ok(cols==1||(long)cols*min+(cols-1)*ChatWorkspacePolicy.STARTER_GAP_DP<=width-8L);
+                previous=cols;
+            }
         }
         ok(!ChatWorkspacePolicy.compactHeight(0,false,1f));
         ok(ChatWorkspacePolicy.compactHeight(900,true,1f));

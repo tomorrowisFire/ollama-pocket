@@ -820,13 +820,13 @@ public final class MainActivity extends Activity {
         topPageTitle = text(getString(R.string.app_name), 20, WHITE, true);
         topPageTitle.setSingleLine(true);topPageTitle.setEllipsize(TextUtils.TruncateAt.END);
         branding.addView(topPageTitle);
-        topPageSubtitle=text(getString(R.string.chat)+"  ·  "+getString(R.string.local), 10, MUTED, false);
+        topPageSubtitle=text(getString(R.string.coop_select_model),12,MUTED,false);
         topPageSubtitle.setSingleLine(true);topPageSubtitle.setEllipsize(TextUtils.TruncateAt.END);
         branding.addView(topPageSubtitle);
         rowItem(header, branding, 1, 5);
         Button fresh = button(getString(R.string.new_chat), false);
         newChatShortcut=fresh;fresh.setContentDescription(getString(R.string.new_chat));fresh.setTooltipText(getString(R.string.new_chat));
-        OnHandGlyphs.label(fresh,OnHandGlyphs.Kind.PLUS,false);
+        iconAction(fresh,OnHandGlyphs.Kind.NEW_CHAT);
         rowItem(header, fresh, 0, 0);
         fresh.setOnClickListener(v -> newChat());
         header.setMinimumHeight(dp(52));
@@ -914,11 +914,7 @@ public final class MainActivity extends Activity {
             if(wide)refreshTabletRail();
         }
         refreshWorkspaceModeLabel();
-        if(newChatShortcut!=null){
-            boolean compact=WorkspaceLayoutPolicy.compactHeader(widthDp,scale);
-            newChatShortcut.setText(compact?"":getString(R.string.new_chat));
-            OnHandGlyphs.label(newChatShortcut,OnHandGlyphs.Kind.PLUS,compact);
-        }
+        // The new-chat control remains a single icon at every screen width.
         if(localChatContent!=null)localChatContent.post(this::applyChatLayout);
     }
     private void updateTypingChrome(){
@@ -1168,20 +1164,24 @@ public final class MainActivity extends Activity {
         AlertDialog dialog=new AlertDialog.Builder(this).setTitle(R.string.workbench_title).setView(scroll)
             .setNegativeButton(R.string.close,null).create();
         Runnable[] actions={this::openProjectWorkspace,this::openKnowledgeWorkspace,this::openLocalAutomation,
-            this::openCloud,this::chooseChatExport,this::showComputeChoiceDialog};
+            this::openCloud,this::chooseChatExport,this::showComputeChoiceDialog,
+            ()->fillStarter(getString(R.string.example_plan)),()->fillStarter(getString(R.string.example_code))};
         int[] titles={R.string.project_workspace,R.string.knowledge_workspace,R.string.auto_title,
-            R.string.api_manager_title,R.string.chat_export,R.string.compute_select};
+            R.string.api_manager_title,R.string.chat_export,R.string.compute_select,
+            R.string.workspace_starter_plan,R.string.workspace_starter_code};
         int[] details={R.string.workbench_project_detail,R.string.workbench_knowledge_detail,R.string.workbench_automation_detail,
-            R.string.workbench_api_detail,R.string.workbench_export_detail,R.string.workbench_compute_detail};
+            R.string.workbench_api_detail,R.string.workbench_export_detail,R.string.workbench_compute_detail,
+            R.string.example_plan,R.string.example_code};
         OnHandGlyphs.Kind[] glyphs={OnHandGlyphs.Kind.PROJECT,OnHandGlyphs.Kind.KNOWLEDGE,OnHandGlyphs.Kind.FLOW,
-            OnHandGlyphs.Kind.CLOUD,OnHandGlyphs.Kind.EXPORT,OnHandGlyphs.Kind.CHIP};
-        int[] groups={R.string.workbench_work_group,R.string.workbench_chat_group};
+            OnHandGlyphs.Kind.CLOUD,OnHandGlyphs.Kind.EXPORT,OnHandGlyphs.Kind.CHIP,
+            OnHandGlyphs.Kind.PLAN,OnHandGlyphs.Kind.CODE};
+        int[] groups={R.string.workbench_work_group,R.string.workbench_chat_group,R.string.brand_quick_actions};
         for(int g=0;g<groups.length;g++){
             TextView section=text(getString(groups[g]),16,WHITE,true);
             if(Build.VERSION.SDK_INT>=28)section.setAccessibilityHeading(true);
             margin(section,body,g==0?0:16,8);
             WorkbenchGrid tiles=new WorkbenchGrid(this,uiTextScale);
-            for(int i=g*3;i<g*3+3;i++){
+            for(int i=g*3;i<Math.min(g*3+3,titles.length);i++){
                 final int index=i;
                 tiles.addView(workbenchCard(getString(titles[i]),getString(details[i]),glyphs[i],()->{
                     if(workbenchDialog!=dialog||!dialog.isShowing()||isFinishing()||isDestroyed()||!foreground||activeTab!=0||isUiBusy()||guestOnly||cloudMode)return;
@@ -1864,9 +1864,10 @@ public final class MainActivity extends Activity {
         }
         if(activeTab!=0&&voice!=null)voice.cancel();
         if(topPageTitle!=null)topPageTitle.setText("OnHand AI");
-        if(topPageSubtitle!=null){
+        if(topPageSubtitle!=null&&activeTab!=0){
             int[] subtitles={R.string.chat,R.string.models,R.string.settings,R.string.devices};
-            topPageSubtitle.setText(getString(subtitles[activeTab])+"  ·  "+getString(cloudMode?R.string.cloud_short:R.string.local));
+            topPageSubtitle.setText(getString(subtitles[activeTab])+"  ·  "+getString(R.string.local));
+            topPageSubtitle.setTooltipText(null);
         }
         refreshChatHeader();updateTypingChrome();refreshLatestButton();
         if(activeTab==1)loadRecommendedVariants(false);
@@ -2020,6 +2021,7 @@ public final class MainActivity extends Activity {
         }
         if(idx>=0)modelChooser.setSelection(idx);
         modelChooser.setEnabled(!names.isEmpty()&&!chatBusy);
+        refreshChatHeader();
         if(installedPickerButton!=null){
             installedPickerButton.setText(getString(R.string.installed_count,names.size()));
             installedPickerButton.setEnabled(!names.isEmpty());
@@ -3596,27 +3598,28 @@ public final class MainActivity extends Activity {
     private void renderHistory(){renderHistory(true);}
     private void renderHistory(boolean follow) {
         if (messages == null) return;
+        refreshChatHeader();
         if(chatActionsButton!=null)chatActionsButton.setEnabled(!chatBusy&&!KnowledgeWorkspaceUi.busy()&&!ProjectWorkspaceUi.busy()&&!AutomationUi.busy());
         int oldY=messageScroll==null?0:messageScroll.getScrollY();
         followWanted=follow;scrollRevision++;starterPanel=null;
         messages.removeAllViews();
+        messages.setGravity(Gravity.TOP);
         if(!historyReadable){
             margin(text(getString(R.string.chat_history_invalid),14,WHITE,false),messages,8,8);
             return;
         }
         if(history.length()==0){
             starterNeedsModel=knownModels.isEmpty();
-            LinearLayout hero=row();hero.setPadding(dp(14),dp(16),dp(14),dp(16));hero.setBackground(bg(BUBBLE,22));
-            rowItem(hero,brandArtwork(68),0,12);
-            LinearLayout greeting=column();
-            margin(text(getString(R.string.welcome),24,WHITE,true),greeting,0,4);
-            margin(text(getString(R.string.welcome_sub),14,MUTED,false),greeting,0,0);
-            rowItem(hero,greeting,1,0);margin(hero,messages,8,16);
+            // Chat-first empty state: no branded hero or promotional artwork.
+            messages.setGravity(Gravity.CENTER_VERTICAL);
+            TextView greeting=text(getString(R.string.welcome),24,WHITE,true);
+            greeting.setGravity(Gravity.CENTER);
+            if(Build.VERSION.SDK_INT>=28)greeting.setAccessibilityHeading(true);
+            margin(greeting,messages,12,20);
             if(knownModels.isEmpty()){
                 Button install=button(getString(R.string.install_model),true);
                 margin(install,messages,0,10);install.setOnClickListener(v->{if(!isUiBusy())showTab(1);});
             }
-            margin(sectionTitle(R.string.brand_quick_actions,OnHandGlyphs.Kind.FLOW),messages,0,8);
             starterPanel=column();margin(starterPanel,messages,0,4);
             int width=localChatContent==null?0:(int)((localChatContent.getWidth()-localChatContent.getPaddingLeft()-localChatContent.getPaddingRight())/getResources().getDisplayMetrics().density);
             populateStarterCards(ChatWorkspacePolicy.starterColumns(width,uiTextScale*Math.max(1f,getResources().getConfiguration().fontScale)));
@@ -3738,14 +3741,13 @@ public final class MainActivity extends Activity {
             draftBudgetView.setTextColor(chars>max?DANGER:MUTED);}
         if(sendButton!=null&&!chatBusy)sendButton.setEnabled(!isUiBusy()&&ChatWorkspacePolicy.canSend(chatInput.getText().toString(),max));
     }
-    private void refreshChatHeader(){
-        if(topPageSubtitle==null||activeTab!=0||cloudMode)return;
-        String title="";
-        if(!currentModel.isEmpty()&&!loadedHistoryScope.isEmpty())try{
-            String id=currentSessionId();JSONArray records=new JSONArray(getPreferences(MODE_PRIVATE).getString(listKey(),"[]"));
-            for(int i=0;i<records.length();i++){JSONObject item=records.optJSONObject(i);if(item!=null&&id.equals(item.optString("id"))){title=item.optString("title","");break;}}
-        }catch(Exception ignored){}
-        topPageSubtitle.setText(getString(R.string.local)+" · "+(title.trim().isEmpty()?getString(R.string.chat):title));
+    void refreshChatHeader(){
+        if(topPageSubtitle==null||activeTab!=0)return;
+        String selected=cloudMode?(cloudPanel==null?"":cloudPanel.selectedModelName()):
+            (currentModel!=null&&knownModels.contains(currentModel)?currentModel:"");
+        String label=selected.isEmpty()?getString(R.string.coop_select_model):selected;
+        if(!TextUtils.equals(topPageSubtitle.getText(),label))topPageSubtitle.setText(label);
+        topPageSubtitle.setTooltipText(selected.isEmpty()?null:selected);
     }
     private void fillStarter(String hint){
         if(!foreground||guestOnly||cloudMode||activeTab!=0||isUiBusy()||!historyReadable||!ownsLoadedScope())return;
@@ -3762,26 +3764,18 @@ public final class MainActivity extends Activity {
         else new AlertDialog.Builder(this).setTitle(R.string.workspace_starter_add).setMessage(R.string.workspace_starter_preserve)
             .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,(d,w)->apply.run()).show();
     }
-    private LinearLayout starterCard(String title,String detail,OnHandGlyphs.Kind glyph,boolean inlineIcon,Runnable action){
-        LinearLayout card=column();card.setOrientation(inlineIcon?LinearLayout.HORIZONTAL:LinearLayout.VERTICAL);
-        card.setPadding(dp(12),dp(inlineIcon?10:12),dp(12),dp(inlineIcon?10:12));
-        card.setMinimumHeight(dp(ChatWorkspacePolicy.starterMinHeightDp(inlineIcon)));
-        if(inlineIcon)card.setGravity(Gravity.CENTER_VERTICAL);
-        GradientDrawable surface=bg(CARD,18);surface.setStroke(dp(1),borderTone());
-        card.setBackground(surface);card.setClickable(true);card.setFocusable(true);AdaptiveAnswerActions.feedback(card,18);
-        TextView icon=OnHandGlyphs.tile(this,glyph);
-        TextView heading=text(title,14,WHITE,true);heading.setMaxLines(2);heading.setEllipsize(TextUtils.TruncateAt.END);
-        TextView caption=text(detail,12,MUTED,false);caption.setMaxLines(3);caption.setEllipsize(TextUtils.TruncateAt.END);
-        if(inlineIcon){
-            LinearLayout.LayoutParams iconParams=lp(40,40);iconParams.setMarginEnd(dp(12));card.addView(icon,iconParams);
-            LinearLayout labels=column();card.addView(labels,new LinearLayout.LayoutParams(0,-2,1f));
-            margin(heading,labels,0,0);margin(caption,labels,3,0);
-        }else{
-            card.addView(icon,lp(40,40));margin(heading,card,8,0);margin(caption,card,3,0);
-        }
-        card.setContentDescription(title+" · "+detail);
-        heading.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);caption.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-        card.setOnClickListener(v->action.run());return card;
+    private Button starterChip(String title,String detail,OnHandGlyphs.Kind glyph,Runnable action){
+        Button chip=button(title,false);
+        chip.setMinHeight(dp(ChatWorkspacePolicy.starterMinHeightDp()));
+        chip.setMinimumHeight(dp(ChatWorkspacePolicy.starterMinHeightDp()));
+        chip.setMinWidth(dp(48));chip.setMinimumWidth(dp(48));
+        chip.setSingleLine(false);chip.setEllipsize(null);
+        chip.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);
+        chip.setPaddingRelative(dp(12),dp(8),dp(12),dp(8));
+        chip.setBackground(bg(FIELD,24));AdaptiveAnswerActions.feedback(chip,24);
+        OnHandGlyphs.label(chip,glyph,false);
+        chip.setContentDescription(detail.isEmpty()?title:title+" · "+detail);
+        chip.setOnClickListener(v->action.run());return chip;
     }
     private void openKnowledgeWorkspace(){
         if(!foreground||guestOnly||cloudMode||isUiBusy()||activeTab!=0){toast(getString(R.string.busy));return;}
@@ -3861,26 +3855,25 @@ public final class MainActivity extends Activity {
     private void populateStarterCards(int columns){
         if(starterPanel==null)return;
         starterColumns=columns;starterPanel.removeAllViews();
-        int[] names={R.string.workspace_starter_write,R.string.workspace_starter_plan,R.string.workspace_starter_code,
-            R.string.workspace_starter_docs,R.string.workspace_starter_automation,R.string.workspace_starter_cloud};
-        int[] details={R.string.example_write,R.string.example_plan,R.string.example_code,R.string.workspace_starter_docs_detail,
-            R.string.workspace_starter_automation_detail,R.string.workspace_starter_cloud_detail};
-        OnHandGlyphs.Kind[] glyphs={OnHandGlyphs.Kind.WRITE,OnHandGlyphs.Kind.PLAN,OnHandGlyphs.Kind.CODE,
-            OnHandGlyphs.Kind.DOC,OnHandGlyphs.Kind.FLOW,OnHandGlyphs.Kind.CLOUD};
-        for(int i=0;i<names.length;){
-            LinearLayout line=row();line.setGravity(Gravity.TOP);int count=Math.min(columns,names.length-i);
+        int[] names={R.string.workspace_starter_write,R.string.workspace_starter_docs,
+            R.string.integration_vision,R.string.workspace_starter_automation};
+        int[] details={R.string.example_write,R.string.workspace_starter_docs_detail,
+            0,R.string.workspace_starter_automation_detail};
+        OnHandGlyphs.Kind[] glyphs={OnHandGlyphs.Kind.WRITE,OnHandGlyphs.Kind.DOC,OnHandGlyphs.Kind.IMAGE,OnHandGlyphs.Kind.FLOW};
+        for(int i=0;i<ChatWorkspacePolicy.STARTER_COUNT;){
+            LinearLayout line=row();line.setGravity(Gravity.CENTER_VERTICAL);int count=Math.min(columns,ChatWorkspacePolicy.STARTER_COUNT-i);
             for(int j=0;j<count;j++){
                 final int index=i+j;
-                LinearLayout card=starterCard(getString(names[index]),getString(details[index]),glyphs[index],ChatWorkspacePolicy.starterInlineIcon(columns),()->{
-                    if(index<3)fillStarter(getString(details[index]));
-                    else if(index==3){if(!isUiBusy()&&ownsLoadedScope()&&!cloudMode){if(currentModel.isEmpty()){toast(getString(R.string.need_model));showTab(1);}else chooseDocumentBatch(loadedHistoryScope);}}
-                    else if(index==4)openLocalAutomation();
-                    else openCloud();
+                Button chip=starterChip(getString(names[index]),details[index]==0?"":getString(details[index]),glyphs[index],()->{
+                    if(index==0)fillStarter(getString(R.string.example_write));
+                    else if(index==1){if(!isUiBusy()&&ownsLoadedScope()&&!cloudMode){if(currentModel.isEmpty()){toast(getString(R.string.need_model));showTab(1);}else chooseDocumentBatch(loadedHistoryScope);}}
+                    else if(index==2){if(historyReadable&&ownsLoadedScope())pickVisionForAutomation();else toast(getString(R.string.busy));}
+                    else openLocalAutomation();
                 });
                 LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,-2,1f);
-                if(j+1<count)cp.rightMargin=dp(8);line.addView(card,cp);
+                if(j+1<count)cp.setMarginEnd(dp(ChatWorkspacePolicy.STARTER_GAP_DP));line.addView(chip,cp);
             }
-            margin(line,starterPanel,0,8);i+=count;
+            margin(line,starterPanel,0,ChatWorkspacePolicy.STARTER_GAP_DP);i+=count;
         }
     }
     private void setChatBusy(boolean busy) {
@@ -3954,7 +3947,7 @@ public final class MainActivity extends Activity {
         forgetLastAttachment();chatInput.setText("");
         ((InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(chatInput.getWindowToken(),0);
         renderHistory();
-        if(history.length()==0){starterPanel=null;messages.removeAllViews();}
+        if(history.length()==0){starterPanel=null;messages.removeAllViews();messages.setGravity(Gravity.TOP);}
         bubble("user",prompt);
         TextView assistant=bubble("assistant",getString(R.string.thinking),true);
         lastStreamUi=0;

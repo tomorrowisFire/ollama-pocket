@@ -1,6 +1,6 @@
 {
-  "stage": "F10A58-workbench-and-attachment-dialog-batch",
-  "revision": "F10A58",
-  "priorCandidate": "6f19e8e9f9f1693a12d4ded494ff655d1c36bf60",
-  "reason": "Detached project/knowledge/document confirmations and local attachment form branding/accessibility. Require exact FULL Java/host/ads/locales, APK/QA AAB/16KiB after F10A57. Production artwork and data unchanged."
+  "stage": "F10A59R1-minimal-home-model-header",
+  "revision": "F10A59R1",
+  "priorCandidate": "bfc9b752ca2497b85d2386cb824908a7d356b574",
+  "reason": "Supersede unintegrated F10A59 draft with requested speech-bubble-plus new chat and current model subtitle, retaining four quick actions. Require prior and candidate FULL CI. No release or launcher changes."
 }

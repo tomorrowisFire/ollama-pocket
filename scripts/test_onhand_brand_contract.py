@@ -38,17 +38,31 @@ main=(src/"MainActivity.java").read_text()
 for required in ("BG=p.canvas","BUBBLE=p.bubble","brandSection(content,R.string.brand_model_filters",
     "brandSection(content,R.string.brand_app_preferences","brandSection(content,R.string.display",
     "brandSection(content,R.string.local_inference","brandSection(content,R.string.privacy",
-    "brandArtwork(68)","OnHandGlyphs.spinner(modelChooser)","OnHandGlyphs.tile(this,glyph)",
+    "brandArtwork(36)","OnHandGlyphs.spinner(modelChooser)","OnHandGlyphs.tile(this,glyph)",
     "iconAction(sendButton,OnHandGlyphs.Kind.SEND)","OnHandGlyphs.refresh(v)"):
     assert required in main,required
-starter=main.split("private LinearLayout starterCard(",1)[1].split("private void openKnowledgeWorkspace()",1)[0]
-assert "card.setOrientation(inlineIcon?LinearLayout.HORIZONTAL:LinearLayout.VERTICAL)" in starter
-assert "card.setMinimumHeight(dp(ChatWorkspacePolicy.starterMinHeightDp(inlineIcon)))" in starter
-assert "iconParams.setMarginEnd(dp(12))" in starter
-assert "margin(heading,labels,0,0);margin(caption,labels,3,0)" in starter
-assert 'card.setContentDescription(title+" · "+detail)' in starter
-assert "card.setOnClickListener(v->action.run())" in starter
-assert "glyphs[index],ChatWorkspacePolicy.starterInlineIcon(columns)" in main
+# F10A59: chat-first home replaces the large hero and six descriptive cards.
+starter=main.split("private Button starterChip(",1)[1].split("private void openKnowledgeWorkspace()",1)[0]
+for required in ("ChatWorkspacePolicy.starterMinHeightDp()", "chip.setMinimumWidth(dp(48))",
+    "chip.setSingleLine(false)", "chip.setEllipsize(null)", "chip.setBackground(bg(FIELD,24))",
+    "OnHandGlyphs.label(chip,glyph,false)", 'chip.setContentDescription(detail.isEmpty()?title:title+" · "+detail)',
+    "chip.setOnClickListener(v->action.run())"):
+    assert required in starter,required
+home=main.split("private void populateStarterCards(",1)[1].split("private void setChatBusy(",1)[0]
+for required in ("R.string.workspace_starter_write,R.string.workspace_starter_docs",
+    "R.string.integration_vision,R.string.workspace_starter_automation",
+    "ChatWorkspacePolicy.STARTER_COUNT","pickVisionForAutomation()",
+    "chooseDocumentBatch(loadedHistoryScope)","openLocalAutomation()"):
+    assert required in home,required
+assert "R.string.workspace_starter_plan" not in home and "R.string.workspace_starter_code" not in home
+assert "brandArtwork(68)" not in main
+assert "messages.setGravity(Gravity.CENTER_VERTICAL)" in main
+assert "starterPanel=null;messages.removeAllViews();messages.setGravity(Gravity.TOP)" in main
+tools=main.split("private void showChatActions()",1)[1].split("private View workbenchCard(",1)[0]
+assert "() ->fillStarter" not in tools
+for required in ("()->fillStarter(getString(R.string.example_plan))", "()->fillStarter(getString(R.string.example_code))",
+    "this::openCloud","Math.min(g*3+3,titles.length)","closeWorkbench();actions[index].run()"):
+    assert required in tools,required
 for f in ("AutomationUi.java","ProjectWorkspaceUi.java","KnowledgeWorkspaceUi.java","DocumentBatchUi.java","VoiceModelsUi.java","CloudChatPanel.java"):
     source=(src/f).read_text()
     assert "WorkbenchStyle." in source and "WorkbenchWindow.fit(" in source,f
@@ -214,5 +228,28 @@ for required in ("WorkbenchWindow.fitCompact(this,confirmation)","WorkbenchWindo
     "OnHandGlyphs.spinner(language)","WorkbenchWindow.fit(this,dialog);\n        saveKnowledge.setOnClickListener",
     "SensitiveClipboard.text(preview.sourceName()"):
     assert required in main,required
+# F10A59R1: top-right new chat pictogram and model identity subtitle.
+assert "iconAction(fresh,OnHandGlyphs.Kind.NEW_CHAT)" in main
+assert "fresh.setContentDescription(getString(R.string.new_chat))" in main
+assert "fresh.setTooltipText(getString(R.string.new_chat))" in main
+assert "fresh.setOnClickListener(v -> newChat())" in main
+assert "newChatShortcut.setText(" not in main
+assert "topPageSubtitle=text(getString(R.string.coop_select_model),12,MUTED,false)" in main
+header=main.split("void refreshChatHeader(){",1)[1].split("private void fillStarter(",1)[0]
+for required in ("cloudPanel.selectedModelName()", "knownModels.contains(currentModel)",
+    "getString(R.string.coop_select_model)", "topPageSubtitle.setText(label)",
+    "topPageSubtitle.setTooltipText(selected.isEmpty()?null:selected)"):
+    assert required in header,required
+assert "currentSessionId()" not in header and "getPreferences(" not in header
+assert "modelChooser.setEnabled(!names.isEmpty()&&!chatBusy);\n        refreshChatHeader();" in main
+assert "if (messages == null) return;\n        refreshChatHeader();" in main
+cloud=(src/"CloudChatPanel.java").read_text()
+assert "String selectedModelName(){return model;}" in cloud
+assert "if(active&&owner instanceof MainActivity)((MainActivity)owner).refreshChatHeader();" in cloud
+new_glyph=(src/"OnHandGlyphs.java").read_text().split("case NEW_CHAT:",1)[1].split("case MORE:",1)[0]
+assert "bubble.close();c.drawPath(bubble,pen)" in new_glyph
+assert "line(c,12,7.5f,12,14.5f);line(c,8.5f,11,15.5f,11)" in new_glyph
+for locale in ("values","values-ko","values-ja","values-b+zh+Hans","values-b+zh+Hant"):
+    assert ET.parse(res/locale/"strings.xml").getroot().find("string[@name='coop_select_model']").text
 assert "ads.register(downloadAdSlot,AdSupport.PLACEMENT_DOWNLOAD)" in main
 print("PASS: approved launcher SHA-256, both adaptive masks, light/dark dialog palettes and native UI wiring")

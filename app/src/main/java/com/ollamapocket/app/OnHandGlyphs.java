@@ -21,7 +21,7 @@ import android.widget.TextView;
 final class OnHandGlyphs extends Drawable {
     enum Kind { MENU, PLUS, MORE, SEARCH, SEND, STOP, MIC, ATTACH, WRITE, PLAN, CODE, DOC,
         FLOW, CLOUD, PROJECT, KNOWLEDGE, EXPORT, CHIP, SETTINGS, DEVICE, LANGUAGE, THEME,
-        FONT, SHIELD, CHECK, CLOSE, BACK, DOWN, CHEVRON, COPY, REFRESH, PLAY, TRASH, BOOK, IMAGE }
+        FONT, SHIELD, CHECK, CLOSE, BACK, DOWN, CHEVRON, COPY, REFRESH, PLAY, TRASH, BOOK, IMAGE, NEW_CHAT }
     private final Kind kind;
     private final Paint pen=new Paint(Paint.ANTI_ALIAS_FLAG);
     private final int size;
@@ -56,6 +56,14 @@ final class OnHandGlyphs extends Drawable {
         switch(kind){
             case MENU:line(c,4,6,20,6);line(c,4,12,20,12);line(c,4,18,20,18);break;
             case PLUS:line(c,12,5,12,19);line(c,5,12,19,12);break;
+            case NEW_CHAT:{
+                Path bubble=new Path();
+                bubble.moveTo(7,4);bubble.lineTo(17,4);bubble.quadTo(21,4,21,8);
+                bubble.lineTo(21,14);bubble.quadTo(21,18,17,18);bubble.lineTo(10,18);
+                bubble.lineTo(5,21);bubble.lineTo(5,17);bubble.quadTo(3,16,3,13);
+                bubble.lineTo(3,8);bubble.quadTo(3,4,7,4);bubble.close();c.drawPath(bubble,pen);
+                line(c,12,7.5f,12,14.5f);line(c,8.5f,11,15.5f,11);break;
+            }
             case MORE:dot(c,5,12);dot(c,12,12);dot(c,19,12);break;
             case SEARCH:c.drawCircle(10,10,5.7f,pen);line(c,14,14,20,20);break;
             case SEND:line(c,4,11,20,4,15,20,11,13,4,11);line(c,11,13,20,4);break;

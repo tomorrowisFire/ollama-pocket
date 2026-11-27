@@ -3,12 +3,19 @@ package com.ollamapocket.app;
 /** UI-only bounds; no inference or history mutation. */
 final class ChatWorkspacePolicy {
     private ChatWorkspacePolicy(){}
-    static int starterColumns(int widthDp,float scale){
-        return widthDp>=(Float.isFinite(scale)&&scale>1.2f?580:440)?2:1;
+    // Four compact quick actions: preserve reading space and grow for larger type.
+    static final int STARTER_COUNT=4;
+    static final int STARTER_GAP_DP=8;
+    static int starterMinWidthDp(float scale){
+        double safe=Float.isFinite(scale)?Math.max(1d,Math.min(3d,scale)):1d;
+        return 48+(int)Math.ceil(110d*safe);
     }
-    /** One-column phone cards use a leading glyph to reduce vertical density; two-column cards preserve the tile hierarchy. */
-    static boolean starterInlineIcon(int columns){return columns==1;}
-    static int starterMinHeightDp(boolean inlineIcon){return inlineIcon?72:104;}
+    static int starterColumns(int widthDp,float scale){
+        long usable=Math.max(0L,(long)widthDp-8); // message viewport padding
+        int minimum=starterMinWidthDp(scale);
+        return usable>=4L*minimum+3*STARTER_GAP_DP?4:usable>=2L*minimum+STARTER_GAP_DP?2:1;
+    }
+    static int starterMinHeightDp(){return 48;}
     static boolean compactHeight(int heightDp,boolean keyboard,float scale){
         return keyboard||(heightDp>0&&heightDp<(Float.isFinite(scale)&&scale>1.2f?680:560));
     }

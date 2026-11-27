@@ -238,6 +238,7 @@ final class CloudChatPanel extends LinearLayout {
     }
     private void toast(int label){Toast.makeText(owner,label,Toast.LENGTH_SHORT).show();}
     boolean isBusy(){return busy;}
+    String selectedModelName(){return model;}
     void activate(){if(closed)return;active=true;owner.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);restoreDraft();render();}
     void pause(){
         rememberDraft();active=false;
@@ -282,6 +283,7 @@ final class CloudChatPanel extends LinearLayout {
         final boolean follow=viewportPolicy.following();
         final long ticket=viewportPolicy.ticket();
         endpoint.setText(model.isEmpty()?getResources().getString(R.string.cloud_provider_model):provider.title+(provider.remote()?" · "+pcAddress:"")+" · "+model);
+        if(active&&owner instanceof MainActivity)((MainActivity)owner).refreshChatHeader();
         refreshUsage();
         programmaticScroll=true;
         try{
