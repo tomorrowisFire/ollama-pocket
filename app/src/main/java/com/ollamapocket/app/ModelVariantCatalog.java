@@ -133,33 +133,56 @@ public final class ModelVariantCatalog {
         if(tags.isEmpty())tags=parseTags(family,readPage(root));
         return tags;
     }
+    /** Preserve partial results with explicit failed lookup counts. Only complete batches are cacheable. */
+    public static final class SearchBatch {
+        public final List<Variant> values;
+        public final int failedLookups;
+        SearchBatch(List<Variant> values,int failures){
+            if(failures<0)throw new IllegalArgumentException("Failure count");
+            this.values=Collections.unmodifiableList(new ArrayList<>(values));this.failedLookups=failures;
+        }
+        public boolean complete(){return failedLookups==0;}
+    }
+    static SearchBatch collect(List<? extends Future<List<Variant>>> futures)throws InterruptedException{
+        List<Variant> values=new ArrayList<>();int failures=0;
+        for(Future<List<Variant>> f:futures){
+            if(Thread.currentThread().isInterrupted())throw new InterruptedException("Search cancelled");
+            try{
+                List<Variant> found=f.get();
+                if(found==null)failures++;else values.addAll(found);
+            }catch(ExecutionException|CancellationException failed){failures++;}
+        }
+        return new SearchBatch(values,failures);
+    }
     /** Parallel bounded per-family requests. Timeouts do not discard other valid results. */
-    public static List<Variant> fetchFamilies(Collection<String> families) throws Exception{
+    public static SearchBatch fetchFamiliesDetailed(Collection<String> families)throws Exception{
         ExecutorService workers=Executors.newFixedThreadPool(4);
         List<Callable<List<Variant>>> jobs=new ArrayList<>();
         for(String family:new LinkedHashSet<>(families))if(validFamily(family)&&jobs.size()<16)
             jobs.add(()->fetchTags(family));
-        List<Variant> out=new ArrayList<>();
-        Exception failure=null;
-        try{
-            for(Future<List<Variant>> job:workers.invokeAll(jobs,28,TimeUnit.SECONDS)){
-                try{out.addAll(job.get());}catch(Exception ex){failure=ex;}
-            }
-        }finally{workers.shutdownNow();}
-        if(out.isEmpty()&&failure!=null)throw new IOException("Ollama 태그 조회 실패: "+failure.getClass().getSimpleName(),failure);
-        return out;
+        try{return collect(workers.invokeAll(jobs,28,TimeUnit.SECONDS));}
+        finally{workers.shutdownNow();}
     }
-    public static List<Variant> searchOllama(String text) throws Exception{
+    public static List<Variant> fetchFamilies(Collection<String> families)throws Exception{
+        SearchBatch batch=fetchFamiliesDetailed(families);
+        if(batch.values.isEmpty()&&!batch.complete())throw new IOException("Ollama tag lookup failed");
+        return new ArrayList<>(batch.values);
+    }
+    public static SearchBatch searchOllamaDetailed(String text)throws Exception{
         String q=text.trim();
         String family=q.split("[:\\s]",2)[0];
-        if(q.length()<2||q.length()>120)return Collections.emptyList();
+        if(q.length()<2||q.length()>120)return new SearchBatch(Collections.emptyList(),0);
         Set<String> families=new LinkedHashSet<>();
         Exception failure=null;
         try{
             String page=readPage("https://ollama.com/search?q="+URLEncoder.encode(family,"UTF-8"));
             families.addAll(parseFamilies(page));
             if(families.isEmpty())families.addAll(OllamaLibrarySearch.parseOfficialModels(page));
+        }catch(InterruptedIOException e){
+            if(Thread.currentThread().isInterrupted())throw e;
+            failure=e;
         }catch(Exception e){failure=e;}
+        if(Thread.currentThread().isInterrupted())throw new InterruptedException("Search cancelled");
         if(validFamily(family)){
             // Exact-family lookup recovers direct tags and temporary directory parsing failures.
             Set<String> ordered=new LinkedHashSet<>();
@@ -168,7 +191,8 @@ public final class ModelVariantCatalog {
             ordered.addAll(families);families=ordered;
         }
         if(families.isEmpty()&&failure!=null)throw failure;
-        List<Variant> out=fetchFamilies(families);
+        SearchBatch batch=fetchFamiliesDetailed(families);
+        List<Variant> out=new ArrayList<>(batch.values);
         if(q.contains(":")){
             String needle=q.toLowerCase(Locale.ROOT);
             out.removeIf(v->!v.model.toLowerCase(Locale.ROOT).contains(needle));
@@ -176,7 +200,12 @@ public final class ModelVariantCatalog {
             String[] tokens=q.toLowerCase(Locale.ROOT).split("\\s+");
             out.removeIf(v->{for(String token:tokens)if(!v.model.toLowerCase(Locale.ROOT).contains(token))return true;return false;});
         }
-        return out;
+        return new SearchBatch(out,batch.failedLookups+(failure==null?0:1));
+    }
+    public static List<Variant> searchOllama(String text)throws Exception{
+        SearchBatch batch=searchOllamaDetailed(text);
+        if(batch.values.isEmpty()&&!batch.complete())throw new IOException("Ollama tag lookup failed");
+        return new ArrayList<>(batch.values);
     }
     /** Safety categories: 0 good estimate, 1 tight, 2 pressure, 3 unknown, 4 unsuitable. */
     public static int tier(long bytes,boolean hf,boolean installed,boolean arm64,boolean low,

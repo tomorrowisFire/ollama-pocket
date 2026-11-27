@@ -2053,8 +2053,11 @@ public final class MainActivity extends Activity {
         updateModelSearchStatus();
         io.execute(()->{
             List<ModelVariantCatalog.Variant> results=Collections.emptyList();String error="";
-            try{results=ModelVariantCatalog.fetchFamilies(families);}
-            catch(Exception ex){error=UiText.error(this,ex.getMessage()==null?"온라인 확인 실패":ex.getMessage());}
+            try{
+                ModelVariantCatalog.SearchBatch batch=ModelVariantCatalog.fetchFamiliesDetailed(families);
+                results=batch.values;
+                if(!batch.complete())error=getString(R.string.search_partial_lookup,batch.failedLookups);
+            }catch(Exception ex){error=UiText.error(this,ex.getMessage()==null?"온라인 확인 실패":ex.getMessage());}
             final List<ModelVariantCatalog.Variant> ready=results;final String problem=error;
             ui.post(()->{
                 if(isDestroyed()||isFinishing())return;
@@ -2546,19 +2549,25 @@ public final class MainActivity extends Activity {
         List<ModelVariantCatalog.Variant> ready=Collections.emptyList();
         String error="";
         try{
-            ready="Ollama".equals(provider)?
-                ModelVariantCatalog.searchOllama(query):HuggingFaceCatalog.searchVariants(query);
-            if(!Thread.currentThread().isInterrupted())
-                searchCache.put(ModelSearchCache.key(provider,query),
-                    ready,android.os.SystemClock.elapsedRealtime());
+            ModelVariantCatalog.SearchBatch batch="Ollama".equals(provider)?
+                ModelVariantCatalog.searchOllamaDetailed(query):HuggingFaceCatalog.searchVariantsDetailed(query);
+            ready=batch.values;
+            if(!batch.complete())error=provider+": "+getString(R.string.search_partial_lookup,batch.failedLookups);
         }catch(Exception ex){
             error=provider+": "+UiText.error(this,ex.getMessage()==null?"연결 오류":ex.getMessage());
         }
+        if(Thread.currentThread().isInterrupted())return;
         final List<ModelVariantCatalog.Variant> result=ready;final String failure=error;
         ui.post(()->{
             if(isFinishing()||isDestroyed()||sequence!=onlineSearchSerial)return;
-            if(failure.isEmpty())searchParts.put(provider,result);
-            else searchFailures.add(failure);
+            if(failure.isEmpty()){
+                searchParts.put(provider,result);
+                // Cache only the active query and complete provider results.
+                searchCache.put(ModelSearchCache.key(provider,query),result,android.os.SystemClock.elapsedRealtime());
+            }else{
+                if(!result.isEmpty())searchParts.put(provider,result);
+                searchFailures.add(failure);
+            }
             searchRequestsRemaining=Math.max(0,searchRequestsRemaining-1);
             onlineSearchPending=searchRequestsRemaining>0;
             onlineSearchError=android.text.TextUtils.join(" / ",searchFailures);

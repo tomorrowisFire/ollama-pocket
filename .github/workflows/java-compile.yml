@@ -144,6 +144,11 @@ jobs:
         with:
           path: /tmp/onhand-voice-test-deps
           key: ${{ runner.os }}-onhand-voice-jars-v1-${{ hashFiles('scripts/test_voice_models.sh', 'scripts/fetch_pinned_test_jar.sh') }}
+      - name: Test model search partial results and cache admission
+        run: |
+          mkdir -p /tmp/search-batch-tests
+          javac --release 17 -d /tmp/search-batch-tests app/src/main/java/com/ollamapocket/app/OllamaLibrarySearch.java app/src/main/java/com/ollamapocket/app/ModelVariantCatalog.java app/src/main/java/com/ollamapocket/app/ModelSearchCache.java tests/ModelSearchBatchTest.java
+          java -cp /tmp/search-batch-tests com.ollamapocket.app.ModelSearchBatchTest
       - name: Test pinned fixture mirror and cache integrity without network
         run: python3 -m unittest discover -s tests -p test_pinned_test_jar.py
       - name: Test stage-scoped native build policy

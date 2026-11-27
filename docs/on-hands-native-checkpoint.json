@@ -1,6 +1,6 @@
 {
-  "stage": "P3-P8-integrated-final-quality-remediation",
-  "revision": "F10A41",
-  "priorCandidate": "ba619974d6800af6269334c4c96e40a66760996b",
-  "reason": "Integrate A40 retention regression correction, visual automation/agent forms, accessibility, document and code UX, voice/VLM/inference cleanup, and five-locale status labels; require full APK/QA AAB/16 KiB checkpoint before release acceptance"
+  "stage": "P3-P8-integrated-search-knowledge-quality-remediation",
+  "revision": "F10A43",
+  "priorCandidate": "19a5b597d539f3ce349791942fe61edc45e86c08",
+  "reason": "Integrate bounded multi-excerpt knowledge retrieval and explicit partial model search results with complete-only cache admission. Require full packaging and Java regression gates."
 }

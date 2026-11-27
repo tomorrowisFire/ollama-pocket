@@ -1362,4 +1362,5 @@
     <string name="integration_form_bind_model">Verify installed model for this draft</string>
     <string name="integration_form_bound">Installed model identity verified. Other draft fields are unchanged.</string>
     <string name="knowledge_excerpt_count">Reviewed excerpts: %1$d of %2$d maximum. Separate matches from the same source may be included.</string>
+    <string name="search_partial_lookup">Partial results: %1$d lookup(s) failed or timed out.</string>
 </resources>

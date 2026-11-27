@@ -1362,4 +1362,5 @@
     <string name="integration_form_bind_model">验证此草稿的已安装模型</string>
     <string name="integration_form_bound">已验证安装模型的标识，其他草稿字段保持不变。</string>
     <string name="knowledge_excerpt_count">待审阅摘录：最多 %2$d 段中的 %1$d 段。可能包含同一来源的不同匹配片段。</string>
+    <string name="search_partial_lookup">部分结果：%1$d 次查询失败或超时。</string>
 </resources>

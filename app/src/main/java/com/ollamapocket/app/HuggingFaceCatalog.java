@@ -163,6 +163,7 @@ public final class HuggingFaceCatalog {
     }
 
     private static String getText(String url,int max) throws Exception {
+        if(Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("Search cancelled");
         HttpURLConnection conn=(HttpURLConnection)new URL(url).openConnection();
         conn.setConnectTimeout(9000);conn.setReadTimeout(20000);
         conn.setRequestProperty("Accept","application/json");
@@ -177,6 +178,7 @@ public final class HuggingFaceCatalog {
                 java.io.ByteArrayOutputStream out=new java.io.ByteArrayOutputStream();
                 int n;
                 while((n=stream.read(buffer))!=-1){
+                    if(Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("Search cancelled");
                     if(out.size()+n>max)throw new Exception("Hugging Face 목록이 너무 큽니다");
                     out.write(buffer,0,n);
                 }
@@ -263,7 +265,7 @@ public final class HuggingFaceCatalog {
         dialog.show();
     }
     /** Integrated search uses exact public GGUF files rather than repository-size guesses. */
-    static List<ModelVariantCatalog.Variant> searchVariants(String query) throws Exception {
+    static ModelVariantCatalog.SearchBatch searchVariantsDetailed(String query)throws Exception{
         JSONArray models=new JSONArray(getText(BASE+"/api/models?search="+encode(query)+
             "&filter=gguf&sort=downloads&direction=-1&limit=16",MAX_JSON));
         List<Model> publicModels=new ArrayList<>();
@@ -282,15 +284,13 @@ public final class HuggingFaceCatalog {
                 list.add(new ModelVariantCatalog.Variant("Hugging Face",model.id,weight.path,weight.size));
             return list;
         });
-        List<ModelVariantCatalog.Variant> result=new ArrayList<>();Exception failure=null;
-        try {
-            for(java.util.concurrent.Future<List<ModelVariantCatalog.Variant>> f:
-                pool.invokeAll(jobs,30,java.util.concurrent.TimeUnit.SECONDS)){
-                try{result.addAll(f.get());}catch(Exception ex){failure=ex;}
-            }
-        }finally{pool.shutdownNow();}
-        if(result.isEmpty()&&failure!=null)throw new Exception("공개 GGUF 파일 조회 실패",failure);
-        return result;
+        try{return ModelVariantCatalog.collect(pool.invokeAll(jobs,30,java.util.concurrent.TimeUnit.SECONDS));}
+        finally{pool.shutdownNow();}
+    }
+    static List<ModelVariantCatalog.Variant> searchVariants(String query)throws Exception{
+        ModelVariantCatalog.SearchBatch batch=searchVariantsDetailed(query);
+        if(batch.values.isEmpty()&&!batch.complete())throw new Exception("공개 GGUF 파일 조회 실패");
+        return new ArrayList<>(batch.values);
     }
     private static List<Weight> fetchWeights(String id) throws Exception{
         if(!validRepo(id))throw new Exception("잘못된 Hugging Face 저장소");
