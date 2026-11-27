@@ -112,6 +112,16 @@ on:
       - 'scripts/fetch_test_json.sh'
       - 'tests/CoopMemoryPlannerTest.java'
       - 'tests/CoopPlanLocaleDataTest.java'
+      - 'app/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - 'settings.gradle'
+      - '.github/workflows/build-coop-apk.yml'
+      - 'docs/on-hands-native-checkpoint.json'
 
 jobs:
   compile:
@@ -125,6 +135,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Test stage-scoped native build policy
+        run: python3 -m unittest discover -s tests -p test_native_build_scope.py
       - name: Test safe Markdown parser (pure Java)
         shell: bash
         run: |

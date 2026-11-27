@@ -81,8 +81,34 @@ on:
       - 'build.gradle'
       - 'scripts/release_audit.py'
       - 'tests/test_release_audit.py'
+      - 'app/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - '.github/workflows/java-compile.yml'
+      - 'docs/on-hands-native-checkpoint.json'
 
 jobs:
+  native-build-scope:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      required: ${{ steps.scope.outputs.required }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Classify exact native packaging scope
+        id: scope
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: python3 scripts/native_build_scope.py
+
   secure-relay-unit-test:
     runs-on: ubuntu-24.04
     steps:
@@ -182,7 +208,8 @@ jobs:
   cooperative-apk:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
-    needs: secure-relay-unit-test
+    needs: [secure-relay-unit-test, native-build-scope]
+    if: ${{ needs.native-build-scope.outputs.required == 'true' }}
     permissions:
       contents: read
       actions: read
