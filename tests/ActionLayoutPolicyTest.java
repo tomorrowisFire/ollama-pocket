@@ -29,10 +29,15 @@ public final class ActionLayoutPolicyTest {
     }
     public static void main(String[] args){
         Action minimum=new Action(1,0);ok(minimum.width==48&&minimum.height==48,"Minimum dimensions");
-        Layout pair=layout(108,48,1f,List.of(minimum,minimum));
-        ok(pair.rows.size()==1&&pair.rows.get(0).width==104,"Two targets fit");
-        Layout wrap=layout(103,80,1f,List.of(minimum,minimum));
-        ok(wrap.rows.size()==2&&wrap.contentHeight==104&&wrap.verticalScroll,"Wrap");
+        // The shared brand spacing is 10dp; keep the 48dp accessibility target.
+        ok(GAP==10,"Shared brand action gap");
+        int pairExtent=2*MIN_TARGET+GAP;
+        Layout pair=layout(pairExtent,48,1f,List.of(minimum,minimum));
+        ok(pair.rows.size()==1&&pair.rows.get(0).width==pairExtent&&!pair.verticalScroll,"Two targets fit exactly");
+        Layout wrap=layout(pairExtent-1,pairExtent-1,1f,List.of(minimum,minimum));
+        ok(wrap.rows.size()==2&&wrap.contentHeight==pairExtent&&wrap.verticalScroll,"Wrap one dp below threshold");
+        Layout exactHeight=layout(pairExtent-1,pairExtent,1f,List.of(minimum,minimum));
+        ok(exactHeight.rows.size()==2&&exactHeight.contentHeight==pairExtent&&!exactHeight.verticalScroll,"Wrapped rows fit exact height");
         Layout wide=layout(300,48,1f,List.of(new Action(700,60)));
         ok(wide.rows.get(0).horizontalScroll&&wide.verticalScroll,"Oversized measured label retained");
         // Synthetic measurement fixtures for all five UI locales, not actual text rendering.
