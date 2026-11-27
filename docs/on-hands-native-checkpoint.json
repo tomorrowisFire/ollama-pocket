@@ -1,6 +1,6 @@
 {
-  "stage": "F10A48-workbench-dialog-action-states",
-  "revision": "F10A48",
-  "priorCandidate": "db751d03c1bc8166414b2e0685d66963580d0747",
-  "reason": "Shared workbench dialog action focus, ripple, disabled contrast and minimum touch sizes; preserve semantic risk, existing labels and platform listeners. Exact FULL checkpoint required."
+  "stage": "F10A49-bottom-tools-and-existing-local-vision-entry",
+  "revision": "F10A49",
+  "priorCandidate": "1c23de9f63d653cebec459b1e5baa57a6b7a7bd2",
+  "reason": "Move existing local workbench actions to composer and expose guarded existing local vision workspace in attachment chooser; preserve scope, labels, callbacks, review and no-cloud semantics. Require exact FULL APK, QA AAB, ARM64 ELF/16KiB and Java/host/ads/locale regressions. No release icon or production change."
 }

@@ -97,6 +97,7 @@ public final class MainActivity extends Activity {
     private OnHandsVoice voice;
     private Button voiceButton, cloudShortcut, chatActionsButton, newChatShortcut;
     private LinearLayout chatComposer,composerActions;
+    private android.widget.HorizontalScrollView composerActionScroll;
     private Boolean composerStacked;
     private boolean keyboardVisible,compactChatHeight;
     private int rootHeightDp,starterColumns;
@@ -927,7 +928,7 @@ public final class MainActivity extends Activity {
         updateDraftBudget();
     }
     private void applyChatLayout(){
-        if(localChatContent==null||chatComposer==null||composerActions==null||chatInput==null||isFinishing()||isDestroyed())return;
+        if(localChatContent==null||chatComposer==null||composerActionScroll==null||composerActions==null||chatInput==null||isFinishing()||isDestroyed())return;
         int usable=localChatContent.getWidth()-localChatContent.getPaddingLeft()-localChatContent.getPaddingRight();
         if(usable<=0)return;
         float scale=uiTextScale*Math.max(1f,getResources().getConfiguration().fontScale);
@@ -939,7 +940,7 @@ public final class MainActivity extends Activity {
             LinearLayout.LayoutParams inputParams=stacked?lp(-1,-2):new LinearLayout.LayoutParams(0,-2,1f);
             if(stacked)inputParams.bottomMargin=dp(4);else inputParams.rightMargin=dp(6);
             chatInput.setLayoutParams(inputParams);
-            composerActions.setLayoutParams(lp(stacked?-1:-2,-2));
+            composerActionScroll.setLayoutParams(lp(stacked?-1:-2,-2));
         }
         if(cloudShortcut!=null)cloudShortcut.setVisibility(WorkspaceLayoutPolicy.directCloud(width,scale)?View.VISIBLE:View.GONE);
         if(starterPanel!=null&&starterPanel.getParent()!=null){int columns=ChatWorkspacePolicy.starterColumns(width,scale);if(columns!=starterColumns)populateStarterCards(columns);}
@@ -1034,12 +1035,6 @@ public final class MainActivity extends Activity {
         cloudShortcut.setContentDescription(getString(R.string.cloud));
         rowItem(modelRow,cloudShortcut,0,5);
         cloudShortcut.setOnClickListener(v->openCloud());
-        chatActionsButton=button("⋯",false);
-        chatActionsButton.setTextSize(21);chatActionsButton.setMinimumWidth(dp(48));chatActionsButton.setMinWidth(dp(48));
-        chatActionsButton.setContentDescription(getString(R.string.chat_actions));chatActionsButton.setTooltipText(getString(R.string.chat_actions));
-        iconAction(chatActionsButton,OnHandGlyphs.Kind.MORE);
-        chatActionsButton.setOnClickListener(v->showChatActions());
-        rowItem(modelRow,chatActionsButton,0,0);
         margin(modelRow, localChatContent, 2, 3);
         activeEngineLabel = text(getString(R.string.engine_idle), 11, MUTED, false);
         activeEngineLabel.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
@@ -1090,11 +1085,21 @@ public final class MainActivity extends Activity {
         chatInput.setMinLines(1); chatInput.setMaxLines(5);chatInput.setMinimumHeight(dp(48));
         rowItem(composer, chatInput, 1, 5);
         composerActions=row();composerActions.setGravity(Gravity.END|Gravity.CENTER_VERTICAL);
-        composer.addView(composerActions,lp(-2,-2));
+        // Four 48dp icon actions stay beside the draft. Very narrow multi-window layouts may scroll rather than clip targets.
+        composerActionScroll=new android.widget.HorizontalScrollView(this);
+        composerActionScroll.setFillViewport(true);
+        composerActionScroll.addView(composerActions,new FrameLayout.LayoutParams(-2,-2));
+        composer.addView(composerActionScroll,lp(-2,-2));
         attachFileButton=button("+",false);
         attachFileButton.setTextSize(19);attachFileButton.setContentDescription(getString(R.string.attachment_pick));attachFileButton.setTooltipText(getString(R.string.attachment_pick));
         attachFileButton.setMinWidth(dp(48));attachFileButton.setMinimumWidth(dp(48));
         attachFileButton.setOnClickListener(v->pickChatAttachment());rowItem(composerActions,attachFileButton,0,4);
+        chatActionsButton=button("⋯",false);
+        chatActionsButton.setTextSize(21);chatActionsButton.setMinimumWidth(dp(48));chatActionsButton.setMinWidth(dp(48));
+        chatActionsButton.setContentDescription(getString(R.string.chat_actions));chatActionsButton.setTooltipText(getString(R.string.chat_actions));
+        iconAction(chatActionsButton,OnHandGlyphs.Kind.MORE);
+        chatActionsButton.setOnClickListener(v->showChatActions());
+        rowItem(composerActions,chatActionsButton,0,4);
         voiceButton=button("🎙",false);
         voiceButton.setContentDescription(getString(R.string.voice));
         voiceButton.setMinWidth(dp(44));voiceButton.setMinimumWidth(dp(44));
@@ -4068,10 +4073,12 @@ public final class MainActivity extends Activity {
         if(guestOnly||cloudMode||isUiBusy()||!historyReadable||!ownsLoadedScope()){toast(getString(R.string.busy));return;}
         if(currentModel.isEmpty()){toast(getString(R.string.need_model));return;}
         final String scope=loadedHistoryScope;
-        String[] items=canRemoveLastAttachment()?new String[]{getString(R.string.attachment_select_range),getString(R.string.batch_title),getString(R.string.attachment_ocr),getString(R.string.attachment_remove_last)}:
-            new String[]{getString(R.string.attachment_select_range),getString(R.string.batch_title),getString(R.string.attachment_ocr)};
+        String[] items=canRemoveLastAttachment()?new String[]{getString(R.string.attachment_select_range),getString(R.string.batch_title),getString(R.string.attachment_ocr),getString(R.string.integration_vision),getString(R.string.attachment_remove_last)}:
+            new String[]{getString(R.string.attachment_select_range),getString(R.string.batch_title),getString(R.string.attachment_ocr),getString(R.string.integration_vision)};
         new AlertDialog.Builder(this).setTitle(R.string.attachment_pick).setItems(items,(d,w)->{
-            if(w==0)chooseAttachmentRange(scope);else if(w==1)chooseDocumentBatch(scope);else if(w==2)chooseAttachmentOcr(scope);else removeLastAttachment();
+            if(w==0)chooseAttachmentRange(scope);else if(w==1)chooseDocumentBatch(scope);else if(w==2)chooseAttachmentOcr(scope);
+            else if(w==3){if(scope.equals(loadedHistoryScope)&&ownsLoadedScope())pickVisionForAutomation();}
+            else if(w==4)removeLastAttachment();
         }).setNegativeButton(R.string.cancel,null).show();
     }
     private void chooseDocumentBatch(String scope){

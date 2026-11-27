@@ -60,5 +60,28 @@ for required in ("p.dialogInk(positive,true)","p.dialogFill(false)","p.dialogFil
     assert required in dialog,required
 for forbidden in ("setOnClickListener(","setOnDismissListener(","setText(","dismiss()","setEnabled(","setVisibility("):
     assert forbidden not in dialog,forbidden
+# F10A49: local tools are adjacent to the draft; no top-header duplicate or new transmission route.
+chat=main.split("private void createChatPage()",1)[1].split("private void showChatActions()",1)[0]
+assert "rowItem(modelRow,chatActionsButton" not in chat
+assert chat.count("chatActionsButton=button(")==1
+assert "rowItem(composerActions,chatActionsButton,0,4)" in chat
+assert chat.index("rowItem(composerActions,attachFileButton")<chat.index("rowItem(composerActions,chatActionsButton")<chat.index("rowItem(composerActions,voiceButton")<chat.index("rowItem(composerActions, sendButton")
+assert "chatActionsButton.setOnClickListener(v->showChatActions())" in chat
+assert "chatActionsButton.setContentDescription(getString(R.string.chat_actions))" in chat
+assert "composerActionScroll.setFillViewport(true)" in chat
+assert "composerActionScroll.addView(composerActions,new FrameLayout.LayoutParams(-2,-2))" in chat
+assert "composer.addView(composerActionScroll,lp(-2,-2))" in chat
+assert "composerActionScroll.setLayoutParams(lp(stacked?-1:-2,-2))" in main
+attachment=main.split("private void pickChatAttachment()",1)[1].split("private void chooseDocumentBatch(",1)[0]
+assert attachment.count("getString(R.string.integration_vision)")==2
+assert "else if(w==3){if(scope.equals(loadedHistoryScope)&&ownsLoadedScope())pickVisionForAutomation();}" in attachment
+assert "else if(w==4)removeLastAttachment();" in attachment
+assert "guestOnly||cloudMode||isUiBusy()||!historyReadable||!ownsLoadedScope()" in attachment
+vision=main.split("void pickVisionForAutomation()",1)[1].split("private void openPickedVision()",1)[0]
+assert "guestOnly||cloudMode||isUiBusy()||activeTab!=0" in vision and "visionPickerPending" in vision
+assert "Intent.ACTION_OPEN_DOCUMENT" in vision and "PICK_VISION" in vision
+for locale in ("values","values-ko","values-ja","values-b+zh+Hans","values-b+zh+Hant"):
+    strings=ET.parse(res/locale/"strings.xml").getroot()
+    assert strings.find("string[@name='integration_vision']").text
 assert "ads.register(downloadAdSlot,AdSupport.PLACEMENT_DOWNLOAD)" in main
 print("PASS: approved launcher SHA-256, both adaptive masks, light/dark dialog palettes and native UI wiring")
