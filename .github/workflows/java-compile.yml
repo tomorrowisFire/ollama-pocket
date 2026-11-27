@@ -379,6 +379,13 @@ jobs:
           mkdir -p /tmp/workflow-branch-tests
           javac --release 17 -d /tmp/workflow-branch-tests app/src/main/java/com/ollamapocket/app/WorkflowBranchPlan.java tests/WorkflowBranchPlanTest.java
           java -cp /tmp/workflow-branch-tests com.ollamapocket.app.WorkflowBranchPlanTest
+      - name: Test independent chart artifacts, accessible action layout and local agent profiles
+        run: |
+          mkdir -p /tmp/independent-module-tests
+          javac --release 17 -cp /tmp/cloud-stream-tests/json.jar -d /tmp/independent-module-tests app/src/main/java/com/ollamapocket/app/ChartArtifact.java app/src/main/java/com/ollamapocket/app/ActionLayoutPolicy.java app/src/main/java/com/ollamapocket/app/WorkbenchVisualPolicy.java app/src/main/java/com/ollamapocket/app/WorkbenchLayoutPolicy.java app/src/main/java/com/ollamapocket/app/WorkspaceLayoutPolicy.java app/src/main/java/com/ollamapocket/app/ToolJsonPolicy.java app/src/main/java/com/ollamapocket/app/AgentProfile.java tests/ChartArtifactTest.java tests/ActionLayoutPolicyTest.java tests/AgentProfileTest.java
+          java -cp /tmp/independent-module-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.ChartArtifactTest
+          java -cp /tmp/independent-module-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.ActionLayoutPolicyTest
+          java -cp /tmp/independent-module-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.AgentProfileTest
       - name: Test bounded local workflow policy
         run: |
           mkdir -p /tmp/workflow-tests

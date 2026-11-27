@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Host-only integrity/lifecycle fixtures. Optional: pinned Supertonic archive or --melo verified fixture directory.
+# Host-only integrity/lifecycle fixtures. Optional: pinned Supertonic archive, --melo or --vision verified fixture directory.
 voice_repo_root=$(cd "$(dirname "$0")/.." && pwd)
 voice_dependency_dir=${ONHAND_VOICE_TEST_DEPS:-${TMPDIR:-/tmp}/onhand-voice-test-deps}
 voice_test_dir=$(mktemp -d "${TMPDIR:-/tmp}/onhand-voice-model-tests.XXXXXX")
@@ -28,6 +28,14 @@ javac --release 17 -cp "$voice_classpath" -d "$voice_test_dir" \
   app/src/main/java/com/ollamapocket/app/VoiceModelCatalog.java \
   app/src/main/java/com/ollamapocket/app/VoiceModelStore.java \
   app/src/main/java/com/ollamapocket/app/VoiceModelTree.java \
-  tests/VoiceModelStoreTest.java tests/VoiceModelTreeTest.java
+  app/src/main/java/com/ollamapocket/app/VisionImagePolicy.java \
+  app/src/main/java/com/ollamapocket/app/VisionModelProfile.java \
+  app/src/main/java/com/ollamapocket/app/VisionModelStore.java \
+  tests/VoiceModelStoreTest.java tests/VoiceModelTreeTest.java tests/VisionModelStoreTest.java
 java -cp "$voice_test_dir:$voice_classpath" com.ollamapocket.app.VoiceModelTreeTest
-java -cp "$voice_test_dir:$voice_classpath" com.ollamapocket.app.VoiceModelStoreTest "$@"
+if [[ "$#" -eq 2 && "$1" == "--vision" ]]; then
+  java -cp "$voice_test_dir:$voice_classpath" com.ollamapocket.app.VisionModelStoreTest "$2"
+else
+  java -cp "$voice_test_dir:$voice_classpath" com.ollamapocket.app.VoiceModelStoreTest "$@"
+  java -cp "$voice_test_dir:$voice_classpath" com.ollamapocket.app.VisionModelStoreTest
+fi

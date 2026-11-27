@@ -195,6 +195,9 @@ def main():
         server_path=extract(archive,directory/"runtime")
         model=fetch(BASE+MODEL[0],MODEL[1],MODEL[2],directory/MODEL[0])
         projector=fetch(BASE+PROJECTOR[0],PROJECTOR[1],PROJECTOR[2],directory/PROJECTOR[0])
+        # Exercise the same private pair store with the verified real files before inference.
+        subprocess.run(["bash", str(ROOT/"scripts/test_voice_models.sh"), "--vision", str(directory)],
+                       check=True, timeout=480)
         # Use no model auto-fetch, no cloud credentials, no server tools and one local slot.
         with socket.socket() as sock:
             sock.bind(("127.0.0.1",0))
