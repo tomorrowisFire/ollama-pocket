@@ -2,6 +2,8 @@
 
 User decision: "그럼 단계별로 개발한다음 네이티므 적용하는 방식으로 가자". Replaces the prior per-substage Native packaging requirement for P3–P8 on dev/on-hands-ai-v012 only. Historical acceptances and all final thresholds remain unchanged.
 
+**Latest user-approved ordering, 2026-11-27:** [independent component development and batch integration](on-hands-independent-integration-contract.md). Complete separately testable, unactivated P3–P8 components first; source-only acceptance is not completion of the corresponding integrated major stage. Native FULL is required for any actual native-impact activation and the combined integrated checkpoint/P9; not for crossing the independent component queue. Keep every FAST, safety, repair-first and final release requirement.
+
 ## Two exact-candidate gates
 
 FAST: each ordinary Java/UI/resource/test increment requires the exact candidate Java compile, all existing unit/host/voice/ad/locale/release-evidence regression steps, native-build-scope success and secure-relay-unit-test success. The expensive cooperative-apk job is intentionally SKIPPED only when the classifier proves an eligible ordinary development push; record APK/AAB/16 KiB as DEFERRED_TO_STAGE_CHECKPOINT (NOT_RUN for this candidate), never PASS. A successful aggregate workflow with a skipped packaging job is not Native acceptance. Do not advance on failed, missing or pending required FAST evidence. Prior known build failures must be resolved; do not hide failures through a later skip.

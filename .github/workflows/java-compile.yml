@@ -301,6 +301,11 @@ jobs:
         run: |
           javac -cp /tmp/attachment-tests:/tmp/cloud-stream-tests/json.jar -d /tmp/attachment-tests app/src/main/java/com/ollamapocket/app/DocumentBatchReport.java tests/DocumentBatchReportTest.java
           java -cp /tmp/attachment-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.DocumentBatchReportTest
+      - name: Test independent strict tool JSON admission
+        run: |
+          mkdir -p /tmp/tool-json-tests
+          javac --release 17 -d /tmp/tool-json-tests app/src/main/java/com/ollamapocket/app/ToolJsonPolicy.java tests/ToolJsonPolicyTest.java
+          java -cp /tmp/tool-json-tests com.ollamapocket.app.ToolJsonPolicyTest
       - name: Test exact vision model pair and private image request
         run: |
           mkdir -p /tmp/vision-request-tests

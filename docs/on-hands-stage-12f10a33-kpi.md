@@ -1,0 +1,12 @@
+# F10A33 / P4A1-I — isolated strict JSON tool argument admission
+
+User instruction 2026-11-27: "나머지 개별 개발 가능한 부분부터 진행하고 일괄 통합". Develop independently testable components before activating cross-module/native integration. This does not waive source/regression gates or imply stage acceptance. P3A2 app HEAD 11722c44904501c47216d5b93fb121acc5a889a2; actual VLM host qualification succeeded in job 140380658313. Java attempt 1 failed fetching an existing Maven dependency (HTTP 404), same-candidate attempt 2 underway. Native scope and secure relay passed; APK packaging correctly skipped. Do not publish a new branch head until the previous required FAST gate passes or a repair candidate is explicitly needed.
+
+Read-only source audit: McpInputPolicy.arguments uses org.json.JSONTokener with a 16000-character limit and later schema validation. Android's JSON parser can accept non-standard forms; duplicate or escaped-equivalent keys and extreme nesting/numeric exponents should be rejected before parsing and review. Existing manual LAN client and schema checks remain unchanged until integration.
+
+A/B/C simulated role conference (one assistant):
+- A: a reusable strict, pure Java tool-argument syntax admission component that is independently testable without org.json, network, Android UI, engine or live credentials. No tool call activation.
+- B: admit exactly one RFC-style JSON object with strict syntax and scalar Unicode, decoded unique object keys at every level, no comments/single quotes/trailing commas/unquoted keys, bounded depth, nodes, keys, string/input sizes and numeric magnitude/exponent. Reject malformed input before permissive parser; avoid recursive resource exhaustion. No external input transmission, arbitrary code execution or endpoint change.
+- C: executable fixtures for accepted nested object/array/string/number/literals; escaped-equivalent duplicate keys; invalid escape, Unicode and control characters; nonstandard grammar, trailing content, structural and numeric limits. Local javac --release 17 and exact CI test required. Integration into McpInputPolicy and one-shot review/UI remains DEFERRED_TO_BATCH_INTEGRATION; retain existing tests.
+
+KPI: strict JSON validator and tests compile and all local fixtures pass; no call-path change; exact Java/host/secure relay/scope FAST required before independent source acceptance. Native packaging explicitly deferred for source-only increment. No independent reviewer or device claims.
