@@ -16,7 +16,7 @@ import com.android.billingclient.api.BillingClient;
 import com.android.billingclient.api.BillingClientStateListener;
 import com.android.billingclient.api.BillingFlowParams;
 import com.android.billingclient.api.BillingResult;
-import com.android.billingclient.api.PendingPurchaseParams;
+import com.android.billingclient.api.PendingPurchasesParams;
 import com.android.billingclient.api.ProductDetails;
 import com.android.billingclient.api.Purchase;
 import com.android.billingclient.api.QueryProductDetailsParams;
@@ -118,7 +118,7 @@ final class PlayBillingController {
                 // Do not trust callback lists: obtain an authoritative current Play client snapshot.
                 refresh();
             }))
-            .enablePendingPurchases(PendingPurchaseParams.newBuilder().enableOneTimeProducts().build())
+            .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
             .enableAutoServiceReconnection().build();
     }
     private void refresh(){

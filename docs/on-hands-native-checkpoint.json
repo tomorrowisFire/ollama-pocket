@@ -1,6 +1,6 @@
 {
-  "stage": "F10A65-play-billing-license-test",
-  "revision": "F10A65",
-  "priorCandidate": "e0377d44134b70a8e1b4e19210af205aa9c0e3db",
-  "reason": "Add opt-in debug/license-test Google Play non-consumable flow, localized price, signed receipt state check, acknowledgement, restore and test-ad suppression. Default and production locked. Preserve approved UI and ads; exact FULL required after F10A64."
+  "stage": "F10A65R1-play-billing-license-test",
+  "revision": "F10A65R1",
+  "priorCandidate": "162115b6bbaece53c162522fec202b7e59cf937f",
+  "reason": "Repair the exact Java and native compile failures caused by misspelled Billing 8.3.0 PendingPurchasesParams class (import and builder only). Retain all billing locks, home UI, existing tests and FULL packaging."
 }
