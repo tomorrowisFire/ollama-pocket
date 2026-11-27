@@ -1,0 +1,4 @@
+# F10A24 / P2A2 simulated A/B/C review
+A product: typed local Whisper and neural synthesis adapter, not user-accessible yet. No cloud fallback or automatic sends. Chinese TTS gap explicitly tracked.
+B engineering: actual upstream API calls under isolated compile-only gate; bounded audio, cancellation checks, single native lease and trusted file verification. No arbitrary runtime model paths, no new packaged library until license/ABI/model manifests verified. Native blocking and memory limits honestly scoped.
+C QA: 131242 actual local host Java assertions PASS, tested blob hashes match. Android adapter compile against exact official AAR, ordinary Java compile and native APK/QA AAB/16 KiB/ad/locale/regression gates pending. No native model execution or independent human review. Three simulated roles only; provisional mean 80.3/min 75 unchanged. P2 not complete.

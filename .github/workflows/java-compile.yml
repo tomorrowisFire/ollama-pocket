@@ -5,6 +5,8 @@ on:
   push:
     paths:
       - 'app/src/main/java/**'
+      - 'app/src/neuralVoice/java/**'
+      - 'tests/NeuralVoicePolicyTest.java'
       - 'app/src/main/cpp/nnapi_probe_counts.h'
       - 'app/src/main/cpp/deviceprobe.c'
       - 'tests/nnapi_probe_counts_test.c'
@@ -209,6 +211,8 @@ jobs:
           java -cp /tmp/voice-tests com.ollamapocket.app.VoiceInteractionPolicyTest
           javac -d /tmp/voice-tests app/src/main/java/com/ollamapocket/app/VoiceOfflinePolicy.java tests/VoiceOfflinePolicyTest.java
           java -cp /tmp/voice-tests com.ollamapocket.app.VoiceOfflinePolicyTest
+          javac -d /tmp/voice-tests app/src/main/java/com/ollamapocket/app/NeuralVoicePolicy.java app/src/main/java/com/ollamapocket/app/VerifiedSpeechFiles.java tests/NeuralVoicePolicyTest.java
+          java -cp /tmp/voice-tests com.ollamapocket.app.NeuralVoicePolicyTest
           javac -d /tmp/voice-tests app/src/main/java/com/ollamapocket/app/VoiceContinuation.java tests/VoiceContinuationTest.java
           java -cp /tmp/voice-tests com.ollamapocket.app.VoiceContinuationTest
           javac -cp /tmp/voice-tests -d /tmp/voice-tests app/src/main/java/com/ollamapocket/app/WorkspaceDictationPolicy.java tests/WorkspaceDictationPolicyTest.java
@@ -423,3 +427,14 @@ jobs:
           gradle-version: '8.13'
       - name: Compile Java without native Ollama/Vulkan compilation
         run: gradle --no-daemon :app:compileDebugJavaWithJavac -x :app:checkNativePayload -x :app:checkComputeProbe
+      - name: Compile typed neural speech adapter against pinned upstream Android AAR (no packaging)
+        shell: bash
+        run: |
+          set -euo pipefail
+          aar="$RUNNER_TEMP/sherpa-onnx-2.0.3.aar"
+          curl --fail --location --retry 2 --connect-timeout 20 --max-time 180 --proto '=https' --proto-redir '=https' -o "$aar" https://github.com/k2-fsa/sherpa-onnx/releases/download/v2.0.3/sherpa-onnx-2.0.3.aar
+          test "$(stat -c%s "$aar")" = 52411426
+          echo "4c766e2e74c9d33d595338c21fe3b305c73ba45d47e96a235675c33142a2ec50  $aar" | sha256sum -c -
+          gradle --no-daemon :app:compileDebugJavaWithJavac -x :app:checkNativePayload -x :app:checkComputeProbe -PONHAND_NEURAL_VOICE_AAR="$aar"
+          test -n "$(find app/build -name SherpaNeuralVoice.class -print -quit)"
+          echo 'PASS: typed Whisper and Supertonic adapter compiled; no native execution or packaging'
