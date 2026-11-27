@@ -382,5 +382,29 @@ for required in ("ads.register(guideAd,AdSupport.PLACEMENT_ONBOARDING)","ads.sho
 help_body=main.split("private void showHelp()",1)[1].split("private void startServer()",1)[0]
 assert "R.string.onboarding_body" in help_body and "R.string.help_body" in help_body
 assert "ads." not in help_body
+# F10A65: explicit debug/license-test billing only; no default or production purchases.
+billing=(src/"PlayBillingController.java").read_text()
+billing_policy=(src/"BillingEntitlementPolicy.java").read_text()
+billing_gradle=Path("app/build.gradle").read_text()
+ad_source=(src/"AdSupport.java").read_text()
+assert "com.android.billingclient:billing:8.3.0" in billing_gradle
+assert "buildConfigField 'boolean', 'BILLING_TEST_ENABLED', 'false'" in billing_gradle
+assert 'BillingEntitlementPolicy.enabled(BuildConfig.DEBUG,BuildConfig.BILLING_TEST_ENABLED,key)' in billing
+assert 'onhand_remove_ads_lifetime' in billing_policy
+for required in ("queryProductDetailsAsync","queryPurchasesAsync","enablePendingPurchases",
+    "getFormattedPrice()","getOfferToken()","getRentalDetails()","getPreorderDetails()",
+    "BillingEntitlementPolicy.verify(key,purchase.getOriginalJson(),purchase.getSignature())",
+    "Purchase.PurchaseState.PURCHASED","Purchase.PurchaseState.PENDING","acknowledgePurchase(",
+    "case OWNED:applyOwned(true)","case PENDING:applyOwned(false)","case INVALID:applyOwned(false)",
+    "billing_restore","client.launchBillingFlow(owner,params)","BillingEntitlementPolicy.mayBuy(",
+    "if(!canBuy())","clientSerial","if(!current(ticket))return","previous.endConnection()"):
+    assert required in billing,required
+for forbidden in ("consumeAsync","getSharedPreferences(","getOrderId()","Log.","HttpURLConnection"):
+    assert forbidden not in billing,forbidden
+assert billing.count("launchBillingFlow(")==1
+assert "debug&&optIn" in billing_policy
+assert "if(testAdFree)return false;" in ad_source
+assert 'return BuildConfig.DEBUG && prefs.getBoolean("enabled", true)' in ad_source
+assert "ads::setTestAdFree" in main and "billing.destroy()" in main
 assert "ads.register(downloadAdSlot,AdSupport.PLACEMENT_DOWNLOAD)" in main
 print("PASS: approved launcher SHA-256, both adaptive masks, light/dark dialog palettes and native UI wiring")

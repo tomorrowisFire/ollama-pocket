@@ -57,6 +57,8 @@ public final class AdSupport {
     private boolean sdkInitStarted;
     private boolean adsInitialized;
     private boolean disposed;
+    private boolean testAdFree;
+    private final Map<FrameLayout,Integer> purchaseHidden=new IdentityHashMap<>();
     private boolean foreground;
     private boolean consentFlowActive;
     private boolean privacyShowing;
@@ -68,11 +70,36 @@ public final class AdSupport {
         this.prefs = activity.getSharedPreferences("ad_options", Context.MODE_PRIVATE);
     }
 
-    public boolean isEnabled() { return BuildConfig.DEBUG && prefs.getBoolean("enabled", true); }
+    public boolean isEnabled() {
+        if(testAdFree)return false;
+        return BuildConfig.DEBUG && prefs.getBoolean("enabled", true);
+    }
+    /** Only the configured test billing controller can suppress demo ads. Never enable live ads. */
+    void setTestAdFree(boolean owned){
+        if(disposed||!BuildConfig.DEBUG||!BuildConfig.BILLING_TEST_ENABLED||testAdFree==owned)return;
+        testAdFree=owned;
+        if(owned){
+            clearLoadedAds(R.string.billing_owned);
+            for(FrameLayout slot:new ArrayList<>(placements.keySet()))status(slot,activity.getString(R.string.billing_owned));
+        }else{
+            for(FrameLayout slot:new ArrayList<>(purchaseHidden.keySet()))restorePurchaseVisibility(slot);
+            for(FrameLayout slot:new ArrayList<>(requested))showBanner(slot);
+            if(isEnabled())prepareConsent();
+        }
+    }
+    private void restorePurchaseVisibility(FrameLayout slot){
+        Integer visibility=purchaseHidden.remove(slot);
+        if(visibility!=null)slot.setVisibility(visibility);
+    }
 
     private void status(FrameLayout parent, String value) {
         if (disposed || parent == null) return;
         parent.removeAllViews();
+        if(testAdFree){
+            if(!purchaseHidden.containsKey(parent))purchaseHidden.put(parent,parent.getVisibility());
+            parent.setVisibility(View.GONE);return;
+        }
+        restorePurchaseVisibility(parent);
         TextView placeholder = new TextView(activity);
         placeholder.setText(value);
         placeholder.setTextSize(11f);
@@ -243,6 +270,9 @@ public final class AdSupport {
                 privacyShowing=false;
                 if (!disposed) maybeLoadAfterConsent();
             });
+        } else if(testAdFree){
+            new AlertDialog.Builder(activity).setTitle(R.string.privacy_settings).setMessage(R.string.billing_owned)
+                .setPositiveButton(R.string.close,null).show();
         } else {
             new AlertDialog.Builder(activity)
                 .setTitle(R.string.privacy_settings)
@@ -286,6 +316,7 @@ public final class AdSupport {
         if(parent!=null&&listener!=null)parent.removeOnLayoutChangeListener(listener);
         placements.remove(parent);
         requested.remove(parent);
+        if(parent!=null)restorePurchaseVisibility(parent);
         AdView banner = live.remove(parent);
         if (banner != null) banner.destroy();
         if (parent != null) parent.removeAllViews();
@@ -299,7 +330,7 @@ public final class AdSupport {
         for (AdView banner : live.values()) banner.destroy();
         live.clear();
         requested.clear();
-        placements.clear();
+        placements.clear();purchaseHidden.clear();
         appOpenAd = null;
     }
 }

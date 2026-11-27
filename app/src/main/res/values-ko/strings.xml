@@ -1370,4 +1370,19 @@
     <string name="help">도움말</string>
     <string name="help_title">OnHand AI 사용 방법</string>
     <string name="help_body">4. OnHand AI 아래 모델명을 누르면 설치된 모델을 선택할 수 있습니다.\n5. 홈 화면의 입력창 위 빠른 실행 4개를 이용하거나 클립 아이콘으로 파일을 첨부하세요.\n6. Cloud에서 별도로 설정한 클라우드 제공사 또는 PC AI를 이용할 수 있습니다. API 비용이 발생할 수 있으며 로컬 대화는 전송하지 않습니다.\n7. 설정에서 추론 방식, 언어, 음성, 화면을 변경하고 기기 연결 진단에서 호환성을 확인하세요.</string>
+    <string name="billing_title">광고 제거 · 영구 이용권</string>
+    <string name="billing_test_notice">개발·라이선스 테스트 전용입니다. Play Console 라이선스 테스트 계정과 테스트 결제수단만 사용하세요. 상용 결제는 비활성 상태입니다. 광고 제거 상품이며, 이 빌드는 구매 검증 후 테스트 광고만 제거합니다. 클라우드 API 비용은 별도입니다.</string>
+    <string name="billing_unavailable">테스트 빌드와 Play 상품 설정이 완료될 때까지 결제는 잠겨 있습니다.</string>
+    <string name="billing_checking">Google Play 확인 중…</string>
+    <string name="billing_ready">라이선스 테스트 상품을 이용할 수 있습니다.</string>
+    <string name="billing_buy">구매 · %1$s</string>
+    <string name="billing_buy_unpriced">구매</string>
+    <string name="billing_restore">구매 복원</string>
+    <string name="billing_owned">테스트 구매 검증 완료 · 테스트 광고 제거</string>
+    <string name="billing_pending">결제 대기 중 · 권한 미부여</string>
+    <string name="billing_invalid">구매를 검증하지 못했습니다.</string>
+    <string name="billing_no_product">이용 가능한 일회성 상품이 없습니다.</string>
+    <string name="billing_error">Google Play 확인 실패. 구매 복원으로 다시 시도하세요.</string>
+    <string name="billing_cancelled">구매가 취소되었습니다.</string>
+    <string name="billing_cached_session">이번 실행 중 검증된 권한을 유지합니다. 최신 검증은 실패했습니다.</string>
 </resources>

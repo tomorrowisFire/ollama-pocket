@@ -1370,4 +1370,19 @@
     <string name="help">ヘルプ</string>
     <string name="help_title">OnHand AI の使い方</string>
     <string name="help_body">4. OnHand AI の下のモデル名をタップしてインストール済みモデルを選択します。\n5. ホーム画面の入力欄の上にある4つのショートカットを使うか、クリップでファイルを添付します。\n6. Cloud から別途設定したサービスや PC AI を利用できます。API 料金が発生する場合があります。ローカル履歴は送信されません。\n7. 設定で推論方式、言語、音声、表示を変更し、機器診断で互換性を確認します。</string>
+    <string name="billing_title">広告削除 · 買い切り</string>
+    <string name="billing_test_notice">開発・ライセンステスト専用です。Play Console のライセンステスト用アカウントとテスト支払い方法のみを使用してください。本番販売は無効です。検証済み購入でテスト広告のみを削除します。クラウド API 料金は別です。</string>
+    <string name="billing_unavailable">テストビルドと Play 商品の設定が完了するまで購入は無効です。</string>
+    <string name="billing_checking">Google Play を確認中…</string>
+    <string name="billing_ready">ライセンステスト商品を利用できます。</string>
+    <string name="billing_buy">購入 · %1$s</string>
+    <string name="billing_buy_unpriced">購入</string>
+    <string name="billing_restore">購入を復元</string>
+    <string name="billing_owned">テスト購入確認済み · テスト広告なし</string>
+    <string name="billing_pending">支払い保留中 · 権限未付与</string>
+    <string name="billing_invalid">購入を検証できませんでした。</string>
+    <string name="billing_no_product">利用可能な買い切り商品がありません。</string>
+    <string name="billing_error">Google Play の確認に失敗しました。復元して再試行してください。</string>
+    <string name="billing_cancelled">購入をキャンセルしました。</string>
+    <string name="billing_cached_session">このセッションの確認済み権限を保持しています。再確認できませんでした。</string>
 </resources>

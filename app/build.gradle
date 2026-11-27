@@ -6,6 +6,13 @@ def publisherAdMobAppId = (findProperty('ADMOB_APP_ID') ?: System.getenv('ADMOB_
 def sampleAdMobAppId = 'ca-app-pub-3940256099942544~3347511713'
 // Explicit unsigned QA bundle only; never activate live ad requests.
 def unsignedQa = (findProperty('ONHAND_UNSIGNED_QA') ?: 'false').toString() == 'true'
+// Non-consumable purchase flow is gated to an explicitly configured debug/license-test build.
+// The Play public license key is not a signing key or service-account credential.
+def billingTest = (findProperty('ONHAND_BILLING_TEST_ENABLED') ?: 'false').toString() == 'true'
+def billingTestKey = billingTest ? (findProperty('ONHAND_BILLING_TEST_PUBLIC_KEY') ?: '').toString() : ''
+if (billingTest && !(billingTestKey ==~ /[A-Za-z0-9+\/=]{128,8192}/)) {
+    throw new GradleException('Explicit billing tests require the Play public license key')
+}
 // Optional durable signing identity provided ONLY through Actions secrets / environment.
 // Never commit keystores or passwords to this public repository.
 def localStore = System.getenv('AI_POCKET_KEYSTORE_FILE') ?: ''
@@ -68,10 +75,14 @@ android {
 
     buildTypes {
         debug {
+            buildConfigField 'boolean', 'BILLING_TEST_ENABLED', billingTest.toString()
+            buildConfigField 'String', 'BILLING_TEST_PUBLIC_KEY', '"'+billingTestKey+'"'
             manifestPlaceholders = [admobAppId: sampleAdMobAppId]
             if (stableSigning) signingConfig signingConfigs.durable
         }
         release {
+            buildConfigField 'boolean', 'BILLING_TEST_ENABLED', 'false'
+            buildConfigField 'String', 'BILLING_TEST_PUBLIC_KEY', '""'
             minifyEnabled false
             manifestPlaceholders = [admobAppId: unsignedQa ? sampleAdMobAppId : (publisherAdMobAppId ?: sampleAdMobAppId)]
         }
@@ -157,6 +168,7 @@ dependencies {
     }
     // Only the pinned model-data tar.bz2 installer uses this; executable code ships in the APK.
     implementation 'org.apache.commons:commons-compress:1.28.0'
+    implementation 'com.android.billingclient:billing:8.3.0'
     implementation 'com.google.android.gms:play-services-ads:25.5.0'
     implementation 'com.google.android.ump:user-messaging-platform:4.0.0'
     // Bundled OCR models: no first-use language model download is required.

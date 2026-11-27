@@ -1370,4 +1370,19 @@
     <string name="help">Help</string>
     <string name="help_title">OnHand AI user guide</string>
     <string name="help_body">4. Tap the model name under OnHand AI to choose an installed model.\n5. On the home screen, use the four shortcuts above the message box or attach files with the paperclip.\n6. Tap Cloud for a separately configured provider or PC AI. Cloud requests may incur API charges. Local chat history is not sent.\n7. Change inference, language, voice and appearance in Settings. Use Device diagnostics to check compatibility.</string>
+    <string name="billing_title">Remove ads · one-time purchase</string>
+    <string name="billing_test_notice">Developer/license test only. Use a Play Console license-test account and a test payment method. No production sales are enabled. This product is intended to remove ads; this build suppresses demo ads only after verified ownership. Cloud API charges are separate.</string>
+    <string name="billing_unavailable">Billing is locked until a test build and Play product are configured.</string>
+    <string name="billing_checking">Checking Google Play…</string>
+    <string name="billing_ready">Product is available for license testing.</string>
+    <string name="billing_buy">Buy · %1$s</string>
+    <string name="billing_buy_unpriced">Buy</string>
+    <string name="billing_restore">Restore purchase</string>
+    <string name="billing_owned">Verified test ownership · demo ads removed</string>
+    <string name="billing_pending">Payment pending · no entitlement yet</string>
+    <string name="billing_invalid">Purchase could not be verified.</string>
+    <string name="billing_no_product">No eligible one-time product is available.</string>
+    <string name="billing_error">Unable to check Google Play. Restore to retry.</string>
+    <string name="billing_cancelled">Purchase cancelled.</string>
+    <string name="billing_cached_session">Previously verified in this session; fresh verification unavailable.</string>
 </resources>

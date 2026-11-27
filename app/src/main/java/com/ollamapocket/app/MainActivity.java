@@ -249,6 +249,7 @@ public final class MainActivity extends Activity {
     private ProgressBar downloadProgress;
     private FrameLayout downloadAdSlot;
     private AdSupport ads;
+    private PlayBillingController billing;
     private long lastPauseElapsed;
     private TextView topPageTitle, topPageSubtitle;
     private Dialog navigationDrawer;
@@ -455,6 +456,7 @@ public final class MainActivity extends Activity {
         deviceProfile = DeviceProfiler.scan(this);
         computeReport = ComputeProfiler.scan(this);
         ads = new AdSupport(this);
+        billing=new PlayBillingController(this,()->foreground&&!guestOnly&&!cloudMode&&!isUiBusy(),ads::setTestAdFree);
         currentModel = getPreferences(MODE_PRIVATE).getString("model", "");
         createUi();
         loadHistory();
@@ -494,6 +496,7 @@ public final class MainActivity extends Activity {
         super.onResume();
         foreground=true;
         if(guestOnly)return;
+        if(billing!=null)billing.resume();
         if(ads!=null){ads.resume();if(getPreferences(MODE_PRIVATE).getBoolean("welcome_v2_seen",false))ads.prepareConsent();}
         if(cloudMode&&cloudPanel!=null)cloudPanel.resume();
         ui.post(poll);
@@ -506,12 +509,13 @@ public final class MainActivity extends Activity {
         if (lastPauseElapsed > 0 && now - lastPauseElapsed > 120_000
                 && getPreferences(MODE_PRIVATE).getBoolean("welcome_v2_seen", false)
                 && !KnowledgeWorkspaceUi.busy()&&!ProjectWorkspaceUi.busy() && !AutomationUi.busy() && !DocumentBatchUi.busy() && !cloudMode && !pullBusy && !chatBusy && !benchmarkBusy && (voice==null||(!voice.listening()&&!voice.speaking()))) {
-            ads.showAppOpenIfReady();
+            if(billing==null||!billing.busy())ads.showAppOpenIfReady();
         }
     }
     @Override protected void onPause() {
         foreground=false;closeWorkbench();
         VoiceModelsUi.cancel(this);
+        if(billing!=null)billing.pause();
         if(ads!=null)ads.pause();
         if(documentBatch!=null){documentBatch.pause();documentBatch=null;}
         if(automationUi!=null)automationUi.pause();
@@ -555,6 +559,7 @@ public final class MainActivity extends Activity {
         io.shutdownNow();
         if(cloudPanel!=null)cloudPanel.destroy();
         if(voice!=null)voice.close();
+        if(billing!=null){billing.destroy();billing=null;}
         if(ads!=null)ads.destroy();
         super.onDestroy();
     }
@@ -1545,6 +1550,9 @@ public final class MainActivity extends Activity {
         settingAction(privacy,OnHandGlyphs.Kind.SHIELD);
         margin(privacy,privacySection,0,7);
         privacy.setOnClickListener(v->ads.showPrivacyChoices());
+        Button purchase=button(getString(R.string.billing_title),false);
+        settingAction(purchase,OnHandGlyphs.Kind.SHIELD);margin(purchase,privacySection,0,7);
+        purchase.setOnClickListener(v->{if(billing!=null)billing.show();});
         margin(text(getString(R.string.ad_notice),
             12,MUTED,false),privacySection,0,16);
 

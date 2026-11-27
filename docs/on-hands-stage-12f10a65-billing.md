@@ -1,0 +1,19 @@
+# F10A65 — Google Play one-time ad removal (license-test candidate)
+
+User approved implementation and integration of in-app purchases. Product choice carried forward: non-consumable ad removal, proposed Play product ID `onhand_remove_ads_lifetime`. Price remains unset; obtain formatted price and token from Play. No subscription, live checkout, real charge, product registration or Play publication in this round.
+
+Pinned Billing Library 8.3.0 (supported major 8 through 2027-08-31 per Android Developers). Adapter uses Play product query, pending one-time purchases, explicit user launch, current ownership query on resume/restore and after purchase callbacks, exact signed JSON verification (RSA 2048+ public license key, SHA1withRSA for legacy Play signature), package/SKU/quantity/token validation, fail-closed ambiguous snapshots, acknowledgement before granting the test entitlement, no consume call. Real refunds/revocations require authoritative backend in production. A successful empty query revokes this session's test entitlement; a query failure preserves only previously verified in-memory state, visibly marked. No persistent entitlement or receipt/token storage, no receipt logging or external verification transmission. Purchase cannot start with unknown/pending/invalid/owned state or stale/ambiguous offer. Developer/license-test UI in Settings; all five languages.
+
+## Safety and configuration
+
+- Default debug and every release/unsigned QA build have `BILLING_TEST_ENABLED=false`. Existing production ad lock and first-launch ad placement/units, consent and free-user behavior retained.
+- Explicit developer build only: `-PONHAND_BILLING_TEST_ENABLED=true -PONHAND_BILLING_TEST_PUBLIC_KEY=<Play public license key>`. Do not commit credentials. Configure a single non-consumable permanent BUY option under the proposed SKU, no rental/preorder/multiple quantity, license-test account and Google test payment method. This flag cannot independently prove the account is a license tester; do not connect the test build to a real paid offering. Ordinary builds cannot launch checkout.
+- Test entitlement suppresses demo banners/app-open ads; release remains locked, original demo opt-out remains free. Do not sell a feature that the current production build cannot provide. A production unlock needs independently verified Play Developer API server validation, durable account-bound ownership and refund/revocation handling, Play Console product/price/license-testing, real SDK lifecycle and restore tests, policy approval, and explicit authorization. Local test signature verification is not production fraud protection.
+
+## Evidence and integration
+
+Parent e0377d44134b70a8e1b4e19210af205aa9c0e3db, F10A64 approved home UI. The current branch at preparation is F10A62R1 c36c68bd9ff7ac1b3865a005d09773b319133b39; its exact Java 46081289578 passed, Native 46081289715 still running. Preserve serial F10A63 cdcd168f3a84f74b98696718181674e9c50edcb3 then F10A64 then F10A65 exact FULL gates, guarded non-force, never skip. No main/release changes.
+
+Actual isolated Java 17 compile/run: 878 policy, generated RSA signature, invalid key/receipt, pending/duplicate/quantity/package and launch guard assertions PASS; exact new blobs to verify 0a651159bdd1c1940b1a19b5b996bbb525cbc97a and d8a2d30c3e1880be1a7d3054cc8848ce82927a7a. 32 in-memory fetched-source preservation and wiring checks passed. Added full CI policy test and structural guards. Android SDK compile, actual Play Billing connection, purchase/restore/ack callbacks, device UI and billing-enabled packaging NOT_RUN; no live transaction. Existing 90-point/22 release gates and automation pause retained.
+
+References: https://developer.android.com/google/play/billing/integrate ; https://developer.android.com/google/play/billing/security ; https://developer.android.com/google/play/billing/deprecation-faq .

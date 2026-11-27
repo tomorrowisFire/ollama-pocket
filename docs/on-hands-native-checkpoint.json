@@ -1,6 +1,6 @@
 {
-  "stage": "F10A64-approved-home-feedback",
-  "revision": "F10A64",
-  "priorCandidate": "cdcd168f3a84f74b98696718181674e9c50edcb3",
-  "reason": "User approved actual-device layout revisions. Move Cloud left of new chat, replace model dropdown with clickable plain header model name, dock home-only shortcuts above composer, wrap peach install CTA, and move tutorial into plain bottom Help. Keep authorized first-run advertising placement/unit and production lock; no billing implementation. Exact FULL required after F10A63."
+  "stage": "F10A65-play-billing-license-test",
+  "revision": "F10A65",
+  "priorCandidate": "e0377d44134b70a8e1b4e19210af205aa9c0e3db",
+  "reason": "Add opt-in debug/license-test Google Play non-consumable flow, localized price, signed receipt state check, acknowledgement, restore and test-ad suppression. Default and production locked. Preserve approved UI and ads; exact FULL required after F10A64."
 }

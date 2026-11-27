@@ -1370,4 +1370,19 @@
     <string name="help">說明</string>
     <string name="help_title">OnHand AI 使用指南</string>
     <string name="help_body">4. 點選 OnHand AI 下方的模型名稱，選擇已安裝模型。\n5. 在主畫面使用輸入欄上方的四個快捷功能，或點選迴紋針附加檔案。\n6. 點選 Cloud 使用另行設定的雲端服務或 PC AI。API 可能產生費用，不會傳送本機對話記錄。\n7. 在設定中變更推論、語言、語音及顯示，並透過裝置診斷檢查相容性。</string>
+    <string name="billing_title">移除廣告 · 一次性購買</string>
+    <string name="billing_test_notice">僅供開發和授權測試。請僅使用 Play Console 授權測試帳號及測試付款方式。正式銷售未啟用。驗證購買後僅移除測試廣告。雲端 API 費用另計。</string>
+    <string name="billing_unavailable">設定測試版本及 Play 商品前，購買功能保持鎖定。</string>
+    <string name="billing_checking">正在檢查 Google Play…</string>
+    <string name="billing_ready">授權測試商品可用。</string>
+    <string name="billing_buy">購買 · %1$s</string>
+    <string name="billing_buy_unpriced">購買</string>
+    <string name="billing_restore">恢復購買</string>
+    <string name="billing_owned">測試購買已驗證 · 已移除測試廣告</string>
+    <string name="billing_pending">付款待處理 · 尚未授權</string>
+    <string name="billing_invalid">無法驗證購買。</string>
+    <string name="billing_no_product">沒有符合條件的一次性商品。</string>
+    <string name="billing_error">無法檢查 Google Play，請恢復購買後重試。</string>
+    <string name="billing_cancelled">購買已取消。</string>
+    <string name="billing_cached_session">保留本次工作階段已驗證的權限，無法重新驗證。</string>
 </resources>
