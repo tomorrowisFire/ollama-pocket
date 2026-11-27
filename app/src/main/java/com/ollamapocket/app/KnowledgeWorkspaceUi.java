@@ -2,6 +2,8 @@ package com.ollamapocket.app;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.InputFilter;
 import android.text.InputType;
 import android.view.View;
@@ -16,7 +18,8 @@ import java.util.function.Consumer;
 
 /** Foreground-only manual knowledge snapshots; no inference or automatic ingestion. */
 final class KnowledgeWorkspaceUi {
-    private static final AtomicBoolean MODAL=new AtomicBoolean(),WORK=new AtomicBoolean();
+    private static final AtomicBoolean MODAL=new AtomicBoolean();
+    private static final ProjectWorkGate WORK=new ProjectWorkGate();
     private final Activity owner;
     private final WorkspaceDictation dictation;
     private final WorkspaceReadAloud reading;
@@ -35,14 +38,14 @@ final class KnowledgeWorkspaceUi {
     KnowledgeWorkspaceUi(Activity owner,BooleanSupplier eligible,String model,BooleanSupplier answerEligible){
         this.owner=owner;this.eligible=eligible;this.answerModel=model;this.answerEligible=answerEligible;this.dictation=new WorkspaceDictation(owner);this.reading=new WorkspaceReadAloud(owner);this.viewer=new WorkspaceTextViewer(owner);
     }
-    static boolean busy(){return MODAL.get()||WORK.get();}
+    static boolean busy(){return MODAL.get()||WORK.busy();}
     private boolean valid(long token){return session.valid(token)&&eligible.getAsBoolean()&&!owner.isFinishing()&&!owner.isDestroyed();}
     private String s(int id,Object... args){return owner.getString(id,args);}
     private int dp(int n){return Math.round(n*owner.getResources().getDisplayMetrics().density);}
     private void secure(AlertDialog d){if(d.getWindow()!=null)d.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);}
     void open(){open(null);}
     void open(AttachmentText.Result imported){
-        if(!eligible.getAsBoolean()||WORK.get()||!MODAL.compareAndSet(false,true)){
+        if(!eligible.getAsBoolean()||WORK.busy()||!MODAL.compareAndSet(false,true)){
             Toast.makeText(owner,R.string.busy,Toast.LENGTH_SHORT).show();return;
         }
         ownsModal=true;session.open();
@@ -65,7 +68,8 @@ final class KnowledgeWorkspaceUi {
         viewer.cancel();reading.cancel();dictation.cancel();
         body.removeAllViews();notice=new TextView(owner);notice.setSaveEnabled(false);WorkbenchStyle.label(owner,notice,14,false,false);
         notice.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);body.addView(notice);
-        ScrollView current=scroll;current.post(()->{if(scroll==current)current.scrollTo(0,0);});
+        final ScrollView current=scroll;final TextView screen=notice;
+        current.post(()->{if(scroll==current&&notice==screen)current.scrollTo(0,0);});
     }
     private void label(String value,boolean selectable){
         TextView t=new TextView(owner);t.setText(value);WorkbenchStyle.label(owner,t,14,false,false);t.setSaveEnabled(false);
@@ -77,8 +81,8 @@ final class KnowledgeWorkspaceUi {
     }
     private void button(String value,boolean enabled,Runnable action,WorkbenchVisualPolicy.Role role){
         Button b=new Button(owner);b.setText(value);WorkbenchStyle.button(owner,b,role);b.setEnabled(enabled);
-        long token=session.token();
-        b.setOnClickListener(v->{if(valid(token)&&!WORK.get()&&confirmation==null)action.run();});
+        final long token=session.token();final TextView screen=notice;
+        b.setOnClickListener(v->{if(valid(token)&&notice==screen&&b.isAttachedToWindow()&&b.isEnabled()&&!WORK.busy()&&confirmation==null)action.run();});
         body.addView(b,WorkbenchStyle.row(owner));
     }
     private void button(int id,Runnable action){button(s(id),true,action,WorkbenchStyle.role(id));}
@@ -88,24 +92,24 @@ final class KnowledgeWorkspaceUi {
         e.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS|
             (multiline?InputType.TYPE_TEXT_FLAG_MULTI_LINE:0));
         e.setImeOptions(EditorInfo.IME_FLAG_NO_EXTRACT_UI|EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING);
+        final long token=session.token();final TextView screen=notice;
         // Reject the entire oversized edit, including replacements, rather than clipping the source.
         e.setFilters(new InputFilter[]{(source,start,end,dest,dstart,dend)->{
             if(KnowledgeWorkspacePolicy.fitsEdit(dest.length(),dend-dstart,end-start,max))return null;
-            if(notice!=null)status(R.string.knowledge_input_limit);
+            if(valid(token)&&notice==screen)status(R.string.knowledge_input_limit);
             return dest.subSequence(dstart,dend);
         }});
         e.setText(value);if(multiline){e.setMinLines(4);e.setMaxLines(10);}
         WorkbenchStyle.field(owner,e);
         body.addView(e,WorkbenchStyle.row(owner));
-        final long token=session.token();
-        dictation.add(body,e,hint,max,multiline,()->valid(token)&&!WORK.get()&&confirmation==null&&dialog!=null&&dialog.isShowing());
+        dictation.add(body,e,hint,max,multiline,()->valid(token)&&notice==screen&&e.isAttachedToWindow()&&!WORK.busy()&&confirmation==null&&dialog!=null&&dialog.isShowing());
         return e;
     }
     private void confirm(int message,Runnable action){
-        long token=session.token();
+        final long token=session.token();final TextView screen=notice;
         AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.knowledge_workspace).setMessage(message)
             .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,(x,w)->{
-                if(valid(token)&&!WORK.get())action.run();
+                if(valid(token)&&notice==screen&&confirmation==x&&!WORK.busy())action.run();
             }).create();
         confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;});secure(d);d.show();secure(d);
     }
@@ -118,21 +122,26 @@ final class KnowledgeWorkspaceUi {
             }
         }
     }
-    private interface Task<T>{T run()throws Exception;}
-    private <T> void work(Task<T> task,Consumer<T> success,Consumer<Exception> failure){
-        long token=session.token();
-        if(!valid(token)||!WORK.compareAndSet(false,true))return;
-        viewer.cancel();reading.cancel();dictation.cancel();lockControls(true);status(R.string.project_working);
-        Thread worker=new Thread(()->{
-            T value=null;Exception error=null;
-            try{value=task.run();}catch(Exception e){error=e;}
-            final T result=value;final Exception problem=error;
-            owner.runOnUiThread(()->{
-                WORK.set(false);if(!valid(token))return;
-                lockControls(false);if(problem==null)success.accept(result);else failure.accept(problem);
-            });
-        },"onhand-knowledge-store");
-        try{worker.start();}catch(RuntimeException e){WORK.set(false);lockControls(false);failure.accept(e);}
+    private <T> boolean work(ProjectWorkGate.Task<T> task,Consumer<T> success,Consumer<Exception> failure){
+        final long token=session.token();final TextView screen=notice;
+        if(!valid(token))return false;
+        final ProjectWorkGate.Lease lease=WORK.acquire();
+        if(lease==null)return false;
+        try{
+            viewer.cancel();reading.cancel();dictation.cancel();lockControls(true);status(R.string.project_working);
+            final Handler main=new Handler(Looper.getMainLooper());
+            Thread worker=new Thread(()->{
+                if(!lease.execute(task,main::post,(result,problem)->{
+                    if(!valid(token)||notice!=screen)return;
+                    lockControls(false);
+                    if(problem==null)success.accept(result);else failure.accept(problem);
+                }))android.util.Log.w("OnHandAI","Knowledge completion not delivered");
+            },"onhand-knowledge-store");
+            worker.start();return true;
+        }catch(RuntimeException e){
+            if(lease.release()&&valid(token)&&notice==screen){lockControls(false);failure.accept(e);}
+            return false;
+        }catch(Error fatal){lease.release();throw fatal;}
     }
     private void reload(){reload(null);}
     private void reload(AttachmentText.Result imported){
@@ -268,11 +277,11 @@ final class KnowledgeWorkspaceUi {
         if(!"off".equals(CoopSession.get(owner).role())){status(R.string.guest_stop_first);return;}
         reset();label(s(R.string.knowledge_answer_notice),false);
         final DocumentBatchRunner active=new DocumentBatchRunner(owner,answerModel);answerRunner=active;
-        long token=session.token();
+        final long token=session.token();final TextView screen=notice;
         Button stop=new Button(owner);stop.setText(R.string.stop);WorkbenchStyle.button(owner,stop,R.string.stop);
-        stop.setOnClickListener(v->{if(valid(token)&&answerRunner==active){active.cancel();stop.setEnabled(false);status(R.string.auto_pause_requested);}});
+        stop.setOnClickListener(v->{if(valid(token)&&notice==screen&&stop.isAttachedToWindow()&&stop.isEnabled()&&answerRunner==active){active.cancel();stop.setEnabled(false);status(R.string.auto_pause_requested);}});
         body.addView(stop,new LinearLayout.LayoutParams(-1,-2));
-        work(()->{
+        boolean started=work(()->{
             if(!plan.stillAvailable(new KnowledgeStore(owner).read().value))
                 throw new ProjectTransactions.TransactionFailure(ProjectTransactions.Failure.STALE,null);
             return active.runKnowledge(plan);
@@ -285,7 +294,8 @@ final class KnowledgeWorkspaceUi {
             if(error instanceof ProjectTransactions.TransactionFailure){blocked(R.string.project_stale);return;}
             answerReview(plan);status(active.reason()==DocumentBatchRunner.Stop.NONE?R.string.batch_failed:R.string.batch_stopped);
         });
-        if(WORK.get())stop.setEnabled(true);
+        if(started&&valid(token)&&notice==screen&&answerRunner==active)stop.setEnabled(true);
+        else if(answerRunner==active){answerRunner=null;active.cancel();}
     }
     private void answerResult(KnowledgeAnswerPolicy.Plan plan,KnowledgeAnswerPolicy.Answer answer){
         reset();label(s(R.string.knowledge_citation_notice),false);label(s(R.string.model_label)+": "+answerModel,false);
@@ -296,18 +306,18 @@ final class KnowledgeWorkspaceUi {
         evidence(plan);button(R.string.project_back,()->answerEditor(plan.query,plan.question));button(R.string.close,this::pause);
     }
     private void readText(int title,String value){
-        final long token=session.token();
-        BooleanSupplier guard=()->valid(token)&&!WORK.get()&&confirmation==null&&dialog!=null&&dialog.isShowing();
+        final long token=session.token();final TextView screen=notice;
+        BooleanSupplier guard=()->valid(token)&&notice==screen&&!WORK.busy()&&confirmation==null&&dialog!=null&&dialog.isShowing();
         viewer.add(body,title,()->value,guard);reading.add(body,title,()->value,guard);
     }
     private void showHits(KnowledgeLibrary.State state,String query,List<KnowledgeLibrary.Hit> hits){
         reset();label(s(R.string.knowledge_search_notice),false);label(s(R.string.knowledge_hits,hits.size(),KnowledgeLibrary.MAX_HITS),false);
-        final long token=session.token();
+        final long token=session.token();final TextView screen=notice;
         for(KnowledgeLibrary.Hit hit:hits){
             final KnowledgeLibrary.Source source=state.source(hit.id);
             label(hit.title,true);label(s(R.string.knowledge_id,hit.id),true);
             label(s(R.string.knowledge_range,hit.start,hit.end),false);label(hit.match,true);
-            BooleanSupplier guard=()->valid(token)&&!WORK.get()&&confirmation==null&&dialog!=null&&dialog.isShowing()&&
+            BooleanSupplier guard=()->valid(token)&&notice==screen&&!WORK.busy()&&confirmation==null&&dialog!=null&&dialog.isShowing()&&
                 snapshot!=null&&snapshot.value==state;
             viewer.addMatch(body,R.string.knowledge_text,()->source.text,guard,hit.match,hit.start-1,hit.end);
             button(R.string.knowledge_open_source,()->showSource(source,()->showHits(state,query,hits)));
