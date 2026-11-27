@@ -27,6 +27,9 @@ public final class CloudPolicyTest {
         ok(req.size()==1,"whole-pair context bound");
         fails(()->a.request("z".repeat(16001)),"prompt bound");
         fails(()->a.complete("x","y".repeat(48001)),"reply bound");
+        fails(()->a.complete("x","\ud800"),"invalid Unicode reply");
+        fails(()->a.complete("\u00a0\u200d","ok"),"invisible prompt");
+        ok(CloudHistory.validMessage("😀 한글",100),"valid Unicode message");
         fails(()->h.session("OPENAI",""),"invalid model");
         fails(()->h.session("OPENAI\0OTHER","x"),"invalid scope");
         KeyGenerator generator=KeyGenerator.getInstance("AES");generator.init(256);SecretKey key=generator.generateKey();

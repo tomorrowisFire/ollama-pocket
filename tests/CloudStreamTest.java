@@ -90,6 +90,41 @@ public final class CloudStreamTest {
         CloudApi.flushIncompletePreview(null,new StringBuilder("abc"),0);
         CloudApi.flushIncompletePreview(value->{throw new IllegalStateException("preview failed");},new StringBuilder("abc"),1);
         check(true);
+        // Strict types, framing and real terminal events; malformed data must never become saved text.
+        for(CloudApi.Provider p:new CloudApi.Provider[]{CloudApi.Provider.OPENAI,CloudApi.Provider.XAI}){
+            rejects(p,event("{\"type\":\"response.output_text.delta\",\"delta\":123}")+end);
+            rejects(p,delta+event("{\"type\":\"response.completed\",\"response\":{\"status\":\"incomplete\"}}"));
+            rejects(p,delta+event("{\"type\":\"response.refusal.delta\",\"delta\":\"no\"}")+end);
+        }
+        rejects(CloudApi.Provider.CLAUDE,start+text+done);
+        rejects(CloudApi.Provider.CLAUDE,start+text+event("{\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"pause_turn\"}}")+done);
+        rejects(CloudApi.Provider.CLAUDE,start+text+stop+text+done);
+        rejects(CloudApi.Provider.CLAUDE,start+event("{\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":{}}}")+stop+done);
+        check(parse(CloudApi.Provider.CLAUDE,start+event("{\"type\":\"content_block_start\",\"content_block\":{\"type\":\"text\",\"text\":\"Initial \"}}")+text+stop+done).text.equals("Initial 日本語"));
+        for(CloudApi.Provider p:new CloudApi.Provider[]{CloudApi.Provider.GEMINI,CloudApi.Provider.DEEPSEEK,CloudApi.Provider.OPENROUTER,CloudApi.Provider.PC_OLLAMA,CloudApi.Provider.PC_LM_STUDIO}){
+            rejects(p,event("{\"choices\":[{\"delta\":{\"content\":false}}]}")+finish+event("[DONE]"));
+            rejects(p,chunk+finish+chunk+event("[DONE]"));
+            rejects(p,chunk+event("{\"choices\":[{\"finish_reason\":\"stop\"},{\"finish_reason\":\"stop\"}]}")+event("[DONE]"));
+            rejects(p,chunk+event("{\"choices\":[{\"delta\":{\"tool_calls\":[{}]},\"finish_reason\":\"stop\"}]}")+event("[DONE]"));
+        }
+        check(parse(CloudApi.Provider.OPENAI,"\ufeff"+(delta+end).replace("\n","\r")).text.equals("안녕"));
+        byte[] malformed=(delta+end).getBytes(StandardCharsets.UTF_8);
+        for(int i=0;i<malformed.length;i++)if((malformed[i]&128)!=0){malformed[i]=(byte)0xff;break;}
+        try{CloudApi.parseStream(CloudApi.Provider.OPENAI,new ByteArrayInputStream(malformed),null);throw new AssertionError("Malformed UTF-8 accepted");}
+        catch(java.nio.charset.CharacterCodingException expected){check(true);}
+        String reply="{\"choices\":[{\"message\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":9223372036854775808,\"completion_tokens\":1.5}}";
+        CloudApi.Reply typed=CloudApi.parseReply(CloudApi.Provider.GEMINI,new org.json.JSONObject(reply));
+        check(typed.inputTokens==-1&&typed.outputTokens==-1&&typed.text.equals("ok"));
+        String maximum=reply.replace("9223372036854775808","9223372036854775807").replace("1.5","2");
+        check(CloudApi.parseReply(CloudApi.Provider.GEMINI,new org.json.JSONObject(maximum)).inputTokens==Long.MAX_VALUE);
+        for(String bad:new String[]{"{\"choices\":[{\"message\":{\"content\":123}}]}","{\"choices\":[{\"message\":{\"content\":\"ok\"},\"finish_reason\":\"length\"}]}"}){
+            try{CloudApi.parseReply(CloudApi.Provider.GEMINI,new org.json.JSONObject(bad));throw new AssertionError("Invalid non-stream reply accepted");}
+            catch(CloudApi.StreamFailure expected){check(true);}
+        }
+        for(String bad:new String[]{"\ud800"," \u00a0\u200d","x".repeat(CloudHistory.MAX_PROMPT+1)}){
+            try{CloudApi.request(CloudApi.Provider.OPENAI,"model",bad);throw new AssertionError("Invalid request accepted");}
+            catch(IllegalArgumentException expected){check(true);}
+        }
         System.out.println("PASS: "+checks+" offline SSE protocol checks");
     }
 }

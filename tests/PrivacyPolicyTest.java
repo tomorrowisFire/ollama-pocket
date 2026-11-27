@@ -16,6 +16,8 @@ public final class PrivacyPolicyTest {
         ok(PrivacyPolicy.validModelId("qwen2.5:7b"));ok(PrivacyPolicy.validModelId("org/model:free"));
         ok(!PrivacyPolicy.validModelId("a\nb"));ok(!PrivacyPolicy.validModelId(" a"));
         ok(!PrivacyPolicy.validModelId("a\u202eb"));ok(!PrivacyPolicy.validModelId(null));
+        ok(!PrivacyPolicy.validModelId("a\u00a0b"));ok(!PrivacyPolicy.validModelId("a\ud800"));
+        ok(!PrivacyPolicy.validModelId("a\udb40\udc01"));ok(PrivacyPolicy.validModelId("a😀"));
         long now=System.currentTimeMillis(),old=now-PrivacyPolicy.PDF_STALE_MS-10000;
         ok(PrivacyPolicy.stalePdfName("pdf-excerpt-42.pdf",old,now));
         ok(!PrivacyPolicy.stalePdfName("pdf-excerpt-42.pdf",now,now));

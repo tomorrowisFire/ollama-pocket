@@ -116,7 +116,25 @@ final class CloudHistory {
         for(Group g:groups.values())for(Session s:g.items)s.clear();
         groups.clear();count=0;
     }
+    static boolean validUnicode(String value){
+        if(value==null)return false;
+        for(int i=0;i<value.length();i++){
+            char ch=value.charAt(i);
+            if(Character.isHighSurrogate(ch)){
+                if(i+1>=value.length()||!Character.isLowSurrogate(value.charAt(++i)))return false;
+            }else if(Character.isLowSurrogate(ch))return false;
+        }
+        return true;
+    }
+    static boolean validMessage(String value,int max){
+        if(value==null||value.isEmpty()||value.length()>max||!validUnicode(value))return false;
+        for(int i=0;i<value.length();){
+            int cp=value.codePointAt(i);i+=Character.charCount(cp);
+            if(!Character.isWhitespace(cp)&&!Character.isSpaceChar(cp)&&!Character.isISOControl(cp)&&Character.getType(cp)!=Character.FORMAT)return true;
+        }
+        return false;
+    }
     private static void check(String s,int max){
-        if(s==null||s.trim().isEmpty()||s.length()>max)throw new IllegalArgumentException("Invalid message");
+        if(!validMessage(s,max))throw new IllegalArgumentException("Invalid message");
     }
 }

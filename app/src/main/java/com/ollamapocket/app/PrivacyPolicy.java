@@ -17,9 +17,10 @@ final class PrivacyPolicy {
     }
     static boolean validModelId(String model){
         if(model==null||model.isEmpty()||model.length()>200||!model.equals(model.trim()))return false;
-        for(int i=0;i<model.length();i++){
-            char c=model.charAt(i);
-            if(Character.isISOControl(c)||Character.getType(c)==Character.FORMAT||Character.isWhitespace(c))return false;
+        for(int i=0;i<model.length();){
+            int cp=model.codePointAt(i);i+=Character.charCount(cp);
+            if(cp>=0xd800&&cp<=0xdfff||Character.isISOControl(cp)||Character.getType(cp)==Character.FORMAT||
+                Character.isWhitespace(cp)||Character.isSpaceChar(cp))return false;
         }
         return true;
     }

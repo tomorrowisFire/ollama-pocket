@@ -70,8 +70,8 @@ final class CloudApi {
         java.util.TreeSet<String> ids=new java.util.TreeSet<>();
         if(rows!=null)for(int i=0;i<Math.min(rows.length(),5000);i++){
             JSONObject item=rows.optJSONObject(i);if(item==null)continue;
-            String id=item.optString("id","");
-            if(PrivacyPolicy.validModelId(id))ids.add(id);
+            Object id=item.opt("id");
+            if(id instanceof String&&PrivacyPolicy.validModelId((String)id))ids.add((String)id);
         }
         if(ids.isEmpty())throw new java.io.IOException("Empty catalog");
         return new java.util.ArrayList<>(ids);
@@ -84,8 +84,10 @@ final class CloudApi {
         if(obj==null)return -1;
         Object raw=obj.opt(key);
         if(!(raw instanceof Number))return -1;
-        double d=((Number)raw).doubleValue();
-        return Double.isFinite(d)&&d>=0&&d<=Long.MAX_VALUE&&d==Math.floor(d)?((Number)raw).longValue():-1;
+        try{
+            long value=new java.math.BigDecimal(raw.toString()).longValueExact();
+            return value>=0?value:-1;
+        }catch(ArithmeticException|NumberFormatException invalid){return -1;}
     }
     static Reply parseReply(Provider provider,JSONObject body)throws Exception{
         JSONObject usage=body.optJSONObject("usage");
@@ -97,12 +99,13 @@ final class CloudApi {
     }
     static JSONObject request(Provider provider,String model,java.util.List<CloudHistory.Message> messages) throws Exception {
         if(provider==null||!PrivacyPolicy.validModelId(model))throw new IllegalArgumentException("Invalid model ID");
-        if(messages==null||messages.isEmpty()||messages.size()>25||!"user".equals(messages.get(messages.size()-1).role))
+        if(messages==null||messages.isEmpty()||messages.size()>25||messages.size()%2==0)
             throw new IllegalArgumentException("Invalid cloud context");
         JSONArray input=new JSONArray();int chars=0;
         for(int i=0;i<messages.size();i++){
             CloudHistory.Message m=messages.get(i);
-            if(!(i%2==0?"user":"assistant").equals(m.role)||m.content==null||m.content.trim().isEmpty())
+            if(m==null||!(i%2==0?"user":"assistant").equals(m.role)||
+                !CloudHistory.validMessage(m.content,i%2==0?CloudHistory.MAX_PROMPT:CloudHistory.MAX_REPLY))
                 throw new IllegalArgumentException("Invalid cloud message");
             chars+=m.content.length();if(chars>CloudHistory.MAX_CONTEXT)throw new IllegalArgumentException("Context limit");
             input.put(new JSONObject().put("role",m.role).put("content",m.content));
@@ -117,33 +120,70 @@ final class CloudApi {
         }
         return body;
     }
+    private static StreamFailure incomplete(){return new StreamFailure("Invalid or incomplete provider response",true);}
+    private static String typedText(JSONObject value,String key,boolean optional)throws StreamFailure{
+        Object raw=value==null?null:value.opt(key);
+        if(raw==null||raw==JSONObject.NULL){if(optional)return "";throw incomplete();}
+        if(!(raw instanceof String))throw incomplete();
+        String text=(String)raw;
+        if(!CloudHistory.validUnicode(text))throw incomplete();
+        return text;
+    }
+    private static boolean claudeStop(String reason){return "end_turn".equals(reason)||"stop_sequence".equals(reason);}
+    private static void responseCompleted(JSONObject response)throws StreamFailure{
+        if(response==null||!response.isNull("error")||
+            !response.isNull("status")&&!"completed".equals(response.opt("status")))throw incomplete();
+    }
+    private static void appendText(StringBuilder out,String text)throws StreamFailure{
+        if((long)out.length()+text.length()>CloudHistory.MAX_REPLY)throw incomplete();
+        out.append(text);
+    }
     static String parse(Provider provider,JSONObject body) throws Exception {
+        if(provider==null||body==null||!body.isNull("error"))throw incomplete();
         StringBuilder out=new StringBuilder();
         if(provider.protocol==0){
+            responseCompleted(body);
             JSONArray rows=body.optJSONArray("output");
             if(rows!=null)for(int i=0;i<rows.length();i++){
                 JSONObject row=rows.optJSONObject(i);
-                if(row==null||!"message".equals(row.optString("type")))continue;
+                if(row==null)throw incomplete();
+                if(!"message".equals(row.opt("type")))continue;
+                if(!row.isNull("status")&&!"completed".equals(row.opt("status")))throw incomplete();
                 JSONArray parts=row.optJSONArray("content");
                 if(parts!=null)for(int j=0;j<parts.length();j++){
                     JSONObject part=parts.optJSONObject(j);
-                    if(part!=null&&"output_text".equals(part.optString("type")))out.append(part.optString("text",""));
+                    if(part==null)throw incomplete();
+                    if("output_text".equals(part.opt("type")))appendText(out,typedText(part,"text",false));
+                    else if("refusal".equals(part.opt("type")))throw incomplete();
                 }
             }
         }else if(provider.protocol==2){
+            if(!body.isNull("stop_reason")&&!claudeStop(typedText(body,"stop_reason",false)))throw incomplete();
             JSONArray parts=body.optJSONArray("content");
             if(parts!=null)for(int i=0;i<parts.length();i++){
                 JSONObject part=parts.optJSONObject(i);
-                if(part!=null&&"text".equals(part.optString("type")))out.append(part.optString("text",""));
+                if(part==null)throw incomplete();
+                if("text".equals(part.opt("type")))appendText(out,typedText(part,"text",false));
+                else if("tool_use".equals(part.opt("type"))||"server_tool_use".equals(part.opt("type")))throw incomplete();
             }
         }else{
             JSONArray choices=body.optJSONArray("choices");
-            JSONObject choice=choices==null?null:choices.optJSONObject(0);
-            JSONObject message=choice==null?null:choice.optJSONObject("message");
-            if(message!=null&&!message.isNull("content"))out.append(message.optString("content",""));
+            if(choices==null||choices.length()!=1)throw incomplete();
+            JSONObject choice=choices.optJSONObject(0);
+            if(choice==null||!choice.isNull("finish_reason")&&!"stop".equals(choice.opt("finish_reason")))throw incomplete();
+            JSONObject message=choice.optJSONObject("message");
+            if(message!=null){
+                rejectCalls(message);
+                appendText(out,typedText(message,"content",false));
+            }
         }
-        if(out.toString().trim().isEmpty()||out.length()>CloudHistory.MAX_REPLY)throw new java.io.IOException("Invalid text response");
+        if(!CloudHistory.validMessage(out.toString(),CloudHistory.MAX_REPLY))throw incomplete();
         return out.toString();
+    }
+    private static void rejectCalls(JSONObject message)throws StreamFailure{
+        Object calls=message.opt("tool_calls");
+        if(calls!=null&&calls!=JSONObject.NULL&&(!(calls instanceof JSONArray)||((JSONArray)calls).length()!=0))throw incomplete();
+        if(!message.isNull("function_call")||!message.isNull("refusal"))throw incomplete();
     }
     static HttpsURLConnection connection(Provider provider,String key) throws Exception {
         if(provider.remote())throw new IllegalArgumentException("Remote requires explicit address");
@@ -195,51 +235,95 @@ final class CloudApi {
     static Reply parseStream(Provider provider,InputStream raw,Progress progress)throws Exception{
         StringBuilder answer=new StringBuilder();long input=-1,output=-1,lastUi=0;
         final long deadline=System.nanoTime()+300000000000L;
-        boolean complete=false,finishedChoice=false;
+        boolean complete=false,finishedChoice=false,finishedClaude=false;
         int published=0;
         try{
-        try(java.io.Reader reader=new java.io.InputStreamReader(raw,StandardCharsets.UTF_8)){
+        try(java.io.Reader reader=new java.io.InputStreamReader(raw,StandardCharsets.UTF_8.newDecoder()
+                .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT))){
             StringBuilder line=new StringBuilder(),event=new StringBuilder();int ch;long consumed=0;
+            boolean afterCr=false;
             while((ch=reader.read())!=-1){
                 if(Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("Stream interrupted");
                 if(System.nanoTime()-deadline>=0)throw new java.net.SocketTimeoutException("Stream deadline");
                 if(++consumed>4000000)throw new StreamFailure("Stream limit",true);
-                if(ch!='\n'){if(ch!='\r')line.append((char)ch);if(line.length()>1000000)throw new java.io.IOException("Event limit");continue;}
+                if(consumed==1&&ch==0xfeff)continue;
+                if(afterCr){afterCr=false;if(ch=='\n')continue;}
+                if(ch!='\n'&&ch!='\r'){line.append((char)ch);if(line.length()>1000000)throw new java.io.IOException("Event limit");continue;}
+                afterCr=ch=='\r';
                 String row=line.toString();line.setLength(0);
-                if(row.startsWith("data:")){if(event.length()>0)event.append('\n');event.append(row.substring(5).trim());if(event.length()>1000000)throw new java.io.IOException("Event limit");continue;}
+                if(row.startsWith("data:")){
+                    String value=row.substring(5);if(value.startsWith(" "))value=value.substring(1);
+                    if(event.length()>0)event.append('\n');event.append(value);
+                    if(event.length()>1000000)throw new java.io.IOException("Event limit");continue;
+                }
                 if(!row.isEmpty()||event.length()==0)continue;
-                String data=event.toString();event.setLength(0);
+                String data=event.toString().trim();event.setLength(0);
                 if("[DONE]".equals(data)){complete=provider.protocol==1&&finishedChoice;break;}
                 JSONObject j=new JSONObject(data);String type=j.optString("type","");
                 if(!j.isNull("error")||"error".equals(type)||"response.failed".equals(type)||"response.incomplete".equals(type))throw new StreamFailure("Provider stream failed",true);
                 JSONObject usage=j.optJSONObject("usage");
                 String part="";
                 if(provider.protocol==0){
-                    if("response.output_text.delta".equals(type))part=j.optString("delta","");
+                    if("response.output_text.delta".equals(type))part=typedText(j,"delta",false);
+                    if("response.refusal.delta".equals(type)||"response.refusal.done".equals(type))throw incomplete();
                     if("response.completed".equals(type)){
-                        JSONObject response=j.optJSONObject("response");if(response==null)throw new java.io.IOException("Missing response");
+                        JSONObject response=j.optJSONObject("response");responseCompleted(response);
                         usage=response.optJSONObject("usage");complete=true;
                     }
                 }else if(provider.protocol==2){
-                    if("message_start".equals(type)){JSONObject message=j.optJSONObject("message");if(message!=null)usage=message.optJSONObject("usage");}
-                    if("content_block_delta".equals(type)){JSONObject delta=j.optJSONObject("delta");if(delta!=null&&"text_delta".equals(delta.optString("type")))part=delta.optString("text","");}
-                    if("message_delta".equals(type)){JSONObject delta=j.optJSONObject("delta");String reason=delta==null?"":delta.optString("stop_reason","");if("max_tokens".equals(reason)||"refusal".equals(reason)||"tool_use".equals(reason))throw new StreamFailure("Incomplete message",true);}
-                    if("message_stop".equals(type))complete=true;
+                    if("message_start".equals(type)){JSONObject message=j.optJSONObject("message");if(message==null)throw incomplete();usage=message.optJSONObject("usage");}
+                    if("content_block_start".equals(type)){
+                        if(finishedClaude)throw incomplete();
+                        JSONObject block=j.optJSONObject("content_block");
+                        if(block==null)throw incomplete();
+                        if("text".equals(block.opt("type")))part=typedText(block,"text",false);
+                        else if("tool_use".equals(block.opt("type"))||"server_tool_use".equals(block.opt("type")))throw incomplete();
+                    }
+                    if("content_block_delta".equals(type)){
+                        if(finishedClaude)throw incomplete();
+                        JSONObject delta=j.optJSONObject("delta");if(delta==null)throw incomplete();
+                        if("text_delta".equals(delta.opt("type")))part=typedText(delta,"text",false);
+                        if("input_json_delta".equals(delta.opt("type")))throw incomplete();
+                    }
+                    if("message_delta".equals(type)){
+                        JSONObject delta=j.optJSONObject("delta");if(delta==null)throw incomplete();
+                        if(!delta.isNull("stop_reason")){
+                            if(finishedClaude||!claudeStop(typedText(delta,"stop_reason",false)))throw incomplete();
+                            finishedClaude=true;
+                        }
+                    }
+                    if("message_stop".equals(type)){if(!finishedClaude)throw incomplete();complete=true;}
                 }else{
-                    JSONArray choices=j.optJSONArray("choices");JSONObject choice=choices==null?null:choices.optJSONObject(0);
-                    if(choice!=null){JSONObject delta=choice.optJSONObject("delta");if(delta!=null&&!delta.isNull("content"))part=delta.optString("content","");
-                        if(!choice.isNull("finish_reason")){String reason=choice.optString("finish_reason");if(!"stop".equals(reason))throw new StreamFailure("Incomplete choice",true);finishedChoice=true;}}
+                    Object rawChoices=j.opt("choices");
+                    if(rawChoices!=null&&rawChoices!=JSONObject.NULL&&!(rawChoices instanceof JSONArray))throw incomplete();
+                    JSONArray choices=j.optJSONArray("choices");
+                    if(choices!=null&&choices.length()>1)throw incomplete();
+                    if(choices!=null&&choices.length()==1){
+                        if(finishedChoice)throw incomplete();
+                        JSONObject choice=choices.optJSONObject(0);if(choice==null)throw incomplete();
+                        Object index=choice.opt("index");
+                        if(index!=null&&index!=JSONObject.NULL&&(!(index instanceof Number)||((Number)index).doubleValue()!=0))throw incomplete();
+                        Object rawDelta=choice.opt("delta");
+                        if(rawDelta!=null&&rawDelta!=JSONObject.NULL&&!(rawDelta instanceof JSONObject))throw incomplete();
+                        JSONObject delta=choice.optJSONObject("delta");
+                        if(delta!=null){rejectCalls(delta);part=typedText(delta,"content",true);}
+                        if(!choice.isNull("finish_reason")){
+                            if(!"stop".equals(choice.opt("finish_reason")))throw incomplete();
+                            finishedChoice=true;
+                        }
+                    }
                 }
                 long a=tokenCount(usage,provider.protocol==1?"prompt_tokens":"input_tokens"),b=tokenCount(usage,provider.protocol==1?"completion_tokens":"output_tokens");
-                if(a>=0)input=a;if(b>=0)output=b;
-                if((long)answer.length()+part.length()>CloudHistory.MAX_REPLY)throw new java.io.IOException("Reply limit");answer.append(part);
+                if(a>=0)input=Math.max(input,a);if(b>=0)output=Math.max(output,b);
+                appendText(answer,part);
                 long now=System.nanoTime();if(progress!=null&&!part.isEmpty()&&(lastUi==0||now-lastUi>=100000000L)){
                     lastUi=now;published=answer.length();progress.update(answer.toString());
                 }
                 if(complete)break;
             }
         }
-        if(!complete||answer.toString().trim().isEmpty())throw new StreamFailure("Incomplete stream",true);
+        if(!complete||!CloudHistory.validMessage(answer.toString(),CloudHistory.MAX_REPLY))throw new StreamFailure("Incomplete stream",true);
         return new Reply(answer.toString(),input,output);
         }catch(Exception failure){
             // Only previously accepted, bounded text; never synthesize a successful completion.
@@ -260,7 +344,10 @@ final class CloudApi {
                 if(buffer.size()+n>2_000_000)throw new java.io.IOException("Response limit");
                 buffer.write(b,0,n);
             }
-            return new JSONObject(buffer.toString("UTF-8"));
+            String decoded=StandardCharsets.UTF_8.newDecoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+                .decode(java.nio.ByteBuffer.wrap(buffer.toByteArray())).toString();
+            return new JSONObject(decoded);
         }
     }
 }
