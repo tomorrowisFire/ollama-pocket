@@ -41,8 +41,10 @@ final class ChatRichView {
     }
     private static Button action(Context c,int title,float scale,Runnable onClick){
         Button b=new Button(c);b.setText(title);b.setAllCaps(false);b.setMinHeight(dp(c,48));
-        b.setMinimumHeight(dp(c,48));b.setTextSize(13*scale);b.setSingleLine(false);b.setEllipsize(null);
+        b.setMinimumHeight(dp(c,48));b.setSingleLine(false);b.setEllipsize(null);
         if(c instanceof android.app.Activity)WorkbenchStyle.button((android.app.Activity)c,b,title);
+        // Shared styling reads the Activity preference; use the caller's actual chat font scale.
+        b.setTextSize(13*scale);
         if(onClick!=null)b.setOnClickListener(v->onClick.run());
         return b;
     }

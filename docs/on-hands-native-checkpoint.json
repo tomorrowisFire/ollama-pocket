@@ -1,6 +1,6 @@
 {
-  "stage": "F10A55-rich-answers-settings-dialog-batch",
-  "revision": "F10A55",
-  "priorCandidate": "8b53be4f471f2a98e3e8ce06e735a4cef2de8971",
-  "reason": "Detached rich-answer hierarchy and font-aware table policy, monotonic dialog width and compact settings selections; exact FULL candidate gate after prior F10A54 verification. No launcher or production changes."
+  "stage": "F10A56-chart-and-answer-controls-batch",
+  "revision": "F10A56",
+  "priorCandidate": "6d8025524d4584c5ecb2f474e6d04932dabaeafd",
+  "reason": "Detached signed chart native display and consistent answer-copy controls; exact FULL candidate gate after F10A55. No production changes."
 }

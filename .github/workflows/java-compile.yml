@@ -32,6 +32,7 @@ on:
       - 'tests/WorkspaceLayoutPolicyTest.java'
       - 'tests/WorkbenchLayoutPolicyTest.java'
       - 'tests/WorkbenchVisualPolicyTest.java'
+      - 'tests/ChartPlotPolicyTest.java'
       - 'tests/CloudViewportPolicyTest.java'
       - 'tests/ChatWorkspacePolicyTest.java'
       - 'tests/DiagnosticValuesTest.java'
@@ -203,6 +204,8 @@ jobs:
           java -cp /tmp/workspace-tests com.ollamapocket.app.WorkbenchLayoutPolicyTest
           javac -cp /tmp/workspace-tests -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/WorkbenchVisualPolicy.java tests/WorkbenchVisualPolicyTest.java
           java -cp /tmp/workspace-tests com.ollamapocket.app.WorkbenchVisualPolicyTest
+          javac --release 17 -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/ChartPlotPolicy.java tests/ChartPlotPolicyTest.java
+          java -cp /tmp/workspace-tests com.ollamapocket.app.ChartPlotPolicyTest
           javac -cp /tmp/workspace-tests -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/CloudViewportPolicy.java tests/CloudViewportPolicyTest.java
           java -cp /tmp/workspace-tests com.ollamapocket.app.CloudViewportPolicyTest
           javac -cp /tmp/workspace-tests -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/WorkspaceTextPolicy.java tests/WorkspaceTextPolicyTest.java tests/WorkspaceTextAnchorTest.java

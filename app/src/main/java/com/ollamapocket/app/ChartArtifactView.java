@@ -20,7 +20,12 @@ final class ChartArtifactView {
         title.setTextIsSelectable(true);title.setAutoLinkMask(0);title.setSaveEnabled(false);
         if(android.os.Build.VERSION.SDK_INT>=28)title.setAccessibilityHeading(true);
         panel.addView(title,new LinearLayout.LayoutParams(-1,-2));
-        Plot plot=new Plot(c,chart,ink);plot.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        WorkbenchVisualPolicy.Palette palette=WorkbenchStyle.palette(c);
+        Plot plot=new Plot(c,chart,palette.primary,palette.muted);
+        android.graphics.drawable.GradientDrawable frame=new android.graphics.drawable.GradientDrawable();
+        frame.setColor(palette.surface);frame.setCornerRadius(dp(c,WorkbenchVisualPolicy.RADIUS_DP));
+        frame.setStroke(dp(c,1),palette.border);plot.setBackground(frame);
+        plot.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         panel.addView(plot,new LinearLayout.LayoutParams(-1,dp(c,180)));
         StringBuilder values=new StringBuilder();
         for(ChartArtifact.Point point:chart.points){
@@ -31,13 +36,15 @@ final class ChartArtifactView {
         table.setAutoLinkMask(0);table.setTextIsSelectable(true);table.setSaveEnabled(false);
         panel.addView(table,new LinearLayout.LayoutParams(-1,-2));
         AdaptiveAnswerActions actions=new AdaptiveAnswerActions(c);
-        addCopy(c,actions,R.string.integration_copy_csv,chart::csv);
-        addCopy(c,actions,R.string.integration_copy_html,chart::html);
+        addCopy(c,actions,R.string.integration_copy_csv,scale,chart::csv);
+        addCopy(c,actions,R.string.integration_copy_html,scale,chart::html);
         panel.addView(actions,new LinearLayout.LayoutParams(-1,-2));
         return panel;
     }
-    private static void addCopy(Context c,LinearLayout row,int label,java.util.function.Supplier<String> export){
+    private static void addCopy(Context c,LinearLayout row,int label,float scale,java.util.function.Supplier<String> export){
         Button b=new Button(c);b.setText(label);b.setAllCaps(false);b.setSingleLine(false);b.setMinHeight(dp(c,48));b.setMinWidth(dp(c,48));
+        if(c instanceof android.app.Activity)WorkbenchStyle.button((android.app.Activity)c,b,label);
+        b.setTextSize(13*scale);b.setEllipsize(null);
         b.setOnClickListener(v->{
             try{
                 ClipboardManager clipboard=(ClipboardManager)c.getSystemService(Context.CLIPBOARD_SERVICE);
@@ -49,21 +56,26 @@ final class ChartArtifactView {
         row.addView(b,new LinearLayout.LayoutParams(-2,-2));
     }
     private static final class Plot extends View{
-        final ChartArtifact chart;final int ink;final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);
-        Plot(Context c,ChartArtifact chart,int ink){super(c);this.chart=chart;this.ink=ink;}
+        final ChartArtifact chart;final int ink,axisInk;final ChartPlotPolicy.Axis axis;
+        final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);
+        Plot(Context c,ChartArtifact chart,int ink,int axisInk){
+            super(c);this.chart=chart;this.ink=ink;this.axisInk=axisInk;
+            double minimum=0,maximum=0;
+            for(ChartArtifact.Point point:chart.points){minimum=Math.min(minimum,point.value);maximum=Math.max(maximum,point.value);}
+            axis=new ChartPlotPolicy.Axis(minimum,maximum);
+        }
         @Override protected void onDraw(Canvas canvas){
             super.onDraw(canvas);
             float pad=dp(getContext(),12),w=getWidth()-2*pad,h=getHeight()-2*pad;
-            if(w<=0||h<=0)return;
-            float zero=pad+h/2;
-            double max=0;for(ChartArtifact.Point p:chart.points)max=Math.max(max,Math.abs(p.value));
-            if(max==0)max=1;
-            paint.setColor(ink);paint.setAlpha(100);paint.setStrokeWidth(dp(getContext(),1));
+            float inset=dp(getContext(),4),span=h-2*inset;
+            if(w<=0||span<=0)return;
+            float top=pad+inset,zero=top+(float)axis.y(0)*span;
+            paint.setColor(axisInk);paint.setStrokeWidth(dp(getContext(),1));
             canvas.drawLine(pad,zero,pad+w,zero,paint);
-            paint.setAlpha(230);paint.setStrokeWidth(dp(getContext(),2));
+            paint.setColor(ink);paint.setStrokeWidth(dp(getContext(),2));
             float slot=w/chart.points.size(),oldX=0,oldY=0;
             for(int i=0;i<chart.points.size();i++){
-                float x=pad+slot*(i+.5f),y=zero-(float)(chart.points.get(i).value/max)*(h/2-dp(getContext(),4));
+                float x=pad+slot*(i+.5f),y=top+(float)axis.y(chart.points.get(i).value)*span;
                 if(chart.kind==ChartArtifact.Kind.LINE){
                     if(i>0)canvas.drawLine(oldX,oldY,x,y,paint);
                     canvas.drawCircle(x,y,dp(getContext(),3),paint);

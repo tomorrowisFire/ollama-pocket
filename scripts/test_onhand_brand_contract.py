@@ -168,5 +168,18 @@ assert "WorkbenchWindow.fitCompact(this,dialog)" in main.split("private void sho
 for control in ("theme","cityChoice","typeSize","license"):
     assert control+".setOnClickListener(v->showCompactSettingsDialog(new AlertDialog.Builder(this)" in main
 assert "showCompactSettingsDialog(new AlertDialog.Builder(this).setTitle(R.string.workspace_mode)" in main
+# F10A56: native chart presentation, no change to typed export or clipboard safeguards.
+chart=(src/"ChartArtifactView.java").read_text()
+for required in ("new ChartPlotPolicy.Axis(minimum,maximum)","axis.y(0)*span","axis.y(chart.points.get(i).value)*span",
+    "palette.primary,palette.muted","frame.setColor(palette.surface)","WorkbenchStyle.button((android.app.Activity)c,b,label)",
+    "b.setTextSize(13*scale)","chart::csv","chart::html","SensitiveClipboard.text(",
+    "plot.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO)","table.setTextIsSelectable(true)"):
+    assert required in chart,required
+assert "h/2" not in chart and "setAlpha(100)" not in chart
+rich_action=rich.split("private static Button action(",1)[1].split("private static void section(",1)[0]
+assert rich_action.index("WorkbenchStyle.button(")<rich_action.index("b.setTextSize(13*scale)")
+glyph_source=(src/"OnHandGlyphs.java").read_text()
+for resource in ("chat_copy_math","chat_copy_spreadsheet","integration_copy_csv","integration_copy_html"):
+    assert "id==R.string."+resource in glyph_source
 assert "ads.register(downloadAdSlot,AdSupport.PLACEMENT_DOWNLOAD)" in main
 print("PASS: approved launcher SHA-256, both adaptive masks, light/dark dialog palettes and native UI wiring")

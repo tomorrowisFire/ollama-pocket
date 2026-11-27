@@ -142,7 +142,9 @@ final class OnHandGlyphs extends Drawable {
         if(id==R.string.stop)return Kind.STOP;
         if(id==R.string.close||id==R.string.cancel)return Kind.CLOSE;
         if(id==R.string.ok||id==R.string.project_save||id==R.string.project_report_save)return Kind.CHECK;
-        if(id==R.string.copy||id==R.string.chat_copy_code||id==R.string.chat_copy_table)return Kind.COPY;
+        if(id==R.string.copy||id==R.string.chat_copy_code||id==R.string.chat_copy_table||
+            id==R.string.chat_copy_math||id==R.string.chat_copy_spreadsheet||
+            id==R.string.integration_copy_csv||id==R.string.integration_copy_html)return Kind.COPY;
         if(id==R.string.search||id==R.string.knowledge_search)return Kind.SEARCH;
         if(id==R.string.new_chat||id==R.string.auto_editor_add)return Kind.PLUS;
         if(id==R.string.project_workspace)return Kind.PROJECT;
