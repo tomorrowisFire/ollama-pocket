@@ -21,7 +21,8 @@ import android.widget.TextView;
 final class WorkbenchStyle {
     private WorkbenchStyle(){}
     private static int dp(Context c,int v){return Math.round(v*c.getResources().getDisplayMetrics().density);}
-    private static WorkbenchVisualPolicy.Palette palette(Context c){
+    static WorkbenchVisualPolicy.Palette palette(Context c){
+        if(c instanceof MainActivity)return WorkbenchVisualPolicy.palette(((MainActivity)c).brandDark());
         int ink=0xff25272c;
         TypedArray attrs=c.obtainStyledAttributes(new int[]{android.R.attr.textColorPrimary});
         try{ColorStateList value=attrs.getColorStateList(0);if(value!=null)ink=value.getDefaultColor();}
@@ -36,7 +37,7 @@ final class WorkbenchStyle {
             label==R.string.auto_cancel_run||label==R.string.auto_history_clear||label==R.string.auto_editor_remove||
             label==R.string.auto_delete_item||label==R.string.cloud_key_delete)
             return WorkbenchVisualPolicy.Role.DESTRUCTIVE;
-        if(label==R.string.project_save||label==R.string.project_report_save||label==R.string.knowledge_review||
+        if(label==R.string.send||label==R.string.batch_start||label==R.string.project_save||label==R.string.project_report_save||label==R.string.knowledge_review||
             label==R.string.knowledge_generate||label==R.string.knowledge_search||label==R.string.conference_start||
             label==R.string.auto_start||label==R.string.auto_resume||label==R.string.auto_goal_generate||
             label==R.string.workspace_voice_start||label==R.string.workspace_read_start)
@@ -74,7 +75,11 @@ final class WorkbenchStyle {
         b.setTypeface(Typeface.DEFAULT,role==WorkbenchVisualPolicy.Role.PRIMARY?Typeface.BOLD:Typeface.NORMAL);
         b.setTextColor(colors(p.ink(role,true),p.disabledText));
     }
-    static void button(Activity a,Button b,int label){button(a,b,role(label));}
+    static void button(Activity a,Button b,int label){
+        button(a,b,role(label));
+        OnHandGlyphs.Kind glyph=OnHandGlyphs.forResource(label);
+        if(glyph!=null)OnHandGlyphs.label(b,glyph,false);
+    }
     static void field(Activity a,EditText e){
         WorkbenchVisualPolicy.Palette p=palette(a);
         StateListDrawable state=new StateListDrawable();
@@ -95,7 +100,19 @@ final class WorkbenchStyle {
     static void card(Activity a,LinearLayout layout,boolean selected){
         WorkbenchVisualPolicy.Palette p=palette(a);
         layout.setBackground(shape(a,p.surface,selected?p.focus:p.border,selected?2:1));
-        layout.setPadding(dp(a,14),dp(a,12),dp(a,14),dp(a,12));
+        layout.setPadding(dp(a,16),dp(a,14),dp(a,16),dp(a,14));
+    }
+    /** Restyle only the platform action buttons; do not replace listeners, security flags or dismissal. */
+    static void dialogActions(Activity a,android.app.Dialog dialog){
+        if(!(dialog instanceof android.app.AlertDialog))return;
+        android.app.AlertDialog alert=(android.app.AlertDialog)dialog;
+        WorkbenchVisualPolicy.Palette p=palette(a);
+        for(int id:new int[]{android.content.DialogInterface.BUTTON_POSITIVE,android.content.DialogInterface.BUTTON_NEGATIVE,android.content.DialogInterface.BUTTON_NEUTRAL}){
+            Button b=alert.getButton(id);if(b==null)continue;
+            b.setAllCaps(false);b.setMinHeight(dp(a,48));b.setMinimumHeight(dp(a,48));
+            b.setTextColor(colors(id==android.content.DialogInterface.BUTTON_POSITIVE?p.primary:p.muted,p.disabledText));
+            b.setTypeface(Typeface.DEFAULT,id==android.content.DialogInterface.BUTTON_POSITIVE?Typeface.BOLD:Typeface.NORMAL);
+        }
     }
     /** Persistent caption linked to its existing, independently guarded control. */
     static TextView fieldLabel(Activity a,LinearLayout parent,int label,View input){

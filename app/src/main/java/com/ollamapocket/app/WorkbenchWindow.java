@@ -14,6 +14,7 @@ final class WorkbenchWindow {
     private WorkbenchWindow(){}
     static void fit(Activity owner,Dialog dialog){
         if(owner.isFinishing()||owner.isDestroyed()||!dialog.isShowing()||dialog.getWindow()==null)return;
+        WorkbenchStyle.dialogActions(owner,dialog);
         final Window window=dialog.getWindow();
         final View ownerRoot=owner.getWindow().getDecorView(),decor=window.getDecorView();
         final Runnable resize=()->{

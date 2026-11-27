@@ -16,6 +16,12 @@ public final class WorkbenchVisualPolicyTest {
                 check(p.fill(role,false)==p.disabled&&p.ink(role,false)==p.disabledText);
             }
             contrast(p.text,p.surface,4.5);contrast(p.text,p.field,4.5);
+            contrast(p.text,p.canvas,4.5);contrast(p.text,p.bubble,4.5);
+            contrast(p.text,p.accentSoft,4.5);contrast(p.primary,p.canvas,4.5);
+            contrast(p.primary,p.surface,4.5);contrast(p.canvas,p.primary,4.5);
+            contrast(p.muted,p.canvas,4.5);
+            check(p.canvas!=p.surface&&p.bubble!=p.field&&p.accentSoft!=p.field);
+            check(p.primary== (dark?0xffffad7b:0xffb83b12));
             contrast(p.muted,p.surface,4.5);contrast(p.muted,p.field,4.5);
             contrast(p.disabledText,p.disabled,4.5);contrast(p.focus,p.field,3);contrast(p.focus,p.surface,3);
             check(WorkbenchVisualPolicy.darkFromPrimaryText(p.text)==dark);

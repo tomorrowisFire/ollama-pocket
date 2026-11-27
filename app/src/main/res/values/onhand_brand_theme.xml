@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="onhand_canvas_light">#FAF6F1</color>
+    <color name="onhand_surface_light">#FFFCFA</color>
+    <color name="onhand_ink_light">#272330</color>
+    <color name="onhand_muted_light">#655D6A</color>
+    <color name="onhand_accent_light">#B83B12</color>
+    <color name="onhand_focus_light">#7A4A95</color>
+    <color name="onhand_canvas_dark">#221C24</color>
+    <color name="onhand_surface_dark">#2D2730</color>
+    <color name="onhand_ink_dark">#F7F0F5</color>
+    <color name="onhand_muted_dark">#C6BACB</color>
+    <color name="onhand_accent_dark">#FFAD7B</color>
+    <color name="onhand_focus_dark">#C7A7E2</color>
+    <item type="id" name="onhand_glyph_spec"/>
+    <item type="id" name="onhand_spinner_spec"/>
+    <style name="OnHandTheme.Light" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:colorAccent">@color/onhand_accent_light</item>
+        <item name="android:colorBackground">@color/onhand_canvas_light</item>
+        <item name="android:colorBackgroundFloating">@color/onhand_surface_light</item>
+        <item name="android:windowBackground">@color/onhand_canvas_light</item>
+        <item name="android:textColorPrimary">@color/onhand_ink_light</item>
+        <item name="android:textColorSecondary">@color/onhand_muted_light</item>
+        <item name="android:colorControlNormal">@color/onhand_muted_light</item>
+        <item name="android:colorControlActivated">@color/onhand_accent_light</item>
+        <item name="android:colorControlHighlight">#24B83B12</item>
+        <item name="android:alertDialogTheme">@style/OnHandDialog.Light</item>
+        <item name="android:statusBarColor">@color/onhand_canvas_light</item>
+        <item name="android:navigationBarColor">@color/onhand_canvas_light</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+    <style name="OnHandTheme.Dark" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:colorAccent">@color/onhand_accent_dark</item>
+        <item name="android:colorBackground">@color/onhand_canvas_dark</item>
+        <item name="android:colorBackgroundFloating">@color/onhand_surface_dark</item>
+        <item name="android:windowBackground">@color/onhand_canvas_dark</item>
+        <item name="android:textColorPrimary">@color/onhand_ink_dark</item>
+        <item name="android:textColorSecondary">@color/onhand_muted_dark</item>
+        <item name="android:colorControlNormal">@color/onhand_muted_dark</item>
+        <item name="android:colorControlActivated">@color/onhand_accent_dark</item>
+        <item name="android:colorControlHighlight">#30FFAD7B</item>
+        <item name="android:alertDialogTheme">@style/OnHandDialog.Dark</item>
+        <item name="android:statusBarColor">@color/onhand_canvas_dark</item>
+        <item name="android:navigationBarColor">@color/onhand_canvas_dark</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+    <style name="OnHandDialog.Light" parent="android:style/Theme.Material.Light.Dialog.Alert">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:colorAccent">@color/onhand_accent_light</item>
+        <item name="android:colorBackground">@color/onhand_surface_light</item>
+        <item name="android:colorBackgroundFloating">@color/onhand_surface_light</item>
+        <item name="android:windowBackground">@drawable/onhand_dialog_light</item>
+        <item name="android:textColorPrimary">@color/onhand_ink_light</item>
+        <item name="android:textColorSecondary">@color/onhand_muted_light</item>
+        <item name="android:colorControlNormal">@color/onhand_muted_light</item>
+        <item name="android:colorControlActivated">@color/onhand_accent_light</item>
+        <item name="android:colorControlHighlight">#24B83B12</item>
+        <item name="android:backgroundDimAmount">0.42</item>
+        <item name="android:windowMinWidthMinor">88%</item>
+        <item name="android:windowMinWidthMajor">66%</item>
+    </style>
+    <style name="OnHandDialog.Dark" parent="android:style/Theme.Material.Dialog.Alert">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:colorAccent">@color/onhand_accent_dark</item>
+        <item name="android:colorBackground">@color/onhand_surface_dark</item>
+        <item name="android:colorBackgroundFloating">@color/onhand_surface_dark</item>
+        <item name="android:windowBackground">@drawable/onhand_dialog_dark</item>
+        <item name="android:textColorPrimary">@color/onhand_ink_dark</item>
+        <item name="android:textColorSecondary">@color/onhand_muted_dark</item>
+        <item name="android:colorControlNormal">@color/onhand_muted_dark</item>
+        <item name="android:colorControlActivated">@color/onhand_accent_dark</item>
+        <item name="android:colorControlHighlight">#30FFAD7B</item>
+        <item name="android:backgroundDimAmount">0.54</item>
+        <item name="android:windowMinWidthMinor">88%</item>
+        <item name="android:windowMinWidthMajor">66%</item>
+    </style>
+</resources>

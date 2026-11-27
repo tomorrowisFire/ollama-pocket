@@ -2,13 +2,14 @@ package com.ollamapocket.app;
 
 /** Shared workspace design tokens. Opaque text/surface pairs, independent of Android. */
 final class WorkbenchVisualPolicy {
-    static final int MIN_TARGET_DP=48, RADIUS_DP=12, GAP_DP=8;
+    static final int MIN_TARGET_DP=48, RADIUS_DP=16, GAP_DP=10;
     enum Role { SECONDARY, PRIMARY, DESTRUCTIVE }
     static final class Palette {
-        final int surface,field,text,muted,border,focus,primary,primaryText,danger,dangerText,disabled,disabledText;
-        Palette(int surface,int field,int text,int muted,int border,int focus,int primary,int primaryText,
+        final int canvas,surface,field,bubble,accentSoft,text,muted,border,focus,primary,primaryText,danger,dangerText,disabled,disabledText;
+        Palette(int canvas,int surface,int field,int bubble,int accentSoft,int text,int muted,int border,int focus,int primary,int primaryText,
                 int danger,int dangerText,int disabled,int disabledText){
-            this.surface=surface;this.field=field;this.text=text;this.muted=muted;this.border=border;this.focus=focus;
+            this.canvas=canvas;this.surface=surface;this.field=field;this.bubble=bubble;this.accentSoft=accentSoft;
+            this.text=text;this.muted=muted;this.border=border;this.focus=focus;
             this.primary=primary;this.primaryText=primaryText;this.danger=danger;this.dangerText=dangerText;
             this.disabled=disabled;this.disabledText=disabledText;
         }
@@ -22,10 +23,14 @@ final class WorkbenchVisualPolicy {
         }
         int focusInk(Role role){return role==Role.PRIMARY?primaryText:role==Role.DESTRUCTIVE?dangerText:focus;}
     }
-    private static final Palette LIGHT=new Palette(0xffffffff,0xfff3f4f6,0xff25272c,0xff656970,0xffd7d9de,0xff62666f,
-        0xff222429,0xffffffff,0xfffceef0,0xff9f2437,0xffe9eaed,0xff646870);
-    private static final Palette DARK=new Palette(0xff1b1c20,0xff282a2f,0xffeeeff2,0xffb2b5bd,0xff45474e,0xffadb0ba,
-        0xffedeef0,0xff16171a,0xff42282e,0xffffb2be,0xff34363b,0xffacafb7);
+    // OnHand: warm ivory, restrained burnt orange, muted lavender and plum-charcoal.
+    // Accent is deliberately darker than the artwork in light mode for text contrast.
+    private static final Palette LIGHT=new Palette(0xfffaf6f1,0xfffffcfa,0xfff2edf6,0xfffce7dc,0xfff9e4d7,
+        0xff272330,0xff655d6a,0xffded5de,0xff7a4a95,0xffb83b12,0xffffffff,
+        0xfffceef0,0xff9f2437,0xffefe8e8,0xff70616b);
+    private static final Palette DARK=new Palette(0xff221c24,0xff2d2730,0xff352d3e,0xff49362d,0xff4b3028,
+        0xfff7f0f5,0xffc6bacb,0xff584a5d,0xffc7a7e2,0xffffad7b,0xff241a1b,
+        0xff4b2933,0xffffb2be,0xff3f3742,0xffc4b7c8);
     private WorkbenchVisualPolicy(){}
     static Palette palette(boolean dark){return dark?DARK:LIGHT;}
     static float textScale(String preference){return "large".equals(preference)?1.13f:"extra".equals(preference)?1.26f:1f;}
