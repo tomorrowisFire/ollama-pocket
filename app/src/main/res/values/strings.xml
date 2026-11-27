@@ -1328,4 +1328,9 @@
     <string name="integration_form_true">If true: next node or terminal</string>
     <string name="integration_form_false">If false: next node or terminal</string>
     <string name="integration_form_invalid">Invalid draft. Check the model identity, node IDs, forward links, reachability, conditions and retention settings.</string>
+    <string name="integration_form_advanced">Show advanced JSON</string>
+    <string name="integration_form_empty">No draft yet. Open the visual editor or use the current installed model.</string>
+    <string name="integration_form_branch_summary">Draft: %1$s · %2$d nodes</string>
+    <string name="integration_form_agent_summary">Draft: %1$s · temperature × 1000: %2$d · tokens: %3$d</string>
+    <string name="integration_form_bad_summary">Invalid JSON draft. Open advanced JSON to correct it or use the current installed model.</string>
 </resources>

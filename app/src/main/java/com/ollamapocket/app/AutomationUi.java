@@ -559,6 +559,51 @@ final class AutomationUi {
         });
         l.addView(preview,WorkbenchStyle.row(owner));show(s(R.string.integration_chart),l);
     }
+    private EditText formField(LinearLayout parent,int caption,String value,int limit,boolean multiline){
+        LinearLayout group=new LinearLayout(owner);group.setOrientation(LinearLayout.VERTICAL);
+        EditText input=field(group,caption,value,limit,multiline);
+        TextView title=WorkbenchStyle.fieldLabel(owner,group,caption,input);
+        group.removeView(title);group.addView(title,0);
+        input.setHint("");
+        parent.addView(group,WorkbenchStyle.row(owner));return input;
+    }
+    private void formCaption(EditText input,int caption){
+        LinearLayout group=(LinearLayout)input.getParent();
+        ((TextView)group.getChildAt(0)).setText(caption);
+    }
+    private EditText draftInput(LinearLayout l,int hint,String model,boolean branch){
+        LinearLayout advanced=new LinearLayout(owner);advanced.setOrientation(LinearLayout.VERTICAL);
+        EditText raw=formField(advanced,hint,"",ToolJsonPolicy.MAX_CHARS,true);
+        Button edit=button(l,R.string.integration_form_editor,()->{
+            if(branch)showBranchForm(raw,model);else showAgentForm(raw,model);
+        });
+        WorkbenchStyle.button(owner,edit,WorkbenchVisualPolicy.Role.PRIMARY);
+        TextView summary=output(l);
+        summary.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        CheckBox toggle=draftCheck(l,R.string.integration_form_advanced,false);
+        l.addView(advanced,WorkbenchStyle.row(owner));advanced.setVisibility(View.GONE);
+        toggle.setOnCheckedChangeListener((view,checked)->advanced.setVisibility(checked?View.VISIBLE:View.GONE));
+        Runnable render=()->{
+            String current=raw.getText().toString();
+            if(current.trim().isEmpty()){summary.setText(R.string.integration_form_empty);return;}
+            try{
+                if(branch){
+                    BranchWorkflowRun.Definition value=BranchWorkflowRun.parse(current);
+                    summary.setText(owner.getString(R.string.integration_form_branch_summary,value.model,value.graph.nodes().size())+
+                            "\n"+s(value.retainOutputs?R.string.integration_retained_notice:R.string.integration_metadata_only));
+                }else{
+                    AgentProfile value=AgentProfile.decode(current);
+                    summary.setText(owner.getString(R.string.integration_form_agent_summary,value.model,value.temperatureMilli,value.maxTokens));
+                }
+            }catch(Exception invalid){summary.setText(R.string.integration_form_bad_summary);}
+        };
+        raw.addTextChangedListener(new android.text.TextWatcher(){
+            public void beforeTextChanged(CharSequence value,int start,int count,int after){}
+            public void onTextChanged(CharSequence value,int start,int before,int count){}
+            public void afterTextChanged(android.text.Editable value){render.run();}
+        });
+        render.run();return raw;
+    }
     private CheckBox draftCheck(LinearLayout l,int label,boolean checked){
         CheckBox box=new CheckBox(owner);box.setText(label);box.setChecked(checked);
         box.setSaveEnabled(false);box.setMinimumHeight(dp(48));
@@ -578,13 +623,13 @@ final class AutomationUi {
         try{current=original.trim().isEmpty()?null:AgentProfile.decode(original);}
         catch(Exception invalid){toast(R.string.integration_agent_invalid);return;}
         LinearLayout l=column();label(l,s(R.string.integration_form_notice));
-        EditText name=field(l,R.string.integration_form_name,current==null?"":current.name,81,false);
-        EditText model=field(l,R.string.model_label,current==null?selectedModel:current.model,201,false);
-        EditText digest=field(l,R.string.integration_form_digest,current==null?"":current.modelSha256,65,false);
-        EditText instruction=field(l,R.string.integration_form_instruction,current==null?"":current.instruction,4097,true);
-        EditText temperature=field(l,R.string.integration_form_temperature,current==null?"700":Integer.toString(current.temperatureMilli),5,false);
+        EditText name=formField(l,R.string.integration_form_name,current==null?"":current.name,81,false);
+        EditText model=formField(l,R.string.model_label,current==null?selectedModel:current.model,201,false);
+        EditText digest=formField(l,R.string.integration_form_digest,current==null?"":current.modelSha256,65,false);
+        EditText instruction=formField(l,R.string.integration_form_instruction,current==null?"":current.instruction,4097,true);
+        EditText temperature=formField(l,R.string.integration_form_temperature,current==null?"700":Integer.toString(current.temperatureMilli),5,false);
         temperature.setInputType(InputType.TYPE_CLASS_NUMBER);
-        EditText tokens=field(l,R.string.integration_form_tokens,current==null?"256":Integer.toString(current.maxTokens),4,false);
+        EditText tokens=formField(l,R.string.integration_form_tokens,current==null?"256":Integer.toString(current.maxTokens),4,false);
         tokens.setInputType(InputType.TYPE_CLASS_NUMBER);
         TextView error=output(l);error.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         AlertDialog d=draftDialog(l);
@@ -604,27 +649,27 @@ final class AutomationUi {
         try{draft=new AutomationDraftForms.BranchDraft(original,selectedModel);}
         catch(Exception invalid){toast(R.string.auto_invalid_plan);return;}
         LinearLayout l=column();label(l,s(R.string.integration_form_notice));
-        EditText model=field(l,R.string.model_label,draft.model,201,false);
-        EditText digest=field(l,R.string.integration_form_digest,draft.digest,65,false);
+        EditText model=formField(l,R.string.model_label,draft.model,201,false);
+        EditText digest=formField(l,R.string.integration_form_digest,draft.digest,65,false);
         CheckBox retain=draftCheck(l,R.string.integration_form_retain,draft.retain);
         label(l,s(R.string.integration_form_edges));
         TextView step=output(l),ids=output(l);
-        EditText node=field(l,R.string.integration_form_node,"",33,false);
+        EditText node=formField(l,R.string.integration_form_node,"",33,false);
         CheckBox condition=draftCheck(l,R.string.integration_form_condition,false);
-        EditText prompt=field(l,R.string.auto_step_prompt,"",2001,true);
-        EditText expect=field(l,R.string.auto_step_condition,"",201,false);
+        EditText prompt=formField(l,R.string.auto_step_prompt,"",2001,true);
+        EditText expect=formField(l,R.string.auto_step_condition,"",201,false);
         CheckBox contains=draftCheck(l,R.string.auto_gate_contains,false);
         CheckBox previous=draftCheck(l,R.string.integration_form_previous,false);
-        EditText next=field(l,R.string.integration_form_next,"",33,false);
-        EditText other=field(l,R.string.integration_form_false,"",33,false);
+        EditText next=formField(l,R.string.integration_form_next,"",33,false);
+        EditText other=formField(l,R.string.integration_form_false,"",33,false);
         TextView error=output(l);error.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         int[] index={0};Button[] controls=new Button[4];
         Runnable toggle=()->{
             boolean c=condition.isChecked();
-            expect.setVisibility(c?View.GONE:View.VISIBLE);
+            ((View)expect.getParent()).setVisibility(c?View.GONE:View.VISIBLE);
             contains.setVisibility(c?View.GONE:View.VISIBLE);
-            other.setVisibility(c?View.VISIBLE:View.GONE);
-            next.setHint(c?R.string.integration_form_true:R.string.integration_form_next);
+            ((View)other.getParent()).setVisibility(c?View.VISIBLE:View.GONE);
+            formCaption(next,c?R.string.integration_form_true:R.string.integration_form_next);
         };
         condition.setOnCheckedChangeListener((view,checked)->toggle.run());
         Runnable capture=()->{
@@ -665,8 +710,7 @@ final class AutomationUi {
     }
     private void showAgentProfile(String model){
         LinearLayout l=column();label(l,s(R.string.integration_agent_notice));
-        EditText raw=field(l,R.string.integration_agent_json,"",ToolJsonPolicy.MAX_CHARS,true);
-        button(l,R.string.integration_form_editor,()->showAgentForm(raw,model));
+        EditText raw=draftInput(l,R.string.integration_agent_json,model,false);
         TextView status=output(l);
         final AgentProfile[] saved={null};final boolean[] loaded={false};
         Runnable load=()->{
@@ -779,8 +823,7 @@ final class AutomationUi {
     private void showBranch(String model){
         LinearLayout l=column();label(l,s(R.string.integration_branch_notice));
         label(l,s(R.string.integration_retained_help));
-        EditText spec=field(l,R.string.integration_branch_json,"",ToolJsonPolicy.MAX_CHARS,true);
-        button(l,R.string.integration_form_editor,()->showBranchForm(spec,model));
+        EditText spec=draftInput(l,R.string.integration_branch_json,model,true);
         EditText id=field(l,R.string.integration_run_id,"",64,false);
         TextView status=output(l);status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         final BranchWorkflowRun[] selected={null};

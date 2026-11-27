@@ -1328,4 +1328,9 @@
     <string name="integration_form_true">真：次のノードまたは終了</string>
     <string name="integration_form_false">偽：次のノードまたは終了</string>
     <string name="integration_form_invalid">下書きが無効です。モデル識別子、ノードID、前方リンク、到達可能性、条件、出力保持を確認してください。</string>
+    <string name="integration_form_advanced">詳細JSONを表示</string>
+    <string name="integration_form_empty">下書きがありません。ビジュアルエディターを開くか、現在のインストール済みモデルを使用してください。</string>
+    <string name="integration_form_branch_summary">下書き：%1$s · %2$d ノード</string>
+    <string name="integration_form_agent_summary">下書き：%1$s · 温度 × 1000：%2$d · トークン：%3$d</string>
+    <string name="integration_form_bad_summary">JSONの下書きが無効です。詳細JSONを表示して修正するか、現在のインストール済みモデルを使用してください。</string>
 </resources>

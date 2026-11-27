@@ -1328,4 +1328,9 @@
     <string name="integration_form_true">為真：下一節點或終點</string>
     <string name="integration_form_false">為假：下一節點或終點</string>
     <string name="integration_form_invalid">草稿無效。請檢查模型識別碼、節點 ID、向前連結、可達性、條件及保留設定。</string>
+    <string name="integration_form_advanced">顯示進階 JSON</string>
+    <string name="integration_form_empty">尚無草稿。請開啟視覺化編輯器或使用目前已安裝的模型。</string>
+    <string name="integration_form_branch_summary">草稿：%1$s · %2$d 個節點</string>
+    <string name="integration_form_agent_summary">草稿：%1$s · 溫度 × 1000：%2$d · 權杖數：%3$d</string>
+    <string name="integration_form_bad_summary">JSON 草稿無效。請顯示進階 JSON 進行修正，或使用目前已安裝的模型。</string>
 </resources>

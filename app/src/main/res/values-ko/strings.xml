@@ -1328,4 +1328,9 @@
     <string name="integration_form_true">참: 다음 노드 또는 종료</string>
     <string name="integration_form_false">거짓: 다음 노드 또는 종료</string>
     <string name="integration_form_invalid">초안이 유효하지 않습니다. 모델 식별자, 노드 ID, 순방향 연결, 도달 가능성, 조건 및 결과 저장 설정을 확인하세요.</string>
+    <string name="integration_form_advanced">고급 JSON 표시</string>
+    <string name="integration_form_empty">아직 초안이 없습니다. 시각적 편집기를 열거나 현재 설치 모델을 사용하세요.</string>
+    <string name="integration_form_branch_summary">초안: %1$s · 노드 %2$d개</string>
+    <string name="integration_form_agent_summary">초안: %1$s · 온도 × 1000: %2$d · 토큰: %3$d</string>
+    <string name="integration_form_bad_summary">JSON 초안이 올바르지 않습니다. 고급 JSON을 표시하여 수정하거나 현재 설치 모델을 사용하세요.</string>
 </resources>
