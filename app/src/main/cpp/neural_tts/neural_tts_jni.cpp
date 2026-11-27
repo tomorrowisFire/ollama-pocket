@@ -103,7 +103,7 @@ Java_com_ollamapocket_app_NativeNeuralTts_nativeOpen(JNIEnv *env, jclass, jstrin
         std::string paths[7];
         std::string rules;
         if (engine->melo) {
-            // Host qualification only; the Android player still opens Supertonic.
+            // The Java player selects this family only for an opted-in, verified simplified-Chinese model.
             // Pinned sherpa-onnx v2.0.3 uses the lexicon directly, not dict_dir.
             if (base.find(',') != std::string::npos) {
                 error(env, "Invalid VITS rule directory"); return 0;

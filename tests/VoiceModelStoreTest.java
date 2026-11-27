@@ -273,7 +273,9 @@ public final class VoiceModelStoreTest {
         ok(!store.present(model),"Cancelled model visible");noStage(root);
         // A failed operation must not poison the next valid install.
         store.install(model,()->false,null);store.remove(model);ok(!store.present(model),"Recovery remove");
-        ok(!VoiceModelCatalog.ALL.contains(VoiceModelCatalog.MELO),"Unverified installer exposed in settings");
+        ok(VoiceModelCatalog.ALL.equals(List.of(VoiceModelCatalog.WHISPER,VoiceModelCatalog.TTS,VoiceModelCatalog.MELO)),
+            "Verified settings catalog order");
+        ok(!VoiceModelCatalog.matchesMeloLicense(null)&&!VoiceModelCatalog.matchesMeloLicense(SMALL),"Invalid bundled license accepted");
     }
     private static void realMelo(Path sandbox,String directory)throws Exception{
         VoiceModelCatalog.Model model=VoiceModelCatalog.MELO;
@@ -292,6 +294,10 @@ public final class VoiceModelStoreTest {
         ok(last.get()==model.archiveBytes&&model.entries.size()==7&&store.ready(model),"Real Melo install");
         try(VoiceModelStore.Lease lease=store.acquire(model,()->false)){
             for(VoiceModelCatalog.Entry entry:model.entries.values())ok(lease.file(entry.name).length()==entry.bytes,"Real Melo file");
+            byte[] license=Files.readAllBytes(lease.file("LICENSE").toPath());
+            ok(VoiceModelCatalog.matchesMeloLicense(license),"Verified Melo license rejected");
+            license[0]^=1;
+            ok(!VoiceModelCatalog.matchesMeloLicense(license),"Same-size license tampering accepted");
             fails(VoiceModelStore.BusyException.class,()->store.remove(model),"Removed real Melo lease");
         }
         store.remove(model);ok(!store.present(model),"Real Melo cleanup");noStage(root);

@@ -67,10 +67,12 @@ LD_LIBRARY_PATH="$LIB${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
   "$JDK_ROOT/bin/java" -Djava.library.path="$BUILD" -cp "$BUILD/classes" \
   com.ollamapocket.app.NeuralTtsNativeSmokeTest "$CACHE/sherpa-onnx-supertonic-3-tts-int8-2026-05-11"
 
-# Separate qualification after the retained Supertonic test: no Android activation.
+# Verify the same pinned MeloTTS model and license used by the Android settings/player.
 MELO_DIR="$(mktemp -d "$BUILD/melo.XXXXXX")"
 trap 'rm -rf -- "$MELO_DIR"' EXIT
 python3 "$ROOT/scripts/fetch_melo_candidate.py" "$MELO_DIR"
+cmp "$MELO_DIR/LICENSE" "$ROOT/app/src/main/assets/licenses/MELOTTS-MODEL-MIT.txt"
+echo "PASS: bundled MeloTTS model license matches pinned fixture"
 bash "$ROOT/scripts/test_voice_models.sh" --melo "$MELO_DIR"
 LD_LIBRARY_PATH="$LIB${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
   "$JDK_ROOT/bin/java" -Djava.library.path="$BUILD" -cp "$BUILD/classes" \

@@ -40,7 +40,7 @@ public final class NeuralTtsNativeSmokeTest {
     }
     private static void testMelo(File directory) throws Exception {
         String[] texts = {"你好，今天是11月27日。", "我正在学习 machine learning。"};
-        try (NativeNeuralTts engine = NativeNeuralTts.openMeloCandidate(directory)) {
+        try (NativeNeuralTts engine = NativeNeuralTts.openMelo(directory)) {
             for (int i = 0; i < texts.length; i++) {
                 float[] audio = engine.generate(texts[i], "zh", 1f, () -> false);
                 if (!NeuralTtsPolicy.validPcm(audio, 44_100)) throw new AssertionError("Invalid Chinese waveform");

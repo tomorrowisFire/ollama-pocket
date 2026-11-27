@@ -65,12 +65,13 @@ final class VoiceModelsUi {
                 TextView name=new TextView(owner);name.setText(model.name);WorkbenchStyle.label(owner,name,16,false,true);section.addView(name);
                 TextView details=new TextView(owner);details.setText(owner.getString(R.string.voice_model_details,
                     size(model.archiveBytes),size(model.expandedBytes),model.languages,model.license));
-                if(model==VoiceModelCatalog.TTS)details.append("\n"+owner.getString(R.string.voice_model_android_requirement));
+                if(model!=VoiceModelCatalog.WHISPER)details.append("\n"+owner.getString(R.string.voice_model_android_requirement));
                 WorkbenchStyle.label(owner,details,13,false,false);section.addView(details,WorkbenchStyle.row(owner));
                 TextView state=text(section,R.string.voice_model_not_installed);
-                CheckBox enabled=new CheckBox(owner);enabled.setText(model==VoiceModelCatalog.WHISPER?R.string.voice_models_use_whisper:R.string.voice_models_use_tts);
-                String key=model==VoiceModelCatalog.WHISPER?"use_whisper":"use_neural_tts";
-                enabled.setChecked(owner.getPreferences(Context.MODE_PRIVATE).getBoolean(key,true));
+                CheckBox enabled=new CheckBox(owner);enabled.setText(model==VoiceModelCatalog.WHISPER?R.string.voice_models_use_whisper:
+                    model==VoiceModelCatalog.MELO?R.string.voice_models_use_melo:R.string.voice_models_use_tts);
+                String key=model==VoiceModelCatalog.WHISPER?"use_whisper":model==VoiceModelCatalog.MELO?"use_melo_tts":"use_neural_tts";
+                enabled.setChecked(owner.getPreferences(Context.MODE_PRIVATE).getBoolean(key,model!=VoiceModelCatalog.MELO));
                 enabled.setOnCheckedChangeListener((b,value)->{if(alive())owner.getPreferences(Context.MODE_PRIVATE).edit().putBoolean(key,value).apply();});
                 enabled.setMinHeight(dp(48));section.addView(enabled,WorkbenchStyle.row(owner));
                 Button install=button(section,R.string.voice_model_install),remove=button(section,R.string.voice_model_remove),license=button(section,R.string.voice_model_license);
@@ -90,16 +91,22 @@ final class VoiceModelsUi {
             if(!alive())return;
             for(Row row:rows){
                 boolean installed=store.ready(row.model),present=store.present(row.model);
-                boolean supported=row.model!=VoiceModelCatalog.TTS||android.os.Build.VERSION.SDK_INT>=27;
+                boolean supported=row.model==VoiceModelCatalog.WHISPER||android.os.Build.VERSION.SDK_INT>=27;
                 row.state.setText(installed?R.string.voice_model_installed:present?R.string.voice_model_reinstall:R.string.voice_model_not_installed);
                 row.install.setEnabled(!busy&&!present&&supported);row.remove.setEnabled(!busy&&present);row.license.setEnabled(!busy);row.enabled.setEnabled(!busy&&supported);
             }
             progress.setVisibility(busy?View.VISIBLE:View.GONE);stop.setVisibility(busy&&downloading?View.VISIBLE:View.GONE);stop.setEnabled(busy&&downloading);
         }
         void confirmInstall(VoiceModelCatalog.Model model){
-            if(!alive()||busy||model==VoiceModelCatalog.TTS&&android.os.Build.VERSION.SDK_INT<27)return;
+            if(!alive()||busy||model!=VoiceModelCatalog.WHISPER&&android.os.Build.VERSION.SDK_INT<27)return;
+            String message=owner.getString(R.string.voice_model_download_review,model.name,size(model.archiveBytes),size(model.requiredSpace()),model.license,model.url,model.licenseUrl);
+            if(model==VoiceModelCatalog.MELO){
+                // The download confirmation itself includes the pinned license, without a network request.
+                try{message+="\n\n"+bundledLicense(model);}
+                catch(Exception e){status.setText(R.string.voice_model_failure);return;}
+            }
             child=new AlertDialog.Builder(owner).setTitle(R.string.voice_model_install)
-                .setMessage(owner.getString(R.string.voice_model_download_review,model.name,size(model.archiveBytes),size(model.requiredSpace()),model.license,model.url,model.licenseUrl))
+                .setMessage(message)
                 .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.voice_model_download_agree,(d,w)->run(model,false)).create();
             child.show();WorkbenchWindow.fit(owner,child);
         }
@@ -109,16 +116,26 @@ final class VoiceModelsUi {
                 .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.voice_model_remove,(d,w)->run(model,true)).create();
             child.show();
         }
-        void license(VoiceModelCatalog.Model model){
-            if(!alive()||busy)return;
-            String asset=model==VoiceModelCatalog.WHISPER?"licenses/WHISPER-MODEL-MIT.txt":"licenses/SUPERTONIC-3-MODEL-LICENSE.txt";
+        String bundledLicense(VoiceModelCatalog.Model model)throws java.io.IOException{
+            String asset=model==VoiceModelCatalog.WHISPER?"licenses/WHISPER-MODEL-MIT.txt":
+                model==VoiceModelCatalog.MELO?"licenses/MELOTTS-MODEL-MIT.txt":"licenses/SUPERTONIC-3-MODEL-LICENSE.txt";
             // Small bundled text only; no network request is made when reviewing the license.
-            String contents;
             try(InputStream in=owner.getAssets().open(asset);ByteArrayOutputStream out=new ByteArrayOutputStream()){
                 byte[] buffer=new byte[2048];int n;
                 while((n=in.read(buffer))!=-1){if(out.size()+n>32768)throw new java.io.IOException("License text limit");out.write(buffer,0,n);}
-                contents=model.license+"\n"+model.licenseUrl+"\n\n"+out.toString(StandardCharsets.UTF_8.name());
-            }catch(Exception e){contents=model.license+"\n"+model.licenseUrl;}
+                byte[] data=out.toByteArray();
+                if(model==VoiceModelCatalog.MELO&&!VoiceModelCatalog.matchesMeloLicense(data))throw new java.io.IOException("MeloTTS license integrity");
+                return new String(data,StandardCharsets.UTF_8);
+            }
+        }
+        void license(VoiceModelCatalog.Model model){
+            if(!alive()||busy)return;
+            String contents;
+            try{contents=model.license+"\n"+model.licenseUrl+"\n\n"+bundledLicense(model);}
+            catch(Exception e){
+                if(model==VoiceModelCatalog.MELO){status.setText(R.string.voice_model_failure);return;}
+                contents=model.license+"\n"+model.licenseUrl;
+            }
             TextView text=new TextView(owner);text.setText(contents);text.setTextIsSelectable(true);text.setPadding(dp(16),dp(12),dp(16),dp(12));WorkbenchStyle.label(owner,text,13,false,false);
             ScrollView scroll=new ScrollView(owner);scroll.addView(text);
             child=new AlertDialog.Builder(owner).setTitle(R.string.voice_model_license).setView(scroll).setPositiveButton(R.string.close,null).create();child.show();WorkbenchWindow.fit(owner,child);

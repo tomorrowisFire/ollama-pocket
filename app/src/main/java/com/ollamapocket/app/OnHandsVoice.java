@@ -269,8 +269,11 @@ final class OnHandsVoice {
         if(text==null||text.trim().isEmpty()){cancel();return;}
         if(text.length()>160000){cancel();toast(R.string.tts_unavailable);return;}
         Locale target=targetLocale();
-        if(Build.VERSION.SDK_INT>=27&&a.getPreferences(Activity.MODE_PRIVATE).getBoolean("use_neural_tts",true)&&
-                NeuralTtsPlayer.supports(target)&&voiceModels.ready(VoiceModelCatalog.TTS)){
+        String localNeural=NeuralTtsPolicy.selectLanguage(target,Build.VERSION.SDK_INT,
+                a.getPreferences(Activity.MODE_PRIVATE).getBoolean("use_neural_tts",true),
+                a.getPreferences(Activity.MODE_PRIVATE).getBoolean("use_melo_tts",false),
+                ()->voiceModels.ready(VoiceModelCatalog.TTS),()->voiceModels.ready(VoiceModelCatalog.MELO));
+        if(!localNeural.isEmpty()){
             try{
                 stopBarge();closeNeural();clearPlayback();clearTimeout();
                 if(tts!=null)tts.stop();

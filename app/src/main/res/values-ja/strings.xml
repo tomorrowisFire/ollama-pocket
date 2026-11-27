@@ -1232,13 +1232,14 @@
     <!-- Optional embedded Whisper and neural TTS model management. -->
     <string name="voice_models_title">オフライン音声モデル</string>
     <string name="voice_models_notice">任意のモデルはこの端末で動作します。配布元・サイズ・ライセンスを確認してからインストールしてください。アプリは音声をアップロードしません。Whisperの録音は最大30秒です。「発話を終了」で早めに終了できます。認識処理後に結果が表示されます。有効な対応モデルがインストールされていない場合は、インストール済みのシステムのオフライン音声機能を使います。</string>
-    <string name="voice_models_chinese">ここではSupertonicが韓国語・英語・日本語に対応します。中国語はインストール済みのシステムのオフライン音声を使います。Whisperは中国語の簡体字・繁体字表記を保証しません。</string>
+    <string name="voice_models_chinese">Supertonicは韓国語・英語・日本語に対応します。中国語（簡体字）はMeloTTSをインストールして再生設定を有効にしてください。繁体字では利用可能なシステムのオフライン音声を使います。Whisperは簡体字・繁体字表記を保証しません。</string>
     <string name="voice_model_details">ダウンロード: %1$s\nインストール後のデータ: %2$s\n言語: %3$s\nモデルのライセンス: %4$s</string>
     <string name="voice_model_not_installed">未インストール</string>
     <string name="voice_model_installed">インストール済み · 使用前に毎回検証</string>
     <string name="voice_model_reinstall">不完全なモデル · 削除して再インストール</string>
     <string name="voice_models_use_whisper">インストール済みのWhisperで音声認識</string>
     <string name="voice_models_use_tts">インストール済みのSupertonicで音声再生</string>
+    <string name="voice_models_use_melo">インストール済みのMeloTTSで中国語（簡体字）を再生</string>
     <string name="voice_model_install">モデルをインストール</string>
     <string name="voice_model_remove">モデルを削除</string>
     <string name="voice_model_license">モデルのライセンスを読む</string>
@@ -1256,5 +1257,5 @@
     <string name="voice_model_failure">モデルの操作に失敗しました。接続と空き容量を確認してください。不完全なデータは使用できません。不完全なモデルは削除してから再試行してください。</string>
     <string name="voice_model_cancelling">ダウンロードをキャンセル中…</string>
     <string name="voice_model_removed">モデルを削除しました</string>
-    <string name="voice_model_android_requirement">SupertonicにはAndroid 8.1以降が必要です。それ以前の端末では、インストール済みのシステムのオフライン音声を使用できます。</string>
+    <string name="voice_model_android_requirement">ニューラル音声の再生にはAndroid 8.1以降が必要です。それ以前の端末ではインストール済みのシステムのオフライン音声を使えます。</string>
 </resources>

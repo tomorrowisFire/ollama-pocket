@@ -115,7 +115,7 @@ final class VoiceModelCatalog {
         new Entry("voice.bin",517168L,"67d5209b0ee8ce6c74105ffbe12fe6a7628aea3b4ba2fcb308a4a67938a93ce8"),
         new Entry("LICENSE",1070L,"0dfe0d0ba84416fe3879d9a34f4909d8d0137c78d1e95834177b0414ac096fa2"),
         new Entry("README.md",19518L,"a96c347945f7c8bc1673bea3525b1ac8d36fdde556e1e0a6a186052429caf863"));
-    // Qualified host model; not yet exposed to the settings/player until install CI passes.
+    // Exact host- and install-qualified Chinese model, optional user-enabled playback.
     static final Model MELO=fileSet("melo-zh-en-a0d5c6a2","MeloTTS Chinese FP32",
         "https://huggingface.co/csukuangfj/vits-melo-tts-zh_en/resolve/a0d5c6a264c0ef92d70d8661d8cc502d79627cd6/",
         "MIT (MyShell.ai)","https://huggingface.co/csukuangfj/vits-melo-tts-zh_en/blob/a0d5c6a264c0ef92d70d8661d8cc502d79627cd6/LICENSE","zh-Hans",
@@ -126,6 +126,16 @@ final class VoiceModelCatalog {
         new Entry("number.fst",64482L,"743f402181fcfebf76cc2f0546b71fa26476e626fbe4e460fb7b4c3a7a8bd5bd"),
         new Entry("phone.fst",88630L,"1ac2b6fa56b1442320c4de7db08353bab8963a2b57f365eebcdd3a2d3562f8d7"),
         new Entry("model.onnx",170429550L,"bf30582eb1b012250a35b1a4a80e7dfbcf8485e7bb9de0d95efbbeef0e4ad86d"));
-    static final java.util.List<Model> ALL=Collections.unmodifiableList(Arrays.asList(WHISPER,TTS));
+    static boolean matchesMeloLicense(byte[] data){
+        Entry entry=MELO.entries.get("LICENSE");
+        if(data==null||data.length!=entry.bytes)return false;
+        try{
+            byte[] hash=java.security.MessageDigest.getInstance("SHA-256").digest(data);
+            StringBuilder hex=new StringBuilder(64);
+            for(byte value:hash)hex.append(String.format(java.util.Locale.ROOT,"%02x",value&255));
+            return entry.sha256.equals(hex.toString());
+        }catch(java.security.NoSuchAlgorithmException impossible){throw new AssertionError(impossible);}
+    }
+    static final java.util.List<Model> ALL=Collections.unmodifiableList(Arrays.asList(WHISPER,TTS,MELO));
     private VoiceModelCatalog(){}
 }

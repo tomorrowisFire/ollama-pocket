@@ -9,10 +9,11 @@ public final class NeuralTtsPolicyTest {
         check(NeuralTtsPolicy.language(Locale.KOREAN).equals("ko"));
         check(NeuralTtsPolicy.language(Locale.US).equals("en"));
         check(NeuralTtsPolicy.language(Locale.JAPANESE).equals("ja"));
-        check(NeuralTtsPolicy.language(Locale.SIMPLIFIED_CHINESE).isEmpty());
+        check(NeuralTtsPolicy.language(Locale.SIMPLIFIED_CHINESE).equals("zh"));
         check(NeuralTtsPolicy.language(Locale.TRADITIONAL_CHINESE).isEmpty());
         check(NeuralTtsPolicy.language(Locale.ROOT).isEmpty());
         check(NeuralTtsPolicy.language(null).isEmpty());
+        routeTests();
         check(!NeuralTtsPolicy.validChunk(null));
         check(!NeuralTtsPolicy.validChunk(""));
         check(!NeuralTtsPolicy.validChunk(" \t\r\n"));
@@ -40,4 +41,32 @@ public final class NeuralTtsPolicyTest {
         check(NeuralTtsPolicy.drainBudgetMillis(NeuralTtsPolicy.MAX_PCM_FRAMES)==70_000);
         System.out.println("PASS: " + checks + " neural TTS boundary checks");
     }
+    private static void routeTests() {
+        Locale[] locales = {null, Locale.ROOT, Locale.KOREA, Locale.US, Locale.JAPAN,
+            Locale.SIMPLIFIED_CHINESE, Locale.TRADITIONAL_CHINESE, Locale.forLanguageTag("zh-Hans"),
+            Locale.forLanguageTag("zh-Hant"), Locale.forLanguageTag("zh-SG"), Locale.forLanguageTag("zh-HK"),
+            Locale.forLanguageTag("zh-MO"), Locale.CHINESE, Locale.forLanguageTag("zh-Latn-CN"),
+            Locale.forLanguageTag("zh-Hant-CN"), Locale.FRENCH};
+        String[] expected = {"", "", "ko", "en", "ja", "zh", "", "zh", "", "zh", "", "", "", "", "", ""};
+        for (int i = 0; i < locales.length; i++) {
+            String language = expected[i];
+            check(NeuralTtsPolicy.language(locales[i]).equals(language));
+            for (int sdk : new int[]{26, 27, 36}) {
+                for (int mask = 0; mask < 16; mask++) {
+                    boolean superEnabled = (mask & 1) != 0, meloEnabled = (mask & 2) != 0;
+                    boolean superReady = (mask & 4) != 0, meloReady = (mask & 8) != 0;
+                    int[] reads = {0, 0};
+                    String chosen = NeuralTtsPolicy.selectLanguage(locales[i], sdk, superEnabled, meloEnabled,
+                        () -> { reads[0]++; return superReady; }, () -> { reads[1]++; return meloReady; });
+                    boolean superProbe = sdk >= 27 && !language.isEmpty() && !"zh".equals(language) && superEnabled;
+                    boolean meloProbe = sdk >= 27 && "zh".equals(language) && meloEnabled;
+                    check(chosen.equals((superProbe && superReady || meloProbe && meloReady) ? language : ""));
+                    check(reads[0] == (superProbe ? 1 : 0) && reads[1] == (meloProbe ? 1 : 0));
+                }
+            }
+        }
+        check(NeuralTtsPolicy.selectLanguage(Locale.US, 27, true, true, null, () -> true).isEmpty());
+        check(NeuralTtsPolicy.selectLanguage(Locale.CHINA, 27, true, true, () -> true, null).isEmpty());
+    }
+
 }

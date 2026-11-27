@@ -1,0 +1,10 @@
+# F10A30 / P2A8 — Chinese neural speech app integration
+
+Exact accepted base d72f305e225c0a8ae5021cb5f509af552d8a01eb: Java 45955872574 attempt 2 and Native 45955872551 SUCCESS, all original ad/locale/regression/APK/QA AAB/16 KiB gates green. Actual model fixture 2931 checks PASS. The failed Java attempt 1 was HTTP 429 fetching Maven dependencies; successful retry retained the same candidate. Fixed signing skipped.
+
+Three simulated technical roles (one assistant, not independent reviewers):
+- A: expose the previously verified MeloTTS model in voice settings, separate explicit playback opt-in (default off), visible size/source/license, download confirmation including the verified license. Support simplified-Chinese locale selection; no traditional-Chinese neural support claim. Existing system offline fallback when no eligible installed/enabled model.
+- B: retain original Whisper/Supertonic settings keys and defaults, SDK >=27 neural constraint, model lease and native worker/cancellation bounds. Model family selected by locale, never substitute Supertonic for Chinese or send audio outside the device. Use exact verified pinned MIT license asset, fail closed for missing/invalid license at install review. No new permissions, production ads, signing, engines or user data changes.
+- C: pure Java route tests for 5 locales, script and region disambiguation, API threshold, disabled/missing/corrupt-model fallback, readiness supplier isolation; real model fixture and JNI regressions retained. Check bundled license bytes against pinned fixture in CI. Full Android Java, all five localized resources, native APK/QA AAB/16KiB and all regression gates required.
+
+KPI: all added route and existing regression tests pass; exact model identity and license verified; both model families remain accessible only through appropriate installed, opted-in local route. Chinese device microphone/playback/quality/latency, live downloads and real reviewer evidence remain NOT_RUN; no numerical score uplift. No release or main merge.

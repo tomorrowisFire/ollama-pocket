@@ -14,8 +14,8 @@ final class NativeNeuralTts implements AutoCloseable {
         this(directory, false);
     }
 
-    /** Host qualification of pinned MeloTTS assets only; not an installed-model selector. */
-    static NativeNeuralTts openMeloCandidate(File directory) throws IOException {
+    /** Open pinned MeloTTS assets; Android callers must hold the verified model lease. */
+    static NativeNeuralTts openMelo(File directory) throws IOException {
         return new NativeNeuralTts(directory, true);
     }
 

@@ -1232,13 +1232,14 @@
     <!-- Optional embedded Whisper and neural TTS model management. -->
     <string name="voice_models_title">离线语音模型</string>
     <string name="voice_models_notice">可选模型在本设备上运行。请先查看来源、大小和许可证再安装。应用不会上传音频。Whisper最多录制30秒，点击“结束说话”可提前结束。识别完成后显示结果。未安装已启用的兼容模型时，使用已安装的系统离线语音功能。</string>
-    <string name="voice_models_chinese">此处Supertonic支持韩语、英语和日语。中文使用已安装的系统离线语音。Whisper不保证输出简体或繁体中文。</string>
+    <string name="voice_models_chinese">Supertonic支持韩语、英语和日语。简体中文语音请安装MeloTTS并启用播放选项。繁体中文在可用时使用已安装的系统离线语音。Whisper不保证输出简体或繁体中文。</string>
     <string name="voice_model_details">下载大小：%1$s\n安装数据：%2$s\n语言：%3$s\n模型许可证：%4$s</string>
     <string name="voice_model_not_installed">未安装</string>
     <string name="voice_model_installed">已安装 · 每次使用前验证</string>
     <string name="voice_model_reinstall">模型不完整 · 请删除后重新安装</string>
     <string name="voice_models_use_whisper">使用已安装的Whisper识别语音</string>
     <string name="voice_models_use_tts">使用已安装的Supertonic播放语音</string>
+    <string name="voice_models_use_melo">使用已安装的MeloTTS播放简体中文语音</string>
     <string name="voice_model_install">安装模型</string>
     <string name="voice_model_remove">删除模型</string>
     <string name="voice_model_license">阅读模型许可证</string>
@@ -1256,5 +1257,5 @@
     <string name="voice_model_failure">模型操作失败。请检查连接和可用空间。不完整的数据无法使用，请先删除不完整的模型再重试。</string>
     <string name="voice_model_cancelling">正在取消下载…</string>
     <string name="voice_model_removed">模型已删除</string>
-    <string name="voice_model_android_requirement">Supertonic需要Android 8.1或更新版本。旧设备可使用已安装的系统离线语音。</string>
+    <string name="voice_model_android_requirement">神经网络语音播放需要Android 8.1或更新版本。旧设备可使用已安装的系统离线语音。</string>
 </resources>

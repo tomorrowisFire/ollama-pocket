@@ -2,7 +2,7 @@ package com.ollamapocket.app;
 
 import java.util.Locale;
 
-/** Bounds for the pinned Supertonic3 CPU model, independent of Android. */
+/** Bounds and offline routing for pinned neural CPU speech models, independent of Android. */
 final class NeuralTtsPolicy {
     static final int MAX_CODEPOINTS = 120;
     static final int MAX_TEXT_UTF16 = MAX_CODEPOINTS * 2;
@@ -13,7 +13,25 @@ final class NeuralTtsPolicy {
     static String language(Locale locale) {
         if (locale == null) return "";
         String language = locale.getLanguage();
+        if ("zh".equals(language)) {
+            String script = locale.getScript();
+            if ("Hans".equals(script)) return "zh";
+            if (!script.isEmpty()) return "";
+            String region = locale.getCountry();
+            return "CN".equals(region) || "SG".equals(region) ? "zh" : "";
+        }
         return language.equals("en") || language.equals("ko") || language.equals("ja") ? language : "";
+    }
+
+    // Read only the eligible family's readiness, and never probe a disabled engine.
+    static String selectLanguage(Locale locale, int sdk, boolean supertonicEnabled,
+                                 boolean meloEnabled, java.util.function.BooleanSupplier supertonicReady,
+                                 java.util.function.BooleanSupplier meloReady) {
+        if (sdk < 27) return "";
+        String language = language(locale);
+        if (language.isEmpty()) return "";
+        if ("zh".equals(language)) return meloEnabled && meloReady != null && meloReady.getAsBoolean() ? language : "";
+        return supertonicEnabled && supertonicReady != null && supertonicReady.getAsBoolean() ? language : "";
     }
 
     static boolean validRate(float rate) {

@@ -173,9 +173,11 @@ final class NeuralTtsPlayer implements AutoCloseable {
                     if (engine == null) {
                         if (nativeWork == null) nativeWork = VoiceNativeWork.acquire(() -> !current(job));
                         if (!current(job)) continue;
-                        if (model == null) model = store.acquire(VoiceModelCatalog.TTS, () -> !current(job));
+                        boolean melo = "zh".equals(language);
+                        if (model == null) model = store.acquire(melo ? VoiceModelCatalog.MELO : VoiceModelCatalog.TTS,
+                                () -> !current(job));
                         if (!current(job)) continue;
-                        engine = new NativeNeuralTts(model.directory());
+                        engine = melo ? NativeNeuralTts.openMelo(model.directory()) : new NativeNeuralTts(model.directory());
                     }
                     if (!current(job)) continue;
                     float[] samples = engine.generate(job.text, language, rate, () -> !current(job));

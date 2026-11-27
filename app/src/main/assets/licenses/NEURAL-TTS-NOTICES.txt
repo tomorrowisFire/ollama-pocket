@@ -48,4 +48,16 @@ replace the original OpenRAIL-M model license. The model is an optional download
 and is not included in this APK. Model terms, including use restrictions and
 machine-generated-output disclosure, are presented during installation.
 
+Optional weights: MeloTTS Chinese FP32 conversion, MyShell.ai (MIT).
+Original model: https://huggingface.co/myshell-ai/MeloTTS-Chinese
+Pinned converted model and seven-file manifest:
+https://huggingface.co/csukuangfj/vits-melo-tts-zh_en/tree/a0d5c6a264c0ef92d70d8661d8cc502d79627cd6
+MELOTTS-MODEL-MIT.txt is byte-identical to that revision's LICENSE
+(1053 bytes, SHA-256 88a50e5a02bbc2a5c2f084dc19da751aa97b1690f5fda76cd8005c8634d1ca70).
+The optional model data is not included in the APK. The app requires separate
+explicit download consent and an opt-in playback setting, initially disabled.
+The neural route supports simplified-Chinese locale selection only; installed
+offline system voices remain the fallback for traditional Chinese and when a
+compatible enabled model is unavailable.
+
 This app's speech is machine-generated. No personalized voice cloning is used.
