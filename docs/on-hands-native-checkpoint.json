@@ -1,6 +1,6 @@
 {
-  "stage": "F10A51-model-status-hierarchy",
-  "revision": "F10A51",
-  "priorCandidate": "0bfb83fd7a0ef838a4311c06b7f92ea6c8e1266d",
-  "reason": "Unify model card state precedence, localized status and accessibility descriptions, differentiate four status colors with palette contrast checks; exact FULL Java/host/ads/locales, APK/QA AAB/16KiB required. No production or launcher changes."
+  "stage": "F10A52-model-card-type-scale",
+  "revision": "F10A52",
+  "priorCandidate": "99deb6714b629b6ab41c468fc0daf39f9cf00bac",
+  "reason": "Shared font-aware model grid sizing and narrow-height fallback, larger metadata and two-line list labels; exact FULL Java/host/ads/locales, APK/QA AAB/16KiB required. No production or launcher changes."
 }

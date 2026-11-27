@@ -30,6 +30,12 @@ final class WorkspaceLayoutPolicy {
         double scale=Float.isFinite(textScale)?Math.max(1f,textScale):1d;
         return contentDp<2d*(40d+Math.ceil(132d*scale))+GAP_DP;
     }
+    /** Model cards reserve fixed padding plus a scalable text budget. */
+    static int modelCardMinDp(float scale){
+        double safe=Float.isFinite(scale)?Math.max(1d,Math.min(3d,scale)):1d;
+        return 20+(int)Math.ceil(140d*safe);
+    }
+    static int modelCardHeightPx(int sidePx,int minimumPx){return Math.max(sidePx,minimumPx);}
     static int readingColumnDp(int usableWidthDp){return Math.max(0,Math.min(880,usableWidthDp));}
     /** Return zero for compact layout. Input is actual usable content width, after root insets/padding. */
     static int railWidthDp(String mode,int usableWidthDp,float textScale){

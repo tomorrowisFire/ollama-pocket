@@ -55,7 +55,7 @@ assert 'Button importButton=button(getString(R.string.import_gguf),false)' in sr
 assert 'if(modelListView){' in src
 assert 'deviceRecommendedTiles()' in src
 assert 'ModelTileCatalog.forDevice(' in src
-assert 'new LinearLayout.LayoutParams(sidePx,sidePx)' in src
+assert src.count('new LinearLayout.LayoutParams(sidePx,WorkspaceLayoutPolicy.modelCardHeightPx(sidePx,minCard))')==2
 assert 'ModelVariantCatalog.columns(' in src
 assert 'HuggingFaceCatalog.searchVariantsDetailed(' in src
 assert 'ModelVariantCatalog.searchOllamaDetailed(' in src

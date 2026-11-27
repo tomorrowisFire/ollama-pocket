@@ -108,5 +108,13 @@ for block,compact in ((grid,"true"),(listing,"false")):
     assert "modelStatusBadge(cardStatus,"+compact+")" in block
     assert "card.setOnClickListener(v->activateTile(item))" in block
     assert "tileDownloadBars.put(item.id,progress)" in block
+# F10A52: one font-aware budget for grouped and ungrouped grids, no forced minimum width.
+assert "uiTextScale*Math.max(1f,getResources().getConfiguration().fontScale)" in main.split("private int modelCardMinimumPx()",1)[1].split("private LinearLayout buildModelTile(",1)[0]
+assert main.count("minCard=modelCardMinimumPx()")==2
+assert main.count("WorkspaceLayoutPolicy.modelCardHeightPx(sidePx,minCard)")==2
+assert "Math.max(dp(110),(space-gap*(columns-1))/columns)" not in main
+assert "TextView variant=text(exact,11,secondary,false)" in grid
+assert "variant.setEllipsize(TextUtils.TruncateAt.MIDDLE)" in grid
+assert "title.setMaxLines(2)" in listing and "details.setMaxLines(2)" in listing
 assert "ads.register(downloadAdSlot,AdSupport.PLACEMENT_DOWNLOAD)" in main
 print("PASS: approved launcher SHA-256, both adaptive masks, light/dark dialog palettes and native UI wiring")

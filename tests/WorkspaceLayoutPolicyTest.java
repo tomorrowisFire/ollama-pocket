@@ -38,6 +38,31 @@ public final class WorkspaceLayoutPolicyTest {
         ok(WorkspaceLayoutPolicy.compactHeader(480,1.26f),"large text header");
         ok(WorkspaceLayoutPolicy.readingColumnDp(1024)==880,"wide readable column");
         ok(WorkspaceLayoutPolicy.readingColumnDp(360)==360,"phone fills column");
+        modelCardLayout();
         System.out.println("WorkspaceLayoutPolicyTest PASS: "+n+" assertions");
+    }
+    private static void modelCardLayout(){
+        ok(WorkspaceLayoutPolicy.modelCardMinDp(1f)==160,"default card budget");
+        ok(WorkspaceLayoutPolicy.modelCardMinDp(2f)==300,"large card budget");
+        ok(WorkspaceLayoutPolicy.modelCardMinDp(Float.NaN)==160,"invalid scale");
+        ok(WorkspaceLayoutPolicy.modelCardMinDp(Float.POSITIVE_INFINITY)==160,"infinite scale");
+        ok(WorkspaceLayoutPolicy.modelCardMinDp(-1f)==160,"negative scale");
+        ok(WorkspaceLayoutPolicy.modelCardMinDp(10f)==440,"bounded scale");
+        for(int width=120;width<=1600;width+=4){
+            int last=0;
+            for(float scale:new float[]{1f,1.13f,1.26f,1.5f,2f,2.52f,3f}){
+                int minimum=WorkspaceLayoutPolicy.modelCardMinDp(scale);
+                ok(minimum>=last,"monotonic text budget");last=minimum;
+                for(int gap:new int[]{8,10}){
+                    int count=Math.max(1,(width+gap)/(minimum+gap));
+                    int side=Math.max(1,(width-gap*(count-1))/count);
+                    int height=WorkspaceLayoutPolicy.modelCardHeightPx(side,minimum);
+                    ok(side*count+gap*(count-1)<=width,"no width overflow");
+                    ok(height>=minimum&&height>=side,"safe height budget");
+                    ok(count==1||side>=minimum,"multiple columns fit");
+                    ok(side<minimum||height==side,"square when possible");
+                }
+            }
+        }
     }
 }

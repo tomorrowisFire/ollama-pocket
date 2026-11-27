@@ -2424,7 +2424,11 @@ public final class MainActivity extends Activity {
             filterDisplay(item.quantization)+(item.featured?" · "+getString(R.string.model_recommend_mark):""))+" · "+UiText.modelDescription(this,item.description);
     }
 
-    /** Compact contents fit inside an actual square at narrow phone widths. */
+    private int modelCardMinimumPx(){
+        float scale=uiTextScale*Math.max(1f,getResources().getConfiguration().fontScale);
+        return dp(WorkspaceLayoutPolicy.modelCardMinDp(scale));
+    }
+    /** Square at normal widths; reserve extra height if the viewport is narrower than the text budget. */
     private LinearLayout buildModelTile(ModelTileCatalog.Tile item,int sideDp) {
         boolean selected=item.installed&&OllamaQuantCatalog.belongsToModel(item.id,currentModel);
         WorkbenchVisualPolicy.ModelStatus cardStatus=modelCardStatus(item,selected);
@@ -2465,16 +2469,16 @@ public final class MainActivity extends Activity {
 
         ModelVariantCatalog.Variant remote=visibleVariants.get(item.id);
         String exact=remote==null?item.id:remote.label();
-        TextView variant=text(exact,10,secondary,false);
+        TextView variant=text(exact,11,secondary,false);
         variant.setGravity(Gravity.CENTER);
         variant.setSingleLine(true);
-        variant.setEllipsize(TextUtils.TruncateAt.END);
+        variant.setEllipsize(TextUtils.TruncateAt.MIDDLE);
         margin(variant,card,0,1);
 
         String suffix=item.bytes>0?installedSize(item.bytes):getString(R.string.storage_unknown);
         String provider=remote!=null?remote.source:item.installed?getString(R.string.own_device):"Ollama";
         TextView details=text(filterDisplay(item.quantization)+" · "+suffix+"\n"+
-            provider+benchmarkLabel(item.id),10,secondary,false);
+            provider+benchmarkLabel(item.id),11,secondary,false);
         details.setGravity(Gravity.CENTER);
         details.setMaxLines(2);
         details.setEllipsize(TextUtils.TruncateAt.END);
@@ -2522,7 +2526,7 @@ public final class MainActivity extends Activity {
         rowItem(line,OnHandGlyphs.tile(this,OnHandGlyphs.Kind.CHIP),0,10);
         LinearLayout body=column();
         TextView title=text(item.title,16,ink,true);
-        title.setSingleLine(true);
+        title.setMaxLines(2);
         title.setEllipsize(TextUtils.TruncateAt.END);
         margin(title,body,0,3);
         ModelVariantCatalog.Variant remote=visibleVariants.get(item.id);
@@ -2534,8 +2538,8 @@ public final class MainActivity extends Activity {
         String provider=remote!=null?remote.source:item.installed?getString(R.string.own_device):"Ollama";
         TextView details=text(filterDisplay(item.quantization)+"  ·  "+
             (item.bytes>0?installedSize(item.bytes):getString(R.string.storage_unknown))+"  ·  "+provider+
-            benchmarkLabel(item.id),11,secondary,false);
-        details.setSingleLine(true);
+            benchmarkLabel(item.id),12,secondary,false);
+        details.setMaxLines(2);
         details.setEllipsize(TextUtils.TruncateAt.END);
         margin(details,body,0,0);
         rowItem(line,body,1,8);
@@ -2776,16 +2780,16 @@ public final class MainActivity extends Activity {
                 }
             }else{
                 int space=modelRows.getWidth()-dp(10);
-                if(space<=0)space=getResources().getDisplayMetrics().widthPixels-dp(46);
-                int gap=dp(8),columns=ModelVariantCatalog.columns(space,dp(150),gap);
-                int sidePx=Math.max(dp(110),(space-gap*(columns-1))/columns);
+                if(space<=0)space=Math.max(1,getResources().getDisplayMetrics().widthPixels-dp(46));
+                int gap=dp(8),minCard=modelCardMinimumPx(),columns=ModelVariantCatalog.columns(space,minCard,gap);
+                int sidePx=Math.max(1,(space-gap*(columns-1))/columns);
                 int sideDp=Math.round(sidePx/getResources().getDisplayMetrics().density);
                 for(int pos=0;pos<items.size();pos+=columns){
                     LinearLayout groupRow=row();
                     groupRow.setGravity(Gravity.START|Gravity.TOP);
                     for(int c=0;c<columns&&pos+c<items.size();c++){
                         LinearLayout card=buildModelTile(items.get(pos+c),sideDp);
-                        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(sidePx,sidePx);
+                        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(sidePx,WorkspaceLayoutPolicy.modelCardHeightPx(sidePx,minCard));
                         if(c>0)p.leftMargin=gap;
                         groupRow.addView(card,p);
                     }
@@ -2862,7 +2866,7 @@ public final class MainActivity extends Activity {
         }
         int available=modelRows.getWidth();
         if(available<=0)available=Math.max(dp(120),getResources().getDisplayMetrics().widthPixels-dp(32));
-        int gap=dp(10),minCard=dp(uiTextScale>1.15f?178:148);
+        int gap=dp(10),minCard=modelCardMinimumPx();
         int columns=ModelVariantCatalog.columns(available,minCard,gap);
         int sidePx=Math.max(1,(available-gap*(columns-1))/columns);
         int sideDp=Math.max(1,(int)(sidePx/getResources().getDisplayMetrics().density));
@@ -2873,7 +2877,7 @@ public final class MainActivity extends Activity {
                 if(pos+col>=shown.size())break;
                 ModelTileCatalog.Tile item=shown.get(pos+col);
                 LinearLayout tile=buildModelTile(item,sideDp);
-                LinearLayout.LayoutParams tileParams=new LinearLayout.LayoutParams(sidePx,sidePx);
+                LinearLayout.LayoutParams tileParams=new LinearLayout.LayoutParams(sidePx,WorkspaceLayoutPolicy.modelCardHeightPx(sidePx,minCard));
                 if(col>0)tileParams.leftMargin=gap;
                 group.addView(tile,tileParams);
                 if(reveal&&pos+col<6){
