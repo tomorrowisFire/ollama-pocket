@@ -12,6 +12,10 @@ on:
       - '.github/workflows/build-coop-apk.yml'
       - 'settings.gradle'
       - 'scripts/build_rpc_cpu.sh'
+      - 'app/src/main/cpp/deviceprobe.c'
+      - 'app/src/main/cpp/nnapi_probe_counts.h'
+      - 'tests/nnapi_probe_counts_test.c'
+      - 'tests/NnapiProbeResultTest.java'
       - 'app/src/main/java/**'
       - 'tests/CloudRequestAdviceTest.java'
       - 'tests/CloudProviderOverviewTest.java'
@@ -206,7 +210,7 @@ jobs:
           set -euo pipefail
           apk="$(ls base_apk/*.apk | head -1)"
           mkdir -p app/src/main/jniLibs/arm64-v8a
-          for lib in libollama.so libllama-server.so libdeviceprobe.so libllama-vulkan-server.so; do
+          for lib in libollama.so libllama-server.so libllama-vulkan-server.so; do
             unzip -p "$apk" "lib/arm64-v8a/$lib" > "app/src/main/jniLibs/arm64-v8a/$lib"
             test -s "app/src/main/jniLibs/arm64-v8a/$lib"
           done
@@ -215,6 +219,14 @@ jobs:
             mkdir -p "app/src/main/$(dirname "$entry")"
             unzip -p "$apk" "$entry" > "app/src/main/$entry"
           done
+      - name: Rebuild versioned NNAPI diagnostic probe from candidate source
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="$ANDROID_SDK_ROOT/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          "$bin/aarch64-linux-android26-clang" -std=c11 -fPIC -O2 -shared -Wl,-z,max-page-size=16384 -o app/src/main/jniLibs/arm64-v8a/libdeviceprobe.so app/src/main/cpp/deviceprobe.c -ldl
+          "$bin/llvm-nm" -D --defined-only app/src/main/jniLibs/arm64-v8a/libdeviceprobe.so | grep -E ' Java_com_ollamapocket_app_ComputeProfiler_nativeNnapiDevicesV2$'
+          sha256sum app/src/main/jniLibs/arm64-v8a/libdeviceprobe.so
       - name: Build pinned Android llama.cpp CPU RPC host and worker
         shell: bash
         run: |
@@ -400,6 +412,17 @@ jobs:
           AI_POCKET_KEYSTORE_PASSWORD: ''
           ADMOB_APP_ID: ''
         run: gradle --no-daemon :app:bundleRelease -PONHAND_UNSIGNED_QA=true
+      - name: Verify versioned NNAPI probe in APK and QA AAB
+        shell: bash
+        run: |
+          set -euo pipefail
+          nm="$ANDROID_SDK_ROOT/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-nm"
+          unzip -p app/build/outputs/apk/debug/app-debug.apk lib/arm64-v8a/libdeviceprobe.so > "$RUNNER_TEMP/probe-apk.so"
+          unzip -p app/build/outputs/bundle/release/app-release.aab base/lib/arm64-v8a/libdeviceprobe.so > "$RUNNER_TEMP/probe-aab.so"
+          for probe in "$RUNNER_TEMP/probe-apk.so" "$RUNNER_TEMP/probe-aab.so"; do
+            "$nm" -D --defined-only "$probe" | grep -E ' Java_com_ollamapocket_app_ComputeProfiler_nativeNnapiDevicesV2$'
+            sha256sum "$probe"
+          done
       - name: Audit all packaged ARM64 native ELF segments and stored APK alignment
         shell: bash
         run: |

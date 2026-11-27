@@ -20,7 +20,7 @@ public final class ComputeProfiler {
         catch (UnsatisfiedLinkError | SecurityException ignored) { nativeLoaded = false; }
     }
 
-    private static native String nativeNnapiDevices();
+    private static native String nativeNnapiDevicesV2();
 
     public static final class Report {
         public final int cpuCores;
@@ -81,20 +81,15 @@ public final class ComputeProfiler {
         }
         boolean compute = pm.hasSystemFeature(PackageManager.FEATURE_VULKAN_HARDWARE_COMPUTE);
         String vk = version > 0 ? (version >>> 22) + "." + ((version >>> 12) & 0x3ff) : "버전 정보 없음";
-        String[] parts = null;
+        NnapiProbeResult probe = null;
         if (nativeLoaded && Build.VERSION.SDK_INT >= 29) {
-            try { parts = nativeNnapiDevices().split(",", -1); }
-            catch (Throwable ignored) { parts = null; }
+            try { probe = NnapiProbeResult.parse(nativeNnapiDevicesV2()); }
+            catch (LinkageError | RuntimeException ignored) { probe = null; }
         }
-        boolean nnapiQueried = parts != null && parts.length == 3;
-        int accelerator = 0, gpuDrivers = 0, cpuDrivers = 0;
-        if (nnapiQueried) {
-            try {
-                accelerator = Integer.parseInt(parts[0]);
-                gpuDrivers = Integer.parseInt(parts[1]);
-                cpuDrivers = Integer.parseInt(parts[2]);
-            } catch (NumberFormatException e) { nnapiQueried = false; }
-        }
+        boolean nnapiQueried = probe != null;
+        int accelerator = nnapiQueried ? probe.accelerators : 0;
+        int gpuDrivers = nnapiQueried ? probe.gpu : 0;
+        int cpuDrivers = nnapiQueried ? probe.cpu : 0;
         String chip = Build.VERSION.SDK_INT >= 31 && Build.SOC_MODEL != null &&
                 !Build.SOC_MODEL.isEmpty() && !"unknown".equalsIgnoreCase(Build.SOC_MODEL) ?
                 Build.SOC_MODEL : Build.HARDWARE;

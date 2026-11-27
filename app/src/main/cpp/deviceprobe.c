@@ -1,47 +1,32 @@
-/* Query visible NNAPI device *types* without guessing an NPU from the SoC name.
- * Deprecated NNAPI is queried for diagnostics only; no inference is run here.
- * Dynamic resolution makes Android 8 / older driver stacks safe. */
+/* Query visible NNAPI device types for diagnostics only, never inference.
+ * Dynamic resolution makes older Android versions safe. */
 #include <jni.h>
 #include <dlfcn.h>
-#include <stdint.h>
 #include <stdio.h>
+#include <android/NeuralNetworksTypes.h>
+#include "nnapi_probe_counts.h"
 
-typedef struct ANeuralNetworksDevice ANeuralNetworksDevice;
-typedef int (*GetDeviceCount)(uint32_t *);
-typedef int (*GetDevice)(uint32_t, ANeuralNetworksDevice **);
-typedef int (*GetDeviceType)(const ANeuralNetworksDevice *, int32_t *);
+_Static_assert((int)ANEURALNETWORKS_DEVICE_UNKNOWN == ONHAND_DEVICE_UNKNOWN, "NNAPI UNKNOWN");
+_Static_assert((int)ANEURALNETWORKS_DEVICE_OTHER == ONHAND_DEVICE_OTHER, "NNAPI OTHER");
+_Static_assert((int)ANEURALNETWORKS_DEVICE_CPU == ONHAND_DEVICE_CPU, "NNAPI CPU");
+_Static_assert((int)ANEURALNETWORKS_DEVICE_GPU == ONHAND_DEVICE_GPU, "NNAPI GPU");
+_Static_assert((int)ANEURALNETWORKS_DEVICE_ACCELERATOR == ONHAND_DEVICE_ACCELERATOR, "NNAPI ACCELERATOR");
 
+/* V2 prevents legacy probe binaries with incorrect device-type constants from
+ * silently supplying misleading diagnostic data to this app candidate. */
 JNIEXPORT jstring JNICALL
-Java_com_ollamapocket_app_ComputeProfiler_nativeNnapiDevices(JNIEnv *env, jclass clazz) {
+Java_com_ollamapocket_app_ComputeProfiler_nativeNnapiDevicesV2(JNIEnv *env, jclass clazz) {
     (void)clazz;
     void *lib = dlopen("libneuralnetworks.so", RTLD_LAZY | RTLD_LOCAL);
     if (!lib) return (*env)->NewStringUTF(env, "");
-
-    GetDeviceCount getCount = (GetDeviceCount)dlsym(lib, "ANeuralNetworks_getDeviceCount");
-    GetDevice getDevice = (GetDevice)dlsym(lib, "ANeuralNetworks_getDevice");
-    GetDeviceType getType = (GetDeviceType)dlsym(lib, "ANeuralNetworksDevice_getType");
-    if (!getCount || !getDevice || !getType) {
-        dlclose(lib);
-        return (*env)->NewStringUTF(env, "");
-    }
-
-    uint32_t count = 0;
-    if (getCount(&count) != 0 || count > 64) {
-        dlclose(lib);
-        return (*env)->NewStringUTF(env, "");
-    }
-    int accelerators = 0, gpu = 0, cpu = 0;
-    for (uint32_t i = 0; i < count; i++) {
-        ANeuralNetworksDevice *device = NULL;
-        int32_t type = -1;
-        if (getDevice(i, &device) != 0 || !device || getType(device, &type) != 0) continue;
-        // NNAPI constants: OTHER=0 CPU=1 GPU=2 ACCELERATOR=3.
-        if (type == 3) accelerators++;
-        else if (type == 2) gpu++;
-        else if (type == 1) cpu++;
-    }
+    GetDeviceCount get_count = (GetDeviceCount)dlsym(lib, "ANeuralNetworks_getDeviceCount");
+    GetDevice get_device = (GetDevice)dlsym(lib, "ANeuralNetworks_getDevice");
+    GetDeviceType get_type = (GetDeviceType)dlsym(lib, "ANeuralNetworksDevice_getType");
+    OnHandDeviceCounts counts;
+    bool ok = onhand_nnapi_counts(get_count, get_device, get_type, &counts);
     dlclose(lib);
+    if (!ok) return (*env)->NewStringUTF(env, "");
     char result[48];
-    snprintf(result, sizeof(result), "%d,%d,%d", accelerators, gpu, cpu);
+    snprintf(result, sizeof(result), "%u,%u,%u", counts.accelerators, counts.gpu, counts.cpu);
     return (*env)->NewStringUTF(env, result);
 }
