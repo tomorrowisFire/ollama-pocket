@@ -26,5 +26,8 @@ cd "$voice_repo_root"
 voice_classpath="$voice_dependency_dir/commons-compress-1.28.0.jar:$voice_dependency_dir/commons-io-2.20.0.jar:$voice_dependency_dir/commons-lang3-3.18.0.jar"
 javac --release 17 -cp "$voice_classpath" -d "$voice_test_dir" \
   app/src/main/java/com/ollamapocket/app/VoiceModelCatalog.java \
-  app/src/main/java/com/ollamapocket/app/VoiceModelStore.java tests/VoiceModelStoreTest.java
+  app/src/main/java/com/ollamapocket/app/VoiceModelStore.java \
+  app/src/main/java/com/ollamapocket/app/VoiceModelTree.java \
+  tests/VoiceModelStoreTest.java tests/VoiceModelTreeTest.java
+java -cp "$voice_test_dir:$voice_classpath" com.ollamapocket.app.VoiceModelTreeTest
 java -cp "$voice_test_dir:$voice_classpath" com.ollamapocket.app.VoiceModelStoreTest "$@"

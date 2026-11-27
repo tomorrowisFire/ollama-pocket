@@ -157,6 +157,31 @@ public final class VoiceModelStoreTest {
             fails(VoiceModelStore.BusyException.class,()->store.remove(model),"Nested lease not protected");
         }
         Path words=root.toPath().resolve(model.id).resolve("dict/sub/words.txt");
+        Path injected=words.getParent().resolve("unknown.txt");
+        Files.writeString(injected,"unlisted");
+        ok(!store.ready(model),"Unexpected installed dictionary file ready");
+        fails(IOException.class,()->store.acquire(model,()->false),"Unexpected installed dictionary file leased");
+        Files.delete(injected);
+        Files.createDirectory(injected);
+        ok(!store.ready(model),"Unexpected installed directory ready");
+        fails(IOException.class,()->store.acquire(model,()->false),"Unexpected installed directory leased");
+        Files.delete(injected);
+        Files.createSymbolicLink(injected,words);
+        ok(!store.ready(model),"Unexpected installed symlink ready");
+        fails(IOException.class,()->store.acquire(model,()->false),"Unexpected installed symlink leased");
+        Files.delete(injected);
+        Files.delete(words);
+        ok(!store.ready(model),"Missing installed dictionary file ready");
+        fails(IOException.class,()->store.acquire(model,()->false),"Missing installed dictionary file leased");
+        Files.createDirectory(words);
+        ok(!store.ready(model),"Declared file replaced by directory ready");
+        fails(IOException.class,()->store.acquire(model,()->false),"Declared file replaced by directory leased");
+        Files.delete(words);
+        Files.write(words,SMALL);
+        ok(store.ready(model),"Recovered exact tree not ready");
+        try(VoiceModelStore.Lease lease=store.acquire(model,()->false)){
+            ok(Arrays.equals(SMALL,Files.readAllBytes(lease.file("dict/sub/words.txt").toPath())),"Recovered dictionary bytes");
+        }
         byte[] changed=SMALL.clone();changed[0]^=1;Files.write(words,changed);
         fails(IOException.class,()->store.acquire(model,()->false),"Nested file corruption accepted");
         store.remove(model);ok(!store.present(model),"Nested removal failed");noStage(root);

@@ -59,7 +59,7 @@ final class VoiceModelStore {
         return file;
     }
     private static boolean metadata(File directory,VoiceModelCatalog.Model model)throws IOException{
-        if(!directory.isDirectory())return false;
+        if(!VoiceModelTree.matches(directory.toPath(),model.entries.keySet(),model.directories,MARKER))return false;
         byte[] expected=marker(model);File stamp=checkedFile(directory,MARKER);
         if(stamp.length()!=expected.length)return false;
         byte[] actual=new byte[expected.length];
@@ -146,6 +146,7 @@ final class VoiceModelStore {
             download.check();
             for(VoiceModelCatalog.Entry entry:model.entries.values())verify(checkedFile(staging,entry.name),entry.bytes,entry.sha256,download::cancelled);
             try(FileOutputStream stamp=new FileOutputStream(new File(staging,MARKER))){stamp.write(marker(model));stamp.getFD().sync();}
+            if(!metadata(staging,model))throw new IOException("Unexpected staged voice model tree");
             synchronized(state){
                 download.check();
                 if(destination.exists())throw new IOException("Voice model destination changed");
