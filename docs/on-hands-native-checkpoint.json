@@ -1,0 +1,6 @@
+{
+  "stage": "P3-P8-coordinated-integration-II",
+  "revision": "F10A39",
+  "priorCandidate": "48baf0f01fdf2de4bd270fca187cdae6fa45cfcb",
+  "reason": "Actual authenticated local VLM native process invocation and reviewed branch/profile CPU execution; require exact full Native APK, QA AAB and 16 KiB checkpoint"
+}

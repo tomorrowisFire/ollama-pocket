@@ -25,12 +25,14 @@ final class AutomationUi {
     private LocalWorkflow workflow;
     private LocalWorkflowPlanner planner;
     private LocalConferenceRunner conference;
+    private volatile VisionModelStore visionStore;
+    private volatile VisionLocalServer visionServer;
     private ProjectWorkspaceUi reportWorkspace;
     private volatile Thread worker;
     private volatile boolean stopped;
     private int epoch;
     AutomationUi(Activity a){owner=a;dictation=new WorkspaceDictation(a);reading=new WorkspaceReadAloud(a);viewer=new WorkspaceTextViewer(a);}
-    static boolean busy(){return BUSY.get();}
+    static boolean busy(){return BUSY.get()||VisionLocalServer.busy();}
     private String s(int id){return owner.getString(id);}
     private int dp(int n){return Math.round(n*owner.getResources().getDisplayMetrics().density);}
     private void toast(int id){Toast.makeText(owner,id,Toast.LENGTH_SHORT).show();}
@@ -66,6 +68,12 @@ final class AutomationUi {
     void pause(){
         viewer.cancel();reading.cancel();dictation.cancel();
         stopped=true;epoch++;
+        VisionModelStore visualStore=visionStore;visionStore=null;
+        if(visualStore!=null)visualStore.cancelInstall();
+        VisionLocalServer visualServer=visionServer;
+        if(visualServer!=null){
+            Thread cancel=new Thread(visualServer::cancel,"onhand-vision-cancel");cancel.setDaemon(true);cancel.start();
+        }
         if(reportWorkspace!=null){reportWorkspace.pause();reportWorkspace=null;}
         if(mcp!=null){mcp.cancel();mcp=null;}
         if(workflow!=null)workflow.pause();
@@ -94,10 +102,12 @@ final class AutomationUi {
         final int token=epoch;
         AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.auto_title)
             .setItems(new String[]{s(R.string.auto_mcp),s(R.string.auto_workflow),s(R.string.conference_title),
-                s(R.string.integration_chart),s(R.string.integration_agent)},(x,w)->{
+                s(R.string.integration_chart),s(R.string.integration_agent),s(R.string.integration_branch),
+                s(R.string.integration_vision)},(x,w)->{
                 if(!valid(token))return;
                 if(w==0)showMcp();else if(w==1)showWorkflow(model);else if(w==2)showConference(model);
-                else if(w==3)showChart();else if(w==4)showAgentProfile();
+                else if(w==3)showChart();else if(w==4)showAgentProfile(model);else if(w==5)showBranch(model);
+                else if(w==6)showVision(null);
             }).setNegativeButton(R.string.cancel,null).create();
         confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;});d.show();secure(d);
     }
@@ -387,6 +397,150 @@ final class AutomationUi {
             },()->client.decline(review));
         });
     }
+    void openVision(android.net.Uri uri){
+        if(busy()){toast(R.string.busy);return;}
+        stopped=false;epoch++;showVision(uri);
+    }
+    private boolean visualSafe(int token){
+        if(!valid(token)||InferenceSafety.blocked(owner)||!"off".equals(CoopSession.get(owner).role()))return false;
+        try{
+            android.app.ActivityManager manager=(android.app.ActivityManager)owner.getSystemService(android.content.Context.ACTIVITY_SERVICE);
+            if(manager==null)return false;
+            android.app.ActivityManager.MemoryInfo info=new android.app.ActivityManager.MemoryInfo();manager.getMemoryInfo(info);
+            return !info.lowMemory&&info.availMem>=768L*1024*1024;
+        }catch(RuntimeException unavailable){return false;}
+    }
+    private static final class VisualInput {
+        final VisionImagePolicy.Prepared image;final android.graphics.Bitmap preview;
+        VisualInput(VisionImagePolicy.Prepared image,android.graphics.Bitmap preview){this.image=image;this.preview=preview;}
+    }
+    private VisualInput prepareVisual(android.net.Uri uri,int token)throws Exception{
+        if(uri==null)return null;
+        if(!"content".equals(uri.getScheme()))throw new java.io.IOException("Invalid visual URI");
+        try(java.io.InputStream input=owner.getContentResolver().openInputStream(uri)){
+            VisionImagePolicy.Prepared image=VisionImageInput.prepare(input,()->!valid(token));
+            byte[] bytes=image.copyBytes();
+            try{
+                android.graphics.Bitmap bitmap=android.graphics.BitmapFactory.decodeByteArray(bytes,0,bytes.length);
+                if(bitmap==null||bitmap.getWidth()!=image.width||bitmap.getHeight()!=image.height)
+                    throw new java.io.IOException("Visual preview unavailable");
+                return new VisualInput(image,bitmap);
+            }catch(OutOfMemoryError e){throw new java.io.IOException("Visual preview allocation",e);}
+            finally{java.util.Arrays.fill(bytes,(byte)0);}
+        }
+    }
+    private void showVision(android.net.Uri uri){
+        LinearLayout l=column();label(l,s(R.string.integration_vision_notice));
+        label(l,"SmolVLM 256M Q8_0 · "+(VisionModelProfile.TOTAL_BYTES/1048576)+" MiB · "+VisionModelProfile.LICENSE);
+        TextView status=output(l);
+        java.io.File binary=new java.io.File(owner.getApplicationInfo().nativeLibraryDir,"libllama-distributed-server.so");
+        if(android.os.Build.VERSION.SDK_INT<28||!binary.isFile()){
+            status.setText(R.string.integration_vision_unsupported);show(s(R.string.integration_vision),l);return;
+        }
+        final VisionModelStore[] models={null};final VisualInput[] prepared={null};
+        final int token=epoch;
+        android.widget.ImageView preview=new android.widget.ImageView(owner);
+        preview.setAdjustViewBounds(true);preview.setMaxHeight(dp(280));preview.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        preview.setContentDescription(s(R.string.integration_vision_preview));preview.setSaveEnabled(false);
+        l.addView(preview,new LinearLayout.LayoutParams(-1,-2));
+        EditText prompt=field(l,R.string.integration_agent_prompt,"",VisionChatRequest.MAX_PROMPT_CHARS,true);
+        Runnable refresh=()->{
+            if(models[0]!=null)status.setText(models[0].ready()?R.string.integration_vision_installed:R.string.integration_vision_missing);
+        };
+        button(l,R.string.integration_vision_install,()->{
+            if(busy()||models[0]==null||models[0].present())return;
+            VisionModelStore store=models[0];
+            confirm(s(R.string.integration_vision_install),s(R.string.integration_vision_download)+"\n\n"+
+                    VisionModelProfile.TOTAL_BYTES+" bytes\n"+VisionModelProfile.LICENSE+"\n"+VisionModelProfile.SOURCE,()->{
+                if(busy()||models[0]!=store)return;
+                status.setText(R.string.thinking);
+                work(()->{store.install(true,()->!valid(token),null);return true;},ignored->refresh.run(),
+                        ()->status.setText(R.string.integration_execution_failed));
+            });
+        });
+        button(l,R.string.integration_vision_remove,()->{
+            if(busy()||models[0]==null||!models[0].present())return;
+            VisionModelStore store=models[0];
+            confirm(s(R.string.integration_vision_remove),"SmolVLM 256M Q8_0",()->{
+                if(busy()||models[0]!=store)return;
+                work(()->{store.remove();return true;},ignored->refresh.run(),()->status.setText(R.string.integration_execution_failed));
+            });
+        });
+        button(l,R.string.integration_vision_pick,()->{
+            if(!busy()&&owner instanceof MainActivity)((MainActivity)owner).pickVisionForAutomation();
+        });
+        button(l,R.string.integration_vision_analyze,()->{
+            if(busy()||models[0]==null||prepared[0]==null||!models[0].ready()){
+                toast(R.string.integration_vision_missing);return;
+            }
+            final VisualInput selected=prepared[0];final VisionModelStore store=models[0];
+            final String question=prompt.getText().toString();
+            try{ReviewedLocalPolicy.text(question,VisionChatRequest.MAX_PROMPT_CHARS);}catch(RuntimeException bad){toast(R.string.integration_execution_failed);return;}
+            if(!visualSafe(token)){toast(R.string.integration_execution_failed);return;}
+            prompt.setEnabled(false);status.setText(R.string.integration_vision_checking);
+            work(()->{
+                java.util.function.BooleanSupplier stop=()->!visualSafe(token);
+                VisionModelStore.Lease files=store.acquire(stop);
+                VisionLocalServer server=null;
+                try{
+                    if(stop.getAsBoolean())throw new java.io.InterruptedIOException();
+                    GpuRunner.stop();DistributedRunner.stop();
+                    if(OllamaForegroundService.isRunning())OllamaHttp.releaseResidentModels(stop);
+                    if(stop.getAsBoolean())throw new java.io.InterruptedIOException();
+                    java.util.Map<String,String> environment=new java.util.HashMap<>();
+                    environment.put("LD_LIBRARY_PATH",owner.getApplicationInfo().nativeLibraryDir);
+                    environment.put("HOME",owner.getFilesDir().getAbsolutePath());
+                    environment.put("TMPDIR",owner.getCacheDir().getAbsolutePath());
+                    server=VisionLocalServer.start(binary,files.weights(),files.projector(),owner.getFilesDir(),environment,stop);
+                    visionServer=server;
+                    try(VisionTurnReview gate=new VisionTurnReview()){
+                        VisionTurnReview.Backend backend=server.backend();
+                        VisionTurnReview.Review review=gate.prepare(backend,selected.image,question,VisionChatRequest.MAX_TOKENS,stop);
+                        java.util.concurrent.CountDownLatch decision=new java.util.concurrent.CountDownLatch(1);
+                        java.util.concurrent.atomic.AtomicBoolean accepted=new java.util.concurrent.atomic.AtomicBoolean();
+                        owner.runOnUiThread(()->{
+                            if(!valid(token)){decision.countDown();return;}
+                            status.setText(R.string.integration_vision_ready);
+                            confirm(s(R.string.integration_vision_analyze),s(R.string.integration_vision_send)+"\n\n"+
+                                review.width+" × "+review.height+"\nSHA-256: "+review.imageSha256+"\n\n"+question,()->{
+                                    accepted.set(valid(token)&&gate.approve(review));decision.countDown();
+                                },()->{gate.decline(review);decision.countDown();});
+                        });
+                        long until=System.nanoTime()+VisionTurnReview.TTL_NANOS;
+                        while(decision.getCount()>0&&System.nanoTime()-until<0&&!stop.getAsBoolean())
+                            decision.await(200,java.util.concurrent.TimeUnit.MILLISECONDS);
+                        if(!accepted.get()||stop.getAsBoolean())return null;
+                        try(VisionTurnReview.Lease request=gate.begin(review,backend,selected.image,question,VisionChatRequest.MAX_TOKENS,stop)){
+                            if(request==null)throw new java.io.IOException("Visual review expired");
+                            return server.infer(request,VisionChatRequest.MAX_TOKENS,stop);
+                        }
+                    }
+                }finally{
+                    try{if(server!=null)server.close();}
+                    finally{
+                        visionServer=null;
+                        // Never release verified model files while the native process may still own them.
+                        if(!VisionLocalServer.busy())files.close();
+                    }
+                }
+            },answer->{
+                if(confirmation!=null)confirmation.dismiss();prompt.setEnabled(true);
+                if(answer==null)refresh.run();
+                else status.setText((answer.truncated?s(R.string.integration_partial)+"\n":"")+answer.text);
+            },()->{if(confirmation!=null)confirmation.dismiss();prompt.setEnabled(true);status.setText(R.string.integration_execution_failed);});
+        });
+        show(s(R.string.integration_vision),l);
+        status.setText(R.string.thinking);
+        work(()->{
+            VisionModelStore store=new VisionModelStore(owner.getNoBackupFilesDir().getCanonicalFile());
+            visionStore=store;
+            return new java.util.AbstractMap.SimpleImmutableEntry<>(store,prepareVisual(uri,token));
+        },pair->{
+            models[0]=pair.getKey();prepared[0]=pair.getValue();
+            if(prepared[0]!=null)preview.setImageBitmap(prepared[0].preview);
+            refresh.run();
+        },()->status.setText(R.string.integration_execution_failed));
+    }
     private void showChart(){
         LinearLayout l=column();label(l,s(R.string.integration_chart_notice));
         EditText raw=field(l,R.string.integration_chart_json,
@@ -405,7 +559,7 @@ final class AutomationUi {
         });
         l.addView(preview,WorkbenchStyle.row(owner));show(s(R.string.integration_chart),l);
     }
-    private void showAgentProfile(){
+    private void showAgentProfile(String model){
         LinearLayout l=column();label(l,s(R.string.integration_agent_notice));
         EditText raw=field(l,R.string.integration_agent_json,"",ToolJsonPolicy.MAX_CHARS,true);
         TextView status=output(l);
@@ -463,7 +617,168 @@ final class AutomationUi {
                 },()->{loaded[0]=false;raw.setEnabled(true);status.setText(R.string.integration_agent_conflict);});
             });
         });
+        button(l,R.string.integration_use_model,()->{
+            if(busy())return;
+            final String original=raw.getText().toString();
+            final int token=epoch;
+            confirm(s(R.string.integration_use_model),s(R.string.integration_model_notice)+"\n\n"+model,()->{
+                if(busy()||!original.equals(raw.getText().toString()))return;
+                raw.setEnabled(false);status.setText(R.string.thinking);
+                work(()->{
+                    String digest=new ReviewedCpuTask(owner,()->!valid(token)).installed(model);
+                    return new AgentProfile("Local agent",model,digest,"Answer the user concisely.",700,256);
+                },profile->{raw.setEnabled(true);raw.setText(profile.encode());status.setText(profile.modelSha256);},
+                    ()->{raw.setEnabled(true);status.setText(R.string.integration_execution_failed);});
+            });
+        });
+        EditText prompt=field(l,R.string.integration_agent_prompt,"",4096,true);
+        button(l,R.string.integration_agent_execute,()->{
+            if(busy()||!loaded[0]||saved[0]==null)return;
+            final String original=raw.getText().toString(),question=prompt.getText().toString();
+            final AgentProfile reviewed;
+            try{
+                reviewed=AgentProfile.decode(original);ReviewedLocalPolicy.text(question,4096);
+                if(!reviewed.reviewDigest().equals(saved[0].reviewDigest()))throw new IllegalArgumentException();
+            }catch(Exception invalid){toast(R.string.integration_agent_invalid);return;}
+            final int token=epoch;
+            confirm(s(R.string.integration_agent_execute),s(R.string.integration_model_notice)+"\n\n"+reviewed.encode()+"\n\n"+question,()->{
+                if(busy()||!original.equals(raw.getText().toString())||!question.equals(prompt.getText().toString()))return;
+                raw.setEnabled(false);prompt.setEnabled(false);status.setText(R.string.thinking);
+                work(()->{
+                    AgentProfile actual=new AgentProfileStore(owner.getNoBackupFilesDir().getCanonicalFile()).read();
+                    if(actual==null||!actual.reviewDigest().equals(reviewed.reviewDigest()))throw new java.io.IOException("Profile changed");
+                    return new ReviewedCpuTask(owner,()->!valid(token)).generate(actual.model,actual.modelSha256,
+                            actual.instruction,question,actual.maxTokens,actual.temperatureMilli);
+                },answer->{raw.setEnabled(true);prompt.setEnabled(true);status.setText(
+                        (answer.truncated?s(R.string.integration_partial)+"\n":"")+answer.text);},
+                    ()->{raw.setEnabled(true);prompt.setEnabled(true);status.setText(R.string.integration_execution_failed);});
+            });
+        });
         show(s(R.string.integration_agent),l);load.run();
+    }
+    private String branchSummary(BranchWorkflowRun run,BranchWorkflowRun.Progress progress){
+        WorkflowAttemptStore.Ledger value=progress.snapshot.value;
+        StringBuilder text=new StringBuilder(s(R.string.integration_run_id)+": "+run.id+"\n"+
+                s(R.string.model_label)+": "+run.definition.model+"\n"+value.cursor.status.name()+"\n");
+        if(value.pending())text.append(s(R.string.integration_pending)).append('\n');
+        if(value.cursor.nextNode!=null)text.append(s(R.string.integration_next_node)).append(": ").append(value.cursor.nextNode).append('\n');
+        for(WorkflowAttemptStore.Attempt a:value.attempts)
+            text.append(a.node).append(" · ").append(a.outcome.name()).append('\n');
+        if(!progress.lastAnswer.isEmpty())text.append("\n").append(progress.lastAnswer);
+        return text.toString();
+    }
+    private void showBranch(String model){
+        LinearLayout l=column();label(l,s(R.string.integration_branch_notice));
+        EditText spec=field(l,R.string.integration_branch_json,"",ToolJsonPolicy.MAX_CHARS,true);
+        EditText id=field(l,R.string.integration_run_id,"",64,false);
+        TextView status=output(l);status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        final BranchWorkflowRun[] selected={null};
+        final BranchWorkflowRun.Progress[] snapshot={null};
+        final int token=epoch;
+        Consumer<Boolean> editable=enabled->{spec.setEnabled(enabled);id.setEnabled(enabled);};
+        java.util.function.BiConsumer<BranchWorkflowRun,BranchWorkflowRun.Progress> display=(run,progress)->{
+            selected[0]=run;snapshot[0]=progress;id.setText(run.id);spec.setText(run.definition.raw);
+            status.setText(branchSummary(run,progress));editable.accept(true);
+        };
+        Consumer<BranchWorkflowRun> execute=run->{
+            BranchWorkflowRun.Progress reviewed=snapshot[0];
+            if(reviewed==null||selected[0]!=run)return;
+            if(reviewed.snapshot.value.pending()||reviewed.snapshot.value.cursor.status!=WorkflowBranchPlan.Status.READY){
+                status.setText(branchSummary(run,reviewed));return;
+            }
+            editable.accept(false);status.setText(R.string.thinking);
+            work(()->run.execute(reviewed.snapshot,task->{
+                ReviewedCpuTask cpu=new ReviewedCpuTask(owner,()->!valid(token)||System.currentTimeMillis()<run.started||
+                        System.currentTimeMillis()-run.started>=WorkflowAttemptStore.WINDOW_MS);
+                return cpu.generate(run.definition.model,run.definition.digest,null,task.request(),512,0);
+            },()->!valid(token),progress->owner.runOnUiThread(()->{
+                if(valid(token))status.setText(branchSummary(run,progress));
+            })),result->display.accept(run,result),()->{
+                snapshot[0]=null;editable.accept(true);status.setText(R.string.integration_execution_failed);
+            });
+        };
+        button(l,R.string.integration_use_model,()->{
+            if(busy())return;final String original=spec.getText().toString();
+            confirm(s(R.string.integration_use_model),s(R.string.integration_model_notice)+"\n\n"+model,()->{
+                if(busy()||!original.equals(spec.getText().toString()))return;
+                editable.accept(false);status.setText(R.string.thinking);
+                work(()->BranchWorkflowRun.example(model,new ReviewedCpuTask(owner,()->!valid(token)).installed(model)),
+                    example->{spec.setText(example);selected[0]=null;snapshot[0]=null;id.setText("");editable.accept(true);status.setText("");},
+                    ()->{editable.accept(true);status.setText(R.string.integration_execution_failed);});
+            });
+        });
+        button(l,R.string.integration_branch_new,()->{
+            if(busy())return;final String raw=spec.getText().toString();final BranchWorkflowRun.Definition reviewed;
+            try{reviewed=BranchWorkflowRun.parse(raw);}catch(Exception invalid){toast(R.string.auto_invalid_plan);return;}
+            confirm(s(R.string.integration_branch_new),s(R.string.integration_branch_notice)+"\n\n"+raw,()->{
+                if(busy()||!raw.equals(spec.getText().toString()))return;
+                editable.accept(false);status.setText(R.string.thinking);
+                work(()->{
+                    String actual=new ReviewedCpuTask(owner,()->!valid(token)).installed(reviewed.model);
+                    if(!reviewed.digest.equals(actual))throw new java.io.IOException("Local model changed");
+                    return BranchWorkflowRun.create(owner.getNoBackupFilesDir().getCanonicalFile(),reviewed,System.currentTimeMillis());
+                },run->{
+                    selected[0]=run;id.setText(run.id);status.setText(run.id);
+                    // Disk read on a worker, then execute the exact created plan.
+                    work(()->new BranchWorkflowRun.Progress(run.ledger.read(),""),initial->{
+                        display.accept(run,initial);execute.accept(run);
+                    },()->{snapshot[0]=null;editable.accept(true);status.setText(R.string.integration_execution_failed);});
+                },()->{editable.accept(true);status.setText(R.string.integration_execution_failed);});
+            });
+        });
+        button(l,R.string.integration_branch_list,()->{
+            if(busy())return;work(()->BranchWorkflowRun.list(owner.getNoBackupFilesDir().getCanonicalFile()),ids->{
+                if(ids.isEmpty()){status.setText(R.string.integration_agent_empty);return;}
+                String[] rows=ids.toArray(new String[0]);
+                if(confirmation!=null)confirmation.dismiss();
+                AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.integration_branch_list).setItems(rows,(x,w)->{
+                    if(valid(token)&&!busy())id.setText(rows[w]);
+                }).setNegativeButton(R.string.cancel,null).create();
+                confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;});d.show();secure(d);
+            },()->status.setText(R.string.integration_execution_failed));
+        });
+        button(l,R.string.integration_branch_load,()->{
+            if(busy())return;final String runId=id.getText().toString().trim();
+            editable.accept(false);status.setText(R.string.thinking);
+            work(()->{
+                BranchWorkflowRun run=BranchWorkflowRun.open(owner.getNoBackupFilesDir().getCanonicalFile(),runId);
+                return new java.util.AbstractMap.SimpleImmutableEntry<>(run,new BranchWorkflowRun.Progress(run.ledger.read(),""));
+            },pair->display.accept(pair.getKey(),pair.getValue()),()->{
+                selected[0]=null;snapshot[0]=null;editable.accept(true);status.setText(R.string.integration_execution_failed);
+            });
+        });
+        button(l,R.string.auto_resume,()->{
+            if(busy()||selected[0]==null||snapshot[0]==null)return;
+            BranchWorkflowRun run=selected[0];BranchWorkflowRun.Progress reviewed=snapshot[0];
+            if(!run.id.equals(id.getText().toString().trim())||!run.definition.raw.equals(spec.getText().toString())||
+                    reviewed.snapshot.value.pending()||reviewed.snapshot.value.cursor.status!=WorkflowBranchPlan.Status.READY){
+                toast(R.string.auto_resume_changed);return;
+            }
+            confirm(s(R.string.auto_resume),s(R.string.integration_branch_notice)+"\n\n"+branchSummary(run,reviewed)+"\n\n"+run.definition.raw,()->{
+                if(!busy()&&selected[0]==run&&snapshot[0]==reviewed&&run.id.equals(id.getText().toString().trim())&&
+                        run.definition.raw.equals(spec.getText().toString()))execute.accept(run);
+            });
+        });
+        button(l,R.string.auto_cancel_run,()->{
+            if(busy()||selected[0]==null||snapshot[0]==null||!snapshot[0].snapshot.value.pending())return;
+            BranchWorkflowRun run=selected[0];BranchWorkflowRun.Progress reviewed=snapshot[0];
+            confirm(s(R.string.auto_cancel_run),s(R.string.integration_pending)+"\n\n"+branchSummary(run,reviewed),()->{
+                if(busy()||selected[0]!=run||snapshot[0]!=reviewed)return;
+                work(()->run.abandon(reviewed.snapshot,System.currentTimeMillis()),result->display.accept(run,result),
+                    ()->status.setText(R.string.integration_execution_failed));
+            });
+        });
+        button(l,R.string.integration_branch_delete,()->{
+            if(busy()||selected[0]==null||snapshot[0]==null)return;
+            BranchWorkflowRun run=selected[0];BranchWorkflowRun.Progress reviewed=snapshot[0];
+            confirm(s(R.string.integration_branch_delete),branchSummary(run,reviewed),()->{
+                if(busy()||selected[0]!=run||snapshot[0]!=reviewed)return;
+                work(()->{BranchWorkflowRun.delete(owner.getNoBackupFilesDir().getCanonicalFile(),run.id,reviewed.snapshot.revision);return true;},
+                    ignored->{selected[0]=null;snapshot[0]=null;if(run.id.equals(id.getText().toString().trim()))id.setText("");status.setText("");},
+                    ()->status.setText(R.string.integration_execution_failed));
+            });
+        });
+        show(s(R.string.integration_branch),l);
     }
     private void showWorkflow(String model){
         LinearLayout l=column();label(l,s(R.string.auto_workflow_notice));label(l,s(R.string.auto_verifier_help));label(l,s(R.string.model_label)+": "+model);

@@ -1,0 +1,5 @@
+# F10A38 acceptance — coordinated integration I
+
+Exact app 48baf0f01fdf2de4bd270fca187cdae6fa45cfcb. [Java and host CI 45976787157](https://github.com/tomorrowisFire/ollama-pocket/actions/runs/45976787157) SUCCESS. Compile job 140430392928 passed 47 integrated manual MCP mock transport checks, 20 chart fence/fallback checks and 15 private agent profile storage/conflict checks, all preceding independent source/voice/vision, ad, five-locale, Android compile and typed AAR regressions. Voice host 140430392730 SUCCESS; VLM host 140430392496 SUCCESS, real pinned pair install/lease/corruption rejection/remove and red/blue actual inference.
+
+[Scope and relay 45976787135](https://github.com/tomorrowisFire/ollama-pocket/actions/runs/45976787135) SUCCESS. Scope 140430392507 explicitly DEFERRED_TO_STAGE_CHECKPOINT; relay 140430392158 SUCCESS; cooperative-apk 140430570656 SKIPPED. APK/AAB/16 KiB on this candidate NOT_RUN, not PASS. Accept P4/P6/P7/P8 app-path source integration scope only. Actual touch/rendering/LAN/agent execution and device tests remain separately gated. No score uplift.

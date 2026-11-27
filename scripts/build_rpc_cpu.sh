@@ -13,6 +13,8 @@ mkdir -p "$ROOT/cooperative-src" "$DEST"
 if [[ ! -d "$SRC/.git" ]]; then
   git clone --depth 1 --branch "$LLAMA_TAG" https://github.com/ggml-org/llama.cpp.git "$SRC"
 fi
+# Verify the exact source identity used by the host VLM qualification and Android CPU server.
+test "$(git -C "$SRC" rev-parse HEAD)" = "7aca0d2ea8d92b56911233b822db01f9fbb1ae50"
 # One pinned tag is used for host llama-server and all worker ggml-rpc-server copies.
 cmake -S "$SRC" -B "$BUILD" -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" \

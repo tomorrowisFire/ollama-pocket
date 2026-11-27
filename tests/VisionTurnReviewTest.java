@@ -54,7 +54,9 @@ public final class VisionTurnReviewTest {
             r=approved(g,b,i);VisionTurnReview.Lease l=g.begin(r,b,i,"한국어 😀",16,()->false);
             ok(l!=null&&g.inFlight()&&g.begin(r,b,i,"한국어 😀",16,()->false)==null);
             reject(IllegalStateException.class,()->g.prepare(b,i,"next",16,()->false));
-            byte[] actual=l.takePayload(()->false);
+            reject(IOException.class,()->l.takePayload(changed.generation,16,()->false));
+            reject(IOException.class,()->l.takePayload(b.generation,17,()->false));
+            byte[] actual=l.takePayload(b.generation,16,()->false);
             ok(Arrays.equals(actual,VisionChatRequest.build(i,"한국어 😀",16,()->false)));
             Arrays.fill(actual,(byte)0);
             reject(IOException.class,()->l.takePayload(()->false));l.close();l.close();ok(!g.inFlight());

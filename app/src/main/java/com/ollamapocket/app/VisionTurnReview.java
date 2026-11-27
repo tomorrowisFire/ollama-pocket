@@ -39,8 +39,18 @@ final class VisionTurnReview implements AutoCloseable {
     }
     final class Lease implements AutoCloseable {
         private byte[] payload;
+        private final String generation;
+        private final int tokens;
         private boolean revoked;
-        private Lease(byte[] payload){this.payload=payload;}
+        private Lease(byte[] payload,String generation,int tokens){
+            this.payload=payload;this.generation=generation;this.tokens=tokens;
+        }
+        byte[] takePayload(String expectedGeneration,int expectedTokens,BooleanSupplier cancelled)throws IOException{
+            synchronized(VisionTurnReview.this){
+                if(!generation.equals(expectedGeneration)||tokens!=expectedTokens)throw new IOException("Visual transport identity changed");
+                return takePayload(cancelled);
+            }
+        }
         /** Moves the bytes to the transport owner once. Owner must clear its buffer after use. */
         byte[] takePayload(BooleanSupplier cancelled)throws IOException{
             synchronized(VisionTurnReview.this){
@@ -86,7 +96,7 @@ final class VisionTurnReview implements AutoCloseable {
         try{
             if(!MessageDigest.isEqual(review.fingerprint,hash(data))||!fresh(review))return null;
             VisionImagePolicy.check(cancelled);
-            active=new Lease(data);data=null;return active;
+            active=new Lease(data,review.generation,review.maxTokens);data=null;return active;
         }finally{if(data!=null)Arrays.fill(data,(byte)0);}
     }
     /** Caller cancels actual transport separately; never release a live owner falsely. */

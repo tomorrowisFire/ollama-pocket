@@ -400,6 +400,11 @@ jobs:
           java -cp /tmp/integration-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.McpLanClientIntegrationTest
           java -cp /tmp/integration-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.ChartArtifactParserTest
           java -cp /tmp/integration-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.AgentProfileStoreTest
+      - name: Test integrated reviewed local profile and durable branch execution
+        run: |
+          mkdir -p /tmp/reviewed-execution-tests
+          javac --release 17 -cp /tmp/cloud-stream-tests/json.jar -d /tmp/reviewed-execution-tests app/src/main/java/com/ollamapocket/app/ToolJsonPolicy.java app/src/main/java/com/ollamapocket/app/AgentProfile.java app/src/main/java/com/ollamapocket/app/ReviewedLocalPolicy.java app/src/main/java/com/ollamapocket/app/WorkflowBranchPlan.java app/src/main/java/com/ollamapocket/app/ProjectTransactions.java app/src/main/java/com/ollamapocket/app/WorkflowAttemptStore.java app/src/main/java/com/ollamapocket/app/BranchWorkflowRun.java tests/ReviewedExecutionIntegrationTest.java
+          java -cp /tmp/reviewed-execution-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.ReviewedExecutionIntegrationTest
       - name: Test bounded local workflow policy
         run: |
           mkdir -p /tmp/workflow-tests

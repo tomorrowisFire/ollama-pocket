@@ -238,6 +238,19 @@ def main():
                     except subprocess.TimeoutExpired:
                         server.kill()
                         server.wait()
+        # Exercise the app's authenticated process and one-shot request path after the old fixture exits.
+        json_jar=directory/"host-json.jar"
+        subprocess.run(["bash",str(ROOT/"scripts/fetch_test_json.sh"),str(json_jar)],check=True,timeout=180)
+        classes=directory/"authenticated-classes"
+        classes.mkdir()
+        subprocess.run(["javac","--release","17","-cp",str(json_jar),"-d",str(classes),
+                        *[str(JAVA/name) for name in ("ToolJsonPolicy.java","ReviewedLocalPolicy.java",
+                            "VisionImagePolicy.java","VisionModelProfile.java","VisionChatRequest.java",
+                            "VisionTurnReview.java","VisionLocalServer.java")],
+                        str(ROOT/"tests/VisionServerHostIntegrationTest.java")],check=True,timeout=60)
+        subprocess.run(["java","-Djava.awt.headless=true","-cp",str(classes)+os.pathsep+str(json_jar),
+                        "com.ollamapocket.app.VisionServerHostIntegrationTest",str(server_path),str(model),
+                        str(projector),str(directory)],env=environment,check=True,timeout=480)
 
 
 if __name__ == "__main__":

@@ -76,6 +76,9 @@ public final class MainActivity extends Activity {
     private static final int EXPORT_CHAT = 703;
     private static final int PICK_ATTACHMENT = 704;
     private static final int PICK_DOCUMENT_BATCH = 705;
+    private static final int PICK_VISION = 706;
+    private boolean visionPickerPending;
+    private Uri pendingVisionUri;
     private String batchScope="",batchModel="";
     private int batchEncoding;
     private DocumentBatchUi documentBatch;
@@ -493,6 +496,7 @@ public final class MainActivity extends Activity {
         ui.removeCallbacks(voiceStatePoll);ui.post(voiceStatePoll);
         ui.removeCallbacks(sunsetThemePoll);
         ui.post(sunsetThemePoll);
+        if(pendingVisionUri!=null)ui.post(this::openPickedVision);
         long now = android.os.SystemClock.elapsedRealtime();
         if (lastPauseElapsed > 0 && now - lastPauseElapsed > 120_000
                 && getPreferences(MODE_PRIVATE).getBoolean("welcome_v2_seen", false)
@@ -521,6 +525,7 @@ public final class MainActivity extends Activity {
         super.onPause();
     }
     @Override protected void onDestroy() {
+        visionPickerPending=false;pendingVisionUri=null;
         closeWorkbench();saveLocalDraft();
         VoiceModelsUi.cancel(this);
         if(documentBatch!=null){documentBatch.pause();documentBatch=null;}
@@ -3692,6 +3697,24 @@ public final class MainActivity extends Activity {
         }
         openSavedConversation(new DrawerChat(link.model,link.session,getString(R.string.chat),false),null);
     }
+    void pickVisionForAutomation(){
+        if(!foreground||guestOnly||cloudMode||isUiBusy()||activeTab!=0){toast(getString(R.string.busy));return;}
+        if(visionPickerPending)return;
+        Intent picker=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        picker.addCategory(Intent.CATEGORY_OPENABLE);picker.setType("image/*");
+        picker.putExtra(Intent.EXTRA_MIME_TYPES,new String[]{"image/jpeg","image/png"});
+        visionPickerPending=true;
+        try{startActivityForResult(picker,PICK_VISION);}
+        catch(RuntimeException e){visionPickerPending=false;toast(getString(R.string.integration_execution_failed));}
+    }
+    private void openPickedVision(){
+        if(!foreground||pendingVisionUri==null)return;
+        Uri uri=pendingVisionUri;pendingVisionUri=null;
+        if(guestOnly||cloudMode||isUiBusy()||activeTab!=0){toast(getString(R.string.busy));return;}
+        if(voice!=null)voice.cancel();
+        if(automationUi==null)automationUi=new AutomationUi(this);
+        automationUi.openVision(uri);
+    }
     private void openLocalAutomation(){
         if(!foreground||guestOnly||cloudMode||isUiBusy()||activeTab!=0){toast(getString(R.string.busy));return;}
         if(voice!=null)voice.cancel();
@@ -4283,6 +4306,13 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onActivityResult(int code, int result, Intent data) {
         super.onActivityResult(code, result, data);
+        if(code==PICK_VISION){
+            boolean requested=visionPickerPending;visionPickerPending=false;
+            if(requested&&result==RESULT_OK&&data!=null&&data.getData()!=null){
+                pendingVisionUri=data.getData();ui.post(this::openPickedVision);
+            }
+            return;
+        }
         if(code==PICK_ATTACHMENT){finishChatAttachment(result,data);return;}
         if(code==PICK_DOCUMENT_BATCH){finishDocumentBatch(result,data);return;}
         if(code==EXPORT_CHAT){finishChatExport(result,data);return;}
