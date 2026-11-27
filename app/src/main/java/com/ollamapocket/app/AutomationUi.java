@@ -662,13 +662,18 @@ final class AutomationUi {
                 s(R.string.model_label)+": "+run.definition.model+"\n"+value.cursor.status.name()+"\n");
         if(value.pending())text.append(s(R.string.integration_pending)).append('\n');
         if(value.cursor.nextNode!=null)text.append(s(R.string.integration_next_node)).append(": ").append(value.cursor.nextNode).append('\n');
-        for(WorkflowAttemptStore.Attempt a:value.attempts)
+        text.append(run.definition.retainOutputs?s(R.string.integration_retained_notice):s(R.string.integration_metadata_only)).append('\n');
+        for(WorkflowAttemptStore.Attempt a:value.attempts){
             text.append(a.node).append(" · ").append(a.outcome.name()).append('\n');
-        if(!progress.lastAnswer.isEmpty())text.append("\n").append(progress.lastAnswer);
+            if(a.output!=null)text.append(s(R.string.integration_retained_output)).append(": ").append(a.output).append('\n');
+        }
+        if(!progress.lastAnswer.isEmpty()&&!java.util.Objects.equals(value.previousOutput(),progress.lastAnswer))
+            text.append("\n").append(s(R.string.integration_live_answer)).append(": ").append(progress.lastAnswer);
         return text.toString();
     }
     private void showBranch(String model){
         LinearLayout l=column();label(l,s(R.string.integration_branch_notice));
+        label(l,s(R.string.integration_retained_help));
         EditText spec=field(l,R.string.integration_branch_json,"",ToolJsonPolicy.MAX_CHARS,true);
         EditText id=field(l,R.string.integration_run_id,"",64,false);
         TextView status=output(l);status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
@@ -702,7 +707,7 @@ final class AutomationUi {
             confirm(s(R.string.integration_use_model),s(R.string.integration_model_notice)+"\n\n"+model,()->{
                 if(busy()||!original.equals(spec.getText().toString()))return;
                 editable.accept(false);status.setText(R.string.thinking);
-                work(()->BranchWorkflowRun.example(model,new ReviewedCpuTask(owner,()->!valid(token)).installed(model)),
+                work(()->BranchWorkflowRun.chainedExample(model,new ReviewedCpuTask(owner,()->!valid(token)).installed(model)),
                     example->{spec.setText(example);selected[0]=null;snapshot[0]=null;id.setText("");editable.accept(true);status.setText("");},
                     ()->{editable.accept(true);status.setText(R.string.integration_execution_failed);});
             });
@@ -710,7 +715,8 @@ final class AutomationUi {
         button(l,R.string.integration_branch_new,()->{
             if(busy())return;final String raw=spec.getText().toString();final BranchWorkflowRun.Definition reviewed;
             try{reviewed=BranchWorkflowRun.parse(raw);}catch(Exception invalid){toast(R.string.auto_invalid_plan);return;}
-            confirm(s(R.string.integration_branch_new),s(R.string.integration_branch_notice)+"\n\n"+raw,()->{
+            confirm(s(R.string.integration_branch_new),s(R.string.integration_branch_notice)+"\n\n"+
+                    s(reviewed.retainOutputs?R.string.integration_retained_notice:R.string.integration_metadata_only)+"\n\n"+raw,()->{
                 if(busy()||!raw.equals(spec.getText().toString()))return;
                 editable.accept(false);status.setText(R.string.thinking);
                 work(()->{
@@ -720,7 +726,7 @@ final class AutomationUi {
                 },run->{
                     selected[0]=run;id.setText(run.id);status.setText(run.id);
                     // Disk read on a worker, then execute the exact created plan.
-                    work(()->new BranchWorkflowRun.Progress(run.ledger.read(),""),initial->{
+                    work(()->new BranchWorkflowRun.Progress(run.read(),""),initial->{
                         display.accept(run,initial);execute.accept(run);
                     },()->{snapshot[0]=null;editable.accept(true);status.setText(R.string.integration_execution_failed);});
                 },()->{editable.accept(true);status.setText(R.string.integration_execution_failed);});
@@ -742,7 +748,7 @@ final class AutomationUi {
             editable.accept(false);status.setText(R.string.thinking);
             work(()->{
                 BranchWorkflowRun run=BranchWorkflowRun.open(owner.getNoBackupFilesDir().getCanonicalFile(),runId);
-                return new java.util.AbstractMap.SimpleImmutableEntry<>(run,new BranchWorkflowRun.Progress(run.ledger.read(),""));
+                return new java.util.AbstractMap.SimpleImmutableEntry<>(run,new BranchWorkflowRun.Progress(run.read(),""));
             },pair->display.accept(pair.getKey(),pair.getValue()),()->{
                 selected[0]=null;snapshot[0]=null;editable.accept(true);status.setText(R.string.integration_execution_failed);
             });

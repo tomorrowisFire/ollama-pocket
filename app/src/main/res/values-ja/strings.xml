@@ -1307,4 +1307,9 @@
     <string name="integration_vision_remove">画像モデルを削除</string>
     <string name="integration_vision_send">確認した画像と正確な質問を検証済みローカルサーバーに1回だけ送信しますか？</string>
     <string name="integration_vision_unsupported">画像推論エンジンにはARM64 Android 9以降が必要です。</string>
+    <string name="integration_retained_notice">確認条件を満たした出力をこの実行に非公開で保存します（成功ノードごとに最大1,600文字）。失敗した出力や途中で切れた出力は保存しません。</string>
+    <string name="integration_metadata_only">この実行はメタデータと証拠のダイジェストのみを保存し、回答本文は復元しません。</string>
+    <string name="integration_retained_output">保存済み確認結果</string>
+    <string name="integration_live_answer">最新の実行回答（未保存）</string>
+    <string name="integration_retained_help">retainOutputsをtrueにすると、条件を満たしたテキストを保存します。先頭以外のノードにusePrevious: trueを指定すると、直前の成功出力全体をデータとして渡します。タスクのgate: containsは指定文字列の有無を確認し、既定値はexactです。文字列の確認は事実の正しさを証明しません。</string>
 </resources>

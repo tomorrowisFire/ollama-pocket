@@ -1307,4 +1307,9 @@
     <string name="integration_vision_remove">移除视觉模型</string>
     <string name="integration_vision_send">是否将此图像及准确的问题仅发送一次至已验证的本地视觉服务器？</string>
     <string name="integration_vision_unsupported">视觉推理引擎需要 ARM64 Android 9 或更新版本。</string>
+    <string name="integration_retained_notice">本次运行将私密保存通过验证的输出（每个成功节点最多1600个字符）。失败或截断的输出不会保留。</string>
+    <string name="integration_metadata_only">本次运行仅保存元数据和证据摘要，不恢复回答正文。</string>
+    <string name="integration_retained_output">已保存的验证结果</string>
+    <string name="integration_live_answer">最近的实时回答（未保留）</string>
+    <string name="integration_retained_help">将 retainOutputs 设为 true 可保存通过验证的文本。非入口节点设置 usePrevious: true 可将最近一次成功的完整输出作为数据传递。任务的 gate: contains 检查是否包含指定文字，默认值为 exact（完全匹配）。文字检查不证明事实的真实性。</string>
 </resources>

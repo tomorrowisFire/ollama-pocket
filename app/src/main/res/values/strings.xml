@@ -1307,4 +1307,9 @@
     <string name="integration_vision_remove">Remove vision model pair</string>
     <string name="integration_vision_send">Send this prepared image and exact prompt to the verified local visual server once?</string>
     <string name="integration_vision_unsupported">The packaged visual runtime requires ARM64 Android 9 or later.</string>
+    <string name="integration_retained_notice">Accepted outputs will be saved privately with this run (up to 1600 characters per accepted node). Failed or truncated outputs are not retained.</string>
+    <string name="integration_metadata_only">This run stores metadata and evidence digests only; answer bodies will not be restored.</string>
+    <string name="integration_retained_output">Saved verified output</string>
+    <string name="integration_live_answer">Latest live answer (not retained)</string>
+    <string name="integration_retained_help">Set retainOutputs to true to store accepted text. On non-entry nodes, usePrevious: true passes the full last accepted output as data. A task may use gate: contains for a literal match; exact is the default. These are text checks, not proof of factual truth.</string>
 </resources>

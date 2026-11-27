@@ -14,16 +14,18 @@ import java.util.*;
 /** Private attempt reservations for an exact branch graph. Never dispatches or retries work itself. */
 final class WorkflowAttemptStore {
     static final int MAX_TOTAL=30,MAX_PER_NODE=3,MAX_BYTES=16384;
+    static final int MAX_RETAINED_CHARS=1600,MAX_RETAINED_BYTES=65536;
     static final long WINDOW_MS=30L*60*1000;
     private static final Object LOCK=new Object();
     enum Outcome { PENDING, VERIFIED, CONDITION_TRUE, CONDITION_FALSE, RETRY_SAFE, BLOCKED, UNCERTAIN, CANCELLED }
 
     static final class Attempt {
-        final String node,key,evidence;
+        final String node,key,evidence,output;
         final long reserved,finished;
         final Outcome outcome;
-        private Attempt(String node,String key,long reserved,long finished,Outcome outcome,String evidence){
-            this.node=node;this.key=key;this.reserved=reserved;this.finished=finished;this.outcome=outcome;this.evidence=evidence;
+        private Attempt(String node,String key,long reserved,long finished,Outcome outcome,String evidence,String output){
+            this.node=node;this.key=key;this.reserved=reserved;this.finished=finished;this.outcome=outcome;
+            this.evidence=evidence;this.output=output;
         }
     }
     static final class Ledger {
@@ -32,32 +34,48 @@ final class WorkflowAttemptStore {
         final long revision,notBefore,started;
         final String runId;
         final int currentAttempts;
-        private Ledger(List<Attempt> attempts,WorkflowBranchPlan.Snapshot cursor,long revision,long notBefore,int currentAttempts,String runId,long started){
+        final boolean retainOutputs;
+        private Ledger(List<Attempt> attempts,WorkflowBranchPlan.Snapshot cursor,long revision,long notBefore,int currentAttempts,String runId,long started,boolean retainOutputs){
             this.attempts=Collections.unmodifiableList(new ArrayList<>(attempts));this.cursor=cursor;
             this.revision=revision;this.notBefore=notBefore;this.currentAttempts=currentAttempts;
-            this.runId=runId;this.started=started;
+            this.runId=runId;this.started=started;this.retainOutputs=retainOutputs;
         }
         Attempt last(){return attempts.isEmpty()?null:attempts.get(attempts.size()-1);}
         boolean pending(){return last()!=null&&last().outcome==Outcome.PENDING;}
+        String previousOutput(){
+            for(int i=attempts.size()-1;i>=0;i--)if(accepted(attempts.get(i).outcome))return attempts.get(i).output;
+            return null;
+        }
     }
     private final Path root,file,lockFile;
     private final String runId;
     private final WorkflowBranchPlan plan;
     private final long started;
+    private final boolean retainOutputs;
+    private final int byteLimit;
     private final ProjectTransactions<Ledger> tx;
 
     /** Dedicated app-private directory for this run; caller must preserve its identity across recovery. */
     WorkflowAttemptStore(File directory,String runId,WorkflowBranchPlan plan,long started)throws IOException{
-        this(directory,runId,plan,started,null);
+        this(directory,runId,plan,started,false,null);
+    }
+    WorkflowAttemptStore(File directory,String runId,WorkflowBranchPlan plan,long started,boolean retainOutputs)throws IOException{
+        this(directory,runId,plan,started,retainOutputs,null);
     }
     /** Fixture-only backend injection for write-uncertainty tests; production uses private disk. */
     WorkflowAttemptStore(File directory,String runId,WorkflowBranchPlan plan,long started,ProjectTransactions.Backend fixture)throws IOException{
+        this(directory,runId,plan,started,false,fixture);
+    }
+    private WorkflowAttemptStore(File directory,String runId,WorkflowBranchPlan plan,long started,boolean retainOutputs,
+                                 ProjectTransactions.Backend fixture)throws IOException{
         if(directory==null||!directory.isDirectory()||!directory.getAbsoluteFile().equals(directory.getCanonicalFile())||
                 runId==null||!runId.matches("[A-Za-z0-9_-]{16,64}")||plan==null||started<=0)
             throw new IllegalArgumentException("Workflow attempt store identity");
         this.root=directory.toPath().toAbsolutePath();this.file=root.resolve("attempts-v1.bin");
         this.lockFile=root.resolve("attempts-v1.lock");this.runId=runId;this.plan=plan;this.started=started;
-        tx=new ProjectTransactions<>(fixture==null?new Disk():fixture,new Codec(),LOCK,derive(Collections.emptyList()),MAX_BYTES);
+        this.retainOutputs=retainOutputs;
+        byteLimit=retainOutputs?MAX_RETAINED_BYTES:MAX_BYTES;
+        tx=new ProjectTransactions<>(fixture==null?new Disk():fixture,new Codec(),LOCK,derive(Collections.emptyList()),byteLimit);
     }
     private interface Operation<T>{T run()throws Exception;}
     private <T>T locked(Operation<T> operation)throws Exception{
@@ -79,7 +97,7 @@ final class WorkflowAttemptStore {
     ProjectTransactions.Snapshot<Ledger> read()throws Exception{return locked(tx::read);}
     private void requireIdentity(ProjectTransactions.Snapshot<Ledger> reviewed)throws IOException{
         if(reviewed==null||!runId.equals(reviewed.value.runId)||started!=reviewed.value.started||
-                !plan.sha256.equals(reviewed.value.cursor.planSha256))
+                reviewed.value.retainOutputs!=retainOutputs||!plan.sha256.equals(reviewed.value.cursor.planSha256))
             throw new IOException("Workflow reviewed run identity");
     }
     /** Return a persisted reservation only after exact reviewed state and post-write readback succeed. */
@@ -92,26 +110,57 @@ final class WorkflowAttemptStore {
                 throw new IllegalArgumentException("Workflow reservation unavailable");
             String node=current.cursor.nextNode;
             List<Attempt> next=new ArrayList<>(current.attempts);
-            next.add(new Attempt(node,key(node,next.size(),now),now,0,Outcome.PENDING,null));
+            next.add(new Attempt(node,key(node,next.size(),now),now,0,Outcome.PENDING,null,null));
             return derive(next);
         }));
     }
     /** Only actual verified evidence can settle an attempt. RETRY_SAFE must never be inferred from an uncertain call. */
     ProjectTransactions.Snapshot<Ledger> finish(ProjectTransactions.Snapshot<Ledger> reviewed,String key,
                                                  Outcome outcome,String evidence,long now)throws Exception{
+        return finish(reviewed,key,outcome,evidence,null,now);
+    }
+    /** Output and evidence are settled atomically, only for an explicitly opted-in accepted result. */
+    ProjectTransactions.Snapshot<Ledger> finish(ProjectTransactions.Snapshot<Ledger> reviewed,String key,
+                                                 Outcome outcome,String evidence,String output,long now)throws Exception{
         requireIdentity(reviewed);
         return locked(()->tx.commit(reviewed,current->{
             Attempt last=current.last();
             if(last==null||!current.pending()||!last.key.equals(key)||outcome==null||outcome==Outcome.PENDING||
                     now<last.reserved)throw new IllegalArgumentException("Workflow settlement mismatch");
             List<Attempt> next=new ArrayList<>(current.attempts);
-            next.set(next.size()-1,new Attempt(last.node,last.key,last.reserved,now,outcome,evidence));
+            next.set(next.size()-1,new Attempt(last.node,last.key,last.reserved,now,outcome,evidence,output));
             return derive(next);
         }));
     }
     private static boolean digest(String value){return value!=null&&value.matches("[a-f0-9]{64}");}
-    private static boolean needsEvidence(Outcome o){
-        return o==Outcome.VERIFIED||o==Outcome.CONDITION_TRUE||o==Outcome.CONDITION_FALSE||o==Outcome.RETRY_SAFE;
+    static boolean accepted(Outcome o){
+        return o==Outcome.VERIFIED||o==Outcome.CONDITION_TRUE||o==Outcome.CONDITION_FALSE;
+    }
+    private static boolean needsEvidence(Outcome o){return accepted(o)||o==Outcome.RETRY_SAFE;}
+    static boolean validRetainedText(String text){
+        if(text==null||text.isEmpty()||text.length()>MAX_RETAINED_CHARS)return false;
+        boolean visible=false;
+        for(int i=0;i<text.length();){
+            int cp=text.codePointAt(i);i+=Character.charCount(cp);
+            if(cp>=0xd800&&cp<=0xdfff||cp==0x2028||cp==0x2029||
+                Character.isISOControl(cp)&&cp!='\n'&&cp!='\r'&&cp!='\t'||
+                Character.getType(cp)==Character.FORMAT&&cp!=0x200c&&cp!=0x200d)return false;
+            if(!Character.isWhitespace(cp)&&!Character.isSpaceChar(cp)&&cp!=0x200c&&cp!=0x200d)visible=true;
+        }
+        return visible;
+    }
+    private void verifyOutput(Attempt a){
+        if(!retainOutputs||!accepted(a.outcome)){
+            if(a.output!=null)throw new IllegalArgumentException("Unapproved workflow output retention");
+            return;
+        }
+        if(!validRetainedText(a.output)||
+                !hex(hash(("stop\n"+a.output).getBytes(StandardCharsets.UTF_8))).equals(a.evidence))
+            throw new IllegalArgumentException("Workflow retained output evidence");
+        String value=a.output.trim();
+        if(a.outcome==Outcome.CONDITION_TRUE&&!"true".equals(value)||
+                a.outcome==Outcome.CONDITION_FALSE&&!"false".equals(value))
+            throw new IllegalArgumentException("Workflow retained condition mismatch");
     }
     private static long delay(int count){return count==1?2000L:4000L;}
     private static WorkflowBranchPlan.Outcome graphOutcome(Outcome o){
@@ -137,6 +186,7 @@ final class WorkflowAttemptStore {
                     a.reserved-started>=WINDOW_MS||!key(a.node,i,a.reserved).equals(a.key)||++perNode>MAX_PER_NODE)
                 throw new IllegalArgumentException("Workflow attempt path");
             revision++;
+            verifyOutput(a);
             if(a.outcome==Outcome.PENDING){
                 if(i!=entries.size()-1||a.finished!=0||a.evidence!=null)
                     throw new IllegalArgumentException("Unresolved reservation");
@@ -155,7 +205,7 @@ final class WorkflowAttemptStore {
                 perNode=0;
             }
         }
-        return new Ledger(entries,cursor,revision,notBefore,perNode,runId,started);
+        return new Ledger(entries,cursor,revision,notBefore,perNode,runId,started,retainOutputs);
     }
     private String key(String node,int index,long reserved){
         return hex(hash(("onhand-attempt-v1\n"+runId+"\n"+plan.sha256+"\n"+node+"\n"+index+"\n"+reserved)
@@ -175,26 +225,27 @@ final class WorkflowAttemptStore {
         @Override public byte[] encode(Ledger value)throws IOException{
             ByteArrayOutputStream bytes=new ByteArrayOutputStream();
             try(DataOutputStream out=new DataOutputStream(bytes)){
-                out.writeInt(1);out.writeUTF(runId);out.writeUTF(plan.sha256);out.writeLong(started);
+                out.writeInt(retainOutputs?2:1);out.writeUTF(runId);out.writeUTF(plan.sha256);out.writeLong(started);
                 out.writeInt(value.attempts.size());
                 for(Attempt a:value.attempts){
                     out.writeUTF(a.node);out.writeUTF(a.key);out.writeLong(a.reserved);out.writeLong(a.finished);
                     out.writeUTF(a.outcome.name());out.writeUTF(a.evidence==null?"":a.evidence);
+                    if(retainOutputs)out.writeUTF(a.output==null?"":a.output);
                 }
                 out.flush();
                 byte[] body=bytes.toByteArray();out.write(hash(body));
             }
             byte[] encoded=bytes.toByteArray();
-            if(encoded.length>MAX_BYTES)throw new IOException("Workflow ledger size");
+            if(encoded.length>byteLimit)throw new IOException("Workflow ledger size");
             return encoded;
         }
         @Override public Ledger decode(byte[] bytes)throws IOException{
-            if(bytes==null||bytes.length<=32||bytes.length>MAX_BYTES)throw new IOException("Workflow ledger size");
+            if(bytes==null||bytes.length<=32||bytes.length>byteLimit)throw new IOException("Workflow ledger size");
             byte[] body=Arrays.copyOf(bytes,bytes.length-32);
             if(!MessageDigest.isEqual(hash(body),Arrays.copyOfRange(bytes,body.length,bytes.length)))
                 throw new IOException("Workflow ledger checksum");
             try(DataInputStream in=new DataInputStream(new ByteArrayInputStream(body))){
-                if(in.readInt()!=1||!runId.equals(in.readUTF())||!plan.sha256.equals(in.readUTF())||in.readLong()!=started)
+                if(in.readInt()!=(retainOutputs?2:1)||!runId.equals(in.readUTF())||!plan.sha256.equals(in.readUTF())||in.readLong()!=started)
                     throw new IOException("Workflow ledger identity");
                 int count=in.readInt();
                 if(count<1||count>MAX_TOTAL)throw new IOException("Workflow ledger count");
@@ -202,7 +253,8 @@ final class WorkflowAttemptStore {
                 for(int i=0;i<count;i++){
                     String node=in.readUTF(),key=in.readUTF();long reserved=in.readLong(),finished=in.readLong();
                     Outcome outcome=Outcome.valueOf(in.readUTF());String evidence=in.readUTF();
-                    attempts.add(new Attempt(node,key,reserved,finished,outcome,evidence.isEmpty()?null:evidence));
+                    String output=retainOutputs?in.readUTF():"";
+                    attempts.add(new Attempt(node,key,reserved,finished,outcome,evidence.isEmpty()?null:evidence,output.isEmpty()?null:output));
                 }
                 if(in.read()!=-1)throw new IOException("Workflow ledger trailing bytes");
                 return derive(attempts);
@@ -215,7 +267,7 @@ final class WorkflowAttemptStore {
             BasicFileAttributes attrs;
             try{attrs=Files.readAttributes(file,BasicFileAttributes.class,LinkOption.NOFOLLOW_LINKS);}
             catch(NoSuchFileException absent){return null;}
-            if(!attrs.isRegularFile()||attrs.size()<1||attrs.size()>MAX_BYTES)throw new IOException("Invalid workflow ledger file");
+            if(!attrs.isRegularFile()||attrs.size()<1||attrs.size()>byteLimit)throw new IOException("Invalid workflow ledger file");
             try(InputStream in=Files.newInputStream(file,StandardOpenOption.READ,LinkOption.NOFOLLOW_LINKS)){
                 byte[] bytes=new byte[(int)attrs.size()];int offset=0;
                 while(offset<bytes.length){int n=in.read(bytes,offset,bytes.length-offset);if(n<=0)throw new EOFException("Workflow ledger truncated");offset+=n;}
@@ -225,7 +277,7 @@ final class WorkflowAttemptStore {
         }
         @Override public void write(byte[] bytes)throws IOException{
             checkRoot();
-            if(bytes==null||bytes.length<1||bytes.length>MAX_BYTES)throw new IOException("Workflow ledger size");
+            if(bytes==null||bytes.length<1||bytes.length>byteLimit)throw new IOException("Workflow ledger size");
             Path staging=Files.createTempFile(root,".attempts-v1-",".part");
             try{
                 try(FileChannel out=FileChannel.open(staging,StandardOpenOption.WRITE,LinkOption.NOFOLLOW_LINKS)){

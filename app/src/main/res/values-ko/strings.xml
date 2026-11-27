@@ -1307,4 +1307,9 @@
     <string name="integration_vision_remove">이미지 모델 제거</string>
     <string name="integration_vision_send">검증된 로컬 이미지 서버에 이 이미지와 정확한 질문을 한 번만 전송할까요?</string>
     <string name="integration_vision_unsupported">이미지 추론 엔진은 ARM64 Android 9 이상에서 사용할 수 있습니다.</string>
+    <string name="integration_retained_notice">이 실행의 검증 통과 결과를 비공개로 저장합니다(성공 노드당 최대 1,600자). 실패하거나 잘린 출력은 저장하지 않습니다.</string>
+    <string name="integration_metadata_only">이 실행은 메타데이터와 증거 해시만 저장하며 답변 본문은 복구하지 않습니다.</string>
+    <string name="integration_retained_output">저장된 검증 통과 결과</string>
+    <string name="integration_live_answer">최근 실행 답변(미저장)</string>
+    <string name="integration_retained_help">retainOutputs를 true로 설정하면 검증 통과 텍스트를 저장합니다. 첫 노드를 제외하고 usePrevious: true를 지정하면 직전 성공 출력을 그대로 데이터로 전달합니다. 작업의 gate: contains는 지정 문구 포함 여부를 검사하며 기본값은 exact(정확히 일치)입니다. 문구 검사는 사실의 진실성을 보장하지 않습니다.</string>
 </resources>
