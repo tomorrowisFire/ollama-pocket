@@ -136,10 +136,12 @@ final class WorkspaceDictation {
             if(speech==null)return;
             if(!visible()){dispose();return;}
             if(!speech.listening()){releaseSpeech();retry(R.string.voice_error);return;}
-            state.setText(speech.processingSpeech()?R.string.voice_recognizing:
+            String status=owner.getString(speech.processingSpeech()?R.string.voice_recognizing:
                 speech.speechReady()?R.string.workspace_voice_listening:R.string.voice_preparing);
+            if(!status.contentEquals(state.getText()))state.setText(status);
             String partial=speech.partialTranscript();
-            transcript.setText(partial.isEmpty()?"":owner.getString(R.string.voice_partial,partial));
+            String displayed=partial.isEmpty()?"":owner.getString(R.string.voice_partial,partial);
+            if(!displayed.contentEquals(transcript.getText()))transcript.setText(displayed);
             dialog.getButton(DialogInterface.BUTTON_NEUTRAL).setEnabled(speech.canFinishListening());
             handler.postDelayed(tick,200);
         }

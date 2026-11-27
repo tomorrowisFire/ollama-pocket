@@ -53,6 +53,7 @@ on:
       - 'tests/DocumentBatchReportTest.java'
       - 'tests/VoiceQueuePolicyTest.java'
       - 'tests/VoiceInteractionPolicyTest.java'
+      - 'tests/VoiceContinuationTest.java'
       - 'tests/WorkspaceDictationPolicyTest.java'
       - 'tests/WorkspaceReadPolicyTest.java'
       - 'tests/WorkspaceTextPolicyTest.java'
@@ -188,6 +189,8 @@ jobs:
           javac -d /tmp/voice-tests app/src/main/java/com/ollamapocket/app/VoiceQueuePolicy.java app/src/main/java/com/ollamapocket/app/VoiceInteractionPolicy.java tests/VoiceQueuePolicyTest.java tests/VoiceInteractionPolicyTest.java
           java -cp /tmp/voice-tests com.ollamapocket.app.VoiceQueuePolicyTest
           java -cp /tmp/voice-tests com.ollamapocket.app.VoiceInteractionPolicyTest
+          javac -d /tmp/voice-tests app/src/main/java/com/ollamapocket/app/VoiceContinuation.java tests/VoiceContinuationTest.java
+          java -cp /tmp/voice-tests com.ollamapocket.app.VoiceContinuationTest
           javac -cp /tmp/voice-tests -d /tmp/voice-tests app/src/main/java/com/ollamapocket/app/WorkspaceDictationPolicy.java tests/WorkspaceDictationPolicyTest.java
           java -cp /tmp/voice-tests com.ollamapocket.app.WorkspaceDictationPolicyTest
           javac -cp /tmp/voice-tests -d /tmp/voice-tests app/src/main/java/com/ollamapocket/app/WorkspaceReadPolicy.java tests/WorkspaceReadPolicyTest.java

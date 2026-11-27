@@ -46,18 +46,18 @@ final class OnHandsVoice {
     boolean bargeEnabled(){return bargeOptIn;}
     private void stopBarge(){bargeEpoch++;BargeMonitor old=barge;barge=null;if(old!=null)old.stop();}
     private void startBarge(){
-        if(!continuous||!bargeOptIn||afterSpeech==null||barge!=null)return;
+        if(!continuous||!bargeOptIn||!continuation.pending()||barge!=null)return;
         final int token=generation;
         final long epoch=++bargeEpoch;
         final VoiceInteractionPolicy.Playback currentPlayback=playback;
         BargeMonitor monitor=new BargeMonitor(a,()->handler.post(()->{
-            if(closed||token!=generation||epoch!=bargeEpoch||barge==null||!continuous||afterSpeech==null||currentPlayback==null||playback!=currentPlayback||currentPlayback.paused())return;
-            Runnable next=afterSpeech;afterSpeech=null;clearPlayback();
-            stopBarge();clearTimeout();if(tts!=null)tts.stop();resumeAfterPlayback(next);
+            if(closed||token!=generation||epoch!=bargeEpoch||barge==null||!continuous||!continuation.pending()||currentPlayback==null||playback!=currentPlayback||currentPlayback.paused())return;
+            clearPlayback();
+            stopBarge();clearTimeout();if(tts!=null)tts.stop();resumeAfterPlayback();
         }));
         barge=monitor;monitor.start();
     }
-    private Runnable afterSpeech;
+    private final VoiceContinuation continuation=new VoiceContinuation();
     private VoiceInteractionPolicy.Playback playback;
     private java.util.function.BooleanSupplier playbackGuard=()->true;
     private boolean playbackComplete;
@@ -86,9 +86,17 @@ final class OnHandsVoice {
     private Runnable timeout, resumeListening;
     private static final long PLAYBACK_TAIL_MS=350L;
     private void clearResume(){if(resumeListening!=null)handler.removeCallbacks(resumeListening);resumeListening=null;}
-    private void resumeAfterPlayback(Runnable next){
+    private void resumeAfterPlayback(){
+        if(!continuous){continuation.clear();return;}
+        final VoiceContinuation.Ticket ticket=continuation.schedule();
+        if(ticket==null)return;
         clearResume(); final int token=generation;
-        resumeListening=()->{resumeListening=null;if(!closed&&continuous&&token==generation)next.run();};
+        resumeListening=()->{
+            Runnable next=continuation.consume(ticket);
+            if(next==null)return;
+            resumeListening=null;
+            if(!closed&&continuous&&token==generation&&playbackAllowed())next.run();
+        };
         handler.postDelayed(resumeListening,PLAYBACK_TAIL_MS);
     }
     private void clearTimeout(){if(timeout!=null)handler.removeCallbacks(timeout);timeout=null;}
@@ -106,8 +114,8 @@ final class OnHandsVoice {
         clearTimeout();
         if(!p.finished()){playNextSpeechChunk();return;}
         playbackComplete=true;
-        stopBarge();clearPlayback();Runnable next=afterSpeech;afterSpeech=null;
-        if(continuous&&next!=null)resumeAfterPlayback(next);
+        stopBarge();clearPlayback();
+        resumeAfterPlayback();
     }
     private void playNextSpeechChunk(){
         if(closed||tts==null||playback==null||playback.finished()||playback.paused())return;
@@ -137,7 +145,7 @@ final class OnHandsVoice {
                 public void onStop(String id,boolean interrupted){a.runOnUiThread(()->finishSpeech(id,false));}
             });
             String queued=pendingSpeech;pendingSpeech=null;
-            if(queued!=null){if(ready)speak(queued);else {cancel();toast(R.string.tts_unavailable);}}
+            if(queued!=null){if(ready)playSpeech(queued);else {cancel();toast(R.string.tts_unavailable);}}
         }));
     }
     boolean listening(){return recognizer!=null;}
@@ -185,8 +193,14 @@ final class OnHandsVoice {
             armTimeout(45000);recognizer.startListening(intent);
         }catch(RuntimeException e){cancel();toast(R.string.voice_unavailable);}
     }
-    void speakThen(String text,Runnable next){afterSpeech=next;speak(text);}
-    void speak(String text){
+    void speakThen(String text,Runnable next){startSpeech(text,next);}
+    void speak(String text){startSpeech(text,null);}
+    private void startSpeech(String text,Runnable next){
+        if(closed)return;
+        clearResume();continuation.replace(next);pendingSpeech=null;
+        playSpeech(text);
+    }
+    private void playSpeech(String text){
         if(closed)return;
         playbackComplete=false;
         if(!playbackAllowed()){cancel();return;}
@@ -217,7 +231,7 @@ final class OnHandsVoice {
     }
     void cancel(){
         playbackComplete=false;
-        generation++;stopBarge();clearTimeout();clearResume();pendingSpeech=null;continuous=false;bargeOptIn=false;afterSpeech=null;clearPlayback();
+        generation++;stopBarge();clearTimeout();clearResume();pendingSpeech=null;continuous=false;bargeOptIn=false;continuation.clear();clearPlayback();
         partialTranscript="";reviewPending=false;
         if(capture!=null)capture.cancel();capture=null;
         SpeechRecognizer old=recognizer;recognizer=null;
