@@ -35,6 +35,18 @@ public final class WorkbenchVisualPolicyTest {
             check(p.dialogInk(true,false)==p.dialogInk(false,false));
             check((p.dialogRipple()>>>24)==0x24);
             check((p.dialogRipple()&0x00ffffff)==(p.primary&0x00ffffff));
+            // F10A60: single-surface composer and stateful tool colors.
+            contrast(p.text,p.surface,4.5);contrast(p.muted,p.surface,4.5);contrast(p.disabledText,p.surface,4.5);
+            contrast(p.focus,p.surface,3);contrast(p.focus,p.canvas,3);
+            for(boolean primary:new boolean[]{false,true})for(boolean enabled:new boolean[]{false,true}){
+                int fill=p.composerActionFill(primary,enabled),ink=p.composerActionInk(primary,enabled);
+                contrast(ink,fill,4.5);
+                check(fill==(primary?(enabled?p.primary:p.disabled):p.surface));
+                check(ink==(!enabled?p.disabledText:primary?p.primaryText:p.text));
+                if(enabled)contrast(p.composerActionFocus(primary),fill,3);
+            }
+            check(p.composerActionFill(true,true)!=p.composerActionFill(false,true));
+            check(p.composerActionFill(true,false)!=p.composerActionFill(true,true));
             contrast(p.text,p.surface,4.5);contrast(p.text,p.field,4.5);
             contrast(p.text,p.canvas,4.5);contrast(p.text,p.bubble,4.5);
             contrast(p.text,p.accentSoft,4.5);contrast(p.primary,p.canvas,4.5);

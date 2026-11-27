@@ -80,6 +80,36 @@ final class WorkbenchStyle {
         OnHandGlyphs.Kind glyph=OnHandGlyphs.forResource(label);
         if(glyph!=null)OnHandGlyphs.label(b,glyph,false);
     }
+    /** Single-surface chat composer; paint only, never replace input or action callbacks. */
+    private static GradientDrawable composerShape(Context c,int fill,int stroke,int width,int radius){
+        GradientDrawable d=new GradientDrawable();d.setColor(fill);d.setCornerRadius(dp(c,radius));
+        if(width>0)d.setStroke(dp(c,width),stroke);return d;
+    }
+    static void composerSurface(Activity a,LinearLayout layout,boolean focused){
+        WorkbenchVisualPolicy.Palette p=palette(a);
+        layout.setBackground(composerShape(a,p.surface,focused?p.focus:p.border,focused?2:1,26));
+        layout.setPadding(dp(a,8),dp(a,6),dp(a,8),dp(a,6));
+    }
+    static void composerInput(Activity a,EditText input){
+        WorkbenchVisualPolicy.Palette p=palette(a);
+        input.setBackgroundTintList(null);input.setBackgroundColor(Color.TRANSPARENT);
+        input.setPaddingRelative(dp(a,12),dp(a,9),dp(a,12),dp(a,9));
+        input.setTextColor(colors(p.text,p.disabledText));
+        input.setHintTextColor(colors(p.muted,p.disabledText));
+    }
+    static void composerAction(Activity a,Button button,boolean primary){
+        WorkbenchVisualPolicy.Palette p=palette(a);
+        StateListDrawable states=new StateListDrawable();
+        states.addState(new int[]{-android.R.attr.state_enabled},composerShape(a,p.composerActionFill(primary,false),p.border,0,24));
+        states.addState(new int[]{android.R.attr.state_focused},composerShape(a,p.composerActionFill(primary,true),p.composerActionFocus(primary),2,24));
+        states.addState(new int[]{},composerShape(a,p.composerActionFill(primary,true),p.border,0,24));
+        button.setForeground(null);button.setBackgroundTintList(null);
+        button.setBackground(new RippleDrawable(ColorStateList.valueOf(0x33808080),states,composerShape(a,Color.WHITE,Color.TRANSPARENT,0,24)));
+        button.setTextColor(colors(p.composerActionInk(primary,true),p.composerActionInk(primary,false)));
+        button.setMinWidth(dp(a,WorkbenchVisualPolicy.MIN_TARGET_DP));button.setMinimumWidth(dp(a,WorkbenchVisualPolicy.MIN_TARGET_DP));
+        button.setMinHeight(dp(a,WorkbenchVisualPolicy.MIN_TARGET_DP));button.setMinimumHeight(dp(a,WorkbenchVisualPolicy.MIN_TARGET_DP));
+        OnHandGlyphs.refresh(button);
+    }
     static void field(Activity a,EditText e){
         WorkbenchVisualPolicy.Palette p=palette(a);
         StateListDrawable state=new StateListDrawable();

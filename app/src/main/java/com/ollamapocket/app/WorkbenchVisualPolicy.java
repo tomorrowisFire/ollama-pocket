@@ -31,6 +31,14 @@ final class WorkbenchVisualPolicy {
         int modelStatusInk(ModelStatus status){
             return status==ModelStatus.ACTIVE?primaryText:status==ModelStatus.AVAILABLE?muted:text;
         }
+        // Secondary composer actions blend into the single input surface.
+        int composerActionFill(boolean primaryAction,boolean enabled){
+            return primaryAction?(enabled?primary:disabled):surface;
+        }
+        int composerActionInk(boolean primaryAction,boolean enabled){
+            return !enabled?disabledText:primaryAction?primaryText:text;
+        }
+        int composerActionFocus(boolean primaryAction){return primaryAction?primaryText:focus;}
         // Dialog action slots describe platform placement, not semantic risk.
         int dialogFill(boolean enabled){return enabled?surface:disabled;}
         int dialogInk(boolean positive,boolean enabled){return !enabled?disabledText:positive?primary:muted;}

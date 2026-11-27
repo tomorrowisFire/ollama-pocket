@@ -1,6 +1,6 @@
 {
-  "stage": "F10A59R1-minimal-home-model-header",
-  "revision": "F10A59R1",
-  "priorCandidate": "bfc9b752ca2497b85d2386cb824908a7d356b574",
-  "reason": "Supersede unintegrated F10A59 draft with requested speech-bubble-plus new chat and current model subtitle, retaining four quick actions. Require prior and candidate FULL CI. No release or launcher changes."
+  "stage": "F10A60-single-surface-composer",
+  "revision": "F10A60",
+  "priorCandidate": "91a6e762c86318d5d3f4bf768c1b431a5821f4ff",
+  "reason": "Chat-first single-surface composer, flat secondary and circular primary tools, compact list-style more menu; preserve existing inputs, operations and privacy. Exact FULL gate required before guarded integration."
 }

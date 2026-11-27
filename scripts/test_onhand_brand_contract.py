@@ -251,5 +251,23 @@ assert "bubble.close();c.drawPath(bubble,pen)" in new_glyph
 assert "line(c,12,7.5f,12,14.5f);line(c,8.5f,11,15.5f,11)" in new_glyph
 for locale in ("values","values-ko","values-ja","values-b+zh+Hans","values-b+zh+Hant"):
     assert ET.parse(res/locale/"strings.xml").getroot().find("string[@name='coop_select_model']").text
+# F10A60: single-surface composer, stateful circular actions and compact tools.
+composer_skin=main.split("private void styleLocalComposer()",1)[1].split("private void createChatPage()",1)[0]
+for required in ("WorkbenchStyle.composerSurface(this,chatComposer,chatInput.hasFocus())",
+    "WorkbenchStyle.composerInput(this,chatInput)","attachFileButton,chatActionsButton,voiceButton",
+    "sendButton,stopChatButton","WorkbenchStyle.composerAction(this,action,false)","WorkbenchStyle.composerAction(this,action,true)"):
+    assert required in composer_skin,required
+assert "chatInput.setOnFocusChangeListener((v,focused)->WorkbenchStyle.composerSurface(this,chatComposer,focused))" in main
+assert "styleLocalComposer(); // Restore stateful colors" in main
+composer_style=(src/"WorkbenchStyle.java").read_text().split("static void composerSurface(",1)[1].split("static void field(",1)[0]
+for required in ("input.setBackgroundColor(Color.TRANSPARENT)","p.composerActionFill(primary,false)",
+    "p.composerActionInk(primary,true)","p.composerActionFocus(primary)","state_focused","state_enabled","OnHandGlyphs.refresh(button)"):
+    assert required in composer_style,required
+for forbidden in ("setOnClickListener(","setEnabled(","setText(","setFilters("):
+    assert forbidden not in composer_style,forbidden
+tool_row=main.split("private View workbenchCard(",1)[1].split("private void responsiveModelFilterPair(",1)[0]
+assert "card=row()" in tool_row and "card.setMinimumHeight(dp(56))" in tool_row
+assert "margin(caption,labels,3,0)" in tool_row and 'card.setContentDescription(title+" · "+detail)' in tool_row
+assert "card.setOnClickListener(v->action.run())" in tool_row
 assert "ads.register(downloadAdSlot,AdSupport.PLACEMENT_DOWNLOAD)" in main
 print("PASS: approved launcher SHA-256, both adaptive masks, light/dark dialog palettes and native UI wiring")

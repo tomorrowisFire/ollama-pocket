@@ -414,6 +414,7 @@ public final class MainActivity extends Activity {
             window.getDecorView().setSystemUiVisibility(lightTheme()?
                 (View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR):0);
         }
+        styleLocalComposer(); // Restore stateful colors and outline after live theme recoloring.
         updateModelViewButtons();
         renderInstalledModels();
         if(activeTab==3)refreshDiagnosticViews();
@@ -1016,6 +1017,15 @@ public final class MainActivity extends Activity {
         }
     }
 
+    private void styleLocalComposer(){
+        if(chatComposer==null||chatInput==null)return;
+        WorkbenchStyle.composerSurface(this,chatComposer,chatInput.hasFocus());
+        WorkbenchStyle.composerInput(this,chatInput);
+        for(Button action:new Button[]{attachFileButton,chatActionsButton,voiceButton})
+            if(action!=null)WorkbenchStyle.composerAction(this,action,false);
+        for(Button action:new Button[]{sendButton,stopChatButton})
+            if(action!=null)WorkbenchStyle.composerAction(this,action,true);
+    }
     private void createChatPage() {
         chatPage = column();
         localChatContent=column();
@@ -1081,8 +1091,7 @@ public final class MainActivity extends Activity {
         LinearLayout.LayoutParams scrollParam = new LinearLayout.LayoutParams(-1, 0, 1);
         localChatContent.addView(viewport, scrollParam);
         LinearLayout composer = row();chatComposer=composer;
-        composer.setPadding(dp(8), dp(6), dp(8), dp(6));
-        GradientDrawable composerSurface=bg(CARD,24);composerSurface.setStroke(dp(1),borderTone());composer.setBackground(composerSurface);
+        WorkbenchStyle.composerSurface(this,composer,false);
         chatInput = edit(getString(R.string.message_hint), "", true);
         chatInput.setMinLines(1); chatInput.setMaxLines(5);chatInput.setMinimumHeight(dp(48));
         rowItem(composer, chatInput, 1, 5);
@@ -1117,6 +1126,8 @@ public final class MainActivity extends Activity {
         stopChatButton.setTooltipText(getString(R.string.stop));rowItem(composerActions, stopChatButton, 0, 0);
         iconAction(attachFileButton,OnHandGlyphs.Kind.ATTACH);iconAction(voiceButton,OnHandGlyphs.Kind.MIC);
         iconAction(sendButton,OnHandGlyphs.Kind.SEND);iconAction(stopChatButton,OnHandGlyphs.Kind.STOP);
+        styleLocalComposer();
+        chatInput.setOnFocusChangeListener((v,focused)->WorkbenchStyle.composerSurface(this,chatComposer,focused));
         voicePanel=column();voicePanel.setPadding(dp(10),dp(6),dp(10),dp(6));voicePanel.setBackground(bg(FIELD,12));
         voiceStateView=text("",12,WHITE,true);
         voiceStateView.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);voiceStateView.setSaveEnabled(false);
@@ -1179,7 +1190,7 @@ public final class MainActivity extends Activity {
         for(int g=0;g<groups.length;g++){
             TextView section=text(getString(groups[g]),16,WHITE,true);
             if(Build.VERSION.SDK_INT>=28)section.setAccessibilityHeading(true);
-            margin(section,body,g==0?0:16,8);
+            margin(section,body,g==0?0:12,6);
             WorkbenchGrid tiles=new WorkbenchGrid(this,uiTextScale);
             for(int i=g*3;i<Math.min(g*3+3,titles.length);i++){
                 final int index=i;
@@ -1196,14 +1207,14 @@ public final class MainActivity extends Activity {
         catch(RuntimeException e){closeWorkbench();toast(getString(R.string.busy));}
     }
     private View workbenchCard(String title,String detail,OnHandGlyphs.Kind glyph,Runnable action){
-        LinearLayout card=column();card.setPadding(dp(14),dp(13),dp(14),dp(13));card.setMinimumHeight(dp(108));
-        GradientDrawable surface=bg(CARD,18);surface.setStroke(dp(1),borderTone());
-        card.setBackground(surface);card.setClickable(true);card.setFocusable(true);AdaptiveAnswerActions.feedback(card,18);
-        TextView heading=text(title,15,WHITE,true),caption=text(detail,13,MUTED,false);
-        LinearLayout lead=row();rowItem(lead,OnHandGlyphs.tile(this,glyph),0,10);rowItem(lead,heading,1,0);
+        // Flat list-style tools with a leading glyph; keep explanatory text visible.
+        LinearLayout card=row();card.setPadding(dp(10),dp(8),dp(10),dp(8));card.setMinimumHeight(dp(56));
+        card.setBackground(bg(CARD,12));card.setClickable(true);card.setFocusable(true);AdaptiveAnswerActions.feedback(card,12);
+        TextView heading=text(title,15,WHITE,true),caption=text(detail,12,MUTED,false);
+        LinearLayout labels=column();rowItem(card,OnHandGlyphs.tile(this,glyph),0,10);rowItem(card,labels,1,0);
         heading.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         caption.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-        card.addView(lead,lp(-1,-2));margin(caption,card,8,0);
+        margin(heading,labels,0,0);margin(caption,labels,3,0);
         card.setContentDescription(title+" · "+detail);
         card.setAccessibilityDelegate(new View.AccessibilityDelegate(){
             @Override public void onInitializeAccessibilityNodeInfo(View host,android.view.accessibility.AccessibilityNodeInfo info){
