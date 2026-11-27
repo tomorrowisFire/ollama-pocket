@@ -1,0 +1,2 @@
+# F10A11 / P0A1 scoped acceptance
+Exact candidate fc9b75435095ef87b18a51f805094a7461dac9a0. Java run 45925704455 SUCCESS; native run 45925704477 SUCCESS (secure-relay job 140266407858, cooperative APK job 140266532042). Exact-head artifacts: unsigned QA AAB 15166373103, RPC APK 15166288222, compatibility audit 15165909959. Prior search-anchor test 3823 assertions, source/CI acceptance only. Real-device UI performance, lifecycle and independent evaluation remain NOT_RUN. No numerical score increase.

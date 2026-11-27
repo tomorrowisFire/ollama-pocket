@@ -2,6 +2,8 @@ package com.ollamapocket.app;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.InputType;
 import android.view.View;
 import android.view.WindowManager;
@@ -19,7 +21,8 @@ import java.util.function.Function;
 
 /** Foreground-only private workspace. Exact reviewed snapshot, explicit writes, no inference. */
 final class ProjectWorkspaceUi {
-    private static final AtomicBoolean MODAL=new AtomicBoolean(),WORK=new AtomicBoolean();
+    private static final AtomicBoolean MODAL=new AtomicBoolean();
+    private static final ProjectWorkGate WORK=new ProjectWorkGate();
     private final Activity owner;
     private final WorkspaceDictation dictation;
     private final WorkspaceReadAloud reading;
@@ -43,7 +46,7 @@ final class ProjectWorkspaceUi {
     private Function<ProjectLibrary.Link,ProjectChatLinkPolicy.Status> linkResolver;
     private Consumer<ProjectLibrary.Link> linkOpener;
     ProjectWorkspaceUi(Activity owner,BooleanSupplier eligible){this.owner=owner;this.eligible=eligible;this.dictation=new WorkspaceDictation(owner);this.reading=new WorkspaceReadAloud(owner);this.viewer=new WorkspaceTextViewer(owner);}
-    static boolean busy(){return MODAL.get()||WORK.get();}
+    static boolean busy(){return MODAL.get()||WORK.busy();}
     private boolean valid(long token){return session.valid(token)&&eligible.getAsBoolean()&&!owner.isFinishing()&&!owner.isDestroyed();}
     private String s(int id,Object... args){return owner.getString(id,args);}
     private int dp(int n){return Math.round(n*owner.getResources().getDisplayMetrics().density);}
@@ -56,7 +59,7 @@ final class ProjectWorkspaceUi {
     void openReport(ProjectReportHandoff handoff,String title){openInternal(handoff,title,null,null,null,null,null);}
     private void openInternal(ProjectReportHandoff handoff,String title,Function<ProjectContext,String> preview,Consumer<String> apply,
             ProjectLibrary.Link current,Function<ProjectLibrary.Link,ProjectChatLinkPolicy.Status> resolver,Consumer<ProjectLibrary.Link> opener){
-        if(!eligible.getAsBoolean()||WORK.get()||!MODAL.compareAndSet(false,true)){
+        if(!eligible.getAsBoolean()||WORK.busy()||!MODAL.compareAndSet(false,true)){
             Toast.makeText(owner,R.string.busy,Toast.LENGTH_SHORT).show();return;
         }
         contextPreview=preview;contextApply=apply;currentLink=current;linkResolver=resolver;linkOpener=opener;
@@ -75,7 +78,7 @@ final class ProjectWorkspaceUi {
         titleField=null;textField=null;oldTitle="";oldText="";snapshot=null;body=null;scroll=null;notice=null;reloadRequired=false;
         report=null;reportTitle=null;reportSaved=false;contextPreview=null;contextApply=null;currentLink=null;linkResolver=null;linkOpener=null;
         if(ownsModal){ownsModal=false;MODAL.set(false);}
-        // An explicitly dispatched write can finish; WORK stays held until callback.
+        // A dispatched write retains its own lease until completion or failed delivery.
     }
     private void label(String value,boolean selectable){
         TextView t=new TextView(owner);t.setText(value);WorkbenchStyle.label(owner,t,14,false,false);t.setSaveEnabled(false);
@@ -87,7 +90,8 @@ final class ProjectWorkspaceUi {
     private void button(String value,boolean enabled,Runnable run,WorkbenchVisualPolicy.Role role){
         Button b=new Button(owner);b.setText(value);WorkbenchStyle.button(owner,b,role);b.setEnabled(enabled);
         final long token=session.token();
-        b.setOnClickListener(v->{if(valid(token)&&!WORK.get()&&confirmation==null)run.run();});
+        final TextView screen=notice;
+        b.setOnClickListener(v->{if(valid(token)&&notice==screen&&b.isAttachedToWindow()&&b.isEnabled()&&!WORK.busy()&&confirmation==null)run.run();});
         body.addView(b,WorkbenchStyle.row(owner));
     }
     private void button(int id,Runnable run){button(s(id),true,run,WorkbenchStyle.role(id));}
@@ -101,7 +105,8 @@ final class ProjectWorkspaceUi {
         WorkbenchStyle.field(owner,e);
         body.addView(e,WorkbenchStyle.row(owner));
         final long token=session.token();
-        dictation.add(body,e,hint,max,multi,()->valid(token)&&!WORK.get()&&confirmation==null&&dialog!=null&&dialog.isShowing());
+        final TextView screen=notice;
+        dictation.add(body,e,hint,max,multi,()->valid(token)&&notice==screen&&e.isAttachedToWindow()&&!WORK.busy()&&confirmation==null&&dialog!=null&&dialog.isShowing());
         return e;
     }
     private void reset(){
@@ -109,14 +114,15 @@ final class ProjectWorkspaceUi {
         body.removeAllViews();titleField=null;textField=null;oldTitle="";oldText="";reloadRequired=false;
         notice=new TextView(owner);notice.setSaveEnabled(false);WorkbenchStyle.label(owner,notice,14,false,false);
         notice.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);body.addView(notice);
-        final ScrollView current=scroll;current.post(()->{if(scroll==current)current.scrollTo(0,0);});
+        final ScrollView current=scroll;final TextView screen=notice;
+        current.post(()->{if(scroll==current&&notice==screen)current.scrollTo(0,0);});
     }
     private void status(int id){notice.setText(id);}
     private void confirm(int title,int message,Runnable action){
-        final long token=session.token();
+        final long token=session.token();final TextView screen=notice;
         AlertDialog d=new AlertDialog.Builder(owner).setTitle(title).setMessage(message)
             .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.ok,(x,w)->{
-                if(valid(token)&&!WORK.get())action.run();
+                if(valid(token)&&notice==screen&&confirmation==x&&!WORK.busy())action.run();
             }).create();
         confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;});secure(d);d.show();secure(d);
     }
@@ -140,23 +146,25 @@ final class ProjectWorkspaceUi {
             }
         }
     }
-    private interface Task<T>{T run()throws Exception;}
-    private <T> void work(Task<T> task,Consumer<T> success,Consumer<Exception> failure){
-        final long token=session.token();
-        if(!valid(token)||!WORK.compareAndSet(false,true))return;
-        viewer.cancel();reading.cancel();dictation.cancel();lockControls(true);status(R.string.project_working);
-        Thread worker=new Thread(()->{
-            T value=null;Exception error=null;
-            try{value=task.run();}catch(Exception e){error=e;}
-            final T result=value;final Exception problem=error;
-            owner.runOnUiThread(()->{
-                WORK.set(false);
-                if(!valid(token))return;
-                lockControls(false);
-                if(problem==null)success.accept(result);else failure.accept(problem);
-            });
-        },"onhand-project-store");
-        try{worker.start();}catch(RuntimeException e){WORK.set(false);lockControls(false);failure.accept(e);}
+    private <T> void work(ProjectWorkGate.Task<T> task,Consumer<T> success,Consumer<Exception> failure){
+        final long token=session.token();final TextView screen=notice;
+        if(!valid(token))return;
+        final ProjectWorkGate.Lease lease=WORK.acquire();
+        if(lease==null)return;
+        try{
+            viewer.cancel();reading.cancel();dictation.cancel();lockControls(true);status(R.string.project_working);
+            final Handler main=new Handler(Looper.getMainLooper());
+            Thread worker=new Thread(()->{
+                if(!lease.execute(task,main::post,(result,problem)->{
+                    if(!valid(token)||notice!=screen)return;
+                    lockControls(false);
+                    if(problem==null)success.accept(result);else failure.accept(problem);
+                }))android.util.Log.w("OnHandAI","Project completion not delivered");
+            },"onhand-project-store");
+            worker.start();
+        }catch(RuntimeException e){
+            if(lease.release()&&valid(token)&&notice==screen){lockControls(false);failure.accept(e);}
+        }catch(Error fatal){lease.release();throw fatal;}
     }
     private void reload(){
         reset();snapshot=null;
@@ -282,7 +290,7 @@ final class ProjectWorkspaceUi {
             label(source.projectTitle+(source.artifactTitle==null?"":" / "+source.artifactTitle),true);
             label(s(heading)+(source.ordinal==0?"":" · "+s(R.string.project_version,source.ordinal)),false);
             label(s(R.string.project_search_range,hit.start+1,hit.end),false);label(hit.context(),true);
-            BooleanSupplier guard=()->valid(token)&&!WORK.get()&&confirmation==null&&dialog!=null&&dialog.isShowing()&&searchCurrent(state,screen);
+            BooleanSupplier guard=()->valid(token)&&!WORK.busy()&&confirmation==null&&dialog!=null&&dialog.isShowing()&&searchCurrent(state,screen);
             if(hit.viewerCompatible(literal))viewer.addMatch(body,heading,()->source.text,guard,literal,hit.start,hit.end);
             button(R.string.project_search_open_item,()->{
                 if(!searchCurrent(state,screen))return;
@@ -393,7 +401,7 @@ final class ProjectWorkspaceUi {
         label(reviewed.status+" · "+s(R.string.project_version,a==null?1:a.current().ordinal+1),false);
         final long reviewToken=session.token();
         viewer.add(body,R.string.project_text,()->reviewed.json,
-            ()->valid(reviewToken)&&!WORK.get()&&report==reviewed&&confirmation==null&&dialog!=null&&dialog.isShowing());
+            ()->valid(reviewToken)&&!WORK.busy()&&report==reviewed&&confirmation==null&&dialog!=null&&dialog.isShowing());
         label(reviewed.json,true);
         button(R.string.project_save,()->confirm(R.string.project_report_save,R.string.project_report_notice,
             ()->save(st->a==null?reviewed.create(st,pid,aid,title,System.currentTimeMillis()):
@@ -418,7 +426,7 @@ final class ProjectWorkspaceUi {
         label(s(R.string.project_compare_common,changes.prefix,changes.suffix),false);
         if(changes.identical())label(s(R.string.project_compare_identical),false);
         final long token=session.token();
-        BooleanSupplier guard=()->valid(token)&&!WORK.get()&&confirmation==null&&dialog!=null&&dialog.isShowing()&&
+        BooleanSupplier guard=()->valid(token)&&!WORK.busy()&&confirmation==null&&dialog!=null&&dialog.isShowing()&&
             comparisonCurrent(state,p,a,ordinal);
         comparisonSpan(R.string.project_compare_previous,old.ordinal,changes.previous,guard);
         comparisonSpan(R.string.project_compare_current,current.ordinal,changes.current,guard);
@@ -440,7 +448,7 @@ final class ProjectWorkspaceUi {
     private void readText(int title,String value){
         final long token=session.token();
         if(!value.trim().isEmpty()){
-            BooleanSupplier guard=()->valid(token)&&!WORK.get()&&confirmation==null&&dialog!=null&&dialog.isShowing();
+            BooleanSupplier guard=()->valid(token)&&!WORK.busy()&&confirmation==null&&dialog!=null&&dialog.isShowing();
             viewer.add(body,title,()->value,guard);
             reading.add(body,title,()->value,guard);
         }
