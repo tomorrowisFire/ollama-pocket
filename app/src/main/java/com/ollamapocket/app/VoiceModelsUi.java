@@ -61,8 +61,9 @@ final class VoiceModelsUi {
             LinearLayout body=panel();body.setPadding(dp(16),dp(12),dp(16),dp(12));
             text(body,R.string.voice_models_notice);text(body,R.string.voice_models_chinese);
             for(VoiceModelCatalog.Model model:VoiceModelCatalog.ALL){
-                LinearLayout section=panel();section.setPadding(0,dp(16),0,dp(8));body.addView(section);
-                TextView name=new TextView(owner);name.setText(model.name);WorkbenchStyle.label(owner,name,16,false,true);section.addView(name);
+                LinearLayout section=panel();WorkbenchStyle.card(owner,section,false);body.addView(section,WorkbenchStyle.row(owner));
+                TextView name=new TextView(owner);name.setText(model.name);WorkbenchStyle.label(owner,name,16,false,true);
+                OnHandGlyphs.accentLabel(name,OnHandGlyphs.Kind.MIC);section.addView(name,WorkbenchStyle.row(owner));
                 TextView details=new TextView(owner);details.setText(owner.getString(R.string.voice_model_details,
                     size(model.archiveBytes),size(model.expandedBytes),model.languages,model.license));
                 if(model!=VoiceModelCatalog.WHISPER)details.append("\n"+owner.getString(R.string.voice_model_android_requirement));
@@ -74,7 +75,9 @@ final class VoiceModelsUi {
                 enabled.setChecked(owner.getPreferences(Context.MODE_PRIVATE).getBoolean(key,model!=VoiceModelCatalog.MELO));
                 enabled.setOnCheckedChangeListener((b,value)->{if(alive())owner.getPreferences(Context.MODE_PRIVATE).edit().putBoolean(key,value).apply();});
                 enabled.setMinHeight(dp(48));section.addView(enabled,WorkbenchStyle.row(owner));
-                Button install=button(section,R.string.voice_model_install),remove=button(section,R.string.voice_model_remove),license=button(section,R.string.voice_model_license);
+                AdaptiveAnswerActions actions=new AdaptiveAnswerActions(owner);
+                Button install=button(actions,R.string.voice_model_install),remove=button(actions,R.string.voice_model_remove),license=button(actions,R.string.voice_model_license);
+                section.addView(actions,WorkbenchStyle.row(owner));
                 Row row=new Row(model,state,install,remove,license,enabled);rows.add(row);
                 install.setOnClickListener(v->confirmInstall(model));remove.setOnClickListener(v->confirmRemove(model));license.setOnClickListener(v->license(model));
             }
@@ -93,6 +96,13 @@ final class VoiceModelsUi {
                 boolean installed=store.ready(row.model),present=store.present(row.model);
                 boolean supported=row.model==VoiceModelCatalog.WHISPER||android.os.Build.VERSION.SDK_INT>=27;
                 row.state.setText(installed?R.string.voice_model_installed:present?R.string.voice_model_reinstall:R.string.voice_model_not_installed);
+                WorkbenchVisualPolicy.Palette palette=WorkbenchStyle.palette(owner);
+                WorkbenchVisualPolicy.ModelStatus visual=installed?WorkbenchVisualPolicy.ModelStatus.INSTALLED:
+                    WorkbenchVisualPolicy.ModelStatus.AVAILABLE;
+                android.graphics.drawable.GradientDrawable badge=new android.graphics.drawable.GradientDrawable();
+                badge.setColor(!installed&&present?palette.danger:palette.modelStatusFill(visual));badge.setCornerRadius(dp(10));
+                row.state.setBackground(badge);row.state.setTextColor(!installed&&present?palette.dangerText:palette.modelStatusInk(visual));
+                row.state.setPadding(dp(10),dp(6),dp(10),dp(6));
                 row.install.setEnabled(!busy&&!present&&supported);row.remove.setEnabled(!busy&&present);row.license.setEnabled(!busy);row.enabled.setEnabled(!busy&&supported);
             }
             progress.setVisibility(busy?View.VISIBLE:View.GONE);stop.setVisibility(busy&&downloading?View.VISIBLE:View.GONE);stop.setEnabled(busy&&downloading);
@@ -114,7 +124,7 @@ final class VoiceModelsUi {
             if(!alive()||busy)return;
             child=new AlertDialog.Builder(owner).setTitle(R.string.voice_model_remove).setMessage(owner.getString(R.string.voice_model_remove_review,model.name))
                 .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.voice_model_remove,(d,w)->run(model,true)).create();
-            child.show();
+            child.show();WorkbenchWindow.fitCompact(owner,child);
         }
         String bundledLicense(VoiceModelCatalog.Model model)throws java.io.IOException{
             String asset=model==VoiceModelCatalog.WHISPER?"licenses/WHISPER-MODEL-MIT.txt":

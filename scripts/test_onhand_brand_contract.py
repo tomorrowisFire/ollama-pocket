@@ -181,5 +181,19 @@ assert rich_action.index("WorkbenchStyle.button(")<rich_action.index("b.setTextS
 glyph_source=(src/"OnHandGlyphs.java").read_text()
 for resource in ("chat_copy_math","chat_copy_spreadsheet","integration_copy_csv","integration_copy_html"):
     assert "id==R.string."+resource in glyph_source
+# F10A57: voice cards and status-aware native glyphs, no change to storage or consent.
+voice=(src/"VoiceModelsUi.java").read_text()
+for required in ("WorkbenchStyle.card(owner,section,false)","OnHandGlyphs.accentLabel(name,OnHandGlyphs.Kind.MIC)",
+    "AdaptiveAnswerActions actions=new AdaptiveAnswerActions(owner)","WorkbenchWindow.fitCompact(owner,child)",
+    "palette.dangerText:palette.modelStatusInk(visual)","row.install.setEnabled(!busy&&!present&&supported)",
+    "row.remove.setEnabled(!busy&&present)","setPositiveButton(R.string.voice_model_download_agree,(d,w)->run(model,false))",
+    "setPositiveButton(R.string.voice_model_remove,(d,w)->run(model,true))","store.install(model,operation::get",
+    "store.cancelPendingInstall()","OPEN.get(owner)==this"):
+    assert required in voice,required
+for required in ("d.labelColors=v.getTextColors()","d.setState(v.getDrawableState())",
+    "labelColors.getColorForState(state,labelColors.getDefaultColor())","Math.round(alpha*stateAlpha/255f)",
+    "id==R.string.voice_model_install","id==R.string.voice_model_remove","id==R.string.voice_model_license"):
+    assert required in glyph_source,required
+assert "assert " not in voice
 assert "ads.register(downloadAdSlot,AdSupport.PLACEMENT_DOWNLOAD)" in main
 print("PASS: approved launcher SHA-256, both adaptive masks, light/dark dialog palettes and native UI wiring")

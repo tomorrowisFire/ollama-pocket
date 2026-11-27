@@ -26,6 +26,8 @@ final class OnHandGlyphs extends Drawable {
     private final Paint pen=new Paint(Paint.ANTI_ALIAS_FLAG);
     private final int size;
     private int color,alpha=255;
+    private android.content.res.ColorStateList labelColors;
+    private int stateAlpha=255;
     private OnHandGlyphs(Kind k,int ink,int size){kind=k;color=ink;this.size=size;pen.setStrokeWidth(1.75f);pen.setStrokeCap(Paint.Cap.ROUND);pen.setStrokeJoin(Paint.Join.ROUND);pen.setStyle(Paint.Style.STROKE);}
     private static int dp(Context c,int value){return Math.round(value*c.getResources().getDisplayMetrics().density);}
     static Drawable drawable(Context c,Kind kind,int color,int sp){
@@ -39,8 +41,10 @@ final class OnHandGlyphs extends Drawable {
     @Override public boolean isStateful(){return true;}
     @Override protected boolean onStateChange(int[] state){
         boolean enabled=false;for(int s:state)if(s==android.R.attr.state_enabled)enabled=true;
-        int next=enabled||state.length==0?255:115;
-        if(next==alpha)return false;alpha=next;invalidateSelf();return true;
+        int nextAlpha=labelColors!=null||enabled||state.length==0?255:115;
+        int nextColor=labelColors==null?color:labelColors.getColorForState(state,labelColors.getDefaultColor());
+        if(nextAlpha==stateAlpha&&nextColor==color)return false;
+        stateAlpha=nextAlpha;color=nextColor;invalidateSelf();return true;
     }
     private void line(Canvas c,float... xy){Path p=new Path();p.moveTo(xy[0],xy[1]);for(int i=2;i<xy.length;i+=2)p.lineTo(xy[i],xy[i+1]);c.drawPath(p,pen);}
     private void box(Canvas c,float l,float t,float r,float b,float corner){c.drawRoundRect(l,t,r,b,corner,corner,pen);}
@@ -48,7 +52,7 @@ final class OnHandGlyphs extends Drawable {
     @Override public void draw(Canvas c){
         Rect b=getBounds();if(b.isEmpty())return;
         c.save();c.translate(b.left,b.top);c.scale(b.width()/24f,b.height()/24f);
-        pen.setColor(color);pen.setAlpha(alpha);
+        pen.setColor(color);pen.setAlpha(Math.round(alpha*stateAlpha/255f));
         switch(kind){
             case MENU:line(c,4,6,20,6);line(c,4,12,20,12);line(c,4,18,20,18);break;
             case PLUS:line(c,12,5,12,19);line(c,5,12,19,12);break;
@@ -100,7 +104,10 @@ final class OnHandGlyphs extends Drawable {
     private static void apply(TextView v){
         Object raw=v.getTag(R.id.onhand_glyph_spec);if(!(raw instanceof Spec))return;
         Spec s=(Spec)raw;Context c=v.getContext();WorkbenchVisualPolicy.Palette p=WorkbenchStyle.palette(c);
-        v.setCompoundDrawablesRelative(drawable(c,s.kind,s.accent?p.focus:v.getCurrentTextColor(),s.only?22:20),null,null,null);
+        OnHandGlyphs d=(OnHandGlyphs)drawable(c,s.kind,s.accent?p.focus:v.getCurrentTextColor(),s.only?22:20);
+        if(!s.accent)d.labelColors=v.getTextColors();
+        d.setState(v.getDrawableState());
+        v.setCompoundDrawablesRelative(d,null,null,null);
         v.setCompoundDrawablePadding(s.only?0:dp(c,10));
         if(s.only){v.setText("");v.setGravity(Gravity.CENTER);v.setPadding(dp(c,13),dp(c,10),dp(c,13),dp(c,10));v.setMinWidth(dp(c,48));v.setMinimumWidth(dp(c,48));}
     }
@@ -156,6 +163,10 @@ final class OnHandGlyphs extends Drawable {
         if(id==R.string.project_delete||id==R.string.auto_editor_remove||id==R.string.cloud_key_delete)return Kind.TRASH;
         if(id==R.string.conference_start||id==R.string.auto_start||id==R.string.auto_resume||id==R.string.knowledge_generate)return Kind.PLAY;
         if(id==R.string.voice||id==R.string.voice_models_title)return Kind.MIC;
+        if(id==R.string.voice_model_install)return Kind.DOWN;
+        if(id==R.string.voice_model_remove)return Kind.TRASH;
+        if(id==R.string.voice_model_license)return Kind.BOOK;
+        if(id==R.string.voice_model_cancel_download)return Kind.STOP;
         if(id==R.string.refresh||id==R.string.diag_refresh)return Kind.REFRESH;
         if(id==R.string.language)return Kind.LANGUAGE;
         if(id==R.string.settings)return Kind.SETTINGS;

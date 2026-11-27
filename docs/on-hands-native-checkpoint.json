@@ -1,6 +1,6 @@
 {
-  "stage": "F10A56-chart-and-answer-controls-batch",
-  "revision": "F10A56",
-  "priorCandidate": "6d8025524d4584c5ecb2f474e6d04932dabaeafd",
-  "reason": "Detached signed chart native display and consistent answer-copy controls; exact FULL candidate gate after F10A55. No production changes."
+  "stage": "F10A57-voice-model-cards-and-glyph-state",
+  "revision": "F10A57",
+  "priorCandidate": "1fea8837eb0077056e3736af93f1866354b6f44d",
+  "reason": "Voice model manager cards, adaptive actions and status palette; stateful native glyph color and alpha. Exact FULL required after F10A56."
 }
