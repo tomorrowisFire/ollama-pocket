@@ -9,6 +9,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import java.io.BufferedReader;
@@ -23,11 +25,14 @@ public final class OllamaForegroundService extends Service {
     public static final String ACTION_STOP = "com.ollamapocket.STOP";
     private static final String CHANNEL = "ollama_local_server";
     private static final int NOTIFICATION_ID = 50;
-    private static volatile Process process;
+    private static final NativeProcessSlot<Process> processes = new NativeProcessSlot<>();
+    private final Handler lifecycle = new Handler(Looper.getMainLooper());
+    private int latestStartId;
+    private boolean destroyed;
     private static final StringBuilder recentLog = new StringBuilder();
 
     public static boolean isRunning() {
-        Process p = process;
+        Process p = processes.current();
         return p != null && p.isAlive();
     }
 
@@ -81,10 +86,10 @@ public final class OllamaForegroundService extends Service {
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
+        latestStartId = startId;
         if (intent != null && ACTION_STOP.equals(intent.getAction())) {
             stopNative();
-            stopForeground(STOP_FOREGROUND_REMOVE);
-            stopSelf();
+            finishCurrentStart();
             return START_NOT_STICKY;
         }
         // Android requires foreground promotion promptly after startForegroundService.
@@ -116,16 +121,15 @@ public final class OllamaForegroundService extends Service {
         File runner = new File(getApplicationInfo().nativeLibraryDir, "libllama-server.so");
         if (!bin.isFile() || !runner.isFile()) {
             log("ERROR: ARM64 Ollama/runner payload missing in APK");
-            stopForeground(STOP_FOREGROUND_REMOVE);
-            stopSelf();
+            finishCurrentStart();
             return;
         }
         try {
             ProcessBuilder pb = new ProcessBuilder(bin.getAbsolutePath(), "serve");
             configureEnvironment(this, pb);
-            process = pb.start();
+            final Process p = pb.start();
+            processes.install(p);
             log("Started local Ollama process");
-            final Process p = process;
             new Thread(() -> {
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(
                         p.getInputStream(), StandardCharsets.UTF_8))) {
@@ -134,24 +138,30 @@ public final class OllamaForegroundService extends Service {
                 } catch (Exception e) { log("Log reader: " + e); }
             }, "ollama-stdout").start();
             new Thread(() -> {
-                try { log("Ollama process exited: " + p.waitFor()); }
-                catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
-                if (process == p) {
-                    process = null;
-                    stopSelf();
-                }
+                final int exitCode;
+                try { exitCode = p.waitFor(); }
+                catch (InterruptedException ignored) { Thread.currentThread().interrupt(); return; }
+                log("Ollama process exited: " + exitCode);
+                // Serialize exit handling with START, STOP and onDestroy; stale exits are inert.
+                lifecycle.post(() -> {
+                    if (destroyed || !processes.retire(p)) return;
+                    finishCurrentStart();
+                });
             }, "ollama-exit").start();
         } catch (Exception e) {
             log("ERROR starting Ollama: " + e);
-            stopForeground(STOP_FOREGROUND_REMOVE);
-            stopSelf();
+            finishCurrentStart();
         }
+    }
+
+    /** Keep the notification if Android has already queued a newer start. Main looper only. */
+    private void finishCurrentStart() {
+        if (stopSelfResult(latestStartId)) stopForeground(STOP_FOREGROUND_REMOVE);
     }
 
     private synchronized void stopNative() {
         GpuRunner.stop();
-        Process p = process;
-        process = null;
+        Process p = processes.detach();
         if (p != null) {
             p.destroy();
             log("Stop requested");
@@ -159,6 +169,8 @@ public final class OllamaForegroundService extends Service {
     }
 
     @Override public void onDestroy() {
+        destroyed = true;
+        lifecycle.removeCallbacksAndMessages(null);
         stopNative();
         super.onDestroy();
     }

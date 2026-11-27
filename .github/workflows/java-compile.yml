@@ -60,6 +60,7 @@ on:
       - 'tests/CloudUsageLedgerTest.java'
       - 'tests/CloudStreamTest.java'
       - 'tests/InferenceSafetyPolicyTest.java'
+      - 'tests/NativeProcessSlotTest.java'
       - 'tests/Stage07BatchPolicyTest.java'
       - 'tests/WorkflowPolicyTest.java'
       - 'tests/McpInputPolicyTest.java'
@@ -254,6 +255,8 @@ jobs:
           mkdir -p /tmp/inference-safety-tests
           javac -d /tmp/inference-safety-tests app/src/main/java/com/ollamapocket/app/InferenceSafetyPolicy.java tests/InferenceSafetyPolicyTest.java
           java -cp /tmp/inference-safety-tests com.ollamapocket.app.InferenceSafetyPolicyTest
+          javac -d /tmp/inference-safety-tests app/src/main/java/com/ollamapocket/app/NativeProcessSlot.java tests/NativeProcessSlotTest.java
+          java -cp /tmp/inference-safety-tests com.ollamapocket.app.NativeProcessSlotTest
       - name: Test compact RPC allocation and fallback policy
         run: |
           mkdir -p /tmp/stage07-tests
