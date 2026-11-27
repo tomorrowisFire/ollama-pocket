@@ -317,8 +317,12 @@ final class OnHandsVoice {
         playbackComplete=false;
         generation++;
         if(owner.get()==this)owner.clear();
-        WhisperCapture oldWhisper=whisper;whisper=null;if(oldWhisper!=null)oldWhisper.cancel();
-        closeNeural();
+        WhisperCapture oldWhisper=whisper;whisper=null;
+        // Revoke callbacks and release other voice state even if a platform/native stop fails.
+        if(oldWhisper!=null)try{oldWhisper.cancel();}
+            catch(RuntimeException|LinkageError failure){android.util.Log.w("OnHandAI","Whisper stop failed");}
+        try{closeNeural();}
+        catch(RuntimeException|LinkageError failure){android.util.Log.w("OnHandAI","Neural playback stop failed");}
         stopBarge();clearTimeout();clearResume();pendingSpeech=null;continuous=false;bargeOptIn=false;continuation.clear();clearPlayback();
         partialTranscript="";reviewPending=false;
         if(capture!=null)capture.cancel();capture=null;

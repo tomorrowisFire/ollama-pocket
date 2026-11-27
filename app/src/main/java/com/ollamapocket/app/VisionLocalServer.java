@@ -159,17 +159,24 @@ final class VisionLocalServer implements AutoCloseable {
             throw new IllegalArgumentException("Visual request lease");
         byte[] payload=request.takePayload(generation,tokens,stop);
         long started=System.nanoTime();
-        java.util.concurrent.ScheduledExecutorService watcher=java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r->{
-            Thread t=new Thread(r,"vision-request-watch");t.setDaemon(true);return t;
-        });
+        java.util.concurrent.ScheduledExecutorService watcher=null;
         try{
+            watcher=java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r->{
+                Thread t=new Thread(r,"vision-request-watch");t.setDaemon(true);return t;
+            });
             watcher.scheduleAtFixedRate(()->{
-                if(stopped.getAsBoolean()||(stop!=null&&stop.getAsBoolean())||System.nanoTime()-started>=180_000_000_000L)cancel();
+                boolean abort;
+                try{abort=stopped.getAsBoolean()||(stop!=null&&stop.getAsBoolean())||System.nanoTime()-started>=180_000_000_000L;}
+                catch(RuntimeException unavailable){abort=true;}
+                if(abort)cancel();
             },0,1,TimeUnit.SECONDS);
             Response reply=exchange("/v1/chat/completions",secret,payload,120000);
             if(reply.status!=200)throw new IOException("Visual inference rejected");
             VisionImagePolicy.check(stop);check();return parseReply(reply.json(),tokens);
-        }finally{watcher.shutdownNow();Arrays.fill(payload,(byte)0);}
+        }finally{
+            try{if(watcher!=null)watcher.shutdownNow();}
+            finally{Arrays.fill(payload,(byte)0);}
+        }
     }
     static ReviewedLocalPolicy.Result parseReply(JSONObject reply,int tokens)throws Exception{
         JSONArray choices=reply.optJSONArray("choices");
@@ -185,7 +192,9 @@ final class VisionLocalServer implements AutoCloseable {
         return new ReviewedLocalPolicy.Result(answer,"length".equals(finish));
     }
     void cancel(){
-        cancelled=true;HttpURLConnection c=active;if(c!=null)c.disconnect();process.destroy();
+        cancelled=true;HttpURLConnection c=active;
+        try{if(c!=null)c.disconnect();}
+        finally{process.destroy();}
     }
     boolean alive(){return process.isAlive();}
     private static boolean awaitDeath(Process p){

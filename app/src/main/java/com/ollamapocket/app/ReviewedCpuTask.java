@@ -14,8 +14,9 @@ final class ReviewedCpuTask {
     private final BooleanSupplier stopped;
     ReviewedCpuTask(Context context,BooleanSupplier stopped){this.context=context.getApplicationContext();this.stopped=stopped;}
     private boolean unsafe(){
-        return stopped.getAsBoolean()||!OllamaForegroundService.isRunning()||
-                !"off".equals(CoopSession.get(context).role())||InferenceSafety.blocked(context);
+        try{return stopped.getAsBoolean()||!OllamaForegroundService.isRunning()||
+                !"off".equals(CoopSession.get(context).role())||InferenceSafety.blocked(context);}
+        catch(RuntimeException unavailable){return true;}
     }
     private void check()throws IOException{
         if(unsafe()||Thread.currentThread().isInterrupted())throw new InterruptedIOException("Local task unavailable");
@@ -35,9 +36,10 @@ final class ReviewedCpuTask {
         HttpURLConnection request=OllamaHttp.newChatConnection();
         request.setReadTimeout(60000);
         BooleanSupplier cancelled=()->abort.get()||unsafe()||System.nanoTime()-start>=180_000_000_000L;
-        ScheduledExecutorService watchdog=Executors.newSingleThreadScheduledExecutor(r->{Thread t=new Thread(r,"reviewed-local-watch");t.setDaemon(true);return t;});
-        StringBuilder answer=new StringBuilder();boolean[] done={false},truncated={false};
+        ScheduledExecutorService watchdog=null;
         try{
+            StringBuilder answer=new StringBuilder();boolean[] done={false},truncated={false};
+            watchdog=Executors.newSingleThreadScheduledExecutor(r->{Thread t=new Thread(r,"reviewed-local-watch");t.setDaemon(true);return t;});
             watchdog.scheduleAtFixedRate(()->{if(cancelled.getAsBoolean()){abort.set(true);request.disconnect();}},0,1,TimeUnit.SECONDS);
             check();
             OllamaHttp.streamChat(request,body,item->{
@@ -65,6 +67,10 @@ final class ReviewedCpuTask {
             },cancelled);
             if(!done[0]||cancelled.getAsBoolean()||!expected.equals(installed(model)))throw new IOException("Local result not verified");
             check();return new ReviewedLocalPolicy.Result(answer.toString(),truncated[0]);
-        }finally{abort.set(true);watchdog.shutdownNow();request.disconnect();}
+        }finally{
+            abort.set(true);
+            try{if(watchdog!=null)watchdog.shutdownNow();}
+            finally{request.disconnect();}
+        }
     }
 }

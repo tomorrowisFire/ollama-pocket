@@ -10,12 +10,11 @@ import android.widget.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /** Foreground-only tools and workflows. A single active worker survives Activity recreation only until cancelled. */
 final class AutomationUi {
-    private static final AtomicBoolean BUSY=new AtomicBoolean();
+    private static final ProjectWorkGate BUSY=new ProjectWorkGate();
     private final Activity owner;
     private final WorkspaceDictation dictation;
     private final WorkspaceReadAloud reading;
@@ -30,9 +29,9 @@ final class AutomationUi {
     private ProjectWorkspaceUi reportWorkspace;
     private volatile Thread worker;
     private volatile boolean stopped;
-    private int epoch;
+    private volatile int epoch;
     AutomationUi(Activity a){owner=a;dictation=new WorkspaceDictation(a);reading=new WorkspaceReadAloud(a);viewer=new WorkspaceTextViewer(a);}
-    static boolean busy(){return BUSY.get()||VisionLocalServer.busy();}
+    static boolean busy(){return BUSY.busy()||VisionLocalServer.busy();}
     private String s(int id){return owner.getString(id);}
     private int dp(int n){return Math.round(n*owner.getResources().getDisplayMetrics().density);}
     private void toast(int id){Toast.makeText(owner,id,Toast.LENGTH_SHORT).show();}
@@ -66,8 +65,9 @@ final class AutomationUi {
         dialog=d;d.setOnDismissListener(x->{if(dialog==d){dialog=null;pause();}});d.show();secure(d);WorkbenchWindow.fit(owner,d);
     }
     void pause(){
-        viewer.cancel();reading.cancel();dictation.cancel();
         stopped=true;epoch++;
+        Thread current=worker;if(current!=null)current.interrupt();
+        viewer.cancel();reading.cancel();dictation.cancel();
         VisionModelStore visualStore=visionStore;visionStore=null;
         if(visualStore!=null)visualStore.cancelInstall();
         VisionLocalServer visualServer=visionServer;
@@ -79,22 +79,36 @@ final class AutomationUi {
         if(workflow!=null)workflow.pause();
         if(planner!=null){planner.cancel();planner=null;}
         if(conference!=null){conference.cancel();conference=null;}
-        Thread t=worker;if(t!=null)t.interrupt();
         AlertDialog c=confirmation;confirmation=null;if(c!=null)c.dismiss();
         AlertDialog d=dialog;dialog=null;if(d!=null)d.dismiss();
     }
     private <T> void work(Callable<T> task,Consumer<T> success,Runnable failure){
-        if(!BUSY.compareAndSet(false,true)){toast(R.string.busy);return;}
-        viewer.cancel();reading.cancel();dictation.cancel();
+        final ProjectWorkGate.Lease lease=BUSY.acquire();
+        if(lease==null){toast(R.string.busy);return;}
         final int token=epoch;
-        Thread t=new Thread(()->{
-            T result=null;boolean ok=false;
-            try{result=task.call();ok=true;}catch(Exception ignored){}
-            finally{worker=null;}
-            final T value=result;final boolean done=ok;
-            owner.runOnUiThread(()->{BUSY.set(false);if(valid(token)){if(done)success.accept(value);else failure.run();}});
-        },"onhand-automation");
-        worker=t;t.start();
+        Thread launched=null;
+        try{
+            viewer.cancel();reading.cancel();dictation.cancel();
+            android.os.Handler main=new android.os.Handler(android.os.Looper.getMainLooper());
+            launched=new Thread(()->{
+                try{
+                    if(!lease.execute(()->{
+                        try{return task.call();}
+                        catch(OutOfMemoryError memory){throw new java.io.IOException("Automation allocation failed",memory);}
+                        finally{if(worker==Thread.currentThread())worker=null;}
+                    },main::post,(value,error)->{
+                        if(valid(token)){if(error==null)success.accept(value);else failure.run();}
+                    }))android.util.Log.w("OnHandAI","Automation completion not delivered");
+                }finally{if(worker==Thread.currentThread())worker=null;}
+            },"onhand-automation");
+            worker=launched;launched.start();
+        }catch(RuntimeException|OutOfMemoryError e){
+            if(worker==launched)worker=null;
+            if(lease.release()&&valid(token))failure.run();
+        }catch(Error fatal){
+            if(worker==launched)worker=null;
+            lease.release();throw fatal;
+        }
     }
     void open(String model){
         if(busy()){toast(R.string.busy);return;}
@@ -422,8 +436,10 @@ final class AutomationUi {
             byte[] bytes=image.copyBytes();
             try{
                 android.graphics.Bitmap bitmap=android.graphics.BitmapFactory.decodeByteArray(bytes,0,bytes.length);
-                if(bitmap==null||bitmap.getWidth()!=image.width||bitmap.getHeight()!=image.height)
-                    throw new java.io.IOException("Visual preview unavailable");
+                if(bitmap==null||bitmap.getWidth()!=image.width||bitmap.getHeight()!=image.height||!valid(token)){
+                    if(bitmap!=null)bitmap.recycle();
+                    throw new java.io.IOException("Visual preview unavailable or cancelled");
+                }
                 return new VisualInput(image,bitmap);
             }catch(OutOfMemoryError e){throw new java.io.IOException("Visual preview allocation",e);}
             finally{java.util.Arrays.fill(bytes,(byte)0);}
