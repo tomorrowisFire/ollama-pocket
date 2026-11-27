@@ -41,7 +41,34 @@ public final class WorkbenchLayoutPolicyTest {
             }
         }
         compactDialogChecks();
+        continuousDialogAndTableChecks();
         System.out.println("PASS: "+n+" responsive workbench assertions");
+    }
+    private static void continuousDialogAndTableChecks(){
+        for(float scale:new float[]{1f,1.13f,1.2f,1.26f,2f,3f,Float.NaN,Float.POSITIVE_INFINITY,-1f}){
+            int prev=0,prevCompact=0;
+            for(int w=0;w<=2000;w++){
+                int full=WorkbenchLayoutPolicy.dialogWidthDp(w,scale),compact=WorkbenchLayoutPolicy.compactDialogWidthDp(w,scale);
+                check(full>=prev&&full<=w);check(compact>=prevCompact&&compact<=full);
+                check(full<=(WorkbenchLayoutPolicy.largeText(scale)?960:880));check(compact<=(WorkbenchLayoutPolicy.largeText(scale)?640:560));
+                if(w>0)check(full>0&&compact>0);
+                prev=full;prevCompact=compact;
+            }
+        }
+        check(WorkbenchLayoutPolicy.dialogWidthDp(599,1)==551);check(WorkbenchLayoutPolicy.dialogWidthDp(600,1)==552);
+        for(int w:new int[]{240,360,880})check(WorkbenchLayoutPolicy.dialogWidthDp(w,1)==w-(w>=600?48:24));
+        for(int len=-2;len<=200;len++){
+            int base=WorkbenchLayoutPolicy.tableColumnWidthDp(len,1),last=base;
+            check(base>=112&&base<=240);check(base==WorkbenchLayoutPolicy.tableColumnWidthDp(len,Float.NaN));
+            check(base==WorkbenchLayoutPolicy.tableColumnWidthDp(len,Float.POSITIVE_INFINITY));
+            for(float scale:new float[]{1,1.13f,1.26f,1.5f,2,2.52f,3,4}){
+                int width=WorkbenchLayoutPolicy.tableColumnWidthDp(len,scale);check(width>=last&&width<=684);last=width;
+            }
+            check(last==WorkbenchLayoutPolicy.tableColumnWidthDp(len,3));
+        }
+        check(WorkbenchLayoutPolicy.tableColumnWidthDp(0,2)==206);
+        check(WorkbenchLayoutPolicy.tableColumnWidthDp(Integer.MAX_VALUE,3)==684);
+        check(WorkbenchLayoutPolicy.tableColumnWidthDp(Integer.MIN_VALUE,1)==112);
     }
     private static void compactDialogChecks(){
         check(WorkbenchLayoutPolicy.compactDialogWidthDp(0,1)==0);
@@ -56,7 +83,7 @@ public final class WorkbenchLayoutPolicyTest {
                 int actual=WorkbenchLayoutPolicy.compactDialogWidthDp(width,scale);
                 check(actual>0&&actual<=width&&actual<=WorkbenchLayoutPolicy.dialogWidthDp(width,scale));
                 check(actual<=(WorkbenchLayoutPolicy.largeText(scale)?640:560));
-                check(width<=144||width==600||actual>=last);last=actual;
+                check(actual>=last);last=actual;
             }
         }
     }

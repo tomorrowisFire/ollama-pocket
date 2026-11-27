@@ -57,9 +57,11 @@ final class ChatRichView {
         AdaptiveAnswerActions header=new AdaptiveAnswerActions(c);
         TextView heading=label(c,title,ink,12*scale,false);heading.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
         heading.setTextIsSelectable(false);
+        if(android.os.Build.VERSION.SDK_INT>=28)heading.setAccessibilityHeading(true);
         OnHandGlyphs.accentLabel(heading,button==R.string.chat_copy_code?OnHandGlyphs.Kind.CODE:
             button==R.string.chat_copy_table?OnHandGlyphs.Kind.PLAN:OnHandGlyphs.Kind.DOC);
-        header.addView(heading,new LinearLayout.LayoutParams(-2,-2));
+        // Give long localized titles the full card width, separate from action controls.
+        card.addView(heading,new LinearLayout.LayoutParams(-1,-2));
         header.addView(action(c,button,scale,()->copy(c,original)),new LinearLayout.LayoutParams(-2,-2));
         for(Button extra:extras)if(extra!=null)header.addView(extra,new LinearLayout.LayoutParams(-2,-2));
         card.addView(header,new LinearLayout.LayoutParams(-1,-2));
@@ -135,16 +137,20 @@ final class ChatRichView {
             }else if(b.kind==ChatBlocks.Kind.TABLE){
                 TableLayout table=new TableLayout(c);
                 int count=b.rows.get(0).size();int[] widths=new int[count];
+                float combinedScale=scale*Math.max(1f,c.getResources().getConfiguration().fontScale);
                 for(int j=0;j<count;j++){
                     int len=0;for(List<String> row:b.rows)len=Math.max(len,row.get(j).length());
-                    widths[j]=dp(c,Math.min(240,Math.max(112,72+Math.min(21,len)*8)));
+                    widths[j]=dp(c,WorkbenchLayoutPolicy.tableColumnWidthDp(len,combinedScale));
                 }
                 for(int i=0;i<b.rows.size();i++){
                     TableRow row=new TableRow(c);
                     for(int j=0;j<count;j++){
                         TextView cell=label(c,ChatPresentation.format("",b.rows.get(i).get(j),"",surface),ink,14*scale,false);
-                        if(i==0)cell.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
-                        if(i%2==0)cell.setBackgroundColor(0x14808080);
+                        if(i==0){
+                            cell.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+                            if(android.os.Build.VERSION.SDK_INT>=28)cell.setAccessibilityHeading(true);
+                            cell.setBackgroundColor(WorkbenchStyle.palette(c).accentSoft);
+                        }else if(i%2==0)cell.setBackgroundColor(0x14808080);
                         TableRow.LayoutParams params=new TableRow.LayoutParams(widths[j],ViewGroup.LayoutParams.WRAP_CONTENT);
                         params.setMargins(0,0,dp(c,1),dp(c,1));row.addView(cell,params);
                     }

@@ -881,16 +881,21 @@ public final class MainActivity extends Activity {
         workspaceModeButton.setText(getString(R.string.workspace_mode)+" · "+getString(workspaceChoiceLabel())+
             "\n"+getString(currentRailDp>0?R.string.workspace_wide:R.string.workspace_compact));
     }
+    /** Only app-authored settings selections; platform and ad dialogs remain unchanged. */
+    private void showCompactSettingsDialog(AlertDialog.Builder builder){
+        AlertDialog dialog=builder.show();
+        WorkbenchWindow.fitCompact(this,dialog);
+    }
     private void chooseWorkspaceMode(){
         final String[] modes={WorkspaceLayoutPolicy.AUTO,WorkspaceLayoutPolicy.PHONE,WorkspaceLayoutPolicy.TABLET};
         int selected=Math.max(0,java.util.Arrays.asList(modes).indexOf(workspaceMode));
-        new AlertDialog.Builder(this).setTitle(R.string.workspace_mode)
+        showCompactSettingsDialog(new AlertDialog.Builder(this).setTitle(R.string.workspace_mode)
             .setSingleChoiceItems(new String[]{getString(R.string.workspace_auto),getString(R.string.workspace_phone),getString(R.string.workspace_tablet)},selected,(dialog,index)->{
                 dialog.dismiss();
                 workspaceMode=modes[index];
                 getPreferences(MODE_PRIVATE).edit().putString("workspace_mode",workspaceMode).apply();
                 applyWorkspaceLayout();
-            }).setNegativeButton(R.string.cancel,null).show();
+            }).setNegativeButton(R.string.cancel,null));
     }
     private void applyWorkspaceLayout(){
         if(workspace==null||tabletRail==null||isFinishing()||isDestroyed())return;
@@ -1423,14 +1428,14 @@ public final class MainActivity extends Activity {
         Button theme=button(getString(R.string.theme)+"  ·  "+currentTheme,false);
         settingAction(theme,OnHandGlyphs.Kind.THEME);
         margin(theme,display,0,6);
-        theme.setOnClickListener(v->new AlertDialog.Builder(this)
+        theme.setOnClickListener(v->showCompactSettingsDialog(new AlertDialog.Builder(this)
             .setTitle(getString(R.string.theme))
             .setSingleChoiceItems(new String[]{getString(R.string.theme_light_default),getString(R.string.theme_dark),getString(R.string.theme_auto_detail)},
                 "auto".equals(themeMode)?2:activeThemeDark?1:0,
                 (dialog,which)->{
                     dialog.dismiss();
                     applySetting("ui_theme",which==2?"auto":which==1?"dark":"light");
-                }).setNegativeButton(getString(R.string.cancel),null).show());
+                }).setNegativeButton(getString(R.string.cancel),null)));
         margin(text(getString(R.string.theme_location),
             11,MUTED,false),display,0,8);
         String chosenCity=getPreferences(MODE_PRIVATE).getString("sunset_city","device");
@@ -1439,27 +1444,27 @@ public final class MainActivity extends Activity {
         settingAction(cityChoice,OnHandGlyphs.Kind.LANGUAGE);
         margin(cityChoice,display,0,12);
         cityChoice.setVisibility("auto".equals(themeMode)?View.VISIBLE:View.GONE);
-        cityChoice.setOnClickListener(v->new AlertDialog.Builder(this)
+        cityChoice.setOnClickListener(v->showCompactSettingsDialog(new AlertDialog.Builder(this)
             .setTitle(getString(R.string.theme_city_title))
             .setSingleChoiceItems(UiText.cityLabels(this),SolarTheme.cityIndex(chosenCity),
                 (dialog,index)->{
                     dialog.dismiss();
                     applySetting("sunset_city",SolarTheme.CITY_CODES[index]);
-                }).setNegativeButton(getString(R.string.cancel),null).show());
+                }).setNegativeButton(getString(R.string.cancel),null)));
 
         String f=getPreferences(MODE_PRIVATE).getString("font_size","normal");
         String sizeLabel=getString("large".equals(f)?R.string.font_large:"extra".equals(f)?R.string.font_extra:R.string.font_normal);
         Button typeSize=button(getString(R.string.font_size)+"  ·  "+sizeLabel,false);
         settingAction(typeSize,OnHandGlyphs.Kind.FONT);
         margin(typeSize,display,0,8);
-        typeSize.setOnClickListener(v->new AlertDialog.Builder(this)
+        typeSize.setOnClickListener(v->showCompactSettingsDialog(new AlertDialog.Builder(this)
             .setTitle(getString(R.string.font_size))
             .setSingleChoiceItems(new String[]{getString(R.string.font_normal)+" (100%)",getString(R.string.font_large)+" (113%)",getString(R.string.font_extra)+" (126%)"},
                 "large".equals(f)?1:"extra".equals(f)?2:0,
                 (dialog,which)->{
                     dialog.dismiss();
                     applySetting("font_size",which==1?"large":which==2?"extra":"normal");
-                }).setNegativeButton(getString(R.string.cancel),null).show());
+                }).setNegativeButton(getString(R.string.cancel),null)));
 
         Button hud=button(getString(R.string.hud_title)+"  ·  "+getString(showHud?R.string.hud_visible:R.string.hud_hidden),false);
         settingAction(hud,OnHandGlyphs.Kind.CHIP);
@@ -1506,10 +1511,10 @@ public final class MainActivity extends Activity {
         Button license=button(getString(R.string.license),false);
         settingAction(license,OnHandGlyphs.Kind.BOOK);
         margin(license,about,0,5);
-        license.setOnClickListener(v->new AlertDialog.Builder(this)
+        license.setOnClickListener(v->showCompactSettingsDialog(new AlertDialog.Builder(this)
             .setTitle(getString(R.string.license_title))
             .setMessage(R.string.license_notice)
-            .setPositiveButton(getString(R.string.close),null).show());
+            .setPositiveButton(getString(R.string.close),null)));
         margin(text(getString(R.string.independent_client),12,MUTED,false),about,8,0);
     }
 

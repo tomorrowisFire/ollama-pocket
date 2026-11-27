@@ -157,5 +157,16 @@ for required in ("TextView text=conversationText(user,true)", "TextView question
     "request(p,id,target,q,s,revision,messages)"):
     assert required in panel,required
 assert "showAction(dialog);WorkbenchWindow.fit(owner,dialog)" not in panel
+# F10A55: table typography, heading hierarchy and compact settings selections.
+rich=(src/"ChatRichView.java").read_text()
+for required in ("card.addView(heading,new LinearLayout.LayoutParams(-1,-2))","heading.setAccessibilityHeading(true)",
+    "cell.setAccessibilityHeading(true)","WorkbenchLayoutPolicy.tableColumnWidthDp(len,combinedScale)",
+    "horizontal(c,table)","SensitiveClipboard.text(","ChatBlocks.spreadsheetTsv(b)"):
+    assert required in rich,required
+assert "header.addView(heading" not in rich
+assert "WorkbenchWindow.fitCompact(this,dialog)" in main.split("private void showCompactSettingsDialog(",1)[1].split("private void chooseWorkspaceMode()",1)[0]
+for control in ("theme","cityChoice","typeSize","license"):
+    assert control+".setOnClickListener(v->showCompactSettingsDialog(new AlertDialog.Builder(this)" in main
+assert "showCompactSettingsDialog(new AlertDialog.Builder(this).setTitle(R.string.workspace_mode)" in main
 assert "ads.register(downloadAdSlot,AdSupport.PLACEMENT_DOWNLOAD)" in main
 print("PASS: approved launcher SHA-256, both adaptive masks, light/dark dialog palettes and native UI wiring")
