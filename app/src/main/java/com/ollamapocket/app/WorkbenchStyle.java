@@ -109,9 +109,24 @@ final class WorkbenchStyle {
         WorkbenchVisualPolicy.Palette p=palette(a);
         for(int id:new int[]{android.content.DialogInterface.BUTTON_POSITIVE,android.content.DialogInterface.BUTTON_NEGATIVE,android.content.DialogInterface.BUTTON_NEUTRAL}){
             Button b=alert.getButton(id);if(b==null)continue;
-            b.setAllCaps(false);b.setMinHeight(dp(a,48));b.setMinimumHeight(dp(a,48));
-            b.setTextColor(colors(id==android.content.DialogInterface.BUTTON_POSITIVE?p.primary:p.muted,p.disabledText));
-            b.setTypeface(Typeface.DEFAULT,id==android.content.DialogInterface.BUTTON_POSITIVE?Typeface.BOLD:Typeface.NORMAL);
+            boolean positive=id==android.content.DialogInterface.BUTTON_POSITIVE;
+            // Keep the platform's measured button padding, text, listener and dismissal.
+            // A positive slot can also be destructive: do not promote it to a filled CTA.
+            StateListDrawable state=new StateListDrawable();
+            state.addState(new int[]{-android.R.attr.state_enabled},shape(a,p.dialogFill(false),p.border,0));
+            state.addState(new int[]{android.R.attr.state_focused},shape(a,p.dialogFill(true),p.focus,2));
+            state.addState(new int[]{},shape(a,p.dialogFill(true),p.border,0));
+            int start=b.getPaddingStart(),top=b.getPaddingTop(),end=b.getPaddingEnd(),bottom=b.getPaddingBottom();
+            b.setBackgroundTintList(null);
+            b.setBackground(new RippleDrawable(ColorStateList.valueOf(p.dialogRipple()),state,shape(a,Color.WHITE,Color.TRANSPARENT,0)));
+            b.setPaddingRelative(start,top,end,bottom);
+            b.setAllCaps(false);
+            b.setMinHeight(Math.max(b.getMinHeight(),dp(a,WorkbenchVisualPolicy.MIN_TARGET_DP)));
+            b.setMinimumHeight(Math.max(b.getMinimumHeight(),dp(a,WorkbenchVisualPolicy.MIN_TARGET_DP)));
+            b.setMinWidth(Math.max(b.getMinWidth(),dp(a,WorkbenchVisualPolicy.MIN_TARGET_DP)));
+            b.setMinimumWidth(Math.max(b.getMinimumWidth(),dp(a,WorkbenchVisualPolicy.MIN_TARGET_DP)));
+            b.setTextColor(colors(p.dialogInk(positive,true),p.dialogInk(positive,false)));
+            b.setTypeface(Typeface.DEFAULT,positive?Typeface.BOLD:Typeface.NORMAL);
         }
     }
     /** Persistent caption linked to its existing, independently guarded control. */

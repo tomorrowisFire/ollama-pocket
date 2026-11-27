@@ -15,6 +15,15 @@ public final class WorkbenchVisualPolicyTest {
                 contrast(p.focusInk(role),p.fill(role,true),3);
                 check(p.fill(role,false)==p.disabled&&p.ink(role,false)==p.disabledText);
             }
+            for(boolean positive:new boolean[]{false,true})for(boolean enabled:new boolean[]{false,true}){
+                contrast(p.dialogInk(positive,enabled),p.dialogFill(enabled),4.5);
+                check(p.dialogFill(enabled)==(enabled?p.surface:p.disabled));
+            }
+            contrast(p.focus,p.dialogFill(true),3);
+            check(p.dialogInk(true,true)==p.primary&&p.dialogInk(false,true)==p.muted);
+            check(p.dialogInk(true,false)==p.dialogInk(false,false));
+            check((p.dialogRipple()>>>24)==0x24);
+            check((p.dialogRipple()&0x00ffffff)==(p.primary&0x00ffffff));
             contrast(p.text,p.surface,4.5);contrast(p.text,p.field,4.5);
             contrast(p.text,p.canvas,4.5);contrast(p.text,p.bubble,4.5);
             contrast(p.text,p.accentSoft,4.5);contrast(p.primary,p.canvas,4.5);

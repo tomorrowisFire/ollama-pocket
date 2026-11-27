@@ -1,6 +1,6 @@
 {
-  "stage": "F10A47-compact-icon-led-starters",
-  "revision": "F10A47",
-  "priorCandidate": "f415eb63f3bbceaef27ad99be3ec7e2ebd6f0cd3",
-  "reason": "Responsive one-column starter card density improvement; preserve two-column layout, accessible names, details and original action guards. Require exact full APK/QA AAB/16 KiB, Java and regression evidence; no physical-device or release claim."
+  "stage": "F10A48-workbench-dialog-action-states",
+  "revision": "F10A48",
+  "priorCandidate": "db751d03c1bc8166414b2e0685d66963580d0747",
+  "reason": "Shared workbench dialog action focus, ripple, disabled contrast and minimum touch sizes; preserve semantic risk, existing labels and platform listeners. Exact FULL checkpoint required."
 }

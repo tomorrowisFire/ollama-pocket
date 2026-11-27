@@ -53,5 +53,12 @@ for f in ("AutomationUi.java","ProjectWorkspaceUi.java","KnowledgeWorkspaceUi.ja
     source=(src/f).read_text()
     assert "WorkbenchStyle." in source and "WorkbenchWindow.fit(" in source,f
 assert "WorkbenchStyle.dialogActions(owner,dialog)" in (src/"WorkbenchWindow.java").read_text()
+dialog=(src/"WorkbenchStyle.java").read_text().split("static void dialogActions(",1)[1].split("static TextView fieldLabel(",1)[0]
+for required in ("p.dialogInk(positive,true)","p.dialogFill(false)","p.dialogFill(true)","p.dialogRipple()",
+    "android.R.attr.state_focused","android.R.attr.state_enabled","b.setPaddingRelative(start,top,end,bottom)",
+    "b.setMinimumWidth(Math.max(b.getMinimumWidth(),dp(a,WorkbenchVisualPolicy.MIN_TARGET_DP)))"):
+    assert required in dialog,required
+for forbidden in ("setOnClickListener(","setOnDismissListener(","setText(","dismiss()","setEnabled(","setVisibility("):
+    assert forbidden not in dialog,forbidden
 assert "ads.register(downloadAdSlot,AdSupport.PLACEMENT_DOWNLOAD)" in main
 print("PASS: approved launcher SHA-256, both adaptive masks, light/dark dialog palettes and native UI wiring")

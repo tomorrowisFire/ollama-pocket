@@ -21,6 +21,10 @@ final class WorkbenchVisualPolicy {
             if(!enabled)return disabledText;
             return role==Role.PRIMARY?primaryText:role==Role.DESTRUCTIVE?dangerText:text;
         }
+        // Dialog action slots describe platform placement, not semantic risk.
+        int dialogFill(boolean enabled){return enabled?surface:disabled;}
+        int dialogInk(boolean positive,boolean enabled){return !enabled?disabledText:positive?primary:muted;}
+        int dialogRipple(){return (primary&0x00ffffff)|0x24000000;}
         int focusInk(Role role){return role==Role.PRIMARY?primaryText:role==Role.DESTRUCTIVE?dangerText:focus;}
     }
     // OnHand: warm ivory, restrained burnt orange, muted lavender and plum-charcoal.
