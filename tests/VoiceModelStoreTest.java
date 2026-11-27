@@ -126,6 +126,61 @@ public final class VoiceModelStoreTest {
         File extraction=Files.createTempDirectory(sandbox,"extract-cancel-").toFile();AtomicInteger ticks=new AtomicInteger();
         fails(VoiceModelStore.CancelledException.class,()->VoiceModelStore.extractTar(new ByteArrayInputStream(validTar),extraction,model,()->ticks.incrementAndGet()>5),"Tar cancellation ignored");
     }
+    private static VoiceModelCatalog.Model nestedModel(byte[] compressed)throws Exception{
+        return new VoiceModelCatalog.Model("nested-fixture","Dictionary fixture","https://github.com/test/model",compressed.length,hash(compressed),
+            VoiceModelCatalog.Format.TAR_BZ2,PREFIX,"MIT","https://github.com/test/license","zh",
+            new VoiceModelCatalog.Entry("dict/sub/words.txt",SMALL.length,hash(SMALL)),
+            new VoiceModelCatalog.Entry("model.bin",SMALL.length,hash(SMALL)));
+    }
+    private static byte[] nestedTar(String... dirs)throws Exception{
+        ByteArrayOutputStream out=new ByteArrayOutputStream();
+        out.write(header(PREFIX+"/",0,'5'));
+        for(String dir:dirs)out.write(header(PREFIX+"/"+dir,0,'5'));
+        for(String name:new String[]{"dict/sub/words.txt","model.bin"}){
+            out.write(header(PREFIX+"/"+name,SMALL.length,'0'));
+            out.write(SMALL);out.write(new byte[(512-SMALL.length%512)%512]);
+        }
+        out.write(new byte[1024]);return out.toByteArray();
+    }
+    private static void nestedTests(Path sandbox)throws Exception{
+        for(String bad:new String[]{"../escape","dict/../escape","/absolute","dict//words","dict/.hidden","dict/","dict\\\\words","a/b/c/d","dict/./words"}){
+            fails(IllegalArgumentException.class,()->new VoiceModelCatalog.Entry(bad,SMALL.length,hash(SMALL)),"Unsafe catalog path "+bad);
+        }
+        byte[] valid=compress(nestedTar("dict/","dict/sub/"));
+        VoiceModelCatalog.Model model=nestedModel(valid);
+        ok(model.directories.equals(Set.of("dict","dict/sub")),"Derived directory allowlist");
+        File root=root(sandbox,"nested");VoiceModelStore store=bytes(root,valid);
+        store.install(model,()->false,null);
+        try(VoiceModelStore.Lease lease=store.acquire(model,()->false)){
+            ok(Arrays.equals(SMALL,Files.readAllBytes(lease.file("dict/sub/words.txt").toPath())),"Nested file bytes");
+            fails(IOException.class,()->lease.file("dict/sub"),"Directory acquired as file");
+            fails(VoiceModelStore.BusyException.class,()->store.remove(model),"Nested lease not protected");
+        }
+        Path words=root.toPath().resolve(model.id).resolve("dict/sub/words.txt");
+        byte[] changed=SMALL.clone();changed[0]^=1;Files.write(words,changed);
+        fails(IOException.class,()->store.acquire(model,()->false),"Nested file corruption accepted");
+        store.remove(model);ok(!store.present(model),"Nested removal failed");noStage(root);
+        for(String[] bad:new String[][]{
+            {"dict/sub/"},{"dict/","dict/","dict/sub/"},{"dict/","dict/sub/","extra/"},
+            {"dict/","dict/sub/","dict/../"},{"dict/"},{"dict/sub/","dict/"},{"dict/","dict/sub"},
+            {"dict/","dict/sub/","model.bin/"}
+        }){
+            byte[] compressed=compress(nestedTar(bad));VoiceModelCatalog.Model invalid=nestedModel(compressed);
+            VoiceModelStore broken=bytes(root,compressed);
+            fails(IOException.class,()->broken.install(invalid,()->false,null),"Invalid nested archive accepted");
+            ok(!broken.present(invalid),"Invalid nested archive activated");noStage(root);
+        }
+        fails(IllegalArgumentException.class,()->new VoiceModelCatalog.Model("collision","Collision","https://github.com/test/model",
+            valid.length,hash(valid),VoiceModelCatalog.Format.TAR_BZ2,PREFIX,"MIT","https://github.com/test/license","zh",
+            new VoiceModelCatalog.Entry("dict",SMALL.length,hash(SMALL)),new VoiceModelCatalog.Entry("dict/words",SMALL.length,hash(SMALL))),"Catalog file/directory collision");
+        fails(IllegalArgumentException.class,()->new VoiceModelCatalog.Model("raw-nested","Raw nested","https://github.com/test/model",
+            SMALL.length,hash(SMALL),VoiceModelCatalog.Format.RAW,null,"MIT","https://github.com/test/license","zh",
+            new VoiceModelCatalog.Entry("dict/words",SMALL.length,hash(SMALL))),"Nested RAW accepted");
+        File extraction=Files.createTempDirectory(sandbox,"nested-link-").toFile();
+        Files.createSymbolicLink(extraction.toPath().resolve("dict"),sandbox);
+        fails(IOException.class,()->VoiceModelStore.extractTar(new ByteArrayInputStream(nestedTar("dict/","dict/sub/")),
+            extraction,model,()->false),"Linked nested parent accepted");
+    }
     private static void urls()throws Exception{
         for(String good:new String[]{"https://huggingface.co/ggerganov/model","https://cas-bridge.xethub.hf.co/x?signature=test","https://cdn-lfs-us-1.huggingface.co/model","https://github.com/k2-fsa/release","https://release-assets.githubusercontent.com/x","https://objects.githubusercontent.com/x"}){
             VoiceModelStore.validateDownloadUrl(new URL(good));ok(true,"Allowed model URL");
@@ -142,7 +197,7 @@ public final class VoiceModelStoreTest {
     }
     public static void main(String[] args)throws Exception{
         new Random(48).nextBytes(DATA);Path sandbox=Files.createTempDirectory("onhand-voice-model-test-");
-        try{rawTests(sandbox);concurrency(sandbox);archiveTests(sandbox);urls();if(args.length==1)realArchive(sandbox,args[0]);}
+        try{rawTests(sandbox);concurrency(sandbox);archiveTests(sandbox);nestedTests(sandbox);urls();if(args.length==1)realArchive(sandbox,args[0]);}
         finally{clean(sandbox.toFile());}
         System.out.println("PASS: "+checks+" voice model storage, archive, integrity and cancellation checks");
     }

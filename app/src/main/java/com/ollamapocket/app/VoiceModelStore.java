@@ -271,9 +271,13 @@ final class VoiceModelStore {
         }
         return value;
     }
-    /** Minimal strict ustar: one known directory and exact regular-file allowlist; no links/extensions. */
+    private static void requireArchiveParent(String name,Set<String> dirsSeen)throws IOException{
+        int slash=name.lastIndexOf('/');
+        if(slash>=0&&!dirsSeen.contains(name.substring(0,slash)))throw new IOException("Missing archive parent");
+    }
+    /** Minimal strict ustar: exact file and derived directory allowlists; no links/extensions. */
     static void extractTar(InputStream in,File directory,VoiceModelCatalog.Model model,BooleanSupplier cancelled)throws IOException{
-        Set<String> seen=new HashSet<>();byte[] header=new byte[512],buffer=new byte[65536];long consumed=0;boolean rootSeen=false;
+        Set<String> seen=new HashSet<>(),dirsSeen=new HashSet<>();byte[] header=new byte[512],buffer=new byte[65536];long consumed=0;boolean rootSeen=false;
         for(;;){
             check(cancelled);readExactly(in,header,512,cancelled);consumed+=512;
             if(consumed>model.expandedBytes+1024*1024)throw new IOException("Voice archive expansion limit");
@@ -288,14 +292,27 @@ final class VoiceModelStore {
             if(!"ustar".equals(new String(header,257,5,StandardCharsets.US_ASCII)))throw new IOException("Unsupported tar format");
             if(!field(header,157,100).isEmpty()||!field(header,345,155).isEmpty())throw new IOException("Tar links or prefixes are forbidden");
             String path=field(header,0,100);long size=octal(header,124,12);int type=header[156]&255;
+            String prefix=model.archivePrefix+"/";
+            if(type=='5'&&path.equals(prefix)){
+                if(rootSeen||size!=0)throw new IOException("Unexpected archive root");
+                rootSeen=true;continue;
+            }
+            if(!rootSeen||!path.startsWith(prefix))throw new IOException("Archive path outside model or before root");
+            String name=path.substring(prefix.length());
             if(type=='5'){
-                if(rootSeen||size!=0||!path.equals(model.archivePrefix+"/"))throw new IOException("Unexpected archive directory");rootSeen=true;continue;
+                if(size!=0||!name.endsWith("/"))throw new IOException("Invalid archive directory");
+                name=name.substring(0,name.length()-1);
+                if(!model.directories.contains(name)||!dirsSeen.add(name))throw new IOException("Unexpected archive directory");
+                requireArchiveParent(name,dirsSeen);
+                File child=new File(directory,name);
+                if(!child.getCanonicalFile().equals(child))throw new IOException("Linked archive directory");
+                Files.createDirectory(child.toPath());
+                continue;
             }
             if(type!=0&&type!='0')throw new IOException("Unsupported archive entry type");
-            String prefix=model.archivePrefix+"/";
-            if(!path.startsWith(prefix))throw new IOException("Archive path outside model");
-            String name=path.substring(prefix.length());VoiceModelCatalog.Entry entry=model.entries.get(name);
+            VoiceModelCatalog.Entry entry=model.entries.get(name);
             if(entry==null||!seen.add(name)||size!=entry.bytes)throw new IOException("Unexpected voice model archive entry");
+            requireArchiveParent(name,dirsSeen);
             File output=new File(directory,name);
             if(!output.getCanonicalFile().equals(output)||Files.exists(output.toPath(),LinkOption.NOFOLLOW_LINKS))throw new IOException("Archive target already exists");
             MessageDigest hash=digest();long remaining=size;
@@ -306,6 +323,6 @@ final class VoiceModelStore {
             if(!entry.sha256.equals(hex(hash.digest())))throw new IOException("Extracted voice model checksum mismatch");
             int padding=(int)((512-size%512)%512);if(padding>0){readExactly(in,header,padding,cancelled);consumed+=padding;if(!zero(header,0,padding))throw new IOException("Invalid tar payload padding");}
         }
-        if(!rootSeen||seen.size()!=model.entries.size())throw new IOException("Incomplete voice model archive");
+        if(!rootSeen||seen.size()!=model.entries.size()||!dirsSeen.equals(model.directories))throw new IOException("Incomplete voice model archive");
     }
 }

@@ -8,11 +8,19 @@ import java.util.Map;
 /** Fixed, data-only voice downloads. Runtime code is bundled with the application. */
 final class VoiceModelCatalog {
     enum Format { RAW, TAR_BZ2 }
+    // Strict relative data paths, at most three components; no hidden files or traversal.
+    private static boolean validEntryName(String name){
+        if(name==null||name.length()>100)return false;
+        String[] parts=name.split("/",-1);
+        if(parts.length>3)return false;
+        for(String part:parts)if(!part.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,100}"))return false;
+        return true;
+    }
     static final class Entry {
         final String name, sha256;
         final long bytes;
         Entry(String name,long bytes,String sha256){
-            if(name==null||!name.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,100}")||bytes<1||
+            if(!validEntryName(name)||bytes<1||
                 sha256==null||!sha256.matches("[a-f0-9]{64}"))throw new IllegalArgumentException("Model entry");
             this.name=name;this.bytes=bytes;this.sha256=sha256;
         }
@@ -22,6 +30,7 @@ final class VoiceModelCatalog {
         final long archiveBytes,expandedBytes;
         final Format format;
         final Map<String,Entry> entries;
+        final java.util.Set<String> directories;
         Model(String id,String name,String url,long archiveBytes,String sha256,Format format,String archivePrefix,
               String license,String licenseUrl,String languages,Entry... files){
             if(id==null||!id.matches("[a-z0-9][a-z0-9-]{0,80}")||name==null||url==null||!url.startsWith("https://")||
@@ -29,12 +38,23 @@ final class VoiceModelCatalog {
                 format==null||files.length<1||files.length>16)throw new IllegalArgumentException("Model descriptor");
             if(format==Format.TAR_BZ2&&(archivePrefix==null||!archivePrefix.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,100}")))
                 throw new IllegalArgumentException("Archive prefix");
-            if(format==Format.RAW&&files.length!=1)throw new IllegalArgumentException("Raw model");
+            if(format==Format.RAW&&(files.length!=1||files[0].name.contains("/")))throw new IllegalArgumentException("Raw model");
             Map<String,Entry> map=new LinkedHashMap<>();long total=0;
             for(Entry entry:files){
                 if(map.put(entry.name,entry)!=null)throw new IllegalArgumentException("Duplicate model file");
                 total=Math.addExact(total,entry.bytes);
             }
+            java.util.Set<String> dirs=new java.util.LinkedHashSet<>();
+            for(String name:map.keySet()){
+                if(format==Format.TAR_BZ2&&archivePrefix.length()+1+name.length()>100)
+                    throw new IllegalArgumentException("Tar path too long");
+                for(int slash=name.lastIndexOf('/');slash>=0;slash=name.lastIndexOf('/',slash-1)){
+                    String parent=name.substring(0,slash);
+                    if(map.containsKey(parent))throw new IllegalArgumentException("Model file/directory collision");
+                    dirs.add(parent);
+                }
+            }
+            this.directories=Collections.unmodifiableSet(dirs);
             if(total>768L*1024*1024)throw new IllegalArgumentException("Expanded model limit");
             if(format==Format.RAW&&(total!=archiveBytes||!files[0].sha256.equals(sha256)))throw new IllegalArgumentException("Raw model digest");
             this.id=id;this.name=name;this.url=url;this.archiveBytes=archiveBytes;this.sha256=sha256;
