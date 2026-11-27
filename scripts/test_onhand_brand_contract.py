@@ -5,16 +5,49 @@ import xml.etree.ElementTree as ET
 res=Path("app/src/main/res")
 src=Path("app/src/main/java/com/ollamapocket/app")
 a="{http://schemas.android.com/apk/res/android}"
-asset=res/"drawable-nodpi/onhand_approved_icon.webp"
-assert hashlib.sha256(asset.read_bytes()).hexdigest()=="8fa18315645a1293401de6126006d7553f2e14bc72c4ba9263f43dee651626fd"
-assert asset.read_bytes()[:4]==b"RIFF" and asset.read_bytes()[8:12]==b"WEBP"
+# User-selected right-hand icon, traced at the original 1254px resolution.
+import math
+import re
+asset=res/"drawable/onhand_approved_icon.xml"
+foreground=res/"drawable/onhand_launcher_inset.xml"
+assert hashlib.sha256(asset.read_bytes()).hexdigest()=="ea6fc87f399009eb5817b879c65d7e677da534179c2aebf086494a601e59a0d3"
+assert hashlib.sha256(foreground.read_bytes()).hexdigest()=="72dafff8cd5e53f885873792221069d19d5fba1ed0ca3e98b41dcb2f9f03c833"
+assert not (res/"drawable-nodpi/onhand_approved_icon.webp").exists()
+assert not (res/"drawable-nodpi/ic_launcher_foreground.png").exists()
+vector=ET.parse(asset).getroot()
+layer=ET.parse(foreground).getroot()
+assert vector.tag==layer.tag=="vector"
+assert vector.get(a+"width")==vector.get(a+"height")=="512dp"
+assert layer.get(a+"width")==layer.get(a+"height")=="108dp"
+for root in (vector,layer):
+    assert root.get(a+"viewportWidth")==root.get(a+"viewportHeight")=="100"
+group=layer.find("group")
+assert group.get(a+"pivotX")==group.get(a+"pivotY")=="50"
+assert group.get(a+"scaleX")==group.get(a+"scaleY")=="0.56"
+paths=group.findall("path")
+assert [p.get(a+"name") for p in paths]==["arch","AI","hand","word","suffix"]
+assert len(vector.findall("path"))==6
+for p in paths:
+    assert p.get(a+"fillType")=="evenOdd"
+    master_path=next(x for x in vector.findall("path") if x.get(a+"name")==p.get(a+"name"))
+    assert p.get(a+"pathData")==master_path.get(a+"pathData")
+    # All commands in the artwork are absolute M/L/C/Z. A cubic is inside
+    # the convex hull of its control points, so this is a conservative bound.
+    data=p.get(a+"pathData")
+    assert set(re.findall(r"[A-Za-z]",data))<={"M","L","C","Z"}
+    coords=[float(x) for x in re.findall(r"-?\d+(?:\.\d+)?",data)]
+    assert len(coords)%2==0 and coords
+    assert max(math.hypot(x-50,y-50)*.56*1.08 for x,y in zip(coords[::2],coords[1::2]))<33
+    assert p.find(".//gradient") is not None
 for filename in ("ic_launcher.xml","ic_launcher_round.xml"):
     adaptive=ET.parse(res/"mipmap-anydpi-v26"/filename).getroot()
     assert adaptive.find("foreground").get(a+"drawable")=="@drawable/onhand_launcher_inset"
-inset=ET.parse(res/"drawable/onhand_launcher_inset.xml").getroot()
-assert inset.get(a+"drawable")=="@drawable/onhand_approved_icon"
-for edge in ("Left","Right","Top","Bottom"):
-    assert inset.get(a+"inset"+edge)=="26dp"
+    assert adaptive.find("background").get(a+"drawable")=="@color/launcher_background"
+    fallback=ET.parse(res/"mipmap-anydpi"/filename).getroot()
+    assert fallback.get(a+"drawable")=="@drawable/onhand_approved_icon"
+    for density in ("mdpi","hdpi","xhdpi","xxhdpi","xxxhdpi"):
+        assert not (res/("mipmap-"+density)/(filename[:-4]+".png")).exists()
+assert ET.parse(res/"values/launcher_colors.xml").getroot().find("color").text=="#FCF1EA"
 manifest=ET.parse("app/src/main/AndroidManifest.xml").getroot().find("application")
 assert manifest.get(a+"theme")=="@style/OnHandTheme.Light"
 assert manifest.get(a+"icon")=="@mipmap/ic_launcher"

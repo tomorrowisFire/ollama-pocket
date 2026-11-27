@@ -1,6 +1,6 @@
 {
-  "stage": "F10A65R1-play-billing-license-test",
-  "revision": "F10A65R1",
-  "priorCandidate": "162115b6bbaece53c162522fec202b7e59cf937f",
-  "reason": "Repair the exact Java and native compile failures caused by misspelled Billing 8.3.0 PendingPurchasesParams class (import and builder only). Retain all billing locks, home UI, existing tests and FULL packaging."
+  "stage": "F10A66R1-integrated-scalable-launcher",
+  "revision": "F10A66R1",
+  "priorCandidate": "17a34945d2d0d6c18dbc6cbad030ede868c838c3",
+  "reason": "Reapply exact user-approved vector icon delta after verified F10A65R1 billing API spelling repair. FULL native APK, QA AAB and 16KiB audits required."
 }
