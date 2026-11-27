@@ -644,6 +644,31 @@ final class AutomationUi {
                 .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.auto_apply_draft,null).create();
         trackDialog(d);WorkbenchWindow.fit(owner,d);return d;
     }
+    private Button formModelButton(LinearLayout l){
+        return button(l,R.string.integration_form_bind_model,()->{});
+    }
+    private void bindFormModel(Button bind,AlertDialog editor,EditText model,EditText digest,TextView status,int token){
+        bind.setOnClickListener(v->{
+            if(!valid(token)||busy()||confirmation!=editor||!editor.isShowing())return;
+            final String tag=model.getText().toString(),before=digest.getText().toString();
+            if(!ReviewedLocalPolicy.modelTag(tag)){status.setText(R.string.integration_agent_invalid);return;}
+            Button apply=editor.getButton(DialogInterface.BUTTON_POSITIVE);
+            bind.setEnabled(false);apply.setEnabled(false);model.setEnabled(false);digest.setEnabled(false);
+            status.setText(R.string.thinking);
+            Runnable enable=()->{bind.setEnabled(true);apply.setEnabled(true);model.setEnabled(true);digest.setEnabled(true);};
+            work(()->new ReviewedCpuTask(owner,()->!valid(token)).installed(tag),result->{
+                if(confirmation!=editor||!editor.isShowing())return;
+                enable.run();
+                if(!tag.equals(model.getText().toString())||!before.equals(digest.getText().toString())){
+                    status.setText(R.string.integration_form_invalid);return;
+                }
+                digest.setText(result);status.setText(R.string.integration_form_bound);
+            },()->{
+                if(confirmation!=editor||!editor.isShowing())return;
+                enable.run();status.setText(R.string.integration_execution_failed);
+            });
+        });
+    }
     private void showAgentForm(EditText raw,String selectedModel){
         if(busy()||!raw.isEnabled())return;
         final String original=raw.getText().toString();final int token=epoch;
@@ -654,6 +679,7 @@ final class AutomationUi {
         EditText name=formField(l,R.string.integration_form_name,current==null?"":current.name,81,false);
         EditText model=formField(l,R.string.model_label,current==null?selectedModel:current.model,201,false);
         EditText digest=formField(l,R.string.integration_form_digest,current==null?"":current.modelSha256,65,false);
+        Button bind=formModelButton(l);
         EditText instruction=formField(l,R.string.integration_form_instruction,current==null?"":current.instruction,4097,true);
         EditText temperature=formField(l,R.string.integration_form_temperature,current==null?"700":Integer.toString(current.temperatureMilli),5,false);
         temperature.setInputType(InputType.TYPE_CLASS_NUMBER);
@@ -661,6 +687,7 @@ final class AutomationUi {
         tokens.setInputType(InputType.TYPE_CLASS_NUMBER);
         TextView error=output(l);error.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         AlertDialog d=draftDialog(l);
+        bindFormModel(bind,d,model,digest,error,token);
         d.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(v->{
             if(!valid(token)||busy()||!raw.isEnabled()||!original.equals(raw.getText().toString())){d.dismiss();return;}
             try{
@@ -723,6 +750,7 @@ final class AutomationUi {
         LinearLayout l=column();label(l,s(R.string.integration_form_notice));
         EditText model=formField(l,R.string.model_label,draft.model,201,false);
         EditText digest=formField(l,R.string.integration_form_digest,draft.digest,65,false);
+        Button bind=formModelButton(l);
         CheckBox retain=draftCheck(l,R.string.integration_form_retain,draft.retain);
         label(l,s(R.string.integration_form_edges));
         TextView step=output(l),ids=output(l);
@@ -772,6 +800,7 @@ final class AutomationUi {
         });
         render.run();
         AlertDialog d=draftDialog(l);
+        bindFormModel(bind,d,model,digest,error,token);
         d.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(v->{
             if(!valid(token)||busy()||!spec.isEnabled()||!original.equals(spec.getText().toString())){d.dismiss();return;}
             capture.run();

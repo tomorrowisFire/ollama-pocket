@@ -81,36 +81,13 @@ final class LocalConferenceRunner {
         try{
             long remaining=Math.max(1,deadline-SystemClock.elapsedRealtime());
             c.setConnectTimeout((int)Math.min(3000L,remaining));c.setReadTimeout((int)Math.min(60_000L,remaining));
-            StringBuilder output=new StringBuilder();
-            boolean[] terminal={false},truncated={false};
+            StructuredTextStream response=new StructuredTextStream(ConferencePolicy.MAX_REPLY,call.maxTokens);
             check();
             OllamaHttp.streamChat(c,body,item->{
-                check();
-                JSONObject message=item.optJSONObject("message");
-                if(message!=null){
-                    Object value=message.opt("content");
-                    if(value!=null&&value!=JSONObject.NULL){
-                        if(!(value instanceof String))throw new IOException("Invalid conference output");
-                        String part=(String)value;
-                        if((long)output.length()+part.length()>ConferencePolicy.MAX_REPLY)throw new IOException("Conference output limit");
-                        output.append(part);
-                    }
-                }
-                if(Boolean.TRUE.equals(item.opt("done"))){
-                    terminal[0]=true;
-                    truncated[0]=StructuredInferenceTerminal.truncated(item.isNull("done_reason")?null:item.opt("done_reason"));
-                    Object raw=item.opt("eval_count");
-                    if(raw!=null&&raw!=JSONObject.NULL){
-                        if(!(raw instanceof Number))throw new IOException("Invalid token count");
-                        double n=((Number)raw).doubleValue();
-                        if(!Double.isFinite(n)||n<0||n!=Math.floor(n)||n>call.maxTokens)
-                            throw new IOException("Conference token limit");
-                    }
-                }
+                check();response.accept(item);
             },()->reason.get()!=null);
             check();
-            if(!terminal[0])throw new IOException("Incomplete conference stream");
-            return new ConferencePolicy.Reply(output.toString(),truncated[0]);
+            return new ConferencePolicy.Reply(response.text(),response.truncated());
         }finally{connection=null;c.disconnect();}
     }
 }

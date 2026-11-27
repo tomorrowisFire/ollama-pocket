@@ -1359,4 +1359,6 @@
     <string name="run_stop_unknown">중단 원인 불명</string>
     <string name="integration_form_missing_target">누락되거나 유효하지 않은 연결: %1$s</string>
     <string name="integration_form_row_invalid">%1$d번 노드를 확인하세요. ID, 프롬프트, 조건과 도달 가능한 다음 노드를 점검하세요.</string>
+    <string name="integration_form_bind_model">이 초안의 설치 모델 확인</string>
+    <string name="integration_form_bound">설치 모델의 식별자를 확인했습니다. 나머지 초안 내용은 유지됩니다.</string>
 </resources>

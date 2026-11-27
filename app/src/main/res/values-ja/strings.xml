@@ -1359,4 +1359,6 @@
     <string name="run_stop_unknown">停止理由不明</string>
     <string name="integration_form_missing_target">接続先が存在しないか無効です：%1$s</string>
     <string name="integration_form_row_invalid">ノード %1$d を確認してください。ID、指示、条件、到達可能な次のノードを確認してください。</string>
+    <string name="integration_form_bind_model">この下書きのインストール済みモデルを確認</string>
+    <string name="integration_form_bound">インストール済みモデルの識別子を確認しました。他の下書き項目は変更されません。</string>
 </resources>

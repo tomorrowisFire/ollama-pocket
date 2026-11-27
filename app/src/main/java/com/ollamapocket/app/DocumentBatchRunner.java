@@ -99,22 +99,16 @@ final class DocumentBatchRunner {
             if(!control.attach(c))throw new IOException("Batch stopped");
             c.setConnectTimeout((int)Math.max(1,Math.min(3000L,remaining)));
             c.setReadTimeout((int)Math.max(1,Math.min(90000L,remaining)));
-            StringBuilder text=new StringBuilder();boolean[] truncated={false};
+            StructuredTextStream response=new StructuredTextStream(maxChars,maxTokens);
             if(stopped())throw new IOException("Batch stopped");
             if(requests>=planRequestCeiling())throw new IOException("Batch request limit");
             requests++;
             OllamaHttp.streamChat(c,body,item->{
                 if(stopped())throw new IOException("Batch stopped");
-                JSONObject message=item.optJSONObject("message");
-                if(message!=null){
-                    String chunk=message.optString("content","");
-                    if((long)text.length()+chunk.length()>maxChars)throw new IOException("Batch output limit");
-                    text.append(chunk);
-                }
-                if(Boolean.TRUE.equals(item.opt("done")))truncated[0]=StructuredInferenceTerminal.truncated(item.isNull("done_reason")?null:item.opt("done_reason"));
+                response.accept(item);
             },()->reason()!=Stop.NONE);
-            if(stopped()||truncated[0])throw new IOException("Batch incomplete");
-            return DocumentBatchPolicy.checked(text.toString(),maxChars);
+            if(stopped()||response.truncated())throw new IOException("Batch incomplete");
+            return DocumentBatchPolicy.checked(response.text(),maxChars);
         }finally{control.release(c);disconnect(c);}
     }
 }

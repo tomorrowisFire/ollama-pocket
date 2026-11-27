@@ -33,7 +33,7 @@ for variant in variants:
         goal=strings.get(key,"")
         assert 0<len(goal.encode("utf-16-le"))//2<=300 and goal.strip(),f"{variant}: invalid {key}"
     for key in ("editor","notice","name","digest","instruction","temperature","tokens","retain","edges","node",
-                "condition","previous","next","true","false","invalid","advanced","empty","branch_summary","agent_summary","bad_summary","missing_target","row_invalid"):
+                "condition","previous","next","true","false","invalid","advanced","empty","branch_summary","agent_summary","bad_summary","missing_target","row_invalid","bind_model","bound"):
         assert strings.get("integration_form_"+key,"").strip(),f"{variant}: missing form {key}"
 print("Visual form, code and document goal localization: five locale resource sets verified")
 

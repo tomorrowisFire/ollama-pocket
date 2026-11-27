@@ -1359,4 +1359,6 @@
     <string name="run_stop_unknown">停止原因未知</string>
     <string name="integration_form_missing_target">目標節點缺失或無效：%1$s</string>
     <string name="integration_form_row_invalid">請檢查節點 %1$d 的 ID、提示詞、條件及可達的後續節點。</string>
+    <string name="integration_form_bind_model">驗證此草稿的已安裝模型</string>
+    <string name="integration_form_bound">已驗證安裝模型的識別碼，其他草稿欄位維持不變。</string>
 </resources>
