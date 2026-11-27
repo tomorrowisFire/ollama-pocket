@@ -277,6 +277,8 @@ jobs:
           java -cp /tmp/inference-safety-tests com.ollamapocket.app.InferenceSafetyPolicyTest
           javac -cp /tmp/inference-safety-tests -d /tmp/inference-safety-tests tests/InferenceHandoffTest.java
           java -cp /tmp/inference-safety-tests com.ollamapocket.app.InferenceHandoffTest
+          javac -cp /tmp/inference-safety-tests -d /tmp/inference-safety-tests tests/RpcReadinessTest.java
+          java -cp /tmp/inference-safety-tests com.ollamapocket.app.RpcReadinessTest
           javac -d /tmp/inference-safety-tests app/src/main/java/com/ollamapocket/app/GpuOffloadEvidence.java tests/GpuOffloadEvidenceTest.java
           java -cp /tmp/inference-safety-tests com.ollamapocket.app.GpuOffloadEvidenceTest
           javac -d /tmp/inference-safety-tests app/src/main/java/com/ollamapocket/app/NativeProcessSlot.java tests/NativeProcessSlotTest.java

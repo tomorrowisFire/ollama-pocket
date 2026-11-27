@@ -20,7 +20,7 @@ public final class DistributedRunner {
     private static final int PORT=11439;
     private static volatile Process process;
     private static volatile String activeModel="",activeWeightsKey="";
-    private static volatile String rpcEndpointSet="";
+    private static volatile String rpcEndpointSet="",activeSessionId="";
     private static volatile long generation;
     private static final StringBuilder logs=new StringBuilder();
     private DistributedRunner(){}
@@ -35,13 +35,36 @@ public final class DistributedRunner {
         synchronized(DistributedRunner.class){
             generation++;
             if(process!=null){process.destroy();process=null;}
-            activeModel="";activeWeightsKey="";rpcEndpointSet="";
+            activeModel="";activeWeightsKey="";rpcEndpointSet="";activeSessionId="";
         }
     }
     public static boolean peersAvailable(Context context){
-        String expected=rpcEndpointSet;
-        if(expected.isEmpty())return true;
-        return InferenceSafetyPolicy.hasEndpoints(expected,CoopSession.get(context).connectedRpcEndpoints());
+        CoopSession coop=CoopSession.get(context);
+        synchronized(DistributedRunner.class){
+            String expected=rpcEndpointSet;
+            if(expected.isEmpty())return true;
+            return InferenceSafetyPolicy.sameHostSession(activeSessionId,coop.sessionId(),coop.role())
+                &&InferenceSafetyPolicy.hasEndpoints(expected,coop.connectedRpcEndpoints());
+        }
+    }
+    private static boolean canContinue(Context context,CoopSession coop,String session,java.util.function.BooleanSupplier cancelled){
+        return InferenceSafetyPolicy.sameHostSession(session,coop.sessionId(),coop.role())
+            &&InferenceSafetyPolicy.mayStart(cancelled.getAsBoolean(),Thread.currentThread().isInterrupted(),InferenceSafety.check(context));
+    }
+    /** Identity and live admission are checked again after every blocking health probe. */
+    private static synchronized boolean readinessSnapshot(Context context,CoopSession coop,String session,Process expected,
+            long epoch,String endpoints,String approved,java.util.function.BooleanSupplier cancelled,boolean health){
+        String live=coop.connectedRpcEndpoints();
+        return InferenceSafetyPolicy.mayPublishRpc(generation==epoch&&process==expected&&endpoints.equals(rpcEndpointSet)
+            &&session.equals(activeSessionId),expected!=null&&expected.isAlive(),health,
+            InferenceSafetyPolicy.sameHostSession(session,coop.sessionId(),coop.role()),
+            cancelled.getAsBoolean(),Thread.currentThread().isInterrupted(),InferenceSafety.check(context),endpoints,live,approved);
+    }
+    private static boolean ready(Context context,CoopSession coop,String session,Process expected,long epoch,
+            String endpoints,String approved,java.util.function.BooleanSupplier cancelled){
+        if(!readinessSnapshot(context,coop,session,expected,epoch,endpoints,approved,cancelled,true))return false;
+        boolean health=healthy();
+        return readinessSnapshot(context,coop,session,expected,epoch,endpoints,approved,cancelled,health);
     }
     private static boolean healthy(){
         HttpURLConnection c=null;
@@ -191,9 +214,10 @@ public final class DistributedRunner {
     public static boolean ensure(Context context,String model,StringBuilder reason,java.util.function.BooleanSupplier cancelled,String approvedEndpoints){
         if(cancelled.getAsBoolean()||Thread.currentThread().isInterrupted())return false;
         CoopSession coop=CoopSession.get(context);
+        final String session=coop.sessionId();
         InferenceSafetyPolicy.Reason risk=InferenceSafety.check(context);
         if(risk!=InferenceSafetyPolicy.Reason.NONE){reason.append(OnHandsLocale.wrap(context).getString(InferenceSafety.label(risk)));return false;}
-        if(!"host".equals(coop.role()) || coop.connectedRpcEndpoints().isEmpty()){
+        if(!InferenceSafetyPolicy.sameHostSession(session,coop.sessionId(),coop.role()) || coop.connectedRpcEndpoints().isEmpty()){
             reason.append("호스트 세션 또는 활성 보조 노드가 없습니다");return false;
         }
         File binary=new File(context.getApplicationInfo().nativeLibraryDir,
@@ -205,22 +229,27 @@ public final class DistributedRunner {
 
         // An already-loaded model consumes RAM; never re-evaluate its admission
         // against the reduced availMem, but do detect a disconnected node.
-        Process resident=process;
-        if(resident!=null && resident.isAlive() && activeModel.equals(model)&&activeWeightsKey.equals(weightsKey)
-                && healthy()&&process==resident){
-            boolean stillConnected=true;
-            String current=coop.connectedRpcEndpoints();
-            for(String endpoint:rpcEndpointSet.split(","))
-                if(!(","+current+",").contains(","+endpoint+","))stillConnected=false;
-            if(stillConnected&&!cancelled.getAsBoolean()&&(approvedEndpoints==null||InferenceSafetyPolicy.hasEndpoints(rpcEndpointSet,approvedEndpoints)))return true;
+        final Process resident;
+        final long observedGeneration;
+        final String residentEndpoints;
+        synchronized(DistributedRunner.class){
+            observedGeneration=generation;
+            resident=activeModel.equals(model)&&activeWeightsKey.equals(weightsKey)&&session.equals(activeSessionId)?process:null;
+            residentEndpoints=rpcEndpointSet;
         }
+        if(resident!=null&&ready(context,coop,session,resident,observedGeneration,residentEndpoints,approvedEndpoints,cancelled))return true;
         final long startup;
-        synchronized(DistributedRunner.class){stop();startup=generation;}
+        synchronized(DistributedRunner.class){
+            if(observedGeneration!=generation||!canContinue(context,coop,session,cancelled))return false;
+            stop();startup=generation;
+        }
         try{
+            if(startup!=generation||!canContinue(context,coop,session,cancelled))return false;
             GpuRunner.stop();
+            if(startup!=generation||!canContinue(context,coop,session,cancelled))return false;
             OllamaHttp.releaseResidentModels(cancelled);
-        }catch(Exception e){reason.append(e.getMessage());return false;}
-        if(cancelled.getAsBoolean()||startup!=generation||InferenceSafety.blocked(context))return false;
+        }catch(Exception e){InferenceSafetyPolicy.restoreInterrupt(e);reason.append(e.getMessage());return false;}
+        if(startup!=generation||!canContinue(context,coop,session,cancelled))return false;
 
         BudgetSelection selection=plan(context,weights);
         CoopMemoryPlanner.Plan budget=selection.budget;
@@ -260,10 +289,10 @@ public final class DistributedRunner {
             pb.environment().put("TMPDIR",context.getCacheDir().getAbsolutePath());
             final Process current;
             synchronized(DistributedRunner.class){
-                if(startup!=generation||cancelled.getAsBoolean()||InferenceSafety.blocked(context))return false;
+                if(startup!=generation||!canContinue(context,coop,session,cancelled))return false;
                 if(!InferenceSafetyPolicy.hasEndpoints(selection.endpoints,coop.connectedRpcEndpoints())||
                         (approvedEndpoints!=null&&!InferenceSafetyPolicy.hasEndpoints(selection.endpoints,approvedEndpoints)))return false;
-                current=pb.start();process=current;activeModel=model;activeWeightsKey=weightsKey;rpcEndpointSet=selection.endpoints;
+                current=pb.start();process=current;activeModel=model;activeWeightsKey=weightsKey;rpcEndpointSet=selection.endpoints;activeSessionId=session;
             }
             new Thread(()->{
                 try(BufferedReader r=new BufferedReader(new InputStreamReader(
@@ -275,7 +304,8 @@ public final class DistributedRunner {
             long seconds=Math.max(180,Math.min(900,weights.length()/(12L*1024*1024)));
             long until=SystemClock.elapsedRealtime()+seconds*1000;
             while(SystemClock.elapsedRealtime()<until && current.isAlive()){
-                if(startup!=generation||process!=current||cancelled.getAsBoolean()||Thread.currentThread().isInterrupted()){stopGeneration(startup);return false;}
+                if(startup!=generation||process!=current||cancelled.getAsBoolean()||Thread.currentThread().isInterrupted()
+                        ||!InferenceSafetyPolicy.sameHostSession(session,coop.sessionId(),coop.role())){stopGeneration(startup);return false;}
                 if(InferenceSafety.blocked(context)){stopGeneration(startup);reason.append("Unsafe inference resources");return false;}
                 String now=coop.connectedRpcEndpoints();
                 for(String endpoint:selection.endpoints.split(",")){
@@ -284,16 +314,19 @@ public final class DistributedRunner {
                         stopGeneration(startup);return false;
                     }
                 }
-                if(healthy()&&process==current&&startup==generation&&!cancelled.getAsBoolean()){
+                if(ready(context,coop,session,current,startup,selection.endpoints,approvedEndpoints,cancelled)){
                     log("RPC HTTP ready; real remote compute needs measured token output");
                     return true;
+                }
+                if(!readinessSnapshot(context,coop,session,current,startup,selection.endpoints,approvedEndpoints,cancelled,true)){
+                    stopGeneration(startup);return false;
                 }
                 Thread.sleep(400);
             }
             reason.append(current.isAlive()?"RPC 모델 로딩 시간 초과":
                 "RPC 호스트 종료 · RAM/버전/모델 호환성 확인");
             stopGeneration(startup);return false;
-        }catch(Exception e){reason.append(e.getMessage());stopGeneration(startup);return false;}
+        }catch(Exception e){InferenceSafetyPolicy.restoreInterrupt(e);reason.append(e.getMessage());stopGeneration(startup);return false;}
     }
     private static synchronized void stopGeneration(long expected){if(expected==generation)stop();}
     private static File findModel(Context context,String model) throws Exception{

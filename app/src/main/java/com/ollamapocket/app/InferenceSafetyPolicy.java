@@ -27,4 +27,14 @@ final class InferenceSafetyPolicy {
         for(String endpoint:expected.split(",",-1))if(endpoint.isEmpty()||!set.contains(","+endpoint+","))return false;
         return true;
     }
+    static boolean sameHostSession(String expected,String current,String role){
+        return "host".equals(role)&&expected!=null&&!expected.isEmpty()&&expected.equals(current);
+    }
+    /** Health is necessary but never sufficient after a blocking probe. */
+    static boolean mayPublishRpc(boolean sameGeneration,boolean alive,boolean health,boolean sameSession,
+                                 boolean cancelled,boolean interrupted,Reason risk,
+                                 String expected,String live,String approved){
+        return sameGeneration&&alive&&health&&sameSession&&mayStart(cancelled,interrupted,risk)
+            &&hasEndpoints(expected,live)&&(approved==null||hasEndpoints(expected,approved));
+    }
 }

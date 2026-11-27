@@ -1,0 +1,4 @@
+# F10A19 / P1A3 simulated A/B/C review
+A product: preserve explicit engine selection and approved RPC peer scope; a health response alone is not readiness.
+B engineering: process/generation/session/endpoint identity is bound to readiness, checked around health I/O, and generation-owned cleanup is preserved. Real InterruptedException is restored. No change to backend configuration or release settings.
+C QA: 17995 local pure Java checks PASS and exact helper/fixture blob identities verified. Android source integration reviewed; exact Java/native/APK/QA AAB/16 KiB/ad/locale/regression CI remains pending. Pure policy tests do not prove real process or device timing. One AI simulates three roles, not independent experts. Actual independent evaluation and physical tests remain FINAL; provisional mean 80.3/min 75 unchanged.
