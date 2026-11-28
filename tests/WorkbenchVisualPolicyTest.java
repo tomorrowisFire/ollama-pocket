@@ -63,11 +63,17 @@ public final class WorkbenchVisualPolicyTest {
             check(p.canvas!=p.surface&&p.bubble!=p.field&&p.accentSoft!=p.field);
             check(p.primary==(dark?0xffe7c1ad:0xff79503e));
             check(p.primaryFill==(dark?0xffd4a58e:0xffe5bba6));
-            check(p.primaryText==0xff30221d&&p.primaryFill!=p.primary);
+            check(p.primaryText==0xff58382b&&p.primaryFill!=p.primary);
             check(p.fill(WorkbenchVisualPolicy.Role.PRIMARY,true)==p.primaryFill);
             check(p.modelStatusFill(WorkbenchVisualPolicy.ModelStatus.ACTIVE)==p.primaryFill);
             check(p.composerActionFill(true,true)==p.primaryFill);
             contrast(p.primaryText,p.primaryFill,4.5);
+            check(p.bubbleInk()==(dark?0xfff2d9cb:0xff6b493b));
+            check(p.bubbleInk()!=p.text);
+            contrast(p.bubbleInk(),p.bubble,4.5);
+            contrast(p.bubbleInk(),p.accentSoft,4.5);
+            check(p.modelStatusInk(WorkbenchVisualPolicy.ModelStatus.INSTALLED)==p.bubbleInk());
+            check(p.modelStatusInk(WorkbenchVisualPolicy.ModelStatus.DOWNLOADING)==p.bubbleInk());
             contrast(p.primaryOutline(),p.canvas,3);contrast(p.primaryOutline(),p.surface,3);
             check(WorkbenchVisualPolicy.contrast(p.primaryFill,p.surface)>=3||WorkbenchVisualPolicy.contrast(p.primaryOutline(),p.primaryFill)>=3);
             check(p.canvas==(dark?0xff191a19:0xfff9f8f5));

@@ -19,7 +19,7 @@ for locale in locales:
         assert key in keys, locale
 assert 'drawerNavigationItem(String title)' in src
 drawer_fn=src.split('private TextView drawerNavigationItem(String title)',1)[1].split('private void showNavigationDrawer()',1)[0]
-assert 'TextView item=text(title,14,WHITE,active)' in drawer_fn
+assert 'TextView item=text(title,14,active?bubbleInk():WHITE,active)' in drawer_fn
 assert 'text(mark+' not in drawer_fn
 assert 'item.setBackground(bg(active?BUBBLE:BG,14))' in drawer_fn
 assert 'OnHandGlyphs.accentLabel(item' in drawer_fn

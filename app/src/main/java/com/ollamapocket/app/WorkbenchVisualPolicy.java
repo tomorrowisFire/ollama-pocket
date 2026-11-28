@@ -29,8 +29,10 @@ final class WorkbenchVisualPolicy {
             return status==ModelStatus.ACTIVE?primaryFill:status==ModelStatus.DOWNLOADING?accentSoft:status==ModelStatus.INSTALLED?bubble:field;
         }
         int modelStatusInk(ModelStatus status){
-            return status==ModelStatus.ACTIVE?primaryText:status==ModelStatus.AVAILABLE?muted:text;
+            return status==ModelStatus.ACTIVE?primaryText:status==ModelStatus.AVAILABLE?muted:bubbleInk();
         }
+        // Pale peach surfaces have their own warm foreground, including dark-mode variants.
+        int bubbleInk(){return darkFromPrimaryText(text)?0xfff2d9cb:0xff6b493b;}
         // Use the readable accent as a boundary for the softer filled control.
         int primaryOutline(){return primary;}
         // Secondary composer actions blend into the single input surface.
@@ -50,10 +52,10 @@ final class WorkbenchVisualPolicy {
     // OnHand Soft Peach: quiet warm neutrals, peach fills, and readable companion ink.
     // Primary foreground and primary fill are distinct roles; never use peach as light-mode text.
     private static final Palette LIGHT=new Palette(0xfff9f8f5,0xfffffefc,0xfff0eeea,0xfff8ebe4,0xfffbede4,
-        0xff252522,0xff625e57,0xffd9d5cf,0xff79503e,0xff79503e,0xffe5bba6,0xff30221d,
+        0xff252522,0xff625e57,0xffd9d5cf,0xff79503e,0xff79503e,0xffe5bba6,0xff58382b,
         0xfffceef0,0xff9f2437,0xffebe8e3,0xff655e58);
     private static final Palette DARK=new Palette(0xff191a19,0xff242523,0xff30312e,0xff3f3029,0xff48352c,
-        0xfff3f2ed,0xffc1beb6,0xff4c4d48,0xffddbcaa,0xffe7c1ad,0xffd4a58e,0xff30221d,
+        0xfff3f2ed,0xffc1beb6,0xff4c4d48,0xffddbcaa,0xffe7c1ad,0xffd4a58e,0xff58382b,
         0xff4b2933,0xffffb2be,0xff373835,0xffc4bfb5);
     private WorkbenchVisualPolicy(){}
     static Palette palette(boolean dark){return dark?DARK:LIGHT;}

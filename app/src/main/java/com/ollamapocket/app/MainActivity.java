@@ -353,7 +353,7 @@ public final class MainActivity extends Activity {
         MUTED=p.muted;DANGER=p.dangerText;BUBBLE=p.bubble;
     }
     private int[] palette(){
-        return new int[]{BG,CARD,FIELD,ACCENT,WHITE,MUTED,DANGER,BUBBLE};
+        return new int[]{BG,CARD,FIELD,ACCENT,WHITE,MUTED,DANGER,BUBBLE,bubbleInk()};
     }
     private int mappedColor(int current,int[] from,int[] to){
         for(int i=0;i<from.length;i++)if(current==from[i])return to[i];
@@ -2305,7 +2305,8 @@ public final class MainActivity extends Activity {
     private int tileBackgroundColor(boolean selected){
         return selected?BUBBLE:CARD;
     }
-    private int tileTextColor(){return WHITE;}
+    private int bubbleInk(){return WorkbenchVisualPolicy.palette(activeThemeDark).bubbleInk();}
+    private int tileTextColor(boolean selected){return selected?bubbleInk():WHITE;}
     private int tileMutedColor(){return MUTED;}
     private GradientDrawable tileBackground(boolean selected){
         GradientDrawable shape=bg(tileBackgroundColor(selected),18);
@@ -2420,7 +2421,7 @@ public final class MainActivity extends Activity {
     private LinearLayout buildModelTile(ModelTileCatalog.Tile item,int sideDp) {
         boolean selected=item.installed&&OllamaQuantCatalog.belongsToModel(item.id,currentModel);
         WorkbenchVisualPolicy.ModelStatus cardStatus=modelCardStatus(item,selected);
-        int ink=tileTextColor(), secondary=tileMutedColor();
+        int ink=tileTextColor(selected), secondary=tileMutedColor();
         LinearLayout card=column();
         card.setPadding(dp(10),dp(9),dp(10),dp(9));
         card.setBackground(tileBackground(selected));
@@ -2497,7 +2498,7 @@ public final class MainActivity extends Activity {
     private LinearLayout buildModelListRow(ModelTileCatalog.Tile item){
         boolean selected=item.installed&&OllamaQuantCatalog.belongsToModel(item.id,currentModel);
         WorkbenchVisualPolicy.ModelStatus cardStatus=modelCardStatus(item,selected);
-        int ink=tileTextColor(),secondary=tileMutedColor();
+        int ink=tileTextColor(selected),secondary=tileMutedColor();
         LinearLayout card=column();
         card.setPadding(dp(13),dp(11),dp(13),dp(11));
         card.setMinimumHeight(dp(90));
@@ -3331,7 +3332,7 @@ public final class MainActivity extends Activity {
         boolean active=(getString(R.string.models).equals(title)&&activeTab==1)
             ||(getString(R.string.settings).equals(title)&&activeTab==2)
             ||(getString(R.string.devices).equals(title)&&activeTab==3);
-        TextView item=text(title,14,WHITE,active);
+        TextView item=text(title,14,active?bubbleInk():WHITE,active);
         item.setSingleLine(true);
         item.setEllipsize(TextUtils.TruncateAt.END);
         item.setMinHeight(dp(48));
@@ -3658,7 +3659,7 @@ public final class MainActivity extends Activity {
     private TextView bubble(String role,String content,boolean pending){return bubble(role,content,pending,-1);}
     private TextView bubble(String role,String content,boolean pending,int index) {
         boolean user="user".equals(role);
-        TextView t=text(user?content:"",15,WHITE,false);
+        TextView t=text(user?content:"",15,user?bubbleInk():WHITE,false);
         t.setTextIsSelectable(true);t.setLineSpacing(dp(3),1f);
         t.setPadding(dp(12),dp(12),dp(12),dp(12));
         t.setAutoLinkMask(0);

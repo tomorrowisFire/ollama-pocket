@@ -358,7 +358,7 @@ final class CloudChatPanel extends LinearLayout {
         if(user){
             WorkbenchVisualPolicy.Palette p=WorkbenchStyle.palette(owner);
             android.graphics.drawable.GradientDrawable bubble=new android.graphics.drawable.GradientDrawable();
-            bubble.setColor(p.bubble);bubble.setCornerRadius(dp(18));text.setBackground(bubble);text.setTextColor(p.text);
+            bubble.setColor(p.bubble);bubble.setCornerRadius(dp(18));text.setBackground(bubble);text.setTextColor(p.bubbleInk());
         }
         return text;
     }

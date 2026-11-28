@@ -342,8 +342,9 @@ assert colors["onhand_accent_light"]=="#79503E" and colors["onhand_accent_dark"]
 # F10A62R1: distinguish the user-approved peach fill from accessible companion ink.
 assert colors["onhand_primary_fill_light"]=="#E5BBA6" and colors["onhand_primary_fill_dark"]=="#D4A58E"
 for mode in ("light","dark"):
-    assert colors["onhand_primary_ink_"+mode]=="#30221D"
-    for token in ("primary_fill","primary_ink"):
+    assert colors["onhand_primary_ink_"+mode]=="#58382B"
+    assert colors["onhand_bubble_ink_"+mode]==("#6B493B" if mode=="light" else "#F2D9CB")
+    for token in ("primary_fill","primary_ink","bubble_ink"):
         assert "0xff"+colors["onhand_"+token+"_"+mode][1:].lower() in policy
 assert "this.primaryFill=primaryFill" in policy
 assert "role==Role.PRIMARY?primaryFill" in policy and "status==ModelStatus.ACTIVE?primaryFill" in policy
@@ -363,6 +364,10 @@ assert "WorkbenchStyle.refreshPrimaryButtonPaint(this,v)" in main
 assert "primary?p.primaryOutline():p.border,primary?1:0,24" in style_source
 assert "badgeSurface.setStroke(dp(1),p.primaryOutline())" in main
 assert "ACCENT=p.primary" in main
+assert "active?bubbleInk():WHITE" in main
+assert "user?bubbleInk():WHITE" in main
+assert "selected?bubbleInk():WHITE" in main
+assert "text.setTextColor(p.bubbleInk())" in (src/"CloudChatPanel.java").read_text()
 assert "#B83B12" not in (res/"values/onhand_brand_theme.xml").read_text()
 assert "#FFAD7B" not in (res/"values/onhand_brand_theme.xml").read_text()
 # F10A63: local/cloud chat visual parity, compact single action and pixel-centered glyphs.
