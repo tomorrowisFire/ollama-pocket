@@ -5,7 +5,7 @@ public final class GpuOffloadEvidenceTest {
     private static int checks;
     private static void ok(boolean value){if(!value)throw new AssertionError("check "+checks);checks++;}
     private static String line(int n,int total){return "load_tensors: offloaded "+n+"/"+total+" layers to GPU";}
-    public static void main(String[] args){
+    public static void main(String[] args)throws Exception{
         for(String value:new String[]{
             "load_tensors: offloaded 25/25 layers to GPU",
             "llm_load_tensors: offloaded 1/25 layers to GPU",
@@ -34,6 +34,20 @@ public final class GpuOffloadEvidenceTest {
         }
         String exact=" ".repeat(GpuOffloadEvidence.MAX_LOG_LINE-line(1,1).length())+line(1,1);
         ok(GpuOffloadEvidence.completed(exact));ok(!GpuOffloadEvidence.completed(" "+exact));
-        System.out.println("PASS: "+checks+" GPU offload evidence and readiness assertions");
+        String longLine=line(1,1)+" ".repeat(100_000);
+        java.io.BufferedReader reader=new java.io.BufferedReader(new java.io.StringReader(longLine+"\r\n"+line(1,1)+"\rblank\n\nend"));
+        String bounded=GpuOffloadEvidence.readDiagnosticLine(reader);
+        ok(bounded.length()<=GpuOffloadEvidence.MAX_DIAGNOSTIC_LINE&&bounded.endsWith(" [truncated]"));
+        ok(!GpuOffloadEvidence.completed(bounded));
+        ok(GpuOffloadEvidence.completed(GpuOffloadEvidence.readDiagnosticLine(reader)));
+        ok("blank".equals(GpuOffloadEvidence.readDiagnosticLine(reader)));
+        ok("".equals(GpuOffloadEvidence.readDiagnosticLine(reader)));
+        ok("end".equals(GpuOffloadEvidence.readDiagnosticLine(reader)));
+        ok(GpuOffloadEvidence.readDiagnosticLine(reader)==null);
+        ok(GpuOffloadEvidence.boundedDiagnostic(longLine).length()<=GpuOffloadEvidence.MAX_DIAGNOSTIC_LINE);
+        ok(GpuOffloadEvidence.boundedDiagnostic(null).isEmpty());
+        String max="x".repeat(GpuOffloadEvidence.MAX_DIAGNOSTIC_LINE);
+        ok(GpuOffloadEvidence.boundedDiagnostic(max).equals(max));
+        System.out.println("PASS: "+checks+" GPU offload evidence, bounded logs and readiness assertions");
     }
 }

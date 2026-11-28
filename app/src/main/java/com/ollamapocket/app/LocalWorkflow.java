@@ -34,7 +34,7 @@ final class LocalWorkflow {
         List<WorkflowPolicy.Step> steps(){return WorkflowPolicy.parse(plan,format);}
         boolean complete(){return results.size()==steps().size();}
         WorkflowPolicy.Budget budget(long now){return WorkflowPolicy.budget(status,steps().size(),results.size(),attempts,totalAttempts,started,updated,now);}
-        boolean resumable(){return budget(System.currentTimeMillis()).allowed();}
+        boolean resumable(){return WorkflowRunJournal.resumableReason(reason)&&budget(System.currentTimeMillis()).allowed();}
     }
     private Checkpoint readCurrent()throws Exception{
         String raw=store.getString("checkpoint",null);

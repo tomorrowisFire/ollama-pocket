@@ -27,9 +27,10 @@ public final class DistributedRunner {
     public static String url(){return "http://127.0.0.1:"+PORT;}
     public static synchronized String logs(){return logs.toString();}
     private static synchronized void log(String s){
-        Log.i("AiPocketDistributed",s);
-        logs.append(s).append('\n');
-        if(logs.length()>12000)logs.delete(0,6000);
+        String line=GpuOffloadEvidence.boundedDiagnostic(s);
+        Log.i("AiPocketDistributed",line);
+        logs.append(line).append('\n');
+        if(logs.length()>12000)logs.delete(0,logs.length()-6000);
     }
     public static void stop(){
         synchronized(DistributedRunner.class){
@@ -301,8 +302,10 @@ public final class DistributedRunner {
             new Thread(()->{
                 try(BufferedReader r=new BufferedReader(new InputStreamReader(
                         current.getInputStream(),StandardCharsets.UTF_8))){
-                    String line;while((line=r.readLine())!=null)log(line);
-                }catch(Exception e){log("RPC host log ended: "+e.getMessage());}
+                    String line;while((line=GpuOffloadEvidence.readDiagnosticLine(r))!=null){
+                        synchronized(DistributedRunner.class){if(startup==generation&&process==current)log(line);}
+                    }
+                }catch(Exception e){synchronized(DistributedRunner.class){if(startup==generation&&process==current)log("RPC host log ended: "+e.getMessage());}}
             },"llama-rpc-host-logs").start();
             // Cache warming/network transfer can take minutes for a large GGUF.
             long seconds=Math.max(180,Math.min(900,weights.length()/(12L*1024*1024)));

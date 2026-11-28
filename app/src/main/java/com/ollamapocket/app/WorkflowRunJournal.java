@@ -42,6 +42,8 @@ final class WorkflowRunJournal {
         if(!coopOff)return Reason.COOP_ACTIVE;
         return null;
     }
+    /** The same immutable plan and previous result cannot fix an estimated context overflow. */
+    static boolean resumableReason(Reason reason){return reason!=Reason.CONTEXT_LIMIT&&reason!=Reason.USER_CANCEL;}
     static State stopState(Reason reason){
         if(reason==Reason.USER_CANCEL)return State.CANCELLED;
         if(reason==Reason.USER_PAUSE||reason==Reason.INTERRUPTED||reason==Reason.RECOVERED)return State.PAUSED;

@@ -39,9 +39,10 @@ public final class GpuRunner {
 
     public static synchronized String logs() { return logBuffer.toString(); }
     private static synchronized void append(String msg) {
-        Log.i("AiPocketGPU", msg);
-        logBuffer.append(msg).append('\n');
-        if (logBuffer.length() > 9000) logBuffer.delete(0, 4500);
+        String line=GpuOffloadEvidence.boundedDiagnostic(msg);
+        Log.i("AiPocketGPU", line);
+        logBuffer.append(line).append('\n');
+        if (logBuffer.length() > 9000) logBuffer.delete(0, logBuffer.length()-4500);
 
     }
 
@@ -179,7 +180,7 @@ public final class GpuRunner {
                 try (BufferedReader br = new BufferedReader(new InputStreamReader(
                         current.getInputStream(), StandardCharsets.UTF_8))) {
                     String line;
-                    while ((line = br.readLine()) != null) {
+                    while ((line = GpuOffloadEvidence.readDiagnosticLine(br)) != null) {
                         synchronized(GpuRunner.class){
                             if(myGeneration==generation&&process==current){
                                 append(line);
@@ -223,6 +224,17 @@ public final class GpuRunner {
         }
     }
 
+    /** Identify the exact resident generation used by the current chat. */
+    static synchronized Integer streamGeneration(String model){
+        return process!=null&&activeModel.equals(model)?generation:null;
+    }
+    /** Never penalize or stop a replacement process, a cancelled turn or unsafe resources. */
+    static synchronized void stopFailedStream(Context context,String model,Integer expected,java.util.function.BooleanSupplier cancelled){
+        if(expected==null||generation!=expected||process==null||!activeModel.equals(model))return;
+        boolean eligible=InferenceSafetyPolicy.mayFallback(cancelled.getAsBoolean(),Thread.currentThread().isInterrupted(),0,InferenceSafety.check(context));
+        retryBudget.failed(activeModel+"|"+activeWeightsKey,SystemClock.elapsedRealtime(),eligible);
+        stopLocked();
+    }
     public static synchronized void stop() { stopLocked(); }
     private static void stopLocked() {
         generation++;

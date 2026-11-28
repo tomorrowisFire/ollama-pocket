@@ -34,6 +34,12 @@ public final class ModelListFilterTest {
         ok("기타".equals(ModelListFilter.band("Q40")),"invalid prefix");
         ok(ModelListFilter.matchesQuantization("IQ4 전체","IQ4_XS"),"IQ filter");
         ok(ModelListFilter.matchesQuantization("q4_k_m","Q4_K_M"),"normalized exact choice");
-        System.out.println("PASS: ModelListFilter (29 assertions)");
+        ok(ModelListFilter.matches("qwen3:4b","local model","Q4_K_M","qwen 4b q4_k_m","전체 모델","전체 양자화"),"multiple terms including quant");
+        ok(ModelListFilter.matches("gemma4:e2b","로컬 모델","Q4_K_M","ＧＥＭＭＡ　Ｅ２Ｂ","전체 모델","전체 양자화"),"width normalization");
+        ok(!ModelListFilter.matches("gemma4:e2b","local model","Q4_K_M","gemma q8","전체 모델","전체 양자화"),"all terms required");
+        ok(ModelListFilter.matches("hf:org/model#file.gguf","model metadata","IQ2_XS","org\tmetadata IQ2","전체 모델","전체 양자화"),"whitespace terms");
+        ok(!ModelListFilter.matches("qwen:4b","local model","Q4_K_M","qwen 4b","Llama","전체 양자화"),"family constraint preserved");
+        ok(!ModelListFilter.matches("x","x","x","x".repeat(241),"전체 모델","전체 양자화"),"bounded query");
+        System.out.println("PASS: ModelListFilter (35 assertions)");
     }
 }

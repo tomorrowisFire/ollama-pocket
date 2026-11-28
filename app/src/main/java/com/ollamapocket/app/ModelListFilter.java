@@ -57,13 +57,23 @@ public final class ModelListFilter {
         return normalizeQuantization(selected).equals(normalized);
     }
 
+    private static String searchFold(String value){
+        return value==null?"":java.text.Normalizer.normalize(value,java.text.Normalizer.Form.NFKC).toLowerCase(Locale.ROOT);
+    }
+    static boolean matchesText(String name,String description,String quant,String search){
+        String key=searchFold(search).trim();
+        if(key.isEmpty())return true;
+        if(key.length()>240)return false;
+        String haystack=searchFold(name)+" "+searchFold(description)+" "+searchFold(quant);
+        for(String term:key.split("[\\s\\p{Z}]+"))
+            if(!term.isEmpty()&&!haystack.contains(term))return false;
+        return true;
+    }
     public static boolean matches(String name,String description,String quant,
                                   String search,String familyChoice,String quantChoice) {
         String label=name==null?"":name;
         String detail=description==null?"":description;
-        String key=search==null?"":search.trim().toLowerCase(Locale.ROOT);
-        if(!key.isEmpty()&&!label.toLowerCase(Locale.ROOT).contains(key)
-                &&!detail.toLowerCase(Locale.ROOT).contains(key))return false;
+        if(!matchesText(label,detail,quant,search))return false;
         if(familyChoice!=null&&!"전체 모델".equals(familyChoice)
                 &&!familyChoice.equals(family(label,detail)))return false;
         return matchesQuantization(quantChoice,quant);

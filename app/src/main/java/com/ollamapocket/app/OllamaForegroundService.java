@@ -41,6 +41,7 @@ public final class OllamaForegroundService extends Service {
     }
 
     private static synchronized void log(String line) {
+        line=GpuOffloadEvidence.boundedDiagnostic(line);
         Log.i("AIinPocket", line);
         recentLog.append(line).append('\n');
         if (recentLog.length() > 6000) {
@@ -134,8 +135,8 @@ public final class OllamaForegroundService extends Service {
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(
                         p.getInputStream(), StandardCharsets.UTF_8))) {
                     String line;
-                    while ((line = reader.readLine()) != null) log(line);
-                } catch (Exception e) { log("Log reader: " + e); }
+                    while ((line = GpuOffloadEvidence.readDiagnosticLine(reader)) != null) if(processes.current()==p)log(line);
+                } catch (Exception e) { if(processes.current()==p)log("Log reader: " + e); }
             }, "ollama-stdout").start();
             new Thread(() -> {
                 final int exitCode;

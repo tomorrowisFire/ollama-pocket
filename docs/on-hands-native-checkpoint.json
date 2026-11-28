@@ -1,6 +1,6 @@
 {
-  "stage": "F10A78-fourth-integration-regression-repair",
-  "revision": "F10A78",
-  "priorCandidate": "9ec093f0cd1dd84273b986784d51e535a09ef712",
-  "reason": "Repair obsolete F10A77 singleton document handoff fixture while retaining exact report-count checks. Optimize local history suffix construction without changing admitted content; correct Ollama vs Llama classification and IQ/MXFP4 bands; visible model picker caret; fail-closed workflow context preflight before reservation using existing 2048 estimate. Exact CI and full ARM64 build; final device tests deferred."
+  "stage": "F10A79-fifth-focused-integration",
+  "revision": "F10A79",
+  "priorCandidate": "a805ace7faf5b2a168bdb25633acebf3d6a51ce7",
+  "reason": "Fifth independent integration: early GPU stream failure scoped to resident generation and retry cooldown; bounded native diagnostic drain and logs; low-memory search cache trim; normalized multi-term local model lookup; header caret live theme repaint; stop unchanged context-blocked workflow replay. Preserve F10A78 corrected report fixture and all approved feature/production gates. FULL ARM64 checkpoint; final device acceptance deferred."
 }

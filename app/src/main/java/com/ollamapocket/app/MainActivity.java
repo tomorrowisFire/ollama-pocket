@@ -434,6 +434,7 @@ public final class MainActivity extends Activity {
         if(cloudShortcut!=null)paintHeaderCloud(cloudShortcut.length()>0);
         if(menuButton!=null)OnHandGlyphs.refresh(menuButton);
         if(newChatShortcut!=null)OnHandGlyphs.refresh(newChatShortcut);
+        refreshHeaderAccess(); // repaint trailing model caret against the new theme
         refreshQuickActionPaint();
         updateModelViewButtons();
         renderInstalledModels();
@@ -543,6 +544,13 @@ public final class MainActivity extends Activity {
         ui.removeCallbacks(voiceStatePoll);
         ui.removeCallbacks(sunsetThemePoll);
         super.onPause();
+    }
+    @Override public void onTrimMemory(int level){
+        super.onTrimMemory(level);
+        if(level>=android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW)searchCache.clear();
+    }
+    @Override public void onLowMemory(){
+        super.onLowMemory();searchCache.clear();
     }
     @Override protected void onDestroy() {
         visionPickerPending=false;pendingVisionUri=null;
@@ -2784,7 +2792,7 @@ public final class MainActivity extends Activity {
             if(failure.isEmpty()){
                 searchParts.put(provider,result);
                 // Cache only the active query and complete provider results.
-                searchCache.put(ModelSearchCache.key(provider,query),result,android.os.SystemClock.elapsedRealtime());
+                if(foreground)searchCache.put(ModelSearchCache.key(provider,query),result,android.os.SystemClock.elapsedRealtime());
             }else{
                 if(!result.isEmpty())searchParts.put(provider,result);
                 searchFailures.add(failure);
@@ -4212,15 +4220,18 @@ public final class MainActivity extends Activity {
                     getString(R.string.engine_cpu_verified)+(failedReason.isEmpty()?"":" "+getString(deferredGpu?R.string.engine_gpu_retry_deferred:R.string.engine_gpu_failed)))+
                     (measuredRoute!=null&&measuredRoute.equals(verifiedGpu?"gpu":"cpu")?" · "+getString(R.string.bench_auto_profile,measuredRoute.toUpperCase(Locale.ROOT)):"")));
                 if (gpu) {
+                    final Integer streamGeneration=GpuRunner.streamGeneration(modelAtStart);
                     try {
+                        if(streamGeneration==null)throw new java.io.IOException("GPU generation changed");
                         HttpURLConnection connection = OllamaHttp.newGpuChatConnection();
                         publishChatConnection(connection);
                         OllamaHttp.streamGpuChat(connection, OllamaHttp.gpuChatBody(modelAtStart, requestHistory),
                             item -> appendAnswer(item, answer, assistant), () -> chatCancelled);
                     } catch (Exception gpuError) {
+                        InferenceSafetyPolicy.restoreInterrupt(gpuError);
                         if(!InferenceSafetyPolicy.mayFallback(chatCancelled,Thread.currentThread().isInterrupted(),answer.length(),
                             InferenceSafetyPolicy.retainRisk(chatSafetyReason,InferenceSafety.check(getApplicationContext()))))throw gpuError;
-                        GpuRunner.stop();
+                        GpuRunner.stopFailedStream(getApplicationContext(),modelAtStart,streamGeneration,()->chatCancelled);
                         if(!InferenceSafetyPolicy.mayFallback(chatCancelled,Thread.currentThread().isInterrupted(),answer.length(),
                             InferenceSafetyPolicy.retainRisk(chatSafetyReason,InferenceSafety.check(getApplicationContext()))))throw gpuError;
                         ui.post(() -> activeEngineLabel.setText(getString(R.string.engine_cpu_fallback)));

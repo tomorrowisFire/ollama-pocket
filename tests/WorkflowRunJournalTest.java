@@ -35,6 +35,11 @@ public final class WorkflowRunJournalTest {
         contextBlocked.record(1,"QUEUED",none,0,0,0,2,1);
         contextBlocked.record(2,"BLOCKED",WorkflowRunJournal.Reason.CONTEXT_LIMIT,0,0,0,2,1);
         ok(WorkflowRunJournal.read(contextBlocked.json(),2,1).matchesLast("BLOCKED",WorkflowRunJournal.Reason.CONTEXT_LIMIT,0,0,0,2));
+        ok(!WorkflowRunJournal.resumableReason(WorkflowRunJournal.Reason.CONTEXT_LIMIT));
+        ok(!WorkflowRunJournal.resumableReason(WorkflowRunJournal.Reason.USER_CANCEL));
+        for(WorkflowRunJournal.Reason reason:new WorkflowRunJournal.Reason[]{none,WorkflowRunJournal.Reason.UNKNOWN,
+            WorkflowRunJournal.Reason.USER_PAUSE,WorkflowRunJournal.Reason.TRANSPORT,WorkflowRunJournal.Reason.RECOVERED})
+            ok(WorkflowRunJournal.resumableReason(reason));
         WorkflowRunJournal j=new WorkflowRunJournal();
         ok(j.matchesLast("PAUSED",WorkflowRunJournal.Reason.UNKNOWN,0,0,0,0));
         j.record(1,"QUEUED",none,0,0,0,2,1);

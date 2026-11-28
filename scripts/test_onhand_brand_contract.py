@@ -495,3 +495,12 @@ assert "if(!cloudMode)label+=\" ▾\";" not in main
 workflow_source=(src/"LocalWorkflow.java").read_text()
 assert workflow_source.index("if(!DocumentBatchPolicy.fits(stepPrompt,WorkflowPolicy.MAX_TOKENS))") < workflow_source.index("c.attempts++;c.totalAttempts++")
 assert 'put("content",stepPrompt)' in workflow_source
+
+# F10A79: exact-generation early GPU stream retry, bounded diagnostic readers, memory cache trim, and immutable-context resume guard.
+assert "GpuRunner.stopFailedStream(getApplicationContext(),modelAtStart,streamGeneration,()->chatCancelled)" in main
+assert "GpuRunner.streamGeneration(modelAtStart)" in main
+assert "if(level>=android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW)searchCache.clear();" in main
+assert "refreshHeaderAccess(); // repaint trailing model caret" in main
+for engine in ("GpuRunner.java","DistributedRunner.java","OllamaForegroundService.java"):
+    assert "GpuOffloadEvidence.readDiagnosticLine(" in (src/engine).read_text()
+assert "WorkflowRunJournal.resumableReason(reason)&&budget(" in (src/"LocalWorkflow.java").read_text()
