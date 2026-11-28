@@ -1,6 +1,6 @@
 {
-  "stage": "F10A74-P1A-auto-gpu-retry-budget",
-  "revision": "F10A74",
-  "priorCandidate": "0af9d591b0dfee727f9e1d0e8344e822124073df",
-  "reason": "Focused optimization phase 1A: avoid repeated failed GPU cold starts via bounded process-local per-model/weight retry cooldown (60/120/240/300s), retain manual/benchmark attempts, successful reset, monotonic expiry, no caching canceled/unsafe/stale starts. Five localized status messages. Full ARM64 build; no physical throughput/thermal claim."
+  "stage": "F10A75-P1B-P2-P3-P4-P5-independent-integration",
+  "revision": "F10A75",
+  "priorCandidate": "233318ee870b0c1d244ef3a4e4aaa8e56600edaf",
+  "reason": "Integrate independent improvements: bounded resident model handoff; finite resource-aware model ranking/advice; persistent intentional filters across partial provider results; resumable interruption journal; bounded streaming private cache scan. Preserve F10A74 retry budget, existing UI, data, billing and ads. Full ARM64 APK and exact CI gate; physical acceptance deferred."
 }

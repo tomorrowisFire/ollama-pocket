@@ -36,16 +36,18 @@ final class PrivacyPolicy {
     static int cleanAbandonedPdf(File cache,long now)throws IOException{
         if(cache==null||!cache.isDirectory())return 0;
         File root=cache.getCanonicalFile();
-        File[] files=root.listFiles();if(files==null)return 0;
         int removed=0,examined=0;
-        for(File f:files){
+        try(java.nio.file.DirectoryStream<java.nio.file.Path> files=Files.newDirectoryStream(root.toPath())){
+        for(java.nio.file.Path path:files){
             if(++examined>10000)break;
+            File f=path.toFile();
             if(!f.getName().matches("pdf-excerpt-[0-9-]{1,40}\\.pdf"))continue;
             try{
                 BasicFileAttributes attrs=Files.readAttributes(f.toPath(),BasicFileAttributes.class,LinkOption.NOFOLLOW_LINKS);
                 if(!attrs.isRegularFile()||!stalePdfName(f.getName(),attrs.lastModifiedTime().toMillis(),now))continue;
                 if(root.equals(f.getCanonicalFile().getParentFile())&&Files.deleteIfExists(f.toPath()))removed++;
             }catch(IOException|SecurityException ignored){}
+        }
         }
         return removed;
     }

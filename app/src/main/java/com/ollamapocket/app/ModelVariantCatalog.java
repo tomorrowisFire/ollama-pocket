@@ -213,13 +213,16 @@ public final class ModelVariantCatalog {
         if(!arm64)return 4;
         if(bytes<=0)return 3;
         double weight=bytes/(double)GIB, need=weight*1.15+0.65;
-        if((!installed&&storage<(hf?2*weight+0.5:weight+0.5))||
-            total<=0||total<need+0.9)return 4;
-        if(low||free>0&&free<need*0.80)return 2;
-        if(free<=0||free<need)return 1;
+        if((!installed&&(!Double.isFinite(storage)||storage<(hf?2*weight+0.5:weight+0.5)))||
+            !Double.isFinite(total)||total<=0||total<need+0.9)return 4;
+        if(low)return 2;
+        if(!Double.isFinite(free)||free<=0||free>total)return 1;
+        if(free<need*0.80)return 2;
+        if(free<need)return 1;
         return 0;
     }
     public static int quantPenalty(String quant){
+        quant=quant==null||quant.trim().isEmpty()?"미확인":quant.trim().toUpperCase(Locale.ROOT);
         if("Q4_K_M".equals(quant))return 0;
         if("Q5_K_M".equals(quant))return 2;
         if(quant.startsWith("Q4"))return 4;
@@ -234,8 +237,10 @@ public final class ModelVariantCatalog {
     public static double score(long bytes,String quant,boolean hf,boolean installed,boolean arm64,
                                boolean low,double total,double free,double storage,int cores){
         int t=tier(bytes,hf,installed,arm64,low,total,free,storage);
-        double target=Math.max(0.2,Math.min(Math.max(0.2,(free>0?free:total)*0.45),cores>=8?3.5:1.7));
-        double weight=bytes/(double)GIB;
+        double usable=Double.isFinite(total)&&total>0?total:0;
+        if(Double.isFinite(free)&&free>0&&free<=usable)usable=free;
+        double target=Math.max(0.2,Math.min(Math.max(0.2,usable*0.45),cores>=8?3.5:1.7));
+        double weight=Math.max(0L,bytes)/(double)GIB;
         return 1000*t+quantPenalty(quant)+Math.min(90,Math.abs(weight-target)*10)+(installed?-1:0);
     }
     public static int compareSize(long a,long b,boolean descending){

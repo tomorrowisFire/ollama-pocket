@@ -5,6 +5,15 @@ import java.util.Locale;
 public final class ModelListFilter {
     private ModelListFilter() {}
 
+    /** The user's existing choice remains available even when a partial result batch lacks it. */
+    public static int retainChoice(java.util.List<String> options,String selected){
+        if(options==null||options.isEmpty())throw new IllegalArgumentException("Filter options");
+        if(selected==null||selected.trim().isEmpty())return 0;
+        int index=options.indexOf(selected);
+        if(index>=0)return index;
+        options.add(selected);
+        return options.size()-1;
+    }
     public static String normalizeQuantization(String raw) {
         return raw==null||raw.trim().isEmpty()?"미확인":raw.trim().toUpperCase(Locale.ROOT);
     }

@@ -23,6 +23,11 @@ public final class WorkflowRunJournalTest {
         ok(WorkflowRunJournal.failure(new java.io.IOException("WORKFLOW_OUTPUT_LIMIT"))==WorkflowRunJournal.Reason.OUTPUT_LIMIT);
         ok(WorkflowRunJournal.failure(new java.io.IOException("WORKFLOW_INVALID_TOKENS"))==WorkflowRunJournal.Reason.INVALID_TOKENS);
         ok(WorkflowRunJournal.failure(new java.io.IOException("private payload"))==WorkflowRunJournal.Reason.TRANSPORT);
+        ok(WorkflowRunJournal.failure(new InterruptedException())==WorkflowRunJournal.Reason.INTERRUPTED);
+        ok(WorkflowRunJournal.failure(new java.io.InterruptedIOException())==WorkflowRunJournal.Reason.INTERRUPTED);
+        ok(WorkflowRunJournal.failure(new java.net.SocketTimeoutException())==WorkflowRunJournal.Reason.TRANSPORT);
+        ok(WorkflowRunJournal.failure(null)==WorkflowRunJournal.Reason.TRANSPORT);
+        ok(WorkflowRunJournal.stopState(WorkflowRunJournal.Reason.INTERRUPTED)==WorkflowRunJournal.State.PAUSED);
         WorkflowRunJournal j=new WorkflowRunJournal();
         ok(j.matchesLast("PAUSED",WorkflowRunJournal.Reason.UNKNOWN,0,0,0,0));
         j.record(1,"QUEUED",none,0,0,0,2,1);

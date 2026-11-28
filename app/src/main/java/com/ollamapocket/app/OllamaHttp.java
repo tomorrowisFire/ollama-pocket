@@ -39,24 +39,46 @@ public final class OllamaHttp {
         try { return readSingle(conn); } finally { conn.disconnect(); }
     }
 
-    /** Release only model allocations in this app's loopback Ollama daemon. */
-    public static void releaseResidentModels(java.util.function.BooleanSupplier cancelled)throws Exception{
+    /** A short, aggregate handoff budget avoids an entire cold-start timeout per resident model.
+     * Network timeouts bound individual blocking operations; check elapsed time again after each response. */
+    private static int releaseTimeout(long started,BooleanSupplier cancelled)throws IOException{
         if(cancelled.getAsBoolean()||Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("CHAT_CANCELLED");
+        int timeout=EngineTransitionPolicy.releaseTimeoutMs(started,android.os.SystemClock.elapsedRealtime());
+        if(timeout==0)throw new java.net.SocketTimeoutException("Resident model release deadline");
+        return timeout;
+    }
+    private static JSONObject releaseRequest(String path,JSONObject body,long started,BooleanSupplier cancelled)throws Exception{
+        int timeout=releaseTimeout(started,cancelled);
+        HttpURLConnection conn=open(path,body==null?"GET":"POST",timeout);
+        conn.setConnectTimeout(Math.min(timeout,1000));
+        try{
+            if(body!=null)write(conn,body);
+            JSONObject result=readSingle(conn);
+            releaseTimeout(started,cancelled);
+            return result;
+        }finally{conn.disconnect();}
+    }
+    /** Release only model allocations in this app's loopback Ollama daemon. */
+    public static void releaseResidentModels(BooleanSupplier cancelled)throws Exception{
+        long started=android.os.SystemClock.elapsedRealtime();
+        releaseTimeout(started,cancelled);
         if(!OllamaForegroundService.isRunning())return;
-        JSONArray models=get("/api/ps").optJSONArray("models");
+        JSONArray models=releaseRequest("/api/ps",null,started,cancelled).optJSONArray("models");
         if(models==null||models.length()>128)throw new IOException("Invalid resident model list");
+        // Validate the complete snapshot before performing any unload, and deduplicate names.
+        java.util.LinkedHashSet<String> names=new java.util.LinkedHashSet<>();
         for(int i=0;i<models.length();i++){
-            if(cancelled.getAsBoolean()||Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("CHAT_CANCELLED");
             JSONObject row=models.optJSONObject(i);
             String name=row==null?"":row.optString("name",row.optString("model",""));
             if(name.isEmpty()||name.length()>256)throw new IOException("Invalid resident model name");
-            post("/api/generate",new JSONObject().put("model",name).put("keep_alive",0).put("stream",false),"POST");
+            names.add(name);
         }
+        for(String name:names)
+            releaseRequest("/api/generate",new JSONObject().put("model",name).put("keep_alive",0).put("stream",false),started,cancelled);
         for(int i=0;i<8;i++){
-            if(cancelled.getAsBoolean()||Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("CHAT_CANCELLED");
-            JSONArray left=get("/api/ps").optJSONArray("models");
+            JSONArray left=releaseRequest("/api/ps",null,started,cancelled).optJSONArray("models");
             if(left!=null&&left.length()==0)return;
-            Thread.sleep(250);
+            Thread.sleep(Math.min(250,releaseTimeout(started,cancelled)));
         }
         throw new IOException("Resident models did not unload");
     }

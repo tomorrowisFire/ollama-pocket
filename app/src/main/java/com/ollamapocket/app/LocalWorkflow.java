@@ -195,7 +195,9 @@ final class LocalWorkflow {
                     },()->abort.get()!=null||cancelled||paused);
                 }catch(Exception e){
                     watch.run();WorkflowRunJournal.Reason reason=stopReason.get();
-                    stopped(c,reason!=null?reason:WorkflowRunJournal.failure(e));break; // no blind transport retry
+                    try{stopped(c,reason!=null?reason:WorkflowRunJournal.failure(e));}
+                    finally{InferenceSafetyPolicy.restoreInterrupt(e);}
+                    break; // preserve paused checkpoint; never blindly retry transport
                 }finally{connection=null;if(request!=null)request.disconnect();}
                 if(tokens[0]>=0){c.unknownAttempts--;c.reportedTokens+=tokens[0];}
                 watch.run();WorkflowRunJournal.Reason reason=stopReason.get();

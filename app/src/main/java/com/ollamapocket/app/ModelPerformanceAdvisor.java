@@ -7,6 +7,8 @@ import java.util.regex.Pattern;
 /** Heuristic resource admission and benchmark-derived, explicitly labelled throughput. */
 public final class ModelPerformanceAdvisor {
     private ModelPerformanceAdvisor() {}
+    private static double knownGiB(double value){return Double.isFinite(value)&&value>0&&value<=1_048_576d?value:0;}
+    private static boolean validRate(Double value){return value!=null&&Double.isFinite(value)&&value>0&&value<=100_000d;}
 
     public static final class Result {
         public final String suitability;
@@ -63,23 +65,24 @@ public final class ModelPerformanceAdvisor {
         if(!arm64)return new Result("미지원","속도 산출 불가",
             "이 앱의 추론 엔진은 ARM64 기기에서만 실행됩니다.",false,Result.Reason.UNSUPPORTED,0,0,0,0,0);
 
-        double total=Math.max(0,totalRamGiB);
-        double free=Math.max(0,availableRamGiB);
-        double weight=Math.max(0,weightGiB);
+        double total=knownGiB(totalRamGiB);
+        double free=knownGiB(availableRamGiB);
+        if(total>0&&free>total)free=0; // contradictory telemetry is unknown, not spare capacity
+        double weight=knownGiB(weightGiB);
         // Rough memory reserve includes KV cache and per-engine execution buffers.
         double required=weight>0 ? weight*1.15+0.65 : 0;
         boolean constrained=lowMemory || (required>0 && total>0 && total<required+0.9);
-        boolean pressure=required>0 && free>0 && free<required*0.80;
+        boolean pressure=required>0 && free>0 && free<required;
+        boolean unknown=total==0||free==0||weight==0;
         String memory;
         if(weight<=0)memory="모델 용량 미확인";
         else memory=String.format(Locale.KOREA,
            "가중치 %.1fGiB · KV/작업 메모리 포함 최소 약 %.1fGiB 필요(추정)",weight,required);
 
-        if(sameModelMeasuredTps!=null && Double.isFinite(sameModelMeasuredTps)
-                && sameModelMeasuredTps>0) {
+        if(validRate(sameModelMeasuredTps)) {
             double tps=sameModelMeasuredTps;
             String grade=tps>=15?"원활":tps>=7?"보통":"느림";
-            if(constrained)grade="메모리 주의";
+            if(constrained||pressure||unknown)grade="메모리 주의";
             return new Result(grade,
                 String.format(Locale.KOREA,"실측 %.1f tok/s (지난 벤치마크)",tps),
                 memory+"\n기기 온도·백그라운드 작업·추론 장치가 바뀌면 속도가 달라집니다.",true,Result.Reason.MEASURED,weight,required,tps,0,0);
@@ -87,10 +90,9 @@ public final class ModelPerformanceAdvisor {
         if(constrained)return new Result("권장하지 않음","예상 tok/s: 측정 전",
                 memory+"\n현재 RAM 용량 또는 저메모리 상태에서는 종료 위험이 큽니다.",false,Result.Reason.MEMORY,weight,required,0,0,0);
 
-        String grade=pressure?"주의":"실행 여유 예상";
-        if(baselineMeasuredTps!=null && baselineMeasuredTps>0 &&
-                Double.isFinite(baselineMeasuredTps) &&
-                baselineWeightGiB>0 && weight>0 &&
+        String grade=pressure||unknown?"주의":"실행 여유 예상";
+        if(validRate(baselineMeasuredTps) &&
+                knownGiB(baselineWeightGiB)>0 && weight>0 &&
                 weight / baselineWeightGiB >= 0.2 &&
                 weight / baselineWeightGiB <= 5.0) {
             // Cross-model interpolation is deliberately wide and labelled approximate.

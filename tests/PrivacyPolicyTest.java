@@ -36,6 +36,9 @@ public final class PrivacyPolicyTest {
             ok(PrivacyPolicy.cleanAbandonedPdf(root.toFile(),now)==1);
             ok(!Files.exists(stale));ok(Files.exists(fresh));ok(Files.exists(keep));
             ok(Files.isDirectory(folder));ok(Files.isSymbolicLink(link));
+            ok(PrivacyPolicy.cleanAbandonedPdf(root.toFile(),now)==0);
+            ok(PrivacyPolicy.cleanAbandonedPdf(root.resolve("missing").toFile(),now)==0);
+            ok(Files.exists(keep)&&Files.isSymbolicLink(link));
         }finally{try(java.util.stream.Stream<Path> paths=Files.walk(root)){
             for(Path path:paths.sorted(java.util.Comparator.reverseOrder()).toArray(Path[]::new))Files.deleteIfExists(path);
         }}

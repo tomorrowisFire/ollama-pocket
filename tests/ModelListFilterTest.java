@@ -17,6 +17,12 @@ public final class ModelListFilterTest {
         ok(!ModelListFilter.matches("gemma3:4b","3.4 GB · Q4_K_M","Q4_K_M",
              "qwen","Qwen","Q4 전체"), "text and family exclude");
         ok(ModelListFilter.matches("unclear","unknown","", "", "전체 모델","전체 양자화"), "unknown accepted");
-        System.out.println("PASS: ModelListFilter (13 assertions)");
+        java.util.List<String> options=new java.util.ArrayList<>(java.util.Arrays.asList("전체 모델","Qwen"));
+        ok(ModelListFilter.retainChoice(options,"Qwen")==1,"available choice");
+        ok(ModelListFilter.retainChoice(options,"Gemma")==2&&options.get(2).equals("Gemma"),"preserve selection across partial provider results");
+        ok(ModelListFilter.retainChoice(options,"Gemma")==2&&options.size()==3,"no duplicate preserved option");
+        ok(ModelListFilter.retainChoice(options,null)==0,"default for missing choice");
+        ok(!ModelListFilter.matches("qwen:4b","","Q4_K_M","","Gemma","전체 양자화"),"absent selection shows zero results, not another family");
+        System.out.println("PASS: ModelListFilter (18 assertions)");
     }
 }

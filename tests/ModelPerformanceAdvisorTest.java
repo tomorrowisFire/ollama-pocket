@@ -22,6 +22,13 @@ public final class ModelPerformanceAdvisorTest {
                 "no guessed number");
         ok("권장하지 않음".equals(ModelPerformanceAdvisor.evaluate(true,false,4,1,6,null,null,0).suitability),
                 "too big for RAM");
-        System.out.println("PASS: ModelPerformanceAdvisor (11 assertions)");
+        ok("주의".equals(ModelPerformanceAdvisor.evaluate(true,false,8,Double.NaN,1,null,null,0).suitability),"unknown free RAM");
+        ok("주의".equals(ModelPerformanceAdvisor.evaluate(true,false,8,9,1,null,null,0).suitability),"inconsistent free RAM");
+        ok("주의".equals(ModelPerformanceAdvisor.evaluate(true,false,Double.NaN,4,1,null,null,0).suitability),"unknown total RAM");
+        ok("주의".equals(ModelPerformanceAdvisor.evaluate(true,false,8,4,Double.POSITIVE_INFINITY,null,null,0).suitability),"unknown size");
+        ok("메모리 주의".equals(ModelPerformanceAdvisor.evaluate(true,false,8,1,1,22.0,null,0).suitability),"historical speed cannot override memory pressure");
+        ok(!ModelPerformanceAdvisor.evaluate(true,false,8,4,1,Double.POSITIVE_INFINITY,null,0).measured,"invalid measurement");
+        ok(!ModelPerformanceAdvisor.evaluate(true,false,8,4,1,100001.0,null,0).measured,"implausible measurement");
+        System.out.println("PASS: ModelPerformanceAdvisor (18 assertions)");
     }
 }

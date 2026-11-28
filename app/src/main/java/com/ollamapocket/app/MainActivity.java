@@ -233,6 +233,7 @@ public final class MainActivity extends Activity {
     private Runnable onlineSearchRunnable;
     private String selectedModelFamily="전체 모델";
     private String selectedQuantization="전체 양자화";
+    private String lastModelSearchQuery="";
     private final Map<String,String> modelMetadata = new HashMap<>();
     private final Map<String,String> modelQuantization = new HashMap<>();
     private final Map<String,Long> modelBytes = new HashMap<>();
@@ -2285,7 +2286,7 @@ public final class MainActivity extends Activity {
             String name=entry.id;
             String family=modelFamily(name,modelMetadata.getOrDefault(name,entry.description));
             if(!foundFamilies.contains(family))foundFamilies.add(family);
-            String q=modelQuantization.getOrDefault(name,entry.quantization);
+            String q=ModelListFilter.normalizeQuantization(modelQuantization.getOrDefault(name,entry.quantization));
             if(!quantized.contains(q))quantized.add(q);
         }
         String[] priorities={"Qwen","Llama","Gemma","DeepSeek","Mistral","Phi","GLM","GPT-OSS","기타"};
@@ -2299,10 +2300,8 @@ public final class MainActivity extends Activity {
         }
         java.util.Collections.sort(quantized);
         for(String q:quantized)if(!"미확인".equals(q))quantOptions.add(q);
-        int familyIndex=families.indexOf(selectedModelFamily);
-        int quantIndex=quantOptions.indexOf(selectedQuantization);
-        if(familyIndex<0){selectedModelFamily="전체 모델";familyIndex=0;}
-        if(quantIndex<0){selectedQuantization="전체 양자화";quantIndex=0;}
+        int familyIndex=ModelListFilter.retainChoice(families,selectedModelFamily);
+        int quantIndex=ModelListFilter.retainChoice(quantOptions,selectedQuantization);
         ignoreSelection=true;
         familyFilter.setAdapter(makeFilterAdapter(familyFilter,R.string.model_filter_family,families));
         quantizationFilter.setAdapter(makeFilterAdapter(quantizationFilter,R.string.model_filter_quant,quantOptions));
@@ -2726,7 +2725,11 @@ public final class MainActivity extends Activity {
         String provider=selectedSource;
         searchParts.clear();searchFailures.clear();expandedGroups.clear();
         searchRequestsRemaining=0;
-        selectedModelFamily="전체 모델";selectedQuantization="전체 양자화";
+        String queryKey=query.toLowerCase(Locale.ROOT);
+        if(!queryKey.equals(lastModelSearchQuery)){
+            selectedModelFamily="전체 모델";selectedQuantization="전체 양자화";
+            lastModelSearchQuery=queryKey;
+        }
         if(query.isEmpty())loadRecommendedVariants(false);
         if(query.length()>=2&&query.length()<=120){
             long now=android.os.SystemClock.elapsedRealtime();

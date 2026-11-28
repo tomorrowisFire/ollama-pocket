@@ -42,6 +42,14 @@ public final class EngineTransitionPolicyTest {
             }
             check(released==invalidateAfter);
         }
-        System.out.println("PASS: "+checks+" engine transition checks");
+        check(EngineTransitionPolicy.releaseTimeoutMs(0,0)==3000);
+        check(EngineTransitionPolicy.releaseTimeoutMs(10,12010)==3000);
+        check(EngineTransitionPolicy.releaseTimeoutMs(10,14999)==11);
+        check(EngineTransitionPolicy.releaseTimeoutMs(10,15009)==1);
+        check(EngineTransitionPolicy.releaseTimeoutMs(10,15010)==0);
+        check(EngineTransitionPolicy.releaseTimeoutMs(10,9)==0);
+        check(EngineTransitionPolicy.releaseTimeoutMs(-1,0)==0);
+        check(EngineTransitionPolicy.releaseTimeoutMs(0,Long.MAX_VALUE)==0);
+        System.out.println("PASS: "+checks+" engine transition and release-budget checks");
     }
 }
