@@ -4563,7 +4563,9 @@ public final class MainActivity extends Activity {
             if(selected.getItemCount()>DocumentBatchPolicy.MAX_SOURCES){toast(getString(R.string.batch_file_limit));return;}
             for(int i=0;i<selected.getItemCount();i++)unique.add(selected.getItemAt(i).getUri());
         }else if(data.getData()!=null)unique.add(data.getData());
-        if(unique.isEmpty()||unique.size()>DocumentBatchPolicy.MAX_SOURCES){toast(getString(R.string.batch_file_limit));return;}
+        if(unique.isEmpty()||unique.size()>DocumentBatchPolicy.MAX_SOURCES||selected!=null&&unique.size()!=selected.getItemCount()){
+            toast(getString(R.string.batch_file_limit));return;
+        }
         for(Uri uri:unique)if(uri==null||!"content".equals(uri.getScheme())){toast(getString(R.string.attachment_unsupported));return;}
         if(voice!=null)voice.cancel();
         documentBatch=new DocumentBatchUi(this,model,AttachmentText.Encoding.values()[encoding],()->foreground&&!guestOnly&&!cloudMode&&!isUiBusy()

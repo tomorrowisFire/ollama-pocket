@@ -85,6 +85,16 @@ ADDITIONS = frozenset([
 F12_STAGE = "F12-file-intake-integration-candidate"
 F12_BASELINE = "0152869a25bfa63e1e6e94c5ebb079ccc0facba8"
 F12_MODIFIABLE = frozenset([
+  "app/src/main/java/com/ollamapocket/app/DocumentBatchPolicy.java",
+  "app/src/main/java/com/ollamapocket/app/DocumentBatchSchedule.java",
+  "app/src/main/java/com/ollamapocket/app/DocumentCitationCoverage.java",
+  "app/src/main/java/com/ollamapocket/app/DocumentBatchUi.java",
+  "app/src/main/java/com/ollamapocket/app/DocumentBatchRunner.java",
+  "app/src/main/java/com/ollamapocket/app/DocumentBatchReport.java",
+  "tests/DocumentBatchPolicyTest.java",
+  "tests/DocumentBatchScheduleTest.java",
+  "tests/DocumentCitationCoverageTest.java",
+  "tests/DocumentBatchReportTest.java",
   "app/src/main/java/com/ollamapocket/app/KnowledgeLibrary.java",
   "tests/KnowledgeImportPolicyTest.java",
   "app/src/main/java/com/ollamapocket/app/AttachmentText.java",
@@ -112,6 +122,8 @@ F12_MODIFIABLE = frozenset([
   "tests/test_f11_scope.py"
 ])
 F12_ADDITIONS = frozenset([
+  "docs/on-hands-f12-batch-expansion-policy.md",
+  "docs/on-hands-f12-batch-expansion-integration.md",
   "docs/on-hands-f12-file-import-text.md",
   "docs/on-hands-f12-file-import-office.md",
   "docs/on-hands-f12-file-import-media.md",

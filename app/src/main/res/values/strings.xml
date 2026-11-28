@@ -874,7 +874,7 @@
     <string name="auto_code_step2" formatted="false">Goal: %GOAL%. Draft code based on the previous requirements and tests, and state limitations. Do not claim to have executed it.</string>
     <string name="auto_code_step3" formatted="false">Goal: %GOAL%. Review the previous code for correctness and safety. Return revised code and a test plan, without claiming any tests ran.</string>
     <string name="batch_title">Long / multiple documents</string>
-    <string name="batch_notice">Select 1–3 supported text/code, Office (including PPTX, HWPX, ODF) or text PDF files. Per-file limits: text 500 MiB, Office 500 MiB, PDF 500 MiB. Each bounded prefix is divided into up to 24 total excerpts and synthesized. Text uses the selected encoding. PDF requires Android 15 or later. Scanned PDF, images and OCR are excluded. No original files or chat records are saved.</string>
+    <string name="batch_notice">Select 1–20 supported text/code, Office (including PPTX, HWPX, ODF) or text PDF files. Up to 500 MiB per file and 2 GiB total. The batch analyzes up to 80 bounded excerpts, not full files. Text uses the selected encoding; PDF requires Android 15 or later. Images and scanned PDF OCR are excluded. No original files or chat records are saved.</string>
     <string name="batch_goal">Analysis goal (up to 300 characters)</string>
     <string name="batch_default_goal">Summarize the important facts, differences and missing information without inventing evidence.</string>
     <string name="batch_preview">Review extracted source text</string>
@@ -888,17 +888,17 @@
     <string name="batch_scope">Included extracted text: %1$s UTF-16 units · %2$s</string>
     <string name="batch_partial">Partial / omissions or limit detected</string>
     <string name="batch_extracted">Extracted scope only</string>
-    <string name="batch_run_notice">Start CPU-only analysis? Up to 24 excerpts and 24 synthesis requests, with a 20-minute limit. It uses the selected model and excludes conversation history and cooperative/cloud processing. The model can omit or misread information; no factual verification is performed. Closing this screen or leaving the app stops the run and discards its temporary results. Copy the report explicitly to retain it.</string>
+    <string name="batch_run_notice">Start CPU-only analysis? Planned excerpts: %1$d; at most %2$d local requests; time limit %3$d minutes. Uses the selected model only, without history, cooperative or cloud inference. Generated notes are not fact verification. Leaving the app or closing this screen stops the run and discards temporary results. Explicitly save the report to retain it.</string>
     <string name="batch_progress">Analysis progress: %1$s / %2$s</string>
     <string name="batch_completed">All selected excerpts processed; synthesis generated.</string>
     <string name="batch_failed">Analysis did not finish. Completed excerpt notes remain below; no final synthesis is claimed.</string>
-    <string name="batch_deadline">The 20-minute limit was reached.</string>
+    <string name="batch_deadline">The analysis time limit was reached.</string>
     <string name="batch_processed">Excerpt notes completed: %1$s / %2$s</string>
     <string name="batch_quality_notice">These are model-generated notes and a compressed synthesis, not verified quotations or proof of complete coverage. Check original files and source ranges before using the results.</string>
     <string name="batch_synthesis">Final synthesis</string>
     <string name="batch_no_synthesis">No final synthesis generated.</string>
     <string name="batch_unit_notes">Individual excerpt notes and extracted ranges</string>
-    <string name="batch_file_limit">Select between 1 and 3 distinct files.</string>
+    <string name="batch_file_limit">Select 1–20 distinct files.</string>
     <string name="voice_review_ready">Review the recognized text in the input field, then send to continue.</string>
     <string name="voice_recognizing">Recognizing speech…</string>
     <string name="voice_preparing">Preparing offline microphone…</string>
@@ -1423,4 +1423,8 @@
     <string name="workspace_file_export_notice">Save only the selected content: %1$s (%2$d bytes). The destination provider may synchronize the file. Opening the file picker closes this workspace; save important unsaved reports to a project first.</string>
     <string name="integration_branch_budget">Plan upper bound: %1$d nodes, %2$d model requests including retries, %3$d output tokens in total. Actual usage may be lower.</string>
     <string name="integration_branch_remaining">Reserved requests: %1$d. Remaining plan bound (excluding reserved requests and time limits): %2$d additional requests, %3$d output tokens.</string>
+    <string name="batch_input_total">%1$d files · %2$d bytes read</string>
+    <string name="batch_input_progress">Reading files: %1$d / %2$d · %3$d bytes read</string>
+    <string name="batch_total_limit">The combined input exceeds 2 GiB. Select fewer or smaller files.</string>
+    <string name="batch_input_deadline">The input read time limit was reached. Select fewer or smaller files.</string>
 </resources>

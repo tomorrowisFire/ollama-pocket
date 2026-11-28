@@ -874,7 +874,7 @@
     <string name="auto_code_step2" formatted="false">목표: %GOAL%. 직전 요구사항과 테스트를 바탕으로 code를 작성하고 limitations를 명시하세요. 실행했다고 주장하지 마세요.</string>
     <string name="auto_code_step3" formatted="false">목표: %GOAL%. 직전 코드의 정확성과 안전성을 검토하세요. 수정 code와 test_plan을 반환하고 실제 테스트 실행을 주장하지 마세요.</string>
     <string name="batch_title">장문·다중 문서 분석</string>
-    <string name="batch_notice">지원하는 텍스트·소스코드, Office(PPTX·HWPX·ODF 포함), 텍스트 PDF 파일을 1~3개 선택하세요. 파일당 텍스트 500MiB, Office 500MiB, PDF 500MiB까지 허용합니다. 제한된 앞부분을 추출해 전체 최대 24개 구간으로 나누어 종합합니다. 텍스트는 선택 인코딩을 사용합니다. PDF는 Android 15 이상에서 지원하며 스캔 PDF·이미지·OCR은 제외합니다. 원본 파일과 대화 기록은 저장하지 않습니다.</string>
+    <string name="batch_notice">지원하는 텍스트·소스코드, Office(PPTX·HWPX·ODF 포함), 텍스트 PDF를 1~20개 선택하세요. 파일당 최대 500MiB, 합산 최대 2GiB입니다. 전체 파일이 아닌 최대 80개 발췌 구간을 분석합니다. 텍스트는 선택 인코딩을 사용하며 PDF는 Android 15 이상에서 지원합니다. 이미지·스캔 PDF OCR은 제외합니다. 원본 및 대화 기록은 저장하지 않습니다.</string>
     <string name="batch_goal">분석 목표 (최대 300자)</string>
     <string name="batch_default_goal">중요한 사실과 문서 간 차이점, 부족한 정보를 근거 없이 만들어내지 말고 정리해 주세요.</string>
     <string name="batch_preview">추출 원문 확인</string>
@@ -888,17 +888,17 @@
     <string name="batch_scope">포함된 추출 텍스트: UTF-16 %1$s자 · %2$s</string>
     <string name="batch_partial">부분 추출 / 누락 또는 한도 확인</string>
     <string name="batch_extracted">추출된 범위만 해당</string>
-    <string name="batch_run_notice">CPU 전용 분석을 시작할까요? 최대 24개 구간과 24회 종합 요청, 20분 제한을 적용합니다. 선택한 모델만 사용하며 대화 기록과 협력·클라우드 추론은 포함하지 않습니다. 모델이 정보를 누락하거나 잘못 읽을 수 있으며 사실 검증은 수행하지 않습니다. 화면을 닫거나 앱을 벗어나면 실행을 중단하고 임시 결과를 폐기합니다. 보관하려면 보고서를 직접 복사하세요.</string>
+    <string name="batch_run_notice">CPU 전용 분석을 시작할까요? 계획 구간 %1$d개, 최대 로컬 요청 %2$d회, 시간 제한 %3$d분입니다. 선택한 모델만 사용하며 대화 기록·협력·클라우드 추론은 제외합니다. 생성 결과는 사실 검증이 아닙니다. 화면을 닫거나 앱을 벗어나면 실행을 중단하고 임시 결과를 폐기합니다. 보관하려면 보고서를 직접 저장하세요.</string>
     <string name="batch_progress">분석 진행: %1$s / %2$s</string>
     <string name="batch_completed">선택한 추출 구간 분석 및 종합 생성 완료.</string>
     <string name="batch_failed">분석이 끝나지 않았습니다. 완료된 구간 기록만 표시하며 최종 종합은 생성하지 않았습니다.</string>
-    <string name="batch_deadline">20분 시간 제한에 도달했습니다.</string>
+    <string name="batch_deadline">분석 시간 제한에 도달했습니다.</string>
     <string name="batch_processed">구간별 분석 기록 완료: %1$s / %2$s</string>
     <string name="batch_quality_notice">모델이 생성한 구간별 기록과 압축된 종합 결과입니다. 검증된 인용문이나 전체 문서를 분석했다는 증거가 아닙니다. 사용하기 전에 원본과 범위를 확인하세요.</string>
     <string name="batch_synthesis">최종 종합</string>
     <string name="batch_no_synthesis">최종 종합 미생성.</string>
     <string name="batch_unit_notes">구간별 분석 기록 및 추출 위치</string>
-    <string name="batch_file_limit">서로 다른 파일을 1~3개 선택하세요.</string>
+    <string name="batch_file_limit">서로 다른 파일을 1~20개 선택하세요.</string>
     <string name="voice_review_ready">입력창의 인식 결과를 확인·수정한 뒤 전송하면 대화를 계속합니다.</string>
     <string name="voice_recognizing">음성 인식 처리 중…</string>
     <string name="voice_preparing">오프라인 마이크 준비 중…</string>
@@ -1423,4 +1423,8 @@
     <string name="workspace_file_export_notice">선택한 내용만 저장합니다: %1$s (%2$d바이트). 저장 위치의 제공자가 파일을 동기화할 수 있습니다. 파일 선택기를 열면 작업공간이 닫힙니다. 중요한 미저장 보고서는 먼저 프로젝트에 저장하세요.</string>
     <string name="integration_branch_budget">계획 상한: 경로 %1$d단계, 재시도 포함 모델 요청 %2$d회, 총 출력 토큰 %3$d개. 실제 사용량은 더 적을 수 있습니다.</string>
     <string name="integration_branch_remaining">예약된 요청: %1$d회. 잔여 계획 상한(예약된 요청 및 시간 제한 제외): 추가 요청 %2$d회, 출력 토큰 %3$d개.</string>
+    <string name="batch_input_total">파일 %1$d개 · 읽은 용량 %2$d바이트</string>
+    <string name="batch_input_progress">파일 읽는 중: %1$d / %2$d · %3$d바이트</string>
+    <string name="batch_total_limit">첨부 용량 합계가 2GiB를 초과합니다. 파일 개수 또는 크기를 줄이세요.</string>
+    <string name="batch_input_deadline">파일 읽기 시간 제한에 도달했습니다. 파일 개수 또는 크기를 줄이세요.</string>
 </resources>

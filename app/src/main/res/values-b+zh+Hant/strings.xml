@@ -874,7 +874,7 @@
     <string name="auto_code_step2" formatted="false">目標：%GOAL%。依據上一步需求與測試起草 code，說明 limitations，不聲稱已執行。</string>
     <string name="auto_code_step3" formatted="false">目標：%GOAL%。審查上一步程式碼的正確性和安全性，回傳修訂 code 和 test_plan，不聲稱實際執行測試。</string>
     <string name="batch_title">長文件與多文件分析</string>
-    <string name="batch_notice">選擇 1–3 個支援的文字、原始碼、Office（含 PPTX、HWPX、ODF）或文字 PDF 檔案。單檔上限：文字 500 MiB、Office 500 MiB、PDF 500 MiB。擷取有限前段，合計最多 24 個片段並綜合分析。文字採用所選編碼。PDF 需要 Android 15 或以上。不支援掃描 PDF、影像及 OCR。不儲存原始檔案或聊天記錄。</string>
+    <string name="batch_notice">請選擇 1–20 個支援的文字、原始碼、Office（含 PPTX、HWPX、ODF）或文字 PDF 檔案。單檔最多 500 MiB，合計最多 2 GiB。批次分析最多 80 個有限片段，並非全文。文字使用所選編碼；PDF 需要 Android 15 或以上。不包括影像和掃描 PDF OCR。不儲存原始檔案或聊天記錄。</string>
     <string name="batch_goal">分析目標（最多300字元）</string>
     <string name="batch_default_goal">整理重要事實、文件差異和缺失資訊，不要捏造證據。</string>
     <string name="batch_preview">查看擷取原文</string>
@@ -888,17 +888,17 @@
     <string name="batch_scope">已包含的擷取文字：UTF-16 %1$s個單位 · %2$s</string>
     <string name="batch_partial">部分擷取／存在遺漏或上限</string>
     <string name="batch_extracted">僅限擷取範圍</string>
-    <string name="batch_run_notice">開始僅CPU的分析？最多24個片段和24次綜合請求，限時20分鐘。僅使用所選模型，不包含對話歷史、協作或雲端推論。模型可能遺漏或誤讀資訊，不執行事實查核。關閉介面或離開應用程式將停止執行並捨棄暫存結果。保留報告須主動複製。</string>
+    <string name="batch_run_notice">開始僅 CPU 的分析？計畫片段 %1$d 個，最多 %2$d 次本機請求，限時 %3$d 分鐘。僅使用所選模型，不包含歷史記錄、協作或雲端推論。生成結果並非事實查核。關閉介面或離開應用程式將停止並捨棄暫存結果。請主動儲存報告。</string>
     <string name="batch_progress">分析進度：%1$s / %2$s</string>
     <string name="batch_completed">已完成所選擷取片段的分析與綜合生成。</string>
     <string name="batch_failed">分析未完成。僅顯示已完成片段的記錄，不生成最終綜合。</string>
-    <string name="batch_deadline">已達到20分鐘限制。</string>
+    <string name="batch_deadline">已達到分析時間限制。</string>
     <string name="batch_processed">已完成的片段記錄：%1$s / %2$s</string>
     <string name="batch_quality_notice">這些是模型生成的記錄和壓縮綜合結果，並非已驗證引用或全文涵蓋證明。使用前請核對原始檔案和範圍。</string>
     <string name="batch_synthesis">最終綜合</string>
     <string name="batch_no_synthesis">未生成最終綜合。</string>
     <string name="batch_unit_notes">各片段分析記錄與擷取位置</string>
-    <string name="batch_file_limit">請選擇1至3個不同檔案。</string>
+    <string name="batch_file_limit">請選擇 1–20 個不同檔案。</string>
     <string name="voice_review_ready">在輸入框中核對或編輯辨識結果，傳送後繼續對話。</string>
     <string name="voice_recognizing">正在處理語音辨識…</string>
     <string name="voice_preparing">正在準備離線麥克風…</string>
@@ -1423,4 +1423,8 @@
     <string name="workspace_file_export_notice">僅儲存所選內容：%1$s（%2$d 位元組）。目的地提供者可能同步檔案。開啟檔案選擇器會關閉工作區；請先將重要的未儲存報告存入專案。</string>
     <string name="integration_branch_budget">計畫上限：路徑 %1$d 個節點，含重試共 %2$d 次模型請求，輸出權杖共 %3$d 個。實際用量可能更低。</string>
     <string name="integration_branch_remaining">已保留請求：%1$d 次。剩餘計畫上限（不含已保留請求及時間限制）：額外請求 %2$d 次，輸出權杖 %3$d 個。</string>
+    <string name="batch_input_total">%1$d 個檔案 · 已讀取 %2$d 位元組</string>
+    <string name="batch_input_progress">正在讀取檔案：%1$d / %2$d · %3$d 位元組</string>
+    <string name="batch_total_limit">輸入檔案總量超過 2 GiB。請選擇較少或較小的檔案。</string>
+    <string name="batch_input_deadline">已達到檔案讀取時間限制。請選擇較少或較小的檔案。</string>
 </resources>

@@ -874,7 +874,7 @@
     <string name="auto_code_step2" formatted="false">目標：%GOAL%。直前の要件とテストから code を作成し limitations を示してください。実行したとは主張しないでください。</string>
     <string name="auto_code_step3" formatted="false">目標：%GOAL%。直前のコードの正確性と安全性を確認し、修正版 code と test_plan を返してください。テスト実行は主張しないでください。</string>
     <string name="batch_title">長文・複数文書分析</string>
-    <string name="batch_notice">対応するテキスト・ソースコード、Office（PPTX・HWPX・ODF を含む）、テキスト PDF を1〜3件選択します。1件あたりテキスト500 MiB、Office 500 MiB、PDF 500 MiBまで。各ファイルの先頭を上限内で抽出し、合計最大24区間を分析・統合します。テキストは選択した文字コードを使用します。PDF は Android 15 以降が必要です。スキャン PDF・画像・OCR は対象外です。原本・会話履歴は保存しません。</string>
+    <string name="batch_notice">対応するテキスト・ソースコード、Office（PPTX・HWPX・ODF を含む）、テキスト PDF を1〜20件選択します。1件最大500 MiB、合計最大2 GiB。全文ではなく最大80区間を抽出・分析します。テキストは選択した文字コードを使用し、PDF は Android 15 以降が必要です。画像・スキャン PDF の OCR は対象外です。原本・会話履歴は保存しません。</string>
     <string name="batch_goal">分析目標（最大300文字）</string>
     <string name="batch_default_goal">重要な事実、文書間の差異、不足情報を根拠の捏造なしに整理してください。</string>
     <string name="batch_preview">抽出原文を確認</string>
@@ -888,17 +888,17 @@
     <string name="batch_scope">含まれる抽出テキスト：UTF-16 %1$s単位 · %2$s</string>
     <string name="batch_partial">部分抽出／欠落または上限あり</string>
     <string name="batch_extracted">抽出された範囲のみ</string>
-    <string name="batch_run_notice">CPU専用分析を開始しますか？最大24区間と24回の統合要求、20分の制限があります。選択モデルのみを使用し、会話履歴、協調・クラウド推論は含みません。情報の欠落や誤読があり得ます。事実検証は行いません。画面を閉じるかアプリを離れると停止し、一時結果を破棄します。保存には明示的にレポートをコピーしてください。</string>
+    <string name="batch_run_notice">CPU 専用分析を開始しますか？計画区間 %1$d 件、最大ローカル要求 %2$d 回、時間制限 %3$d 分です。選択モデルのみを使用し、履歴、協調・クラウド推論は含みません。生成結果は事実検証ではありません。画面を閉じるかアプリを離れると停止し、一時結果を破棄します。レポートは明示的に保存してください。</string>
     <string name="batch_progress">分析進捗：%1$s / %2$s</string>
     <string name="batch_completed">選択した抽出区間の分析と統合生成が完了しました。</string>
     <string name="batch_failed">分析が完了しませんでした。完了した区間の記録のみを表示し、最終統合は生成していません。</string>
-    <string name="batch_deadline">20分の制限に達しました。</string>
+    <string name="batch_deadline">分析時間の制限に達しました。</string>
     <string name="batch_processed">完了した区間記録：%1$s / %2$s</string>
     <string name="batch_quality_notice">モデル生成の記録と圧縮された統合結果です。検証済み引用や文書全体を網羅した証拠ではありません。利用前に原本と範囲を確認してください。</string>
     <string name="batch_synthesis">最終統合</string>
     <string name="batch_no_synthesis">最終統合は未生成です。</string>
     <string name="batch_unit_notes">区間別分析記録と抽出位置</string>
-    <string name="batch_file_limit">異なるファイルを1～3件選択してください。</string>
+    <string name="batch_file_limit">異なるファイルを1〜20件選択してください。</string>
     <string name="voice_review_ready">入力欄の認識結果を確認・編集して送信すると会話を続けます。</string>
     <string name="voice_recognizing">音声認識処理中…</string>
     <string name="voice_preparing">オフラインマイク準備中…</string>
@@ -1423,4 +1423,8 @@
     <string name="workspace_file_export_notice">選択した内容のみを保存します：%1$s（%2$d バイト）。保存先の提供元がファイルを同期する場合があります。ファイル選択画面を開くと作業スペースが閉じます。重要な未保存レポートは先にプロジェクトに保存してください。</string>
     <string name="integration_branch_budget">計画上限：経路 %1$d ノード、再試行を含むモデル要求 %2$d 回、出力トークン合計 %3$d。実際の使用量は少なくなる場合があります。</string>
     <string name="integration_branch_remaining">予約済み要求：%1$d 回。残りの計画上限（予約済み要求と時間制限を除く）：追加要求 %2$d 回、出力トークン %3$d。</string>
+    <string name="batch_input_total">ファイル %1$d 件 · 読み込み %2$d バイト</string>
+    <string name="batch_input_progress">読み込み中：%1$d / %2$d 件 · %3$d バイト</string>
+    <string name="batch_total_limit">入力の合計が2 GiBを超えています。件数またはサイズを減らしてください。</string>
+    <string name="batch_input_deadline">読み込み時間の制限に達しました。件数またはサイズを減らしてください。</string>
 </resources>

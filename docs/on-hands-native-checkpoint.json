@@ -1,6 +1,6 @@
 {
   "stage": "F12-file-intake-integration-candidate",
-  "revision": "F12-file-intake-r002",
+  "revision": "F12-file-intake-r003-batch20",
   "scopeBaseline": "0152869a25bfa63e1e6e94c5ebb079ccc0facba8",
   "priorCandidate": "0152869a25bfa63e1e6e94c5ebb079ccc0facba8",
   "modules": [
@@ -23,7 +23,15 @@
     {
       "stage": "E-500MiB",
       "sha": "5da72d95e986eeda4fdd3367f0fa2337336e9e6f"
+    },
+    {
+      "stage": "F-batch-policy",
+      "sha": "6760e0e4bd6ea4762c9103e95757ad531497070f"
+    },
+    {
+      "stage": "G-batch-integration",
+      "sha": "5984af4fc1b2f27bcb23f3b6aa22cfe620d64af7"
     }
   ],
-  "reason": "User expanded document input cap to 500 MiB; preserve F11-7 exact scope and separately approved F12 changes. Streaming, memory, disk and time guards retained. FAST/FULL, physical acceptance pending."
+  "reason": "User approved up to 20 files and 2 GiB aggregate. Preserve prior file caps and F11 baseline; sequential actual byte accounting, bounded fair map/reduce, localized approval, exact evidence tests. FAST/FULL pending."
 }
