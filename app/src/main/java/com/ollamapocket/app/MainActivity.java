@@ -4542,9 +4542,8 @@ public final class MainActivity extends Activity {
                 try{
                     Intent picker=new Intent(Intent.ACTION_OPEN_DOCUMENT);picker.addCategory(Intent.CATEGORY_OPENABLE);
                     picker.setType("*/*");picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);picker.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);
-                    picker.putExtra(Intent.EXTRA_MIME_TYPES,new String[]{"text/*","application/json","application/octet-stream",
-                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","application/pdf"});
+                    // Source extensions and provider MIME mappings vary. Actual admission is
+                    // performed by the bounded, read-only document parsers, not picker MIME.
                     startActivityForResult(picker,PICK_DOCUMENT_BATCH);
                 }catch(Exception e){batchScope="";batchModel="";toast(getString(R.string.chat_export_unavailable));}
             }).show();
@@ -4577,7 +4576,7 @@ public final class MainActivity extends Activity {
         margin(text(getString(R.string.attachment_formats),12,WHITE,false),panel,0,6);
         margin(text(getString(R.string.attachment_range_help),12,MUTED,false),panel,0,8);
         EditText segment=edit(getString(R.string.attachment_segment),"1",false);
-        segment.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);segment.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(3)});
+        segment.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);segment.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(4)});
         WorkbenchStyle.fieldLabel(this,panel,R.string.attachment_segment,segment);margin(segment,panel,0,6);
         EditText page=edit(getString(R.string.attachment_pdf_first),"1",false);
         page.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);page.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(5)});
@@ -4627,10 +4626,7 @@ public final class MainActivity extends Activity {
         try{
             Intent picker=new Intent(Intent.ACTION_OPEN_DOCUMENT);
             picker.addCategory(Intent.CATEGORY_OPENABLE);picker.setType("*/*");picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            picker.putExtra(Intent.EXTRA_MIME_TYPES,ocr?new String[]{"image/jpeg","image/png","image/webp","application/pdf"}:
-                new String[]{"text/*","application/json","application/octet-stream",
-                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","application/pdf"});
+            if(ocr)picker.putExtra(Intent.EXTRA_MIME_TYPES,new String[]{"image/jpeg","image/png","image/webp","application/pdf"});
             startActivityForResult(picker,PICK_ATTACHMENT);
         }catch(Exception e){attachmentScope="";attachmentOcr=false;toast(getString(R.string.chat_export_unavailable));}
     }

@@ -687,7 +687,7 @@
     <string name="chat_manage_failed">会話一覧を更新できませんでした。保存済みメッセージは変更していません。</string>
     <string name="chat_manage_done">会話を更新しました</string>
     <string name="attachment_pick">ファイル添付</string>
-    <string name="attachment_formats">テキスト・Office・PDF ファイルを選択してください。PNG・JPG・WEBP またはスキャン PDF は OCR モードを選択してください。PDF 処理には Android 15 以降が必要です。旧形式 DOC/XLS は未対応です。</string>
+    <string name="attachment_formats">テキスト・ソースコード（16 MiB）、DOCX/XLSX/PPTX・HWPX・OpenDocument（32 MiB）、PDF（64 MiB）を選択します。一般的な Office テンプレート・マクロ文書は読み取り専用です。PNG/JPEG/WEBP（16 MiB）とスキャン PDF は OCR、静的 PNG/JPEG（16 MiB）は VLM を使用します。PDF は Android 15 以降が必要です。旧バイナリ Office/HWP と実行ファイルは非対応です。</string>
     <string name="attachment_reading">ファイルのテキストを抽出中…</string>
     <string name="attachment_preview">抽出テキストのプレビュー</string>
     <string name="attachment_notice">ローカル質問に追加する前に抜粋を確認・編集してください。下書きと保存済み質問の一部になり、以後のローカル文脈で使われる場合があります。元ファイルは保存しません。文書サービスがネットワークで取得する場合があります。</string>
@@ -701,7 +701,7 @@
     <string name="attachment_context_limit">抜粋または質問を短くしてください。モデルのトークン上限は文字数上限より小さい場合があります。</string>
     <string name="attachment_scope_changed">会話が変更されました。ファイルを再選択してください。</string>
     <string name="attachment_rpc_notice">抜粋の追加だけでは送信しません。協調推論を選択すると信頼済みゲスト端末で処理する場合があります。</string>
-    <string name="attachment_office_note">Office プレビューは読み取り専用です。Word本文の段落番号、Excelシート名・セル参照・保存値を表示します。数式は再計算せず、書式・画像・ヘッダー/フッター・一部シートは省略される場合があります。キャッシュ値を最新結果として扱わないでください。</string>
+    <string name="attachment_office_note">Office は読み取り専用で、Word 段落、Excel 保存セル値、PPT スライド、HWPX 本文区分、OpenDocument テキストと保存セルを抽出します。数式やマクロは実行しません。書式、画像、ノート、繰り返しセル等は省略される場合があります。抜粋と原本を確認してください。</string>
     <string name="attachment_pdf_version">PDF テキスト抽出には Android 15 以降が必要です。他の対応ファイル形式は利用できます。</string>
     <string name="attachment_pdf_no_text">確認したページに読み取れるテキストがありません。OCR モードでページと言語を指定してください。</string>
     <string name="attachment_pdf_protected">パスワードが必要な PDF、または非対応のセキュリティ方式です。保護された文書は抽出しません。</string>
@@ -721,9 +721,9 @@
     <string name="attachment_ocr_bad_page">文書範囲内の1〜10,000の PDF ページ番号を入力してください。</string>
     <string name="attachment_ocr_image_pick">PNG・JPEG・WEBP または PDF ページを選択</string>
     <string name="attachment_select_range">テキスト・Office・PDF テキスト</string>
-    <string name="attachment_segment">テキスト・Office 区間番号（1〜256）</string>
+    <string name="attachment_segment">テキスト区間（1〜4096）／Office（1〜256）</string>
     <string name="attachment_pdf_first">PDF 開始ページ（1〜10,000）</string>
-    <string name="attachment_range_help">約6,000 UTF-16文字のテキスト・Office 区間、または PDF 開始ページを指定します。該当形式の設定のみ適用します。Office の段落・セル参照は区間境界で分割される場合があります。抜粋ごとの分析であり全文分析ではありません。</string>
+    <string name="attachment_range_help">約6,000 UTF-16文字のテキスト・コード・Office 区間または PDF 開始ページを指定します。該当形式の設定のみ適用します。Office 参照は区間で分割される場合があります。ファイル上限の拡大はモデルのコンテキスト拡大ではありません。抜粋ごとに分析します。</string>
     <string name="attachment_range_invalid">指定範囲が抽出可能な内容または対応上限を超えています。</string>
     <string name="attachment_range_note">区間 %1$d · 抽出テキスト UTF-16 位置 %2$d〜%3$d。元のページ・セル座標ではありません。</string>
     <string name="attachment_remove_last">最後に追加した抜粋を削除</string>
@@ -874,7 +874,7 @@
     <string name="auto_code_step2" formatted="false">目標：%GOAL%。直前の要件とテストから code を作成し limitations を示してください。実行したとは主張しないでください。</string>
     <string name="auto_code_step3" formatted="false">目標：%GOAL%。直前のコードの正確性と安全性を確認し、修正版 code と test_plan を返してください。テスト実行は主張しないでください。</string>
     <string name="batch_title">長文・複数文書分析</string>
-    <string name="batch_notice">テキスト、DOCX、XLSX、テキストPDFを1～3件選択してください。各文書の先頭から上限内で抽出し、最大24区間に分けて分析・統合します。テキストには共通の選択文字コードを使用します。OfficeとPDFは各形式に従います。PDFテキスト抽出はAndroid 15以降で、スキャンPDF・画像・OCRの一括分析は非対応です。抽出範囲を確認してください。このモードは会話履歴や原本を保存しません。</string>
+    <string name="batch_notice">対応するテキスト・ソースコード、Office（PPTX・HWPX・ODF を含む）、テキスト PDF を1〜3件選択します。1件あたりテキスト16 MiB、Office 32 MiB、PDF 64 MiBまで。各ファイルの先頭を上限内で抽出し、合計最大24区間を分析・統合します。テキストは選択した文字コードを使用します。PDF は Android 15 以降が必要です。スキャン PDF・画像・OCR は対象外です。原本・会話履歴は保存しません。</string>
     <string name="batch_goal">分析目標（最大300文字）</string>
     <string name="batch_default_goal">重要な事実、文書間の差異、不足情報を根拠の捏造なしに整理してください。</string>
     <string name="batch_preview">抽出原文を確認</string>
