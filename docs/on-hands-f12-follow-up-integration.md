@@ -8,3 +8,7 @@ Base 1580cd41d2936ec9248c67274091b3b1491706eb officially promoted after FAST 461
 - S-locales-focus: a1a1bc5d8075e54f5f4ddf9908556303e0273e29
 
 Source scope extends only for the user-requested follow-up module and fixtures/docs. Existing normal file limits, 20-file/2 GiB deep limit, 30-minute rewarded grant, native/manifest/dependency/data schema and production advertisement lock retained. Known limitations: rolling in-memory dialogue, bounded extracted source ranges only, one 90-second local request per follow-up, no persistent multi-turn deep history, no renewal inside the analysis dialog, live/device tests and independent reviews pending. The actual request count is not capped by the retained-turn count. No promotion before exact candidate FAST/FULL success.
+
+## r007 staged improvement
+
+Preserve the original evidence window on unmatched follow-ups; direct matches still outrank history. Portable JSON report lists model, source filenames and extraction coverage, exact ranges, citations, retained/omitted turns, and unverified generated dialogue. No raw source windows or prompt export; not a resumable evidence snapshot. Existing TXT/copy preserved; no renewal required to export. Both new module commits are independent of each other and use the r006 base. The r007 candidate requires exact FAST/FULL after r006 verification.

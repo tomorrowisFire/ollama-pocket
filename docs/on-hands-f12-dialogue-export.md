@@ -1,0 +1,3 @@
+# F12 r007 — portable follow-up dialogue ledger
+
+JSON export accompanies existing TXT/copy actions. Includes original model, terminal status, source filenames and extraction scope, retained completed turns and omitted earlier-turn count, exact supplied UTF-16 ranges, and known/unknown citations. Excludes raw extracted source windows, prompts, and generated batch notes. User-generated questions and generated answers themselves may contain sensitive text; export remains explicit and uses the existing bounded artifact path. Not a restorable evidence snapshot, factual verification, or import feature. The host regression checks rolling retention, multilingual text, escaped quotes, range integrity, raw-window exclusion and UTF-8 file payload.

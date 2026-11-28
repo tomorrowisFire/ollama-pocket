@@ -64,6 +64,7 @@ on:
       - 'tests/DocumentRequestControlTest.java'
       - 'tests/DocumentBatchReportTest.java'
       - 'tests/DeepFollowUpPolicyTest.java'
+      - 'tests/DeepDialogueExportTest.java'
       - 'tests/VoiceQueuePolicyTest.java'
       - 'tests/VoiceNativeWorkTest.java'
       - 'tests/WhisperCapturePolicyTest.java'
@@ -379,6 +380,11 @@ jobs:
           cp="/tmp/attachment-tests:/tmp/cloud-stream-tests/json.jar"
           javac --release 17 -cp "$cp" -d /tmp/attachment-tests app/src/main/java/com/ollamapocket/app/DeepFollowUpPolicy.java tests/DeepFollowUpPolicyTest.java
           java -cp "$cp" com.ollamapocket.app.DeepFollowUpPolicyTest
+      - name: Test portable deep dialogue JSON export
+        run: |
+          cp="/tmp/attachment-tests:/tmp/cloud-stream-tests/json.jar:/tmp/chat-block-tests"
+          javac --release 17 -cp "$cp" -d /tmp/attachment-tests app/src/main/java/com/ollamapocket/app/DeepDialogueExport.java tests/DeepDialogueExportTest.java
+          java -cp "$cp" com.ollamapocket.app.DeepDialogueExportTest
       - name: Test independent strict tool JSON admission
         run: |
           mkdir -p /tmp/tool-json-tests

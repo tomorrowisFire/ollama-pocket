@@ -1,8 +1,8 @@
 {
   "stage": "F12-file-intake-integration-candidate",
-  "revision": "F12-file-intake-r006-deep-follow-up",
+  "revision": "F12-file-intake-r007-dialogue-export",
   "scopeBaseline": "0152869a25bfa63e1e6e94c5ebb079ccc0facba8",
-  "priorCandidate": "1580cd41d2936ec9248c67274091b3b1491706eb",
+  "priorCandidate": "f330b2b22836a0b08ded86bd11edf83da5aac4b1",
   "modules": [
     {
       "stage": "A-text",
@@ -79,7 +79,15 @@
     {
       "stage": "S-locales-focus",
       "sha": "a1a1bc5d8075e54f5f4ddf9908556303e0273e29"
+    },
+    {
+      "stage": "T-follow-evidence-continuity",
+      "sha": "efb8145ecc5900f640e39c613c5bc8e933fd4e36"
+    },
+    {
+      "stage": "U-dialogue-export",
+      "sha": "12b9c2144cc00d8ca3907ee7b7a8c49d57e7b2cb"
     }
   ],
-  "reason": "Source-grounded follow-up dialogue, exact request review, rolling retained turns, independent transcript export and stale reward recovery. F12 r005 exact CI passed. Test-only ads and existing local safety/persistence limits preserved. Candidate FAST/FULL required."
+  "reason": "r007 retains exact prior evidence windows for unmatched contextual follow-ups, adds opt-in bounded JSON dialogue ledger and tests. r006 FULL pending at staging; exact FAST/FULL required before promotion."
 }

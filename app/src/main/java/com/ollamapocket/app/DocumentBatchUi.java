@@ -49,7 +49,7 @@ final class DocumentBatchUi {
     private Button preset,preview,copy,inspect,copyJson,saveProject,dictateGoal,readReport,viewReport,saveJsonFile,saveTextFile;
     private ProjectWorkspaceUi reportWorkspace;
     private DeepFollowUpPolicy.Session followSession;
-    private Button followAsk,followSave,followCopy;
+    private Button followAsk,followSave,followCopy,followSaveJson;
     private TextView followTranscript;
     static boolean busy(){return BUSY.busy();}
     DocumentBatchUi(Activity owner,String model,AttachmentText.Encoding encoding,BooleanSupplier eligible,BooleanSupplier startAuthorized){
@@ -94,6 +94,7 @@ final class DocumentBatchUi {
         boolean hasDialogue=idle&&followSession!=null&&followSession.count()>0;
         followCopy.setEnabled(hasDialogue);
         followSave.setEnabled(hasDialogue&&owner instanceof MainActivity);
+        followSaveJson.setEnabled(hasDialogue&&owner instanceof MainActivity);
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(idle&&sources!=null);
         dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setEnabled(!idle&&!cancelRequested);
     }
@@ -222,9 +223,10 @@ final class DocumentBatchUi {
             if(followSession!=null&&followSession.count()>0)
                 copyReport(R.string.deep_follow_copy,s(R.string.attachment_copy_notice),followSession.transcript());
         });
-        followSave=button(followActions,R.string.deep_follow_save,this::exportFollowUp);
+        followSave=button(followActions,R.string.deep_follow_save,()->exportFollowUp(false));
+        followSaveJson=button(followActions,R.string.deep_follow_save_json,()->exportFollowUp(true));
         followTranscript=label(panel,"",true);
-        followAsk.setEnabled(false);followCopy.setEnabled(false);followSave.setEnabled(false);
+        followAsk.setEnabled(false);followCopy.setEnabled(false);followSave.setEnabled(false);followSaveJson.setEnabled(false);
         ScrollView scroll=new ScrollView(owner);scroll.addView(panel);
         AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.batch_title).setView(scroll)
             .setNegativeButton(R.string.close,null).setNeutralButton(R.string.stop,null).setPositiveButton(R.string.batch_start,null).create();
@@ -535,13 +537,14 @@ final class DocumentBatchUi {
         });
         if(!started&&runner==active){runner=null;active.cancel();status.setText(R.string.deep_follow_failed);enabled();}
     }
-    private void exportFollowUp(){
+    private void exportFollowUp(boolean json){
         if(!(owner instanceof MainActivity)||!visible()||busy()||confirmation!=null||!eligible.getAsBoolean()||
                 followSession==null||followSession.count()==0)return;
         final DeepFollowUpPolicy.Session reviewed=followSession;
         final long revision=reviewed.count();
         try{
-            ArtifactFileExport payload=ArtifactFileExport.prepare(ArtifactFileExport.Format.REPORT_TEXT,reviewed.transcript());
+            ArtifactFileExport payload=json?DeepDialogueExport.prepare(reviewed):
+                    ArtifactFileExport.prepare(ArtifactFileExport.Format.REPORT_TEXT,reviewed.transcript());
             ((MainActivity)owner).requestWorkspaceArtifactExport(payload,
                     ()->visible()&&!busy()&&confirmation==null&&followSession==reviewed&&reviewed.count()==revision&&eligible.getAsBoolean(),false);
         }catch(Exception invalid){toast(R.string.artifact_file_export_invalid);}

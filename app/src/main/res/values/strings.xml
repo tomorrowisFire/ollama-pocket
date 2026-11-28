@@ -1450,6 +1450,7 @@
     <string name="deep_follow_ask">Ask follow-up</string>
     <string name="deep_follow_copy">Copy dialogue</string>
     <string name="deep_follow_save">Save dialogue (.txt)</string>
+    <string name="deep_follow_save_json">Save dialogue (.json)</string>
     <string name="deep_follow_expired">Deep access expired. Save the dialogue and renew access before starting a new request.</string>
     <string name="deep_follow_no_evidence">No fitting completed evidence or valid question. Try a shorter question or select a different source.</string>
     <string name="deep_follow_question">Follow-up question (up to 300 characters)</string>

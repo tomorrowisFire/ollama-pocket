@@ -128,6 +128,9 @@ F12_MODIFIABLE = frozenset([
   "tests/test_f11_scope.py"
 ])
 F12_ADDITIONS = frozenset([
+  "app/src/main/java/com/ollamapocket/app/DeepDialogueExport.java",
+  "tests/DeepDialogueExportTest.java",
+  "docs/on-hands-f12-dialogue-export.md",
   "app/src/main/java/com/ollamapocket/app/DeepFollowUpPolicy.java",
   "tests/DeepFollowUpPolicyTest.java",
   "docs/on-hands-f12-follow-up-policy.md",

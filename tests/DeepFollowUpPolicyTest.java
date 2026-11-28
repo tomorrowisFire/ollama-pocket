@@ -55,6 +55,20 @@ public final class DeepFollowUpPolicyTest {
         var partialReport=new DocumentBatchReport(report.plan,partial,"fixture","USER",1,1);
         var limited=new DeepFollowUpPolicy.Session(partialReport);
         reject(()->limited.prepare("query",19));ok(limited.prepare("query",-1).evidence.get(0).id.equals("D1-S1"));
+        // The referenced fact lives far past the first 360 characters of a unit.
+        var longSource=new DocumentBatchPolicy.Source("late.txt","a ".repeat(500)+" latefact 987654 "+"b ".repeat(40),
+                DocumentBatchPolicy.Kind.TEXT,false,0,0,0);
+        var longPlan=new DocumentBatchPolicy.Plan("lookup",List.of(longSource));
+        AtomicInteger longCalls=new AtomicInteger();
+        var longResult=DocumentBatchPolicy.analyze(longPlan,(prompt,chars,tokens)->{
+            longCalls.incrementAndGet();return "note";
+        },()->false,n->{});
+        var longSession=new DeepFollowUpPolicy.Session(new DocumentBatchReport(longPlan,longResult,"fixture",null,longCalls.get(),1));
+        var late=longSession.prepare("latefact",0);
+        ok(late.evidence.get(0).text.contains("987654")&&late.evidence.get(0).start>500);
+        longSession.commit(late,"987654 [D1-S1]");
+        var pronoun=longSession.prepare("What?",0);
+        ok(pronoun.evidence.get(0).text.contains("987654")&&pronoun.evidence.get(0).start==late.evidence.get(0).start);
         var empty=new DocumentBatchPolicy.Result(DocumentBatchPolicy.Status.STOPPED,List.of(),0,"");
         reject(()->new DeepFollowUpPolicy.Session(new DocumentBatchReport(report.plan,empty,"fixture","USER",0,1)));
         System.out.println("PASS: "+checks+" source-grounded follow-up policy assertions");

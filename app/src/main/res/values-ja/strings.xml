@@ -1450,6 +1450,7 @@
     <string name="deep_follow_ask">追加質問</string>
     <string name="deep_follow_copy">対話をコピー</string>
     <string name="deep_follow_save">対話を保存（TXT）</string>
+    <string name="deep_follow_save_json">対話を保存（JSON）</string>
     <string name="deep_follow_expired">詳細利用権の期限が切れました。対話を保存し、更新してから新規要求を開始してください。</string>
     <string name="deep_follow_no_evidence">適合する完了根拠または有効な質問がありません。質問を短くするか別の資料を選んでください。</string>
     <string name="deep_follow_question">追加質問（最大300文字）</string>

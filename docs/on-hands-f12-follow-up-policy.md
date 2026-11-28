@@ -1,3 +1,7 @@
 # F12 r006 — evidence-grounded follow-up policy
 
 Immutable completed document-report snapshot; explicit source filtering or ranked literal overlap across available excerpts (including CJK bigrams), up to four distinct bounded evidence windows. Each supplied range is the actual extracted UTF-16 text; prior generated dialogue is labelled unverified context, never factual evidence. Only supplied IDs count as recognized citations; unknown IDs are reported. Review the exact request before dispatch; stale and cross-session commits rejected. Rolling 24 completed turns in memory, no request-count cap per access pass, no original files persisted or appended to normal chat. Failed/cancelled requests cannot add a completed turn. Export only the retained dialogue and source IDs/ranges. Synthetic tests cover D20, multilingual retrieval, partial reports, revision and history limits. Not semantic retrieval or full-file search, and citation identity is not factual verification.
+
+## r007: continuity of exact evidence
+
+When a new question has no literal match in a previously selected unit, reuse its earlier bounded exact window rather than restarting at the beginning of that unit. Cited IDs outrank merely supplied IDs on ties; direct new text matches still take precedence. Regression fixture places a numeric fact late in a long unit and verifies a pronoun-only follow-up retains the supporting original range.
