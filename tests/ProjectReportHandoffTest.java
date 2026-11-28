@@ -25,6 +25,48 @@ public final class ProjectReportHandoffTest {
         DocumentBatchReport stopped=new DocumentBatchReport(plan,new DocumentBatchPolicy.Result(DocumentBatchPolicy.Status.STOPPED,List.of(),0,""),"model","USER",0,0);
         ProjectReportHandoff partial=ProjectReportHandoff.of(stopped);
         ok(partial.status.equals("STOPPED")&&partial.json.equals(stopped.json()));
+        // A large report must not silently become a truncated project artifact.
+        java.util.ArrayList<DocumentBatchPolicy.Source> sources=new java.util.ArrayList<>();
+        for(int i=0;i<20;i++)sources.add(new DocumentBatchPolicy.Source("source"+i+".txt",
+            "PRIVATE_RAW_MARKER "+"a".repeat(5577),DocumentBatchPolicy.Kind.TEXT,true,0,0,0));
+        DocumentBatchPolicy.Plan largePlan=new DocumentBatchPolicy.Plan("Review",sources);
+        java.util.ArrayList<DocumentBatchPolicy.Note> allNotes=new java.util.ArrayList<>();
+        for(DocumentBatchPolicy.Unit unit:largePlan.units)
+            allNotes.add(new DocumentBatchPolicy.Note(unit,"Generated "+unit.id()+" "+"\\\"".repeat(190)));
+        DocumentBatchPolicy.Result largeResult=new DocumentBatchPolicy.Result(DocumentBatchPolicy.Status.COMPLETED,
+            allNotes,1,"Summary [D1-S1] [D20-S4] [D99-S1]");
+        DocumentBatchReport large=new DocumentBatchReport(largePlan,largeResult,"model",null,allNotes.size()+2,5);
+        ok(allNotes.size()==80&&large.json().length()>ProjectLibrary.MAX_TEXT);
+        try{ProjectReportHandoff.of(large);throw new AssertionError("Unexpected exact handoff");}
+        catch(ProjectReportHandoff.TooLarge expected){n++;}
+        ProjectReportHandoff compact=ProjectReportHandoff.compactOf(large);
+        JSONObject reduced=new JSONObject(compact.json),original=new JSONObject(large.json());
+        ok(compact.status.equals("COMPLETED")&&compact.json.length()<=ProjectLibrary.MAX_TEXT);
+        ok(!reduced.getBoolean("complete_report")&&!reduced.getBoolean("factual_verification"));
+        ok(reduced.getString("kind").equals("ONHAND_COMPACT_DOCUMENT_REPORT"));
+        ok(reduced.getString("full_report_sha256_utf8").matches("[0-9a-f]{64}"));
+        ok(!compact.json.contains("PRIVATE_RAW_MARKER"));
+        ok(reduced.getJSONArray("sources").toString().equals(original.getJSONArray("sources").toString()));
+        ok(reduced.getString("synthesis").equals(original.getString("synthesis")));
+        ok(reduced.getJSONArray("unknown_citation_ids").toString().equals(original.getJSONArray("unknown_citation_ids").toString()));
+        ok(reduced.getJSONArray("notes").length()==allNotes.size());
+        int included=0;
+        for(int i=0;i<allNotes.size();i++){
+            JSONObject row=reduced.getJSONArray("notes").getJSONObject(i);
+            JSONObject prior=original.getJSONArray("notes").getJSONObject(i);
+            ok(row.getString("id").equals(prior.getString("id")));
+            ok(row.getInt("start_utf16_inclusive_1_based")==prior.getInt("start_utf16_inclusive_1_based"));
+            ok(row.getInt("end_utf16_inclusive_1_based")==prior.getInt("end_utf16_inclusive_1_based"));
+            if(row.getBoolean("generated_note_included")){
+                ok(row.getString("note").equals(prior.getString("note")));included++;
+            }else ok(row.isNull("note"));
+        }
+        ok(included>0&&included<allNotes.size()&&reduced.getInt("generated_notes_included")==included);
+        ok(reduced.getInt("generated_notes_omitted")==allNotes.size()-included);
+        ok(ProjectReportHandoff.compactOf(large).json.equals(compact.json));
+        JSONObject compactStopped=new JSONObject(ProjectReportHandoff.compactOf(stopped).json);
+        ok(compactStopped.getString("status").equals("STOPPED")&&compactStopped.isNull("synthesis"));
+        ok(compactStopped.getInt("generated_notes_total")==0);
         ConferencePolicy.Request req=new ConferencePolicy.Request("goal","model","en",WorkflowPolicy.Gate.CONTAINS,"OK");
         ConferencePolicy.Result bad=ConferencePolicy.run(req,call->new ConferencePolicy.Reply("not JSON",false),()->false,x->{});
         ConferenceReport failed=new ConferenceReport(req,bad,null,20);

@@ -1461,4 +1461,6 @@
     <string name="deep_follow_done">追加質問が完了しました。</string>
     <string name="deep_follow_failed">追加質問は完了しませんでした。以前の対話は保持します。</string>
     <string name="deep_follow_reset_notice">新しい分析を開始すると現在の一時的な追加対話が消去されます。必要に応じて先に保存してください。</string>
+    <string name="batch_compact_project_title">簡易レポートをプロジェクトに保存</string>
+    <string name="batch_compact_project_notice">完全なレポートはプロジェクトのサイズ上限を超えています。簡易レポートを保存しますか？出典の範囲、抜粋位置、引用情報、最終要約を保持し、一部の生成メモを省略する場合があります。完全な JSON とテキストの書き出しは引き続き利用できます。</string>
 </resources>

@@ -1,8 +1,8 @@
 {
   "stage": "F12-file-intake-integration-candidate",
-  "revision": "F12-file-intake-r007-dialogue-export",
+  "revision": "F12-file-intake-r008-input-project",
   "scopeBaseline": "0152869a25bfa63e1e6e94c5ebb079ccc0facba8",
-  "priorCandidate": "f330b2b22836a0b08ded86bd11edf83da5aac4b1",
+  "priorCandidate": "172770bd0a1a8f8bbcb59cdcde1276784374b26c",
   "modules": [
     {
       "stage": "A-text",
@@ -87,7 +87,15 @@
     {
       "stage": "U-dialogue-export",
       "sha": "12b9c2144cc00d8ca3907ee7b7a8c49d57e7b2cb"
+    },
+    {
+      "stage": "V-input-budget-hardening",
+      "sha": "e025a6f01fd083c042d6298b7503a43e476f0d50"
+    },
+    {
+      "stage": "W-compact-project-report",
+      "sha": "2e691b135e0d67dc0975bc40450662fd3b1970aa"
     }
   ],
-  "reason": "r007 retains exact prior evidence windows for unmatched contextual follow-ups, adds opt-in bounded JSON dialogue ledger and tests. r006 FULL pending at staging; exact FAST/FULL required before promotion."
+  "reason": "r008 sticky aggregate input failure and metadata/parser boundary checks; explicit compact project alternative preserves complete source and citation ledger. r006 exact FAST/FULL passed and officially promoted; r007 validation active. r008 detached pending predecessor and exact CI. No native, manifest, dependency, production ads or data schema change."
 }

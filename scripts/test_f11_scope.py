@@ -85,6 +85,8 @@ ADDITIONS = frozenset([
 F12_STAGE = "F12-file-intake-integration-candidate"
 F12_BASELINE = "0152869a25bfa63e1e6e94c5ebb079ccc0facba8"
 F12_MODIFIABLE = frozenset([
+  "app/src/main/java/com/ollamapocket/app/ProjectReportHandoff.java",
+  "tests/ProjectReportHandoffTest.java",
   ".github/workflows/java-compile.yml",
   "scripts/test_onhand_brand_contract.py",
   "app/src/main/java/com/ollamapocket/app/AdSupport.java",
@@ -128,6 +130,9 @@ F12_MODIFIABLE = frozenset([
   "tests/test_f11_scope.py"
 ])
 F12_ADDITIONS = frozenset([
+  "docs/on-hands-f12-input-budget-hardening.md",
+  "docs/on-hands-f12-compact-project-report.md",
+  "docs/on-hands-f12-r008-integration.md",
   "app/src/main/java/com/ollamapocket/app/DeepDialogueExport.java",
   "tests/DeepDialogueExportTest.java",
   "docs/on-hands-f12-dialogue-export.md",

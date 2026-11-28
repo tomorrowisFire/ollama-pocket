@@ -1461,4 +1461,6 @@
     <string name="deep_follow_done">後續問題已完成。</string>
     <string name="deep_follow_failed">後續問題未完成，保留先前對話。</string>
     <string name="deep_follow_reset_notice">開始新分析會清除目前暫時後續對話。如需保留，請先儲存。</string>
+    <string name="batch_compact_project_title">將精簡報告儲存至專案</string>
+    <string name="batch_compact_project_notice">完整報告超出專案容量限制。是否儲存精簡報告？保留來源涵蓋範圍、摘錄位置、引用資訊及最終綜合結論，可能省略部分生成筆記。仍可匯出完整 JSON 與文字。</string>
 </resources>

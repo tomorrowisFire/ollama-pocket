@@ -143,6 +143,10 @@ assert "followSession!=session||!session.current(request)" in deep_batch
 assert "session.commit(request,answer)" in deep_batch
 assert "R.string.deep_follow_review_notice" in deep_batch and "request.prompt" in deep_batch
 assert "DeepDialogueExport.prepare(reviewed)" in deep_batch
+assert "ProjectReportHandoff.compactOf(snapshot())" in deep_batch
+assert "R.string.batch_compact_project_notice" in deep_batch
+assert deep_batch.index("DocumentBatchPolicy.InputBudget budget=new") < deep_batch.index("// Reject known oversized selections")
+assert "check();budget.check();return out;" in deep_batch
 assert "R.string.deep_follow_save_json" in deep_batch
 assert "reviewed.count()==revision&&eligible.getAsBoolean()" in deep_batch
 assert "if(ads!=null)ads.onWindowFocus(focused)" in main

@@ -205,7 +205,17 @@ final class DocumentBatchUi {
                 ProjectReportHandoff handoff=ProjectReportHandoff.of(snapshot());
                 reportWorkspace=new ProjectWorkspaceUi(owner,()->visible()&&!busy()&&result==reviewed);
                 reportWorkspace.openReport(handoff,s(R.string.batch_title)+" · "+batchState(reviewed.status));
-            }catch(ProjectReportHandoff.TooLarge e){toast(R.string.project_report_too_large);}
+            }catch(ProjectReportHandoff.TooLarge e){
+                try{
+                    ProjectReportHandoff compact=ProjectReportHandoff.compactOf(snapshot());
+                    confirm(R.string.batch_compact_project_title,R.string.batch_compact_project_notice,()->{
+                        if(!visible()||busy()||ProjectWorkspaceUi.busy()||!eligible.getAsBoolean()||result!=reviewed)return;
+                        reportWorkspace=new ProjectWorkspaceUi(owner,()->visible()&&!busy()&&result==reviewed);
+                        reportWorkspace.openReport(compact,s(R.string.batch_compact_project_title)+" · "+batchState(reviewed.status));
+                    });
+                }catch(ProjectReportHandoff.TooLarge tooLarge){toast(R.string.project_report_too_large);}
+                catch(Exception invalid){toast(R.string.batch_export_failed);}
+            }
             catch(Exception e){toast(R.string.batch_export_failed);}
         });
         viewReport=viewer.add(panel,R.string.batch_title,()->output.getText().toString(),
@@ -255,9 +265,10 @@ final class DocumentBatchUi {
         int limit=DocumentBatchPolicy.prefixLimit(selected.size());
         List<SourceMeta> metadata=new ArrayList<>();
         long[] sizes=new long[selected.size()];
+        DocumentBatchPolicy.InputBudget budget=new DocumentBatchPolicy.InputBudget();
         // Reject known oversized selections before opening any content streams.
         for(int i=0;i<selected.size();i++){
-            check();String name=s(R.string.batch_unknown_file);
+            check();budget.check();String name=s(R.string.batch_unknown_file);
             try{
                 Uri uri=selected.get(i);
                 if(uri==null||!"content".equals(uri.getScheme()))throw new AttachmentText.Failure(AttachmentText.Problem.UNSUPPORTED);
@@ -269,7 +280,7 @@ final class DocumentBatchUi {
                         if(si>=0&&!cursor.isNull(si))bytes=Math.max(-1L,cursor.getLong(si));
                     }
                 }
-                check();
+                check();budget.check();
                 if(!AttachmentText.supportsPlain(name)&&!OfficeText.supports(name)&&!PdfExcerpt.supports(name))
                     throw new AttachmentText.Failure(AttachmentText.Problem.UNSUPPORTED);
                 if(PdfExcerpt.supports(name)&&Build.VERSION.SDK_INT<35)throw new AttachmentText.Failure(AttachmentText.Problem.PDF_VERSION);
@@ -281,14 +292,14 @@ final class DocumentBatchUi {
         }
         try{DocumentBatchPolicy.validateDeclared(sizes);}
         catch(DocumentBatchPolicy.InputLimit e){throw new SourceFailure(s(R.string.batch_total_limit));}
-        DocumentBatchPolicy.InputBudget budget=new DocumentBatchPolicy.InputBudget();
+        budget.check();
         List<DocumentBatchPolicy.Source> out=new ArrayList<>();
         for(int i=0;i<metadata.size();i++){
-            check();SourceMeta meta=metadata.get(i);String name=meta.name;
+            check();budget.check();SourceMeta meta=metadata.get(i);String name=meta.name;
             long before=budget.consumed();
             try(InputStream input=owner.getContentResolver().openInputStream(meta.uri)){
                 if(input==null)throw new AttachmentText.Failure(AttachmentText.Problem.INVALID);
-                activeInput=input;check();
+                activeInput=input;check();budget.check();
                 InputStream counted=budget.wrap(input);
                 if(PdfExcerpt.supports(name)){
                     AttachmentText.Result pdf=PdfTextClient.read(owner,name,counted,1);
@@ -300,9 +311,11 @@ final class DocumentBatchUi {
                     out.add(new DocumentBatchPolicy.Source(name,prefix.text,OfficeText.supports(name)?DocumentBatchPolicy.Kind.OFFICE:DocumentBatchPolicy.Kind.TEXT,
                             prefix.partial,0,0,0,budget.consumed()-before));
                 }
+                check();budget.check();
             }catch(Exception e){
                 check();throw new SourceFailure("D"+(i+1)+" · "+name+"\n"+s(errorLabel(e)));
             }finally{activeInput=null;}
+            budget.check();
             final int complete=i+1;
             final long bytes=budget.consumed();
             postProgress(lease,screen,main,()->{
@@ -310,7 +323,7 @@ final class DocumentBatchUi {
                 status.setText(owner.getString(R.string.batch_input_progress,complete,metadata.size(),bytes));
             });
         }
-        check();return out;
+        check();budget.check();return out;
     }
     private int errorLabel(Exception e){
         if(e instanceof DocumentBatchPolicy.InputLimit)return R.string.batch_total_limit;

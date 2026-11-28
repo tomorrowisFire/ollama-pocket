@@ -1461,4 +1461,6 @@
     <string name="deep_follow_done">Follow-up completed.</string>
     <string name="deep_follow_failed">Follow-up did not complete. Earlier dialogue is preserved.</string>
     <string name="deep_follow_reset_notice">Starting a new analysis clears the current temporary follow-up dialogue. Save it first if needed.</string>
+    <string name="batch_compact_project_title">Save compact project report</string>
+    <string name="batch_compact_project_notice">The full report exceeds the project size limit. Save a compact report instead? Source coverage, excerpt ranges, citations and any final synthesis are retained; some generated notes may be omitted. Full JSON and text exports remain available.</string>
 </resources>

@@ -1461,4 +1461,6 @@
     <string name="deep_follow_done">후속 질문 분석 완료</string>
     <string name="deep_follow_failed">후속 질문이 완료되지 않았습니다. 이전 대화는 유지됩니다.</string>
     <string name="deep_follow_reset_notice">새 분석을 시작하면 현재 임시 후속 대화가 삭제됩니다. 필요한 경우 먼저 저장하세요.</string>
+    <string name="batch_compact_project_title">요약 보고서를 프로젝트에 저장</string>
+    <string name="batch_compact_project_notice">전체 보고서가 프로젝트 저장 한도를 초과했습니다. 축약 보고서를 저장하시겠습니까? 출처별 분석 범위, 발췌 위치, 인용 정보와 최종 종합 결과는 유지하며, 일부 생성 메모는 생략될 수 있습니다. 전체 JSON 및 텍스트 내보내기는 계속 이용할 수 있습니다.</string>
 </resources>

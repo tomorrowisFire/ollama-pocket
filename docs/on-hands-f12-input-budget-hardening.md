@@ -1,0 +1,3 @@
+# F12 r008 A — sticky aggregate input admission
+
+KPI: no successful budget check after an observed aggregate overflow, invalid provider return, cancellation or deadline, including clock rollback and retry; check at non-stream boundaries. 2 GiB cap and 30-minute monotonic read/extraction budget unchanged. Existing per-file caps remain. Source-only module and host fixtures; integration must start the budget before provider metadata and recheck after parser completion and final provider close. This is boundary enforcement, not a promise to interrupt a permanently blocked provider. No increased limits, permission changes or native changes. Synthetic tests written; exact CI pending.
