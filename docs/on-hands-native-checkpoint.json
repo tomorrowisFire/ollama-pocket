@@ -1,6 +1,6 @@
 {
-  "stage": "F10A68-warm-peach-text-device-test",
-  "revision": "F10A68",
-  "priorCandidate": "f5655a157982337a6f76a2d125dd551e908fa226",
-  "reason": "User requests full ARM64 device-test APK after warm peach foreground change. Require native packaging, APK signing verification and existing safety gates; no real-device test claimed."
+  "stage": "F10A69-adaptive-tablet-shared-sidebar",
+  "revision": "F10A69",
+  "priorCandidate": "ab8479326604899beab53cd04af863928bf912f8",
+  "reason": "User requested OnHand smartphone UI foundation with ChatGPT-like tablet presentation; reusable docked sidebar, centered local/cloud content, safe narrow fallback and manual collapse. Full ARM64 APK checkpoint; device testing remains pending."
 }

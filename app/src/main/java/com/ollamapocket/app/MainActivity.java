@@ -185,6 +185,19 @@ public final class MainActivity extends Activity {
     private boolean smoothMotion = true;
     private String workspaceMode=WorkspaceLayoutPolicy.AUTO;
     private LinearLayout workspace;
+    private ScrollView dockedSidebar;
+    private View dockedDivider;
+    private LinearLayout dockedChatList;
+    private EditText dockedChatSearch;
+    private TextView[] dockedDestinations;
+    private boolean dockedSidebarRequested=true;
+    private final Runnable dockedHistoryRefresh=()->{
+        if(dockedChatList!=null&&dockedChatSearch!=null&&!isFinishing()&&!isDestroyed())
+            renderDrawerChats(dockedChatList,null,allSavedConversations(),dockedChatSearch.getText().toString());
+    };
+    private final android.content.SharedPreferences.OnSharedPreferenceChangeListener dockedHistoryListener=(prefs,key)->{
+        if(key!=null&&(key.startsWith("chat_list_")||key.startsWith("active_chat_")||key.equals("model")))scheduleDockedHistoryRefresh();
+    };
     private Button menuButton,workspaceModeButton;
 
     private final Handler ui = new Handler(Looper.getMainLooper());
@@ -420,6 +433,7 @@ public final class MainActivity extends Activity {
         updateModelViewButtons();
         renderInstalledModels();
         if(activeTab==3)refreshDiagnosticViews();
+        updateDockedDestinations();scheduleDockedHistoryRefresh();
     }
     /** Check at most once per minute; defer transition while foreground work or drawers run. */
     private final Runnable sunsetThemePoll=new Runnable(){
@@ -536,6 +550,7 @@ public final class MainActivity extends Activity {
         if(attachmentPreviewDialog!=null){attachmentPreviewDialog.dismiss();attachmentPreviewDialog=null;}
         chatCancelled=true;
         if(navigationDrawer!=null&&navigationDrawer.isShowing())navigationDrawer.dismiss();
+        removeDockedSidebar();
         if (chatConnection != null) chatConnection.disconnect();
         if (pullConnection != null) pullConnection.disconnect();
         ui.removeCallbacks(hudPoll);
@@ -607,7 +622,7 @@ public final class MainActivity extends Activity {
         if(cloudPanel!=null){cloudPanel.pause();cloudPanel.setVisibility(View.GONE);}
         if(localChatContent!=null)localChatContent.setVisibility(View.VISIBLE);
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
-        refreshChatHeader();updateTypingChrome();refreshLatestButton();
+        refreshChatHeader();updateTypingChrome();refreshLatestButton();scheduleDockedHistoryRefresh();
     }
     @Override public void onBackPressed(){
         if(cloudMode){returnToLocal();return;}
@@ -817,7 +832,12 @@ public final class MainActivity extends Activity {
         });
         setContentView(root);
         root.post(root::requestApplyInsets);
-        // Mobile-friendly WebUI-inspired navigation; independent Android widgets and branding.
+        workspace=new LinearLayout(this);workspace.setOrientation(LinearLayout.HORIZONTAL);
+        root.addView(workspace,new LinearLayout.LayoutParams(-1,0,1f));
+        LinearLayout mainPane=column();
+        workspace.addView(mainPane,new LinearLayout.LayoutParams(0,-1,1f));
+        dockedSidebarRequested=getPreferences(MODE_PRIVATE).getBoolean("tablet_sidebar_open",true);
+        // The original phone header, status and page stack remain the main pane.
         LinearLayout header = row();
         Button menu = button("☰", false);
         menuButton=menu;
@@ -825,7 +845,7 @@ public final class MainActivity extends Activity {
         menu.setTextSize(20);
         menu.setMinWidth(dp(48));menu.setMinimumWidth(dp(48));menu.setTooltipText(getString(R.string.menu));
         iconAction(menu,OnHandGlyphs.Kind.MENU);flatNavigationButton(menu);rowItem(header, menu, 0, 9);
-        menu.setOnClickListener(v -> showNavigationDrawer());
+        menu.setOnClickListener(v -> toggleNavigation());
         LinearLayout branding = column();
         branding.setMinimumHeight(dp(48));branding.setGravity(Gravity.CENTER_VERTICAL);
         topPageTitle = text(getString(R.string.app_name), 20, WHITE, true);
@@ -860,15 +880,15 @@ public final class MainActivity extends Activity {
         rowItem(header, fresh, 0, 0);
         fresh.setOnClickListener(v -> newChat());
         header.setMinimumHeight(dp(52));
-        root.addView(header, lp(-1, -2));
+        mainPane.addView(header, lp(-1, -2));
         miniStatus = text("● "+getString(R.string.engine_check), 11, MUTED, false);
-        margin(miniStatus, root, 2, 6);
+        margin(miniStatus, mainPane, 2, 6);
         performanceHudView=text(getString(R.string.hud_wait),11,MUTED,false);
         performanceHudView.setPadding(dp(12),dp(9),dp(12),dp(9));
         performanceHudView.setMaxLines(4);
         performanceHudView.setTextSize(11*uiTextScale);
         performanceHudView.setBackground(bg(FIELD,11));
-        margin(performanceHudView,root,0,5);
+        margin(performanceHudView,mainPane,0,5);
         performanceHudView.setVisibility(showHud?View.VISIBLE:View.GONE);
         performanceHudView.setOnClickListener(v->{
             PerformanceHud.Sample sample=lastHud;
@@ -881,16 +901,12 @@ public final class MainActivity extends Activity {
                 .setMessage(status).setPositiveButton(getString(R.string.close),null).show();
         });
         pages = new FrameLayout(this);
-        workspace=new LinearLayout(this);
-        workspace.setOrientation(LinearLayout.HORIZONTAL);
-        // One on-demand drawer for phone, tablet and multi-window.
-        workspace.addView(pages,new LinearLayout.LayoutParams(-1,-1));
-        root.addView(workspace,new LinearLayout.LayoutParams(-1,0,1f));
+        mainPane.addView(pages,new LinearLayout.LayoutParams(-1,0,1f));
         createChatPage(); createModelPage(); createServerPage(); createDiagnosticsPage();
         pages.addView(chatPage); pages.addView(modelPage);
         pages.addView(serverPage); pages.addView(diagnosticPage);
         // Measure the actual usable window, including multi-window and landscape cutouts.
-        // Reflow only the reading column; the drawer remains on demand.
+        // Reflow the shared navigation and reading column without rebuilding the pages.
         workspace.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
             if(r-l!=or-ol)applyWorkspaceLayout();
         });
@@ -924,11 +940,78 @@ public final class MainActivity extends Activity {
                 applyWorkspaceLayout();
             }).setNegativeButton(R.string.cancel,null));
     }
+    private int workspaceWidthDp(){
+        if(workspace==null)return 0;
+        float density=getResources().getDisplayMetrics().density;
+        return !Float.isFinite(density)||density<=0?0:(int)(workspace.getWidth()/density);
+    }
+    private int availableRailDp(){
+        float scale=uiTextScale*Math.max(1f,getResources().getConfiguration().fontScale);
+        return WorkspaceLayoutPolicy.railWidthDp(workspaceMode,workspaceWidthDp(),scale);
+    }
+    int workspaceReadingColumnDp(int contentDp){
+        int window=workspaceWidthDp();
+        return WorkspaceLayoutPolicy.readingColumnDp(workspaceMode,window>0?window:contentDp,contentDp);
+    }
+    private void toggleNavigation(){
+        if(availableRailDp()==0){showNavigationDrawer();return;}
+        setDockedSidebarRequested(dockedSidebar==null);
+    }
+    private void setDockedSidebarRequested(boolean open){
+        dockedSidebarRequested=open;
+        getPreferences(MODE_PRIVATE).edit().putBoolean("tablet_sidebar_open",open).apply();
+        applyWorkspaceLayout();
+    }
+    private void scheduleDockedHistoryRefresh(){
+        if(dockedChatList==null)return;
+        ui.removeCallbacks(dockedHistoryRefresh);ui.post(dockedHistoryRefresh);
+    }
+    private void updateDockedDestinations(){
+        if(dockedDestinations==null)return;
+        for(int i=0;i<dockedDestinations.length;i++){
+            TextView item=dockedDestinations[i];boolean selected=activeTab==i+1;
+            item.setTextColor(selected?bubbleInk():WHITE);
+            item.setTypeface(Typeface.DEFAULT,selected?Typeface.BOLD:Typeface.NORMAL);
+            item.setBackground(bg(selected?BUBBLE:BG,14));
+            item.setSelected(selected);
+            item.setContentDescription(item.getText()+(selected?" · "+getString(R.string.workspace_selected):""));
+            OnHandGlyphs.refresh(item);
+        }
+    }
+    private void removeDockedSidebar(){
+        if(dockedSidebar==null)return;
+        getPreferences(MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(dockedHistoryListener);
+        ui.removeCallbacks(dockedHistoryRefresh);chatSearchSerial++;
+        if(chatSearchTask!=null){chatSearchTask.cancel(true);chatSearchTask=null;}
+        if(dockedChatSearch!=null&&dockedChatSearch.hasFocus()){
+            ((InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(dockedChatSearch.getWindowToken(),0);
+            dockedChatSearch.clearFocus();
+        }
+        workspace.removeView(dockedSidebar);workspace.removeView(dockedDivider);
+        dockedSidebar=null;dockedDivider=null;dockedChatList=null;dockedChatSearch=null;dockedDestinations=null;
+    }
     private void applyWorkspaceLayout(){
         if(workspace==null||isFinishing()||isDestroyed())return;
         if(menuButton!=null)menuButton.setVisibility(View.VISIBLE);
+        int rail=availableRailDp();
+        if(rail>0&&dockedSidebarRequested){
+            if(navigationDrawer!=null&&navigationDrawer.isShowing())navigationDrawer.dismiss();
+            if(dockedSidebar==null){
+                dockedSidebar=buildNavigationSidebar(null);
+                dockedDivider=new View(this);dockedDivider.setBackgroundColor(FIELD);
+                LinearLayout.LayoutParams divider=new LinearLayout.LayoutParams(dp(1),-1);divider.setMarginEnd(dp(WorkspaceLayoutPolicy.GAP_DP-1));
+                workspace.addView(dockedSidebar,0,new LinearLayout.LayoutParams(dp(rail),-1));
+                workspace.addView(dockedDivider,1,divider);
+                getPreferences(MODE_PRIVATE).registerOnSharedPreferenceChangeListener(dockedHistoryListener);
+            }else if(dockedSidebar.getLayoutParams().width!=dp(rail)){
+                dockedSidebar.setLayoutParams(new LinearLayout.LayoutParams(dp(rail),-1));
+            }
+            updateDockedDestinations();
+        }else removeDockedSidebar();
+        if(menuButton!=null){menuButton.setSelected(dockedSidebar!=null);menuButton.setContentDescription(getString(dockedSidebar==null?R.string.menu:R.string.drawer_close));}
         refreshWorkspaceModeLabel();
         if(localChatContent!=null)localChatContent.post(this::applyChatReadingWidth);
+        if(cloudPanel!=null)cloudPanel.post(cloudPanel::applyResponsiveLayout);
     }
     private void applyChatReadingWidth(){
         if(localChatContent==null||isFinishing()||isDestroyed())return;
@@ -936,7 +1019,7 @@ public final class MainActivity extends Activity {
         if(width<=0)return;
         float density=getResources().getDisplayMetrics().density;
         if(!Float.isFinite(density)||density<=0)return;
-        int side=Math.max(0,(width-dp(WorkspaceLayoutPolicy.readingColumnDp(workspaceMode,(int)(width/density))))/2);
+        int side=Math.max(0,(width-dp(workspaceReadingColumnDp((int)(width/density))))/2);
         if(localChatContent.getPaddingLeft()!=side||localChatContent.getPaddingRight()!=side)
             localChatContent.setPadding(side,0,side,0);
         applyChatLayout();refreshBubbleWidths();
@@ -973,9 +1056,10 @@ public final class MainActivity extends Activity {
     private int chatBubbleMaxWidth(){
         int width=messageScroll==null?0:messageScroll.getWidth();
         if(width<=0){
-            int available=workspace==null?0:workspace.getWidth();
+            int available=localChatContent==null?0:localChatContent.getWidth();
+            if(available<=0&&workspace!=null)available=workspace.getWidth();
             if(available<=0)available=getResources().getDisplayMetrics().widthPixels;
-            width=dp(WorkspaceLayoutPolicy.readingColumnDp(workspaceMode,(int)(available/getResources().getDisplayMetrics().density)));
+            width=dp(workspaceReadingColumnDp((int)(available/getResources().getDisplayMetrics().density)));
         }
         int padding=messages==null?dp(8):messages.getPaddingLeft()+messages.getPaddingRight();
         return Math.max(dp(80),Math.min(dp(640),(int)(Math.max(0,width-padding)*0.86f)));
@@ -1838,6 +1922,7 @@ public final class MainActivity extends Activity {
             topPageSubtitle.setTooltipText(null);
         }
         refreshChatHeader();refreshHeaderAccess();updateTypingChrome();refreshLatestButton();
+        updateDockedDestinations();scheduleDockedHistoryRefresh();
         if(activeTab==1)loadRecommendedVariants(false);
         if(activeTab==3)refreshDiagnosticViews();
     }
@@ -3195,6 +3280,9 @@ public final class MainActivity extends Activity {
         }
     }
 
+    private boolean navigationListActive(LinearLayout list,Dialog drawer){
+        return drawer!=null?drawer.isShowing():dockedSidebar!=null&&dockedChatList==list;
+    }
     private void renderDrawerChats(LinearLayout list,Dialog drawer,List<DrawerChat> conversations,String query){
         final long serial=++chatSearchSerial;
         if(chatSearchTask!=null){chatSearchTask.cancel(true);chatSearchTask=null;}
@@ -3207,7 +3295,7 @@ public final class MainActivity extends Activity {
         margin(text(getString(R.string.chat_search_working),13,MUTED,false),list,5,5);
         android.content.SharedPreferences prefs=getPreferences(MODE_PRIVATE);
         ui.postDelayed(()->{
-            if(isFinishing()||isDestroyed()||serial!=chatSearchSerial||(drawer!=null&&!drawer.isShowing()))return;
+            if(isFinishing()||isDestroyed()||serial!=chatSearchSerial||!navigationListActive(list,drawer))return;
             chatSearchTask=chatSearchIo.submit(()->{
                 List<DrawerChat> found=new ArrayList<>();long total=0;boolean incomplete=false,limited=false;
                 for(DrawerChat entry:conversations){
@@ -3239,7 +3327,7 @@ public final class MainActivity extends Activity {
                 final boolean partial=incomplete,capped=limited;
                 ui.post(()->{
                     if(isFinishing()||isDestroyed()||serial!=chatSearchSerial||
-                        drawer==null||!drawer.isShowing())return;
+                        !navigationListActive(list,drawer))return;
                     renderDrawerChatItems(list,drawer,found,false,capped,partial);
                 });
             });
@@ -3363,98 +3451,9 @@ public final class MainActivity extends Activity {
         Dialog drawer=new Dialog(this);
         drawer.requestWindowFeature(Window.FEATURE_NO_TITLE);
         navigationDrawer=drawer;
-        ScrollView drawerScroll=new ScrollView(this);
-        drawerScroll.setFillViewport(true);drawerScroll.setVerticalScrollBarEnabled(true);
-        LinearLayout shell=column();
-        drawerScroll.addView(shell,new ScrollView.LayoutParams(-1,-2));
-        shell.setFocusableInTouchMode(true);
-        shell.setBackgroundColor(BG);
-        shell.setElevation(dp(2));
-        // Sidebar title and new conversation must clear the top status/cutout.
-        shell.setPadding(dp(10),dp(14),dp(10),dp(10));
-        shell.setOnApplyWindowInsetsListener((view,insets)->{
-            int top,bottom,left=0,right=0,ime=0;
-            if(Build.VERSION.SDK_INT>=30){
-                android.graphics.Insets bars=insets.getInsets(WindowInsets.Type.statusBars()|
-                    WindowInsets.Type.navigationBars()|WindowInsets.Type.displayCutout());
-                top=bars.top;bottom=bars.bottom;left=bars.left;right=bars.right;
-                if(insets.isVisible(WindowInsets.Type.ime()))ime=insets.getInsets(WindowInsets.Type.ime()).bottom;
-            }else{
-                top=insets.getSystemWindowInsetTop();
-                bottom=insets.getSystemWindowInsetBottom();
-            }
-            boolean edge=Build.VERSION.SDK_INT>=35;
-            int extraTop=edge?top:0,extraBottom=edge?Math.max(bottom,ime):0;
-            int safeLeft=dp(10)+(edge?left:0),safeRight=dp(10)+(edge?right:0);
-            if(view.getPaddingLeft()!=safeLeft||view.getPaddingRight()!=safeRight||
-                view.getPaddingTop()!=dp(14)+extraTop||view.getPaddingBottom()!=dp(10)+extraBottom)
-                view.setPadding(safeLeft,dp(14)+extraTop,safeRight,dp(10)+extraBottom);
-            return insets;
-        });
-
-        LinearLayout heading=row();
-        TextView product=text(getString(R.string.app_name),18,WHITE,true);
-        rowItem(heading,product,1,8);
-        Button close=button("×",false);
-        close.setTextSize(20);
-        close.setContentDescription(getString(R.string.drawer_close));
-        rowItem(heading,close,0,0);
-        close.setOnClickListener(v->drawer.dismiss());
-        heading.setMinimumHeight(dp(48));
-        margin(heading,shell,0,8);
-
-        TextView newChatItem=drawerRow(getString(R.string.new_chat),"",false);
-        OnHandGlyphs.accentLabel(newChatItem,OnHandGlyphs.Kind.PLUS);
-        margin(newChatItem,shell,0,8);
-        newChatItem.setOnClickListener(v->{
-            if(chatBusy){toast(getString(R.string.new_chat_busy));return;}
-            drawer.dismiss();
-            newChat();
-        });
-
-        EditText search=edit(getString(R.string.chat_search_content),"",false);
-        search.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(LocalChatLibrary.MAX_QUERY)});
-        search.setSingleLine(true);
-        search.setMinHeight(dp(44));
-        margin(search,shell,0,9);
-        margin(text(getString(R.string.recent_chats),12,MUTED,true),shell,0,5);
-        LinearLayout chatList=column();
-        chatList.setPadding(dp(0),dp(0),dp(2),dp(8));
-        // History and every destination belong to the same scroll view.
-        shell.addView(chatList,lp(-1,-2));
-        final List<DrawerChat> conversations=allSavedConversations();
-        renderDrawerChats(chatList,drawer,conversations,"");
-        search.addTextChangedListener(new TextWatcher(){
-            @Override public void beforeTextChanged(CharSequence s,int st,int count,int after){}
-            @Override public void onTextChanged(CharSequence s,int st,int before,int count){
-                renderDrawerChats(chatList,drawer,conversations,s.toString());
-            }
-            @Override public void afterTextChanged(Editable s){}
-        });
-
-        // Short content fills the viewport; overflowing content scrolls to the last item.
-        shell.addView(new View(this),new LinearLayout.LayoutParams(-1,0,1f));
-        View separator=new View(this);
-        separator.setBackgroundColor(FIELD);
-        LinearLayout.LayoutParams separatorParams=lp(-1,1);
-        separatorParams.topMargin=dp(4);
-        separatorParams.bottomMargin=dp(6);
-        shell.addView(separator,separatorParams);
-
-        TextView models=drawerNavigationItem(getString(R.string.models));
-        TextView settings=drawerNavigationItem(getString(R.string.settings));
-        TextView diagnostics=drawerNavigationItem(getString(R.string.devices));
-        margin(models,shell,0,3);
-        margin(settings,shell,0,3);
-        margin(diagnostics,shell,0,7);
-        models.setOnClickListener(v->{drawer.dismiss();showTab(1);});
-        settings.setOnClickListener(v->{drawer.dismiss();showTab(2);});
-        diagnostics.setOnClickListener(v->{drawer.dismiss();showTab(3);});
-        TextView help=drawerHelpItem();margin(help,shell,0,0);
-        help.setOnClickListener(v->{drawer.dismiss();showHelp();});
-
+        ScrollView drawerScroll=buildNavigationSidebar(drawer);
         drawer.setContentView(drawerScroll,new ViewGroup.LayoutParams(-1,-1));
-        shell.requestFocus();
+        drawerScroll.getChildAt(0).requestFocus();
         drawer.setOnDismissListener(d->{
             chatSearchSerial++;
             if(chatSearchTask!=null)chatSearchTask.cancel(true);
@@ -3482,6 +3481,101 @@ public final class MainActivity extends Activity {
             window.setLayout(Math.max(1,width),WindowManager.LayoutParams.MATCH_PARENT);
             window.setGravity(Gravity.START|Gravity.TOP);
         }
+    }
+    /** Exactly the same destinations, history search and actions for modal and docked presentations. */
+    private ScrollView buildNavigationSidebar(Dialog drawer){
+        ScrollView drawerScroll=new ScrollView(this);
+        drawerScroll.setFillViewport(true);drawerScroll.setVerticalScrollBarEnabled(true);
+        LinearLayout shell=column();
+        drawerScroll.addView(shell,new ScrollView.LayoutParams(-1,-2));
+        shell.setFocusableInTouchMode(true);
+        shell.setBackgroundColor(BG);
+        shell.setElevation(drawer==null?0:dp(2));
+        // Sidebar title and new conversation must clear the top status/cutout.
+        shell.setPadding(dp(10),dp(14),dp(10),dp(10));
+        if(drawer!=null)shell.setOnApplyWindowInsetsListener((view,insets)->{
+            int top,bottom,left=0,right=0,ime=0;
+            if(Build.VERSION.SDK_INT>=30){
+                android.graphics.Insets bars=insets.getInsets(WindowInsets.Type.statusBars()|
+                    WindowInsets.Type.navigationBars()|WindowInsets.Type.displayCutout());
+                top=bars.top;bottom=bars.bottom;left=bars.left;right=bars.right;
+                if(insets.isVisible(WindowInsets.Type.ime()))ime=insets.getInsets(WindowInsets.Type.ime()).bottom;
+            }else{
+                top=insets.getSystemWindowInsetTop();
+                bottom=insets.getSystemWindowInsetBottom();
+            }
+            boolean edge=Build.VERSION.SDK_INT>=35;
+            int extraTop=edge?top:0,extraBottom=edge?Math.max(bottom,ime):0;
+            int safeLeft=dp(10)+(edge?left:0),safeRight=dp(10)+(edge?right:0);
+            if(view.getPaddingLeft()!=safeLeft||view.getPaddingRight()!=safeRight||
+                view.getPaddingTop()!=dp(14)+extraTop||view.getPaddingBottom()!=dp(10)+extraBottom)
+                view.setPadding(safeLeft,dp(14)+extraTop,safeRight,dp(10)+extraBottom);
+            return insets;
+        });
+
+        LinearLayout heading=row();
+        TextView product=text(getString(R.string.app_name),18,WHITE,true);
+        rowItem(heading,product,1,8);
+        Button close=button("×",false);
+        close.setTextSize(20);
+        close.setContentDescription(getString(R.string.drawer_close));
+        rowItem(heading,close,0,0);
+        close.setOnClickListener(v->{if(drawer!=null)drawer.dismiss();else setDockedSidebarRequested(false);});
+        heading.setMinimumHeight(dp(48));
+        margin(heading,shell,0,8);
+
+        TextView newChatItem=drawerRow(getString(R.string.new_chat),"",false);
+        OnHandGlyphs.accentLabel(newChatItem,OnHandGlyphs.Kind.PLUS);
+        margin(newChatItem,shell,0,8);
+        newChatItem.setOnClickListener(v->{
+            if(chatBusy){toast(getString(R.string.new_chat_busy));return;}
+            if(drawer!=null)drawer.dismiss();
+            newChat();
+        });
+
+        EditText search=edit(getString(R.string.chat_search_content),"",false);
+        search.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(LocalChatLibrary.MAX_QUERY)});
+        search.setSingleLine(true);
+        search.setMinHeight(dp(44));
+        margin(search,shell,0,9);
+        margin(text(getString(R.string.recent_chats),12,MUTED,true),shell,0,5);
+        LinearLayout chatList=column();
+        chatList.setPadding(dp(0),dp(0),dp(2),dp(8));
+        // History and every destination belong to the same scroll view.
+        shell.addView(chatList,lp(-1,-2));
+        if(drawer==null){dockedChatList=chatList;dockedChatSearch=search;}
+        renderDrawerChats(chatList,drawer,allSavedConversations(),"");
+        search.addTextChangedListener(new TextWatcher(){
+            @Override public void beforeTextChanged(CharSequence s,int st,int count,int after){}
+            @Override public void onTextChanged(CharSequence s,int st,int before,int count){
+                renderDrawerChats(chatList,drawer,allSavedConversations(),s.toString());
+            }
+            @Override public void afterTextChanged(Editable s){}
+        });
+
+        // Short content fills the viewport; overflowing content scrolls to the last item.
+        shell.addView(new View(this),new LinearLayout.LayoutParams(-1,0,1f));
+        View separator=new View(this);
+        separator.setBackgroundColor(FIELD);
+        LinearLayout.LayoutParams separatorParams=lp(-1,1);
+        separatorParams.topMargin=dp(4);
+        separatorParams.bottomMargin=dp(6);
+        shell.addView(separator,separatorParams);
+
+        TextView models=drawerNavigationItem(getString(R.string.models));
+        TextView settings=drawerNavigationItem(getString(R.string.settings));
+        TextView diagnostics=drawerNavigationItem(getString(R.string.devices));
+        margin(models,shell,0,3);
+        margin(settings,shell,0,3);
+        margin(diagnostics,shell,0,7);
+        if(drawer==null)dockedDestinations=new TextView[]{models,settings,diagnostics};
+        models.setOnClickListener(v->{if(drawer!=null)drawer.dismiss();showTab(1);});
+        settings.setOnClickListener(v->{if(drawer!=null)drawer.dismiss();showTab(2);});
+        diagnostics.setOnClickListener(v->{if(drawer!=null)drawer.dismiss();showTab(3);});
+        TextView help=drawerHelpItem();margin(help,shell,0,0);
+        help.setOnClickListener(v->{if(drawer!=null)drawer.dismiss();showHelp();});
+
+        return drawerScroll;
     }
 
     private void ensureSessionListed(String firstMessage) {

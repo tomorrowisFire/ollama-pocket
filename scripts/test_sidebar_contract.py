@@ -29,7 +29,14 @@ assert 'R.style.OnHandTheme_Dark:R.style.OnHandTheme_Light' in src
 assert 'profile.setOnClickListener' not in src
 assert "WorkspaceLayoutPolicy.drawerWidthDp(workspaceMode" in src
 assert "if(menuButton!=null)menuButton.setVisibility(View.VISIBLE)" in src
-assert "createTabletRail(" not in src and "tabletRail" not in src and "currentRailDp" not in src
+assert "WorkspaceLayoutPolicy.railWidthDp(workspaceMode,workspaceWidthDp(),scale)" in src
+assert "buildNavigationSidebar(null)" in src and "buildNavigationSidebar(drawer)" in src
+assert "workspace.addView(dockedSidebar,0" in src and "workspace.removeView(dockedSidebar)" in src
+assert "workspace.addView(mainPane,new LinearLayout.LayoutParams(0,-1,1f))" in src
+assert "mainPane.addView(pages,new LinearLayout.LayoutParams(-1,0,1f))" in src
+assert "navigationListActive(list,drawer)" in src
+assert "registerOnSharedPreferenceChangeListener(dockedHistoryListener)" in src
+assert "unregisterOnSharedPreferenceChangeListener(dockedHistoryListener)" in src
 assert "brandArtwork(" not in src
 assert 'SolarTheme.isNight(' in src
 assert 'switchAutoThemeWithoutRestart()' in src
@@ -82,17 +89,21 @@ assert 'updateTileDownloadProgress()' in src
 assert 'AiPocketDrawerMotion' in src
 assert 'ViewPropertyAnimator' not in src or 'animate()' in src
 # Plain-text Help follows the existing three navigation items.
-drawer=src.split("private void showNavigationDrawer()",1)[1].split("private void ensureSessionListed(",1)[0]
-assert drawer.index("margin(diagnostics,shell")<drawer.index("TextView help=drawerHelpItem()")<drawer.index("drawer.setContentView(drawerScroll")
+modal=src.split("private void showNavigationDrawer()",1)[1].split("private ScrollView buildNavigationSidebar(",1)[0]
+drawer=src.split("private ScrollView buildNavigationSidebar(",1)[1].split("private void ensureSessionListed(",1)[0]
+assert drawer.index("margin(diagnostics,shell")<drawer.index("TextView help=drawerHelpItem()")<drawer.index("return drawerScroll;")
 help_item=src.split("private TextView drawerHelpItem()",1)[1].split("private void showNavigationDrawer()",1)[0]
 assert "R.string.help" in help_item and "OnHandGlyphs" not in help_item
-assert "help.setOnClickListener(v->{drawer.dismiss();showHelp();})" in drawer
+assert "help.setOnClickListener(v->{if(drawer!=null)drawer.dismiss();showHelp();})" in drawer
 assert drawer.count("new ScrollView(this)")==1
 assert "drawerScroll.setFillViewport(true)" in drawer
 assert "drawerScroll.addView(shell,new ScrollView.LayoutParams(-1,-2))" in drawer
 assert "shell.addView(chatList,lp(-1,-2))" in drawer
 assert "shell.addView(new View(this),new LinearLayout.LayoutParams(-1,0,1f))" in drawer
-assert "drawer.setContentView(drawerScroll,new ViewGroup.LayoutParams(-1,-1))" in drawer
-assert "SOFT_INPUT_ADJUST_RESIZE" in drawer and "WindowInsets.Type.ime()" in drawer
+assert "drawer.setContentView(drawerScroll,new ViewGroup.LayoutParams(-1,-1))" in modal
+assert "SOFT_INPUT_ADJUST_RESIZE" in modal and "WindowInsets.Type.ime()" in drawer
+assert "if(drawer!=null)shell.setOnApplyWindowInsetsListener" in drawer
+assert "if(availableRailDp()==0){showNavigationDrawer();return;}" in src
+assert "workspaceReadingColumnDp((int)(width/density))" in src
 assert "rowItem(heading,brandArtwork" not in drawer
 print('PASS: shared scrollable drawer, plain help, model navigation, dynamic HUD, safe insets')

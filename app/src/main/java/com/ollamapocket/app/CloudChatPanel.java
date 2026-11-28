@@ -213,14 +213,14 @@ final class CloudChatPanel extends LinearLayout {
             button.getCompoundPaddingStart()+button.getCompoundPaddingEnd();
         return (int)Math.ceil(Math.max(measured,Math.max(button.getMinimumWidth(),button.getMinWidth()))/density);
     }
-    private void applyResponsiveLayout(){
+    void applyResponsiveLayout(){
         if(closed||getWidth()<=0)return;
         float density=getResources().getDisplayMetrics().density;
         if(!Float.isFinite(density)||density<=0)return;
         float scale=WorkbenchVisualPolicy.textScale(owner.getPreferences(Context.MODE_PRIVATE).getString("font_size","normal"))*
             Math.max(1f,getResources().getConfiguration().fontScale);
         int full=(int)(getWidth()/density);
-        int max=dp(WorkbenchLayoutPolicy.cloudContentDp(full));
+        int max=dp(owner instanceof MainActivity?((MainActivity)owner).workspaceReadingColumnDp(full):WorkbenchLayoutPolicy.cloudContentDp(full));
         int side=dp(6)+Math.max(0,(getWidth()-max)/2);
         if(getPaddingLeft()!=side||getPaddingRight()!=side)setPadding(side,dp(4),side,dp(6));
         int width=(int)(Math.max(0,getWidth()-side*2)/density),height=(int)(getHeight()/density);

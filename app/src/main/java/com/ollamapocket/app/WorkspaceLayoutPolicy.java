@@ -38,14 +38,24 @@ final class WorkspaceLayoutPolicy {
     }
     static int modelCardHeightPx(int sidePx,int minimumPx){return Math.max(sidePx,minimumPx);}
     static int readingColumnDp(int usableWidthDp){return Math.max(0,Math.min(880,usableWidthDp));}
-    /** One content pane; all modes use the same on-demand drawer. */
-    static int railWidthDp(String mode,int usableWidthDp,float textScale){return 0;}
+    /** Dock the existing sidebar only if the window can retain a comfortable main pane. */
+    static int railWidthDp(String mode,int usableWidthDp,float textScale){
+        if(!tabletPresentation(mode,usableWidthDp))return 0;
+        int content=Float.isFinite(textScale)&&textScale>1.2f?640:560;
+        int minimum=Float.isFinite(textScale)&&textScale>1.2f?280:248;
+        int available=usableWidthDp-content-GAP_DP;
+        if(available<minimum)return 0;
+        return Math.min(320,Math.min(available,Math.max(minimum,usableWidthDp/4)));
+    }
     static boolean tabletPresentation(String mode,int usableWidthDp){
         String chosen=normalize(mode);
         return !PHONE.equals(chosen)&&usableWidthDp>=(TABLET.equals(chosen)?TABLET_MIN_DP:AUTO_MIN_DP);
     }
     static int readingColumnDp(String mode,int usableWidthDp){
-        return Math.max(0,Math.min(tabletPresentation(mode,usableWidthDp)?880:640,usableWidthDp));
+        return readingColumnDp(mode,usableWidthDp,usableWidthDp);
+    }
+    static int readingColumnDp(String mode,int windowWidthDp,int contentWidthDp){
+        return Math.max(0,Math.min(tabletPresentation(mode,windowWidthDp)?880:640,contentWidthDp));
     }
     /** Actual text width plus padding/arrow, with bounded integer arithmetic. */
     static int filterChipWidthPx(float textWidthPx,int minimumPx,int chromePx){

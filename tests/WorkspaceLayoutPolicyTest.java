@@ -11,7 +11,16 @@ public final class WorkspaceLayoutPolicyTest {
         for(String mode:new String[]{"auto","phone","tablet","unknown",null}){
             for(float scale:new float[]{1f,1.13f,1.26f,2f,Float.NaN}){
                 for(int width=0;width<=1600;width+=8){
-                    eq(mode,width,scale,0);
+                    int rail=WorkspaceLayoutPolicy.railWidthDp(mode,width,scale);
+                    ok(rail>=0&&rail<=320,"bounded sidebar");
+                    if(rail>0){
+                        ok(!"phone".equals(mode)&&WorkspaceLayoutPolicy.tabletPresentation(mode,width),"only tablet docks");
+                        int minimum=Float.isFinite(scale)&&scale>1.2f?640:560;
+                        ok(width-rail-WorkspaceLayoutPolicy.GAP_DP>=minimum,"main pane never squeezed");
+                    }
+                    int main=width-(rail==0?0:rail+WorkspaceLayoutPolicy.GAP_DP);
+                    int column=WorkspaceLayoutPolicy.readingColumnDp(mode,width,main);
+                    ok(column>=0&&column<=main,"reading column fits remaining pane");
                     boolean tablet=WorkspaceLayoutPolicy.tabletPresentation(mode,width);
                     int drawer=WorkspaceLayoutPolicy.drawerWidthDp(mode,width);
                     int reading=WorkspaceLayoutPolicy.readingColumnDp(mode,width);
@@ -26,6 +35,15 @@ public final class WorkspaceLayoutPolicyTest {
         ok(WorkspaceLayoutPolicy.tabletPresentation("auto",720),"auto tablet");
         ok(!WorkspaceLayoutPolicy.tabletPresentation("tablet",599),"narrow tablet fallback");
         ok(WorkspaceLayoutPolicy.tabletPresentation("tablet",600),"explicit tablet");
+        eq("phone",1600,1f,0);
+        eq("auto",819,1f,0);
+        eq("auto",820,1f,248);
+        eq("tablet",800,1f,0);
+        eq("tablet",931,1.26f,0);
+        eq("tablet",932,1.26f,280);
+        eq("tablet",1600,1f,320);
+        ok(WorkspaceLayoutPolicy.readingColumnDp("auto",900,650)==650,"tablet reading uses full window classification");
+        ok(WorkspaceLayoutPolicy.readingColumnDp("phone",1200,1000)==640,"forced phone measure");
         ok(WorkspaceLayoutPolicy.drawerWidthDp("phone",360)==300,"phone drawer");
         ok(WorkspaceLayoutPolicy.drawerWidthDp("tablet",800)==360,"tablet drawer");
         ok(WorkspaceLayoutPolicy.drawerWidthDp("tablet",180)==180,"small window");
