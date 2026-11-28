@@ -71,6 +71,12 @@ public final class VoiceInteractionPolicyTest {
         ok(audible!=null&&audible.text.contains("hello")&&sparsePlayback.completed()==32);
         ok(sparsePlayback.acknowledge(audible.id));
         ok(sparsePlayback.nextAudible()==null&&sparsePlayback.finished()&&sparsePlayback.percent()==100);
+        ok(VoiceInteractionPolicy.whisperProcessingBudget(180000)==150000);
+        ok(VoiceInteractionPolicy.whisperProcessingBudget(150000)==150000);
+        ok(VoiceInteractionPolicy.whisperProcessingBudget(149999)==149999);
+        ok(VoiceInteractionPolicy.whisperProcessingBudget(1)==1);
+        ok(VoiceInteractionPolicy.whisperProcessingBudget(0)==0);
+        ok(VoiceInteractionPolicy.whisperProcessingBudget(-1)==0);
         ok(VoiceInteractionPolicy.platformFinalizeBudget(45000)==12000);
         ok(VoiceInteractionPolicy.platformFinalizeBudget(12000)==12000);
         ok(VoiceInteractionPolicy.platformFinalizeBudget(11999)==11999);

@@ -110,7 +110,7 @@ final class OnHandsVoice {
     private long speechSequence;
     private final android.os.Handler handler=new android.os.Handler(android.os.Looper.getMainLooper());
     private Runnable timeout, resumeListening,recognizerIdle;
-    private long recognizerDeadline;
+    private long recognizerDeadline,whisperDeadline;
     private static final long PLAYBACK_TAIL_MS=350L;
     private void clearResume(){if(resumeListening!=null)handler.removeCallbacks(resumeListening);resumeListening=null;}
     private void resumeAfterPlayback(){
@@ -215,13 +215,15 @@ final class OnHandsVoice {
             if(closed)return;
             initialized=true;ready=status==TextToSpeech.SUCCESS;
             if(ready)tts.setOnUtteranceProgressListener(new android.speech.tts.UtteranceProgressListener(){
-                public void onStart(String id){a.runOnUiThread(()->{if(!closed&&playback!=null&&playback.current(id))startBarge();});}
+                public void onStart(String id){a.runOnUiThread(()->{if(!closed&&playback!=null&&playback.current(id)&&!rejectExpiredVoice())startBarge();});}
                 public void onDone(String id){a.runOnUiThread(()->finishSpeech(id,true));}
                 public void onError(String id){a.runOnUiThread(()->finishSpeech(id,false));}
                 public void onStop(String id,boolean interrupted){a.runOnUiThread(()->finishSpeech(id,false));}
             });
             String queued=pendingSpeech;pendingSpeech=null;
-            if(queued!=null){if(ready)playSpeech(queued);else {cancel();toast(R.string.tts_unavailable);}}
+            if(queued!=null&&!rejectExpiredVoice()){
+                if(ready)playSpeech(queued);else {cancel();toast(R.string.tts_unavailable);}
+            }
         }));
     }
     boolean listening(){return recognizer!=null||whisper!=null;}
@@ -239,12 +241,18 @@ final class OnHandsVoice {
             whisper=new WhisperCapture(a,voiceModels,targetLocale(),continuous,new WhisperCapture.Callback(){
                 private boolean current(){return !closed&&id==generation&&capture==turn;}
                 public void onReady(){if(current())turn.ready();}
-                public void onProcessing(){if(current()&&!rejectExpiredVoice()){turn.end();armTimeout(150000L);}}
+                public void onProcessing(){
+                    if(!current()||rejectExpiredVoice())return;
+                    long left=VoiceInteractionPolicy.whisperProcessingBudget(whisperDeadline-android.os.SystemClock.elapsedRealtime());
+                    if(left==0){cancel();toast(R.string.voice_error);return;}
+                    turn.end();armTimeout(left);
+                }
                 public void onResult(String text){if(current())acceptTranscript(turn,text,cb);}
                 public void onError(){if(current()&&turn.consumeTerminal()){cancel();toast(R.string.voice_error);}}
                 public void onNoSpeech(){if(current()&&turn.consumeTerminal()){cancel();toast(R.string.voice_no_match);}}
             });
-            armTimeout(180000L);
+            whisperDeadline=android.os.SystemClock.elapsedRealtime()+VoiceInteractionPolicy.WHISPER_SESSION_MS;
+            armTimeout(VoiceInteractionPolicy.WHISPER_SESSION_MS);
             if(!whisper.start()){cancel();toast(R.string.voice_unavailable);}
             return;
         }
@@ -324,7 +332,7 @@ final class OnHandsVoice {
                 final VoiceInteractionPolicy.Playback session=new VoiceInteractionPolicy.Playback(text,"oh-"+generation+"-"+(++speechSequence)+"-",120);
                 playback=session;
                 neural=new NeuralTtsPlayer(a.getApplicationContext(),voiceModels,target,VoiceInteractionPolicy.RATES[rateIndex],new NeuralTtsPlayer.Callback(){
-                    public void onStart(String id){if(!closed&&playback==session&&session.current(id))startBarge();}
+                    public void onStart(String id){if(!closed&&playback==session&&session.current(id)&&!rejectExpiredVoice())startBarge();}
                     public void onDone(String id){if(playback==session)finishSpeech(id,true);}
                     public void onError(String id){if(playback==session)finishSpeech(id,false);}
                 });
@@ -367,7 +375,7 @@ final class OnHandsVoice {
             catch(RuntimeException|LinkageError failure){android.util.Log.w("OnHandAI","Whisper stop failed");}
         try{closeNeural();}
         catch(RuntimeException|LinkageError failure){android.util.Log.w("OnHandAI","Neural playback stop failed");}
-        stopBarge();clearTimeout();clearResume();clearRecognizerIdle();recognizerDeadline=0;pendingSpeech=null;continuous=false;bargeOptIn=false;continuation.clear();clearPlayback();
+        stopBarge();clearTimeout();clearResume();clearRecognizerIdle();recognizerDeadline=0;whisperDeadline=0;pendingSpeech=null;continuous=false;bargeOptIn=false;continuation.clear();clearPlayback();
         partialTranscript="";reviewPending=false;
         if(capture!=null)capture.cancel();capture=null;
         SpeechRecognizer old=recognizer;recognizer=null;

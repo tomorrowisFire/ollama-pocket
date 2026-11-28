@@ -39,6 +39,10 @@ final class VoiceInteractionPolicy {
     }
     /** One recognition request, on the main thread. Terminal callbacks can be consumed only once. */
     static final long PLATFORM_CAPTURE_MS=45_000L, PLATFORM_FINALIZE_MS=12_000L;
+    static final long WHISPER_SESSION_MS=180_000L, WHISPER_PROCESSING_MS=150_000L;
+    static long whisperProcessingBudget(long remaining){
+        return Math.max(0L,Math.min(WHISPER_PROCESSING_MS,remaining));
+    }
     static long platformFinalizeBudget(long remaining){
         return Math.max(0L,Math.min(PLATFORM_FINALIZE_MS,remaining));
     }
