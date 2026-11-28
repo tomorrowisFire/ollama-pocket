@@ -48,6 +48,9 @@ final class DocumentBatchUi {
     private ProgressBar progress;
     private Button preset,preview,copy,inspect,copyJson,saveProject,dictateGoal,readReport,viewReport,saveJsonFile,saveTextFile;
     private ProjectWorkspaceUi reportWorkspace;
+    private DeepFollowUpPolicy.Session followSession;
+    private Button followAsk,followSave,followCopy;
+    private TextView followTranscript;
     static boolean busy(){return BUSY.busy();}
     DocumentBatchUi(Activity owner,String model,AttachmentText.Encoding encoding,BooleanSupplier eligible,BooleanSupplier startAuthorized){
         this.owner=owner;this.model=model;this.encoding=encoding;this.eligible=eligible;this.startAuthorized=startAuthorized;this.dictation=new WorkspaceDictation(owner);this.reading=new WorkspaceReadAloud(owner);this.viewer=new WorkspaceTextViewer(owner);
@@ -84,6 +87,13 @@ final class DocumentBatchUi {
         saveTextFile.setEnabled(idle&&result!=null&&analyzed!=null&&owner instanceof MainActivity);
         readReport.setEnabled(idle&&result!=null&&analyzed!=null);
         viewReport.setEnabled(idle&&result!=null&&analyzed!=null);
+        boolean hasEvidence=false;
+        if(result!=null)for(DocumentBatchPolicy.Note note:result.notes)
+            if(AttachmentText.hasContent(note.unit.text)){hasEvidence=true;break;}
+        followAsk.setEnabled(idle&&hasEvidence);
+        boolean hasDialogue=idle&&followSession!=null&&followSession.count()>0;
+        followCopy.setEnabled(hasDialogue);
+        followSave.setEnabled(hasDialogue&&owner instanceof MainActivity);
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(idle&&sources!=null);
         dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setEnabled(!idle&&!cancelRequested);
     }
@@ -135,7 +145,8 @@ final class DocumentBatchUi {
         if(reportWorkspace!=null){reportWorkspace.pause();reportWorkspace=null;}
         AlertDialog c=confirmation;confirmation=null;if(c!=null)c.dismiss();
         AlertDialog d=dialog;dialog=null;if(d!=null)d.dismiss();
-        sources=null;result=null;analyzed=null;
+        sources=null;result=null;analyzed=null;followSession=null;
+        if(followTranscript!=null)followTranscript.setText("");
     }
     private void stop(){
         if(cancelRequested)return;
@@ -203,6 +214,17 @@ final class DocumentBatchUi {
             ()->visible()&&!busy()&&result!=null&&analyzed!=null&&confirmation==null&&eligible.getAsBoolean());
         readReport.setEnabled(false);
         output=label(panel,"",true);
+        label(panel,s(R.string.deep_follow_title),false);
+        label(panel,s(R.string.deep_follow_notice),false);
+        LinearLayout followActions=new AdaptiveAnswerActions(owner);panel.addView(followActions,WorkbenchStyle.row(owner));
+        followAsk=button(followActions,R.string.deep_follow_ask,this::askFollowUp);
+        followCopy=button(followActions,R.string.deep_follow_copy,()->{
+            if(followSession!=null&&followSession.count()>0)
+                copyReport(R.string.deep_follow_copy,s(R.string.attachment_copy_notice),followSession.transcript());
+        });
+        followSave=button(followActions,R.string.deep_follow_save,this::exportFollowUp);
+        followTranscript=label(panel,"",true);
+        followAsk.setEnabled(false);followCopy.setEnabled(false);followSave.setEnabled(false);
         ScrollView scroll=new ScrollView(owner);scroll.addView(panel);
         AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.batch_title).setView(scroll)
             .setNegativeButton(R.string.close,null).setNeutralButton(R.string.stop,null).setPositiveButton(R.string.batch_start,null).create();
@@ -443,6 +465,87 @@ final class DocumentBatchUi {
         confirmation=chooser;chooser.setOnDismissListener(x->{if(confirmation==chooser)confirmation=null;});
         chooser.show();secure(chooser);WorkbenchWindow.fitCompact(owner,chooser);
     }
+    private void askFollowUp(){
+        if(!visible()||busy()||confirmation!=null||!eligible.getAsBoolean()||result==null||analyzed==null)return;
+        if(!startAuthorized.getAsBoolean()){
+            toast(R.string.deep_follow_expired);return;
+        }
+        try{
+            if(followSession==null)followSession=new DeepFollowUpPolicy.Session(snapshot());
+        }catch(RuntimeException invalid){toast(R.string.deep_follow_no_evidence);return;}
+        final DeepFollowUpPolicy.Session session=followSession;
+        LinearLayout panel=column();
+        label(panel,s(R.string.deep_follow_notice),false);
+        EditText question=new EditText(owner);
+        question.setHint(R.string.deep_follow_question);question.setMinLines(2);question.setMaxLines(4);
+        question.setSaveEnabled(false);question.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
+        question.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(DeepFollowUpPolicy.MAX_QUESTION)});
+        WorkbenchStyle.field(owner,question);
+        WorkbenchStyle.fieldLabel(owner,panel,R.string.deep_follow_question,question);
+        panel.addView(question,WorkbenchStyle.row(owner));
+        Spinner selector=new Spinner(owner);
+        List<String> labels=new ArrayList<>();List<Integer> selectedSources=new ArrayList<>();
+        labels.add(s(R.string.deep_follow_auto));selectedSources.add(-1);
+        for(int i=0;i<session.report.plan.sources.size();i++)if(session.available(i)){
+            labels.add("D"+(i+1)+" · "+session.report.plan.sources.get(i).name);
+            selectedSources.add(i);
+        }
+        selector.setAdapter(WorkbenchStyle.spinnerChoices(selector,labels.toArray(new String[0])));
+        selector.setContentDescription(s(R.string.deep_follow_source));
+        OnHandGlyphs.spinner(selector);selector.setMinimumHeight(dp(48));
+        WorkbenchStyle.fieldLabel(owner,panel,R.string.deep_follow_source,selector);
+        panel.addView(selector,WorkbenchStyle.row(owner));
+        ScrollView scroll=new ScrollView(owner);scroll.addView(panel);
+        AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.deep_follow_ask).setView(scroll)
+                .setNegativeButton(R.string.cancel,null).setPositiveButton(R.string.deep_follow_review,null).create();
+        confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;});
+        d.show();secure(d);WorkbenchWindow.fit(owner,d);
+        d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
+            if(!visible()||busy()||confirmation!=d||followSession!=session||!eligible.getAsBoolean())return;
+            if(!startAuthorized.getAsBoolean()){toast(R.string.deep_follow_expired);return;}
+            final DeepFollowUpPolicy.Request request;
+            try{
+                int index=selector.getSelectedItemPosition();
+                if(index<0||index>=selectedSources.size())throw new IllegalArgumentException("Source selection");
+                request=session.prepare(question.getText().toString(),selectedSources.get(index));
+            }catch(IllegalArgumentException bad){toast(R.string.deep_follow_no_evidence);return;}
+            d.dismiss();
+            confirm(R.string.deep_follow_review,s(R.string.deep_follow_review_notice)+"\n\n"+request.prompt,
+                    ()->runFollowUp(session,request));
+        });
+    }
+    private void runFollowUp(DeepFollowUpPolicy.Session session,DeepFollowUpPolicy.Request request){
+        if(!visible()||busy()||followSession!=session||!session.current(request)||!eligible.getAsBoolean())return;
+        if(!startAuthorized.getAsBoolean()){toast(R.string.deep_follow_expired);return;}
+        if(!OllamaForegroundService.isRunning()){toast(R.string.test_need_server);return;}
+        if(!"off".equals(CoopSession.get(owner).role())){toast(R.string.guest_stop_first);return;}
+        status.setText(R.string.thinking);progress.setMax(1);progress.setProgress(0);
+        final DocumentBatchRunner active=new DocumentBatchRunner(owner,model);runner=active;
+        boolean started=work((lease,screen,main)->active.runFollowUp(request),answer->{
+            runner=null;
+            // No expiry recheck: this already admitted foreground request may finish.
+            if(followSession!=session||!session.current(request))return;
+            if(cancelRequested){status.setText(R.string.batch_stopped);return;}
+            try{
+                session.commit(request,answer);followTranscript.setText(session.transcript());
+                status.setText(R.string.deep_follow_done);progress.setProgress(1);
+            }catch(IllegalArgumentException invalid){status.setText(R.string.deep_follow_failed);}
+        },error->{
+            runner=null;status.setText(cancelRequested?R.string.batch_stopped:R.string.deep_follow_failed);
+        });
+        if(!started&&runner==active){runner=null;active.cancel();status.setText(R.string.deep_follow_failed);enabled();}
+    }
+    private void exportFollowUp(){
+        if(!(owner instanceof MainActivity)||!visible()||busy()||confirmation!=null||!eligible.getAsBoolean()||
+                followSession==null||followSession.count()==0)return;
+        final DeepFollowUpPolicy.Session reviewed=followSession;
+        final long revision=reviewed.count();
+        try{
+            ArtifactFileExport payload=ArtifactFileExport.prepare(ArtifactFileExport.Format.REPORT_TEXT,reviewed.transcript());
+            ((MainActivity)owner).requestWorkspaceArtifactExport(payload,
+                    ()->visible()&&!busy()&&confirmation==null&&followSession==reviewed&&reviewed.count()==revision&&eligible.getAsBoolean(),false);
+        }catch(Exception invalid){toast(R.string.artifact_file_export_invalid);}
+    }
     private void start(){
         if(!visible()||busy()||sources==null||!eligible.getAsBoolean())return;
         if(!startAuthorized.getAsBoolean()){toast(R.string.deep_locked);return;}
@@ -450,11 +553,14 @@ final class DocumentBatchUi {
         try{plan=new DocumentBatchPolicy.Plan(goal.getText().toString(),sources);}catch(IllegalArgumentException e){toast(R.string.batch_goal);return;}
         final String reviewed=goal.getText().toString();
         confirm(R.string.batch_start,owner.getString(R.string.batch_run_notice,plan.units.size(),plan.maxTotal(),
-                DocumentBatchPolicy.runtimeLimit(plan.sources.size())/60000L)+"\n\n"+coverage(sources)+"\n\n"+plannedCoverage(plan)+"\n\n"+s(R.string.batch_goal)+": "+reviewed,()->{
+                DocumentBatchPolicy.runtimeLimit(plan.sources.size())/60000L)+
+                (followSession!=null&&followSession.count()>0?"\n\n"+s(R.string.deep_follow_reset_notice):"")+
+                "\n\n"+coverage(sources)+"\n\n"+plannedCoverage(plan)+"\n\n"+s(R.string.batch_goal)+": "+reviewed,()->{
             if(busy()||!eligible.getAsBoolean()||!reviewed.equals(goal.getText().toString()))return;
             if(!startAuthorized.getAsBoolean()){toast(R.string.deep_locked);return;}
             if(!OllamaForegroundService.isRunning()){toast(R.string.test_need_server);return;}
             if(!"off".equals(CoopSession.get(owner).role())){toast(R.string.guest_stop_first);return;}
+            followSession=null;followTranscript.setText("");
             result=null;analyzed=null;reportRequests=0;reportElapsedMillis=0;reportStopReason=null;reportStatus=R.string.thinking;output.setText(coverage(sources)+"\n\n"+plannedCoverage(plan));status.setText(R.string.thinking);progress.setMax(plan.maxTotal());progress.setProgress(0);
             final DocumentBatchRunner active=new DocumentBatchRunner(owner,model);runner=active;
             boolean started=work((lease,screen,main)->active.run(plan,done->postProgress(lease,screen,main,()->{
