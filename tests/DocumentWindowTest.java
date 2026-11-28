@@ -20,7 +20,7 @@ public final class DocumentWindowTest {
         ok(r.sourceName().contains("segment 2")&&r.partial,"source label");
         try{read("report.txt","short",2);throw new AssertionError("range");}
         catch(AttachmentText.Failure e){ok(e.problem==AttachmentText.Problem.RANGE,"out of range");}
-        try{read("report.txt","short",257);throw new AssertionError("segment bound");}
+        try{read("report.txt","short",DocumentWindow.MAX_SEGMENTS+1);throw new AssertionError("segment bound");}
         catch(AttachmentText.Failure e){ok(e.problem==AttachmentText.Problem.RANGE,"segment cap");}
         String word="<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:r><w:t>"+
             "a".repeat(7000)+"</w:t></w:r></w:p><w:p><w:r><w:t>Later paragraph</w:t></w:r></w:p></w:body></w:document>";
@@ -28,7 +28,8 @@ public final class DocumentWindowTest {
         try(ZipOutputStream z=new ZipOutputStream(out)){z.putNextEntry(new ZipEntry("word/document.xml"));z.write(word.getBytes(StandardCharsets.UTF_8));z.closeEntry();}
         AttachmentText.Result doc=AttachmentText.read("report.docx",new ByteArrayInputStream(out.toByteArray()),2);
         ok(doc.office&&doc.segment==2&&doc.text.contains("[Paragraph 2] Later paragraph"),"later Word content");
-        ok(DocumentWindow.prefixLimit(256)<=1536000,"bounded extraction prefix");
+        ok(DocumentWindow.prefixLimit(DocumentWindow.MAX_OFFICE_SEGMENTS)<=1536000,"bounded Office extraction prefix");
+        ok(DocumentWindow.prefixLimit(DocumentWindow.MAX_SEGMENTS)>AttachmentText.MAX_BYTES,"All admitted plain bytes are addressable");
         System.out.println("DocumentWindowTest PASS: "+n+" assertions");
     }
 }

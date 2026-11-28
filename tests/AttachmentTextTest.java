@@ -13,6 +13,21 @@ public final class AttachmentTextTest {
     public static void main(String[] args)throws Exception{
         ok(read("a.TXT",bytes("한국어 中文 日本語")).text.equals("한국어 中文 日本語"),"Unicode");
         ok(read("a.csv",bytes("A,B\n1,2")).text.equals("A,B\n1,2"),"CSV source");
+        for(String name:new String[]{"main.PY","app.js","index.tsx","page.html","style.css","data.xml","config.yaml","query.sql","Main.java","Program.cs","main.cpp","game.gd","script.ps1","Dockerfile","Makefile",".gitignore","notebook.ipynb","notes.tex","chart.svg","data.jsonl","project.csproj","README"}){
+            ok(read(name,bytes("한국어 😀 source")).text.equals("한국어 😀 source"),"Plain source "+name);
+        }
+        for(String name:new String[]{"a.exe","a.apk","a.dll","a.zip","a.rar","a.hwp","a.doc","a.xls","a.mp3","../code.py"})
+            bad(name,bytes("not executable"),AttachmentText.Problem.UNSUPPORTED);
+        byte[] large=bytes("a".repeat(2*1024*1024)+"TAIL");
+        AttachmentText.Result tail=AttachmentText.read("big.log",new ByteArrayInputStream(large),350);
+        ok(tail.text.endsWith("TAIL")&&tail.rangeEnd==large.length,"Late window beyond prior 1 MB limit");
+        ok(AttachmentText.readPrefix("big.log",new ByteArrayInputStream(large),AttachmentText.Encoding.UNICODE,50).partial,"Bounded batch prefix");
+        byte[] lateBad=large.clone();lateBad[lateBad.length-1]=(byte)0xff;
+        bad("bad.py",lateBad,AttachmentText.Problem.INVALID);
+        byte[] edge=bytes("a".repeat(AttachmentText.MAX_BYTES));
+        ok(read("large.txt",edge).partial,"Exact larger byte cap");
+        bad("large.txt",java.util.Arrays.copyOf(edge,edge.length+1),AttachmentText.Problem.TOO_LARGE);
+        ok(AttachmentText.MAX_BYTES==16*1024*1024,"16 MiB text limit");
         ok(read("a.txt","한글".getBytes(StandardCharsets.UTF_16)).text.equals("한글"),"UTF16 BOM");
         ok(read("a.md",bytes("x".repeat(7000))).partial,"excerpt limit");
         ok(read("a.txt",bytes("x".repeat(5999)+"😀")).text.length()==5999,"surrogate boundary");

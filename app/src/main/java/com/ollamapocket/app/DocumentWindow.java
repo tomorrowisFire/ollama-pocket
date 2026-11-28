@@ -2,7 +2,7 @@ package com.ollamapocket.app;
 
 /** Bounded windows over extracted UTF-16 text, with contiguous surrogate-safe boundaries. */
 final class DocumentWindow {
-    static final int STRIDE=5999,MAX_SEGMENTS=256;
+    static final int STRIDE=5999,MAX_SEGMENTS=4096,MAX_OFFICE_SEGMENTS=256;
     private DocumentWindow(){}
     static boolean validSegment(int segment){return segment>=1&&segment<=MAX_SEGMENTS;}
     static int prefixLimit(int segment){
