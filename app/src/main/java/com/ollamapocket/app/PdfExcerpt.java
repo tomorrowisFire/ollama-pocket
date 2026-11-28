@@ -4,7 +4,7 @@ import java.util.Locale;
 
 /** Bounded page-labelled text excerpt; independent of Android's PDF parser. */
 final class PdfExcerpt {
-    static final int MAX_BYTES=8*1024*1024, MAX_PAGES=12;
+    static final int MAX_BYTES=64*1024*1024, MAX_PAGES=12;
     private PdfExcerpt(){}
     static boolean supports(String name){
         return name!=null&&name.toLowerCase(Locale.ROOT).endsWith(".pdf");

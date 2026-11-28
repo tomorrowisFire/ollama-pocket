@@ -462,7 +462,7 @@ final class OfficeText {
                     String raw=boundedAttr(a,T,"c");int n=1;
                     if(!raw.isEmpty())try{n=Integer.parseInt(raw);}catch(NumberFormatException e){throw new SAXException("ODF space count");}
                     if(n<1||n>10000)throw new SAXException("ODF space count");
-                    append(text," ".repeat(n));
+                    char[] spaces=new char[n];Arrays.fill(spaces,' ');append(text,new String(spaces));
                 }
             }
         }

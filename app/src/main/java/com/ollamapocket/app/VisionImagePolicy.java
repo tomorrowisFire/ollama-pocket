@@ -12,7 +12,7 @@ import java.util.zip.CRC32;
 
 /** Bounded static-image admission; no network, file paths, persistence or OCR. */
 final class VisionImagePolicy {
-    static final int MAX_SOURCE_BYTES = 8 * 1024 * 1024;
+    static final int MAX_SOURCE_BYTES = 16 * 1024 * 1024;
     static final int MAX_SOURCE_SIDE = 16384;
     static final long MAX_SOURCE_PIXELS = 40_000_000L;
     static final int MAX_SIDE = 1024, MAX_OUTPUT_BYTES = 2 * 1024 * 1024;

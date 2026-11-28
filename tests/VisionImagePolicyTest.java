@@ -85,6 +85,7 @@ public final class VisionImagePolicyTest {
             if(s>1){int half=s/2;ok(!VisionImagePolicy.validOutput((w+half-1)/half,(h+half-1)/half));}
         }
         int cap=VisionImagePolicy.MAX_SOURCE_BYTES;
+        ok(cap==16*1024*1024&&VisionImagePolicy.MAX_OUTPUT_BYTES==2*1024*1024);
         ok(VisionImagePolicy.read(new ByteArrayInputStream(new byte[cap]),()->false).length==cap);
         fails(IOException.class,()->VisionImagePolicy.read(new ByteArrayInputStream(new byte[cap+1]),()->false));
         fails(IOException.class,()->VisionImagePolicy.read(new ByteArrayInputStream(new byte[0]),()->false));

@@ -89,12 +89,8 @@ final class ImageOcr {
     }
     private static byte[] bounded(InputStream source)throws IOException{
         ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] buf=new byte[8192];int n;
-        while((n=source.read(buf))!=-1){
-            if(Thread.currentThread().isInterrupted())throw new InterruptedIOException();
-            if(n==0)continue;
-            if((long)out.size()+n>OcrPolicy.MAX_BYTES)throw new AttachmentText.Failure(AttachmentText.Problem.TOO_LARGE);
-            out.write(buf,0,n);
-        }
+        AttachmentText.BoundedSource bounded=new AttachmentText.BoundedSource(source,OcrPolicy.MAX_BYTES);
+        while((n=bounded.read(buf))!=-1)out.write(buf,0,n);
         return out.toByteArray();
     }
     private static Matrix orientation(int value){

@@ -61,14 +61,12 @@ final class PdfTextClient {
         try{
             temporary=File.createTempFile("pdf-excerpt-",".pdf",context.getCacheDir());
             long count=0;byte[] buf=new byte[8192];
+            AttachmentText.BoundedSource bounded=new AttachmentText.BoundedSource(source,PdfExcerpt.MAX_BYTES);
             try(FileOutputStream out=new FileOutputStream(temporary)){
                 int n;
-                while((n=source.read(buf))!=-1){
-                    if(Thread.currentThread().isInterrupted())throw new InterruptedIOException();
-                    if(n==0)continue;
-                    count+=n;
-                    if(count>PdfExcerpt.MAX_BYTES)throw failure(AttachmentText.Problem.TOO_LARGE);
-                    out.write(buf,0,n);
+                while((n=bounded.read(buf))!=-1){
+                    if(temporary.getUsableSpace()<n+16L*1024*1024)throw failure(AttachmentText.Problem.TOO_LARGE);
+                    count+=n;out.write(buf,0,n);
                 }
             }
             if(count<5)throw failure(AttachmentText.Problem.INVALID);

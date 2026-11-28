@@ -3,7 +3,7 @@ import java.util.Locale;
 
 /** Pure input and excerpt limits; never interprets recognized text as commands. */
 final class OcrPolicy {
-    static final int MAX_BYTES=8*1024*1024,MAX_SIDE=2048,MAX_PAGE=10000;
+    static final int MAX_BYTES=16*1024*1024,MAX_SIDE=2048,MAX_PAGE=10000;
     static final long MAX_SOURCE_PIXELS=100_000_000L,MAX_PIXELS=4_194_304L;
     enum Script { LATIN,KOREAN,CHINESE,JAPANESE }
     private OcrPolicy(){}

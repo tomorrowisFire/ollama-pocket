@@ -18,7 +18,7 @@ public final class OcrPolicyTest {
         ok(r.text.length()<=AttachmentText.MAX_EXCERPT&&r.partial,"excerpt cap");
         try{OcrPolicy.result("a.png"," \n\u0001",0,0);throw new AssertionError("empty accepted");}
         catch(AttachmentText.Failure e){ok(e.problem==AttachmentText.Problem.OCR_NO_TEXT,"empty");}
-        ok(AttachmentText.maxBytes("a.png")==OcrPolicy.MAX_BYTES,"file size");
+        ok(AttachmentText.maxBytes("a.png")==16*1024*1024&&OcrPolicy.MAX_BYTES==16*1024*1024,"16 MiB OCR input");
         System.out.println("OcrPolicyTest PASS: "+n+" assertions");
     }
 }
