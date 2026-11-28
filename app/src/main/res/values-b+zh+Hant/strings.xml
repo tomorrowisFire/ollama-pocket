@@ -169,9 +169,9 @@
     <string name="workspace_auto">自動（預設）</string>
     <string name="workspace_phone">手機模式</string>
     <string name="workspace_tablet">平板模式</string>
-    <string name="workspace_wide">雙欄配置</string>
-    <string name="workspace_compact">單欄配置</string>
-    <string name="workspace_help">自動模式在寬視窗中分欄顯示導覽與內容。平板模式亦支援中等寬度，狹窄的分割視窗會切換為單欄以避免裁切。</string>
+    <string name="workspace_wide">平板配置</string>
+    <string name="workspace_compact">手機配置</string>
+    <string name="workspace_help">手機和平板均使用按需開啟的側邊欄。平板在寬螢幕上擴大閱讀區域，窄視窗維持手機配置。</string>
     <string name="workspace_local_history">本機對話記錄</string>
     <string name="workspace_new_local">＋ 新建本機對話</string>
     <string name="workspace_no_history">尚無本機對話，請開始新對話。</string>
@@ -1385,4 +1385,9 @@
     <string name="billing_error">無法檢查 Google Play，請恢復購買後重試。</string>
     <string name="billing_cancelled">購買已取消。</string>
     <string name="billing_cached_session">保留本次工作階段已驗證的權限，無法重新驗證。</string>
+    <string name="header_home">返回首頁</string>
+    <string name="model_filter_source">搜尋來源</string>
+    <string name="model_filter_sort">排序方式</string>
+    <string name="model_filter_family">模型系列</string>
+    <string name="model_filter_quant">量化</string>
 </resources>

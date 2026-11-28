@@ -169,9 +169,9 @@
     <string name="workspace_auto">Automatic (default)</string>
     <string name="workspace_phone">Phone mode</string>
     <string name="workspace_tablet">Tablet mode</string>
-    <string name="workspace_wide">Two-pane layout</string>
-    <string name="workspace_compact">Single-pane layout</string>
-    <string name="workspace_help">Auto uses a wide window for the navigation and content panes. Tablet mode also supports medium-width windows. A narrow split-screen falls back to one pane to avoid clipping.</string>
+    <string name="workspace_wide">Tablet-width layout</string>
+    <string name="workspace_compact">Phone-width layout</string>
+    <string name="workspace_help">Phone and tablet use the same on-demand sidebar. Tablet mode widens the reading column on suitable screens; narrow windows keep the phone layout.</string>
     <string name="workspace_local_history">Local conversations</string>
     <string name="workspace_new_local">＋ New local chat</string>
     <string name="workspace_no_history">No saved local conversations. Start a new chat.</string>
@@ -1385,4 +1385,9 @@
     <string name="billing_error">Unable to check Google Play. Restore to retry.</string>
     <string name="billing_cancelled">Purchase cancelled.</string>
     <string name="billing_cached_session">Previously verified in this session; fresh verification unavailable.</string>
+    <string name="header_home">Home</string>
+    <string name="model_filter_source">Search source</string>
+    <string name="model_filter_sort">Sort order</string>
+    <string name="model_filter_family">Model family</string>
+    <string name="model_filter_quant">Quantization</string>
 </resources>

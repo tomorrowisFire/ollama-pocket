@@ -27,7 +27,10 @@ assert 'if(radius>0&&(color==CARD||color==FIELD))' not in src
 assert 'BUBBLE=p.bubble' in src
 assert 'R.style.OnHandTheme_Dark:R.style.OnHandTheme_Light' in src
 assert 'profile.setOnClickListener' not in src
-assert 'dp(300),Math.max(dp(228)' in src
+assert "WorkspaceLayoutPolicy.drawerWidthDp(workspaceMode" in src
+assert "if(menuButton!=null)menuButton.setVisibility(View.VISIBLE)" in src
+assert "createTabletRail(" not in src and "tabletRail" not in src and "currentRailDp" not in src
+assert "brandArtwork(" not in src
 assert 'SolarTheme.isNight(' in src
 assert 'switchAutoThemeWithoutRestart()' in src
 assert 'UiText.cityLabels(this)' in src and 'SolarTheme.CITY_CODES[index]' in src
@@ -80,8 +83,16 @@ assert 'AiPocketDrawerMotion' in src
 assert 'ViewPropertyAnimator' not in src or 'animate()' in src
 # Plain-text Help follows the existing three navigation items.
 drawer=src.split("private void showNavigationDrawer()",1)[1].split("private void ensureSessionListed(",1)[0]
-assert drawer.index("margin(diagnostics,shell")<drawer.index("TextView help=drawerHelpItem()")<drawer.index("drawer.setContentView(shell)")
+assert drawer.index("margin(diagnostics,shell")<drawer.index("TextView help=drawerHelpItem()")<drawer.index("drawer.setContentView(drawerScroll")
 help_item=src.split("private TextView drawerHelpItem()",1)[1].split("private void showNavigationDrawer()",1)[0]
 assert "R.string.help" in help_item and "OnHandGlyphs" not in help_item
 assert "help.setOnClickListener(v->{drawer.dismiss();showHelp();})" in drawer
-print('PASS: drawer navigation, plain help, max-six square device models, dynamic HUD, statusbar safe-area')
+assert drawer.count("new ScrollView(this)")==1
+assert "drawerScroll.setFillViewport(true)" in drawer
+assert "drawerScroll.addView(shell,new ScrollView.LayoutParams(-1,-2))" in drawer
+assert "shell.addView(chatList,lp(-1,-2))" in drawer
+assert "shell.addView(new View(this),new LinearLayout.LayoutParams(-1,0,1f))" in drawer
+assert "drawer.setContentView(drawerScroll,new ViewGroup.LayoutParams(-1,-1))" in drawer
+assert "SOFT_INPUT_ADJUST_RESIZE" in drawer and "WindowInsets.Type.ime()" in drawer
+assert "rowItem(heading,brandArtwork" not in drawer
+print('PASS: shared scrollable drawer, plain help, model navigation, dynamic HUD, safe insets')

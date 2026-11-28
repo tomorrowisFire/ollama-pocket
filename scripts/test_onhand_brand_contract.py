@@ -71,7 +71,7 @@ main=(src/"MainActivity.java").read_text()
 for required in ("BG=p.canvas","BUBBLE=p.bubble","brandSection(content,R.string.brand_model_filters",
     "brandSection(content,R.string.brand_app_preferences","brandSection(content,R.string.display",
     "brandSection(content,R.string.local_inference","brandSection(content,R.string.privacy",
-    "brandArtwork(36)","OnHandGlyphs.tile(this,glyph)",
+    "OnHandGlyphs.tile(this,glyph)",
     "iconAction(sendButton,OnHandGlyphs.Kind.SEND)","OnHandGlyphs.refresh(v)"):
     assert required in main,required
 # F10A59: chat-first home replaces the large hero and six descriptive cards.
@@ -130,18 +130,14 @@ assert "Intent.ACTION_OPEN_DOCUMENT" in vision and "PICK_VISION" in vision
 for locale in ("values","values-ko","values-ja","values-b+zh+Hans","values-b+zh+Hant"):
     strings=ET.parse(res/locale/"strings.xml").getroot()
     assert strings.find("string[@name='integration_vision']").text
-# F10A50: reflow both filter pairs without replacing their state or listeners.
-pair=main.split("private void responsiveModelFilterPair(",1)[1].split("private void createModelPage()",1)[0]
-for required in ("pair.setOrientation(LinearLayout.VERTICAL)","pair.addOnLayoutChangeListener(",
-    "getConfiguration().fontScale","WorkspaceLayoutPolicy.stackedModelFilters(",
-    "if(pair.getOrientation()==orientation)return","first.setLayoutParams(a);second.setLayoutParams(z)",
-    "a.setMarginEnd(dp(WorkspaceLayoutPolicy.GAP_DP))"):
-    assert required in pair,required
-for forbidden in ("setAdapter(","setSelection(","setOnItemSelectedListener(","removeView(","addView("):
-    assert forbidden not in pair,forbidden
-for required in ("responsiveModelFilterPair(searchOptions,sourceFilter,sortFilter)",
-    "responsiveModelFilterPair(filterRow,familyFilter,quantizationFilter)"):
-    assert required in main,required
+# F10A67: all four actual selectors share one measured, scrollable line.
+filter_layout=main.split("private void addModelFilter(",1)[1].split("private void createModelPage()",1)[0]
+for required in ("params.setMarginEnd(dp(WorkspaceLayoutPolicy.FILTER_GAP_DP))",
+    "line.addView(filter,params)","paint.measureText(value)","WorkspaceLayoutPolicy.filterChipWidthPx(",
+    "filter.getPaddingStart()+filter.getPaddingEnd()","params.width!=width","filter.setLayoutParams(params)"):
+    assert required in filter_layout,required
+for forbidden in ("setAdapter(","setSelection(","setOnItemSelectedListener(","removeView("):
+    assert forbidden not in filter_layout,forbidden
 # F10A51: shared status precedence and contrast in both grid/list renderers.
 status=main.split("private WorkbenchVisualPolicy.ModelStatus modelCardStatus(",1)[1].split("private LinearLayout buildModelTile(",1)[0]
 assert "item.id.equals(downloadingCardId)&&pullBusy" in status
@@ -298,12 +294,12 @@ for required in ("input.setBackgroundColor(Color.TRANSPARENT)","p.composerAction
     assert required in composer_style,required
 for forbidden in ("setOnClickListener(","setEnabled(","setText(","setFilters("):
     assert forbidden not in composer_style,forbidden
-tool_row=main.split("private View workbenchCard(",1)[1].split("private void responsiveModelFilterPair(",1)[0]
+tool_row=main.split("private View workbenchCard(",1)[1].split("private void addModelFilter(",1)[0]
 assert "card=row()" in tool_row and "card.setMinimumHeight(dp(56))" in tool_row
 assert "margin(caption,labels,3,0)" in tool_row and 'card.setContentDescription(title+" · "+detail)' in tool_row
 assert "card.setOnClickListener(v->action.run())" in tool_row
 # F10A61: flat section hierarchy and non-destructive detailed-filter disclosure.
-flat_section=main.split("private LinearLayout brandSection(",1)[1].split("private android.widget.ImageView brandArtwork(",1)[0]
+flat_section=main.split("private LinearLayout brandSection(",1)[1].split("private void createUi()",1)[0]
 assert "section.setBackground(" not in flat_section
 assert "margin(sectionTitle(title,glyph),section,0,6)" in flat_section
 nav_style=(src/"WorkbenchStyle.java").read_text().split("static void navigationRow(",1)[1].split("static void field(",1)[0]
@@ -314,20 +310,21 @@ for required in ("p.canvas","p.disabledText","p.focus","state_focused","state_en
 for forbidden in ("setOnClickListener(","setEnabled(","setText(","setVisibility(","setSelected("):
     assert forbidden not in nav_style,forbidden
 assert "for(Button button:flatNavigationButtons)WorkbenchStyle.navigationRow(this,button)" in main
-disclosure=main.split("private void refreshModelFilterDisclosure()",1)[1].split("private void createModelPage()",1)[0]
-for required in ("filterDisplay(selectedModelFamily)", "filterDisplay(selectedQuantization)",
-    "R.string.filter_label","R.string.collapse:R.string.expand","setContentDescription(","setTooltipText(",
-    "modelFilterDetails.setVisibility(visibility)"):
-    assert required in disclosure,required
-for forbidden in ("setSelection(","setAdapter(","onModelSearchChanged(","renderInstalledModels(","selectedModelFamily=","selectedQuantization="):
-    assert forbidden not in disclosure,forbidden
 model_page=main.split("private void createModelPage()",1)[1].split("private void createServerPage()",1)[0]
-assert "modelFilterDetailsExpanded=!modelFilterDetailsExpanded;" in model_page
-assert "margin(filterRow,modelFilterDetails,0,6)" in model_page
+assert "modelFilterDetails" not in main and "responsiveModelFilterPair(" not in main
+assert 'selectedSource="전체에서 찾기", selectedSort="추천 순"' in main
+assert "sourceFilter.setAdapter(makeFilterAdapter(" in model_page
+assert "sortFilter.setAdapter(makeFilterAdapter(" in model_page
 assert "margin(modelSearchStatus,searchPanel,0,8)" in model_page
-assert "responsiveModelFilterPair(searchOptions,sourceFilter,sortFilter)" in model_page
-assert "responsiveModelFilterPair(filterRow,familyFilter,quantizationFilter)" in model_page
-assert "refreshModelFilterDisclosure();\n        if(modelRows==null)return;" in main
+order=["addModelFilter(filterRow,sourceFilter,0)","addModelFilter(filterRow,sortFilter,1)",
+    "addModelFilter(filterRow,familyFilter,2)","addModelFilter(filterRow,quantizationFilter,3)"]
+assert [model_page.index(x) for x in order]==sorted(model_page.index(x) for x in order)
+assert "modelFilterStrip.addView(filterRow,new android.widget.HorizontalScrollView.LayoutParams(-2,-2))" in model_page
+assert "margin(modelFilterStrip,searchPanel,0,4);\n        modelRows=column();margin(modelRows,searchPanel,0,7)" in model_page
+assert "modelFilterStrip.setFillViewport(true)" in model_page
+assert "refreshModelFilterLabels();\n        if(modelRows==null)return;" in main
+assert "OnHandGlyphs.compactFilterSpinner(sourceFilter)" in model_page
+assert "OnHandGlyphs.compactFilterSpinner(quantizationFilter)" in model_page
 # F10A62: shared warm-neutral signature and quiet outline hierarchy.
 assert "flatNavigationButton(menu)" in main and "flatNavigationButton(fresh)" in main
 assert 'topPageTitle.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL))' in main
@@ -396,14 +393,21 @@ assert "v.setPaddingRelative(leading,leading,trailing,trailing)" in glyph_src
 # F10A64: user-approved real-device home feedback.
 assert main.index("rowItem(header,cloudShortcut,0,4)")<main.index("rowItem(header, fresh, 0, 0)")
 assert "OnHandGlyphs.stackedLabel(cloudShortcut,OnHandGlyphs.Kind.CLOUD)" in main
-assert "branding.setOnClickListener(v->openHeaderModelPicker())" in main
+assert "topPageTitle.setOnClickListener(v->openHomeFromHeader())" in main
+assert "topPageSubtitle.setOnClickListener(v->openHeaderModelPicker())" in main
+assert "branding.setOnClickListener(" not in main
+assert "topPageTitle.setMinHeight(dp(48))" in main and "topPageSubtitle.setMinHeight(dp(48))" in main
+title_home=main.split("private void openHomeFromHeader()",1)[1].split("private void openHeaderModelPicker()",1)[0]
+assert "if(isUiBusy())" in title_home and "if(cloudMode)returnToLocal()" in title_home
+assert "historyReadable&&history.length()==0&&pendingLocalPrompt.isEmpty()" in title_home
+assert "newChat();" in title_home and "openHeaderModelPicker(" not in title_home
 assert "modelChooser" not in main and "LinearLayout modelRow = row()" not in main
 assert "margin(starterPanel,localChatContent,0,0)" in main
 assert main.index("margin(starterPanel,localChatContent,0,0)")<main.index("margin(composer, localChatContent, 4, 2)")
 assert "margin(starterPanel,messages" not in main and "starterPanel=null" not in main
 assert "ChatWorkspacePolicy.homeActionsVisible(activeTab==0&&!cloudMode" in main
 assert "installParams=lp(-2,-2)" in main and "installParams.gravity=Gravity.CENTER_HORIZONTAL" in main
-assert "WorkbenchStyle.primaryButtonPaint(this,install,24)" in main
+assert "WorkbenchStyle.primaryButtonPaint(this,install,8)" in main
 picker=main.split("private void openHeaderModelPicker()",1)[1].split("private void selectModel(",1)[0]
 for required in ("if(knownModels.isEmpty()){showTab(1);return;}",".setSingleChoiceItems(entries,checked",
     "!knownModels.contains(entries[index])","selectModel(entries[index])","if(voice!=null)voice.cancel()"):

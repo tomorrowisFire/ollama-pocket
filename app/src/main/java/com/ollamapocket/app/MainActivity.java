@@ -120,7 +120,7 @@ public final class MainActivity extends Activity {
         if(chatInput==null||sendButton==null)return;
         boolean busy=isUiBusy();
         if(!chatBusy)sendButton.setEnabled(!busy&&ChatWorkspacePolicy.canSend(chatInput.getText().toString(),LocalChatTurns.MAX_PROMPT));
-        if(modelHeader!=null)modelHeader.setEnabled(!busy);
+        refreshHeaderEnabled(busy);
         if(attachFileButton!=null)attachFileButton.setEnabled(!busy);
         if(chatActionsButton!=null)chatActionsButton.setEnabled(!busy);
         if(cloudShortcut!=null)cloudShortcut.setEnabled(!busy);
@@ -184,13 +184,8 @@ public final class MainActivity extends Activity {
     private boolean showHud = true;
     private boolean smoothMotion = true;
     private String workspaceMode=WorkspaceLayoutPolicy.AUTO;
-    private LinearLayout workspace,tabletChats;
-    private ScrollView tabletRail;
-    private View tabletGap;
+    private LinearLayout workspace;
     private Button menuButton,workspaceModeButton;
-    private EditText tabletSearch;
-    private final TextView[] tabletLinks=new TextView[5];
-    private int currentRailDp;
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newCachedThreadPool();
@@ -200,9 +195,7 @@ public final class MainActivity extends Activity {
     private EditText modelFilter;
     private TextView modelSearchStatus;
     private Spinner familyFilter, quantizationFilter;
-    private Button modelFilterDetailsToggle;
-    private LinearLayout modelFilterDetails;
-    private boolean modelFilterDetailsExpanded;
+    private android.widget.HorizontalScrollView modelFilterStrip;
     private final java.util.List<Button> flatNavigationButtons=new java.util.ArrayList<>();
     private final List<ModelVariantCatalog.Variant> onlineVariants=new ArrayList<>();
     private final List<ModelVariantCatalog.Variant> recommendedVariants=new ArrayList<>();
@@ -255,7 +248,6 @@ public final class MainActivity extends Activity {
     private Dialog navigationDrawer;
     private LinearLayout messages, modelRows;
     private ScrollView messageScroll;
-    private LinearLayout modelHeader;
     private TextView serverStatus, miniStatus, progressStatus, logText, activeEngineLabel;
     private EditText chatInput, modelInput;
     private Button sendButton, stopChatButton, pullButton, cancelPullButton, downloadRetryButton;
@@ -616,7 +608,6 @@ public final class MainActivity extends Activity {
         if(localChatContent!=null)localChatContent.setVisibility(View.VISIBLE);
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
         refreshChatHeader();updateTypingChrome();refreshLatestButton();
-        refreshTabletRail();
     }
     @Override public void onBackPressed(){
         if(cloudMode){returnToLocal();return;}
@@ -792,12 +783,6 @@ public final class MainActivity extends Activity {
         margin(sectionTitle(title,glyph),section,0,6);
         margin(section,host,0,12);return section;
     }
-    private android.widget.ImageView brandArtwork(int size){
-        android.widget.ImageView art=new android.widget.ImageView(this);
-        art.setImageResource(R.drawable.onhand_approved_icon);art.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-        art.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-        art.setLayoutParams(lp(size,size));return art;
-    }
     private void createUi() {
         flatNavigationButtons.clear();
         LinearLayout root = column(); root.setBackgroundColor(BG);
@@ -841,17 +826,24 @@ public final class MainActivity extends Activity {
         menu.setMinWidth(dp(48));menu.setMinimumWidth(dp(48));menu.setTooltipText(getString(R.string.menu));
         iconAction(menu,OnHandGlyphs.Kind.MENU);flatNavigationButton(menu);rowItem(header, menu, 0, 9);
         menu.setOnClickListener(v -> showNavigationDrawer());
-        LinearLayout branding = column();modelHeader=branding;
+        LinearLayout branding = column();
         branding.setMinimumHeight(dp(48));branding.setGravity(Gravity.CENTER_VERTICAL);
-        branding.setOnClickListener(v->openHeaderModelPicker());
         topPageTitle = text(getString(R.string.app_name), 20, WHITE, true);
         topPageTitle.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));
         topPageTitle.setLetterSpacing(0.005f);
         topPageTitle.setSingleLine(true);topPageTitle.setEllipsize(TextUtils.TruncateAt.END);
-        branding.addView(topPageTitle);
+        topPageTitle.setMinHeight(dp(48));topPageTitle.setFocusable(true);
+        topPageTitle.setContentDescription(getString(R.string.app_name)+" · "+getString(R.string.header_home));
+        topPageTitle.setTooltipText(getString(R.string.header_home));
+        topPageTitle.setOnClickListener(v->openHomeFromHeader());
+        AdaptiveAnswerActions.feedback(topPageTitle,8);
+        branding.addView(topPageTitle,lp(-1,-2));
         topPageSubtitle=text(getString(R.string.coop_select_model),12,MUTED,false);
         topPageSubtitle.setSingleLine(true);topPageSubtitle.setEllipsize(TextUtils.TruncateAt.END);
-        branding.addView(topPageSubtitle);
+        topPageSubtitle.setMinHeight(dp(48));topPageSubtitle.setFocusable(true);
+        topPageSubtitle.setOnClickListener(v->openHeaderModelPicker());
+        AdaptiveAnswerActions.feedback(topPageSubtitle,8);
+        branding.addView(topPageSubtitle,lp(-1,-2));
         rowItem(header, branding, 1, 5);
         cloudShortcut=button(getString(R.string.header_cloud),false);
         cloudShortcut.setTextSize(11*uiTextScale);
@@ -891,18 +883,14 @@ public final class MainActivity extends Activity {
         pages = new FrameLayout(this);
         workspace=new LinearLayout(this);
         workspace.setOrientation(LinearLayout.HORIZONTAL);
-        tabletRail=createTabletRail();
-        tabletGap=new View(this);
-        tabletRail.setVisibility(View.GONE);tabletGap.setVisibility(View.GONE);
-        workspace.addView(tabletRail,new LinearLayout.LayoutParams(0,-1));
-        workspace.addView(tabletGap,new LinearLayout.LayoutParams(dp(WorkspaceLayoutPolicy.GAP_DP),-1));
-        workspace.addView(pages,new LinearLayout.LayoutParams(0,-1,1f));
+        // One on-demand drawer for phone, tablet and multi-window.
+        workspace.addView(pages,new LinearLayout.LayoutParams(-1,-1));
         root.addView(workspace,new LinearLayout.LayoutParams(-1,0,1f));
         createChatPage(); createModelPage(); createServerPage(); createDiagnosticsPage();
         pages.addView(chatPage); pages.addView(modelPage);
         pages.addView(serverPage); pages.addView(diagnosticPage);
         // Measure the actual usable window, including multi-window and landscape cutouts.
-        // Switch panes without recreating the Activity, engine, draft or cloud panel.
+        // Reflow only the reading column; the drawer remains on demand.
         workspace.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
             if(r-l!=or-ol)applyWorkspaceLayout();
         });
@@ -916,8 +904,9 @@ public final class MainActivity extends Activity {
     }
     private void refreshWorkspaceModeLabel(){
         if(workspaceModeButton==null)return;
+        int width=workspace==null?0:(int)(workspace.getWidth()/getResources().getDisplayMetrics().density);
         workspaceModeButton.setText(getString(R.string.workspace_mode)+" · "+getString(workspaceChoiceLabel())+
-            "\n"+getString(currentRailDp>0?R.string.workspace_wide:R.string.workspace_compact));
+            "\n"+getString(WorkspaceLayoutPolicy.tabletPresentation(workspaceMode,width)?R.string.workspace_wide:R.string.workspace_compact));
     }
     /** Only app-authored settings selections; platform and ad dialogs remain unchanged. */
     private void showCompactSettingsDialog(AlertDialog.Builder builder){
@@ -936,24 +925,21 @@ public final class MainActivity extends Activity {
             }).setNegativeButton(R.string.cancel,null));
     }
     private void applyWorkspaceLayout(){
-        if(workspace==null||tabletRail==null||isFinishing()||isDestroyed())return;
-        int widthDp=(int)(workspace.getWidth()/getResources().getDisplayMetrics().density);
-        float scale=uiTextScale*Math.max(1f,getResources().getConfiguration().fontScale);
-        int desired=WorkspaceLayoutPolicy.railWidthDp(workspaceMode,widthDp,scale);
-        if(desired!=currentRailDp){
-            currentRailDp=desired;
-            LinearLayout.LayoutParams lp=(LinearLayout.LayoutParams)tabletRail.getLayoutParams();
-            lp.width=dp(desired);tabletRail.setLayoutParams(lp);
-            boolean wide=desired>0;
-            tabletRail.setVisibility(wide?View.VISIBLE:View.GONE);
-            tabletGap.setVisibility(wide?View.VISIBLE:View.GONE);
-            if(menuButton!=null)menuButton.setVisibility(wide?View.GONE:View.VISIBLE);
-            if(wide&&navigationDrawer!=null&&navigationDrawer.isShowing())navigationDrawer.dismiss();
-            if(wide)refreshTabletRail();
-        }
+        if(workspace==null||isFinishing()||isDestroyed())return;
+        if(menuButton!=null)menuButton.setVisibility(View.VISIBLE);
         refreshWorkspaceModeLabel();
-        // The new-chat control remains a single icon at every screen width.
-        if(localChatContent!=null)localChatContent.post(this::applyChatLayout);
+        if(localChatContent!=null)localChatContent.post(this::applyChatReadingWidth);
+    }
+    private void applyChatReadingWidth(){
+        if(localChatContent==null||isFinishing()||isDestroyed())return;
+        int width=localChatContent.getWidth();
+        if(width<=0)return;
+        float density=getResources().getDisplayMetrics().density;
+        if(!Float.isFinite(density)||density<=0)return;
+        int side=Math.max(0,(width-dp(WorkspaceLayoutPolicy.readingColumnDp(workspaceMode,(int)(width/density))))/2);
+        if(localChatContent.getPaddingLeft()!=side||localChatContent.getPaddingRight()!=side)
+            localChatContent.setPadding(side,0,side,0);
+        applyChatLayout();refreshBubbleWidths();
     }
     private void updateTypingChrome(){
         float scale=uiTextScale*Math.max(1f,getResources().getConfiguration().fontScale);
@@ -984,61 +970,13 @@ public final class MainActivity extends Activity {
         }
         if(starterPanel!=null&&starterPanel.getParent()!=null){int columns=ChatWorkspacePolicy.starterColumns(width,scale);if(columns!=starterColumns)populateStarterCards(columns);}
     }
-    private ScrollView createTabletRail(){
-        ScrollView scroll=new ScrollView(this);
-        scroll.setFillViewport(true);
-        scroll.setBackground(bg(CARD,14));
-        LinearLayout rail=column();rail.setPadding(dp(10),dp(10),dp(10),dp(10));
-        scroll.addView(rail,new ScrollView.LayoutParams(-1,-2));
-        Button fresh=button(getString(R.string.workspace_new_local),true);
-        fresh.setMinHeight(dp(48));margin(fresh,rail,0,8);
-        fresh.setOnClickListener(v->{
-            if(chatBusy||(cloudPanel!=null&&cloudPanel.isBusy())){toast(getString(R.string.busy));return;}
-            if(cloudMode)returnToLocal();
-            newChat();
-        });
-        int[] titles={R.string.cloud_return,R.string.cloud_short,R.string.models,R.string.settings,R.string.devices};
-        for(int i=0;i<titles.length;i++){
-            final int target=i;
-            TextView item=drawerRow(getString(titles[i]),"",false);
-            item.setMinHeight(dp(48));item.setFocusable(true);item.setClickable(true);
-            tabletLinks[i]=item;margin(item,rail,0,3);
-            item.setOnClickListener(v->{
-                if(target==1){openCloud();return;}
-                if(target==0){if(cloudMode){if(cloudPanel!=null&&cloudPanel.isBusy()){toast(getString(R.string.busy));return;}returnToLocal();}showTab(0);return;}
-                if(cloudPanel!=null&&cloudPanel.isBusy()){toast(getString(R.string.busy));return;}
-                showTab(target-1);
-            });
-        }
-        margin(text(getString(R.string.workspace_local_history),12,MUTED,true),rail,14,5);
-        tabletSearch=edit(getString(R.string.chat_search_content),"",false);
-        tabletSearch.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(LocalChatLibrary.MAX_QUERY)});
-        tabletSearch.setSingleLine(true);tabletSearch.setMinHeight(dp(48));margin(tabletSearch,rail,0,7);
-        tabletChats=column();margin(tabletChats,rail,0,4);
-        TextView help=drawerHelpItem();margin(help,rail,4,0);help.setOnClickListener(v->showHelp());
-        tabletSearch.addTextChangedListener(new TextWatcher(){
-            @Override public void beforeTextChanged(CharSequence s,int start,int count,int after){}
-            @Override public void onTextChanged(CharSequence s,int start,int before,int count){refreshTabletRail();}
-            @Override public void afterTextChanged(Editable e){}
-        });
-        return scroll;
-    }
-    private void refreshTabletRail(){
-        if(currentRailDp<=0||tabletChats==null||tabletSearch==null)return;
-        int selected=cloudMode?1:activeTab==0?0:activeTab+1;
-        for(int i=0;i<tabletLinks.length;i++){
-            TextView item=tabletLinks[i];if(item==null)continue;
-            boolean active=i==selected;
-            item.setSelected(active);item.setTypeface(Typeface.DEFAULT,active?Typeface.BOLD:Typeface.NORMAL);
-            item.setBackground(bg(active?FIELD:BG,10));
-            item.setContentDescription(item.getText()+(active?" · "+getString(R.string.workspace_selected):""));
-        }
-        renderDrawerChats(tabletChats,null,allSavedConversations(),tabletSearch.getText().toString());
-    }
     private int chatBubbleMaxWidth(){
         int width=messageScroll==null?0:messageScroll.getWidth();
-        if(width<=0)width=workspace==null?getResources().getDisplayMetrics().widthPixels:workspace.getWidth()-dp(currentRailDp+(currentRailDp>0?WorkspaceLayoutPolicy.GAP_DP:0));
-        if(width<=0)width=getResources().getDisplayMetrics().widthPixels;
+        if(width<=0){
+            int available=workspace==null?0:workspace.getWidth();
+            if(available<=0)available=getResources().getDisplayMetrics().widthPixels;
+            width=dp(WorkspaceLayoutPolicy.readingColumnDp(workspaceMode,(int)(available/getResources().getDisplayMetrics().density)));
+        }
         int padding=messages==null?dp(8):messages.getPaddingLeft()+messages.getPaddingRight();
         return Math.max(dp(80),Math.min(dp(640),(int)(Math.max(0,width-padding)*0.86f)));
     }
@@ -1070,11 +1008,7 @@ public final class MainActivity extends Activity {
         chatPage.addView(localChatContent,new LinearLayout.LayoutParams(-1,0,1));
         localChatContent.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
             if(r-l==or-ol)return;
-            // Keep long conversations readable even on large external displays.
-            int widthDp=(int)((r-l)/getResources().getDisplayMetrics().density);
-            int side=Math.max(0,(r-l-dp(WorkspaceLayoutPolicy.readingColumnDp(widthDp)))/2);
-            if(v.getPaddingLeft()!=side||v.getPaddingRight()!=side)v.setPadding(side,0,side,0);
-            applyChatLayout();
+            applyChatReadingWidth();
         });
         activeEngineLabel = text(getString(R.string.engine_idle), 11, MUTED, false);
         activeEngineLabel.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
@@ -1241,38 +1175,34 @@ public final class MainActivity extends Activity {
     }
 
     /** Reflow the same Spinner instances, retaining selections, adapters and listeners. */
-    private void responsiveModelFilterPair(LinearLayout pair,Spinner first,Spinner second){
-        pair.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams initial=lp(-1,-2);initial.bottomMargin=dp(WorkbenchVisualPolicy.GAP_DP);
-        first.setLayoutParams(initial);second.setLayoutParams(lp(-1,-2));
-        pair.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
-            int usable=r-l-pair.getPaddingLeft()-pair.getPaddingRight();
-            if(usable<=0)return;
-            float density=getResources().getDisplayMetrics().density;
-            if(!Float.isFinite(density)||density<=0)return;
-            float scale=uiTextScale*Math.max(1f,getResources().getConfiguration().fontScale);
-            boolean stack=WorkspaceLayoutPolicy.stackedModelFilters((int)(usable/density),scale);
-            int orientation=stack?LinearLayout.VERTICAL:LinearLayout.HORIZONTAL;
-            if(pair.getOrientation()==orientation)return;
-            pair.setOrientation(orientation);
-            LinearLayout.LayoutParams a=stack?lp(-1,-2):new LinearLayout.LayoutParams(0,-2,1f);
-            LinearLayout.LayoutParams z=stack?lp(-1,-2):new LinearLayout.LayoutParams(0,-2,1f);
-            if(stack)a.bottomMargin=dp(WorkbenchVisualPolicy.GAP_DP);
-            else a.setMarginEnd(dp(WorkspaceLayoutPolicy.GAP_DP));
-            first.setLayoutParams(a);second.setLayoutParams(z);
-        });
+    /** Keep all four native selectors on one line, with measured label widths. */
+    private void addModelFilter(LinearLayout line,Spinner filter,int index){
+        LinearLayout.LayoutParams params=lp(48,-2);
+        if(index<3)params.setMarginEnd(dp(WorkspaceLayoutPolicy.FILTER_GAP_DP));
+        line.addView(filter,params);
     }
-
-    private void refreshModelFilterDisclosure(){
-        if(modelFilterDetailsToggle==null||modelFilterDetails==null)return;
-        String selected=filterDisplay(selectedModelFamily)+" · "+filterDisplay(selectedQuantization);
-        String action=getString(modelFilterDetailsExpanded?R.string.collapse:R.string.expand);
-        String label=selected+(modelFilterDetailsExpanded?"  ▴":"  ▾");
-        if(!TextUtils.equals(modelFilterDetailsToggle.getText(),label))modelFilterDetailsToggle.setText(label);
-        modelFilterDetailsToggle.setContentDescription(getString(R.string.filter_label)+" · "+selected+" · "+action);
-        modelFilterDetailsToggle.setTooltipText(action);
-        int visibility=modelFilterDetailsExpanded?View.VISIBLE:View.GONE;
-        if(modelFilterDetails.getVisibility()!=visibility)modelFilterDetails.setVisibility(visibility);
+    private void refreshModelFilterLabels(){
+        Spinner[] filters={sourceFilter,sortFilter,familyFilter,quantizationFilter};
+        int[] labels={R.string.model_filter_source,R.string.model_filter_sort,R.string.model_filter_family,R.string.model_filter_quant};
+        String[] values={selectedSource,selectedSort,selectedModelFamily,selectedQuantization};
+        android.text.TextPaint paint=new android.text.TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        paint.setTypeface(Typeface.create(Typeface.DEFAULT,Typeface.BOLD));
+        paint.setTextSize(android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP,
+            11*uiTextScale,getResources().getDisplayMetrics()));
+        for(int i=0;i<filters.length;i++){
+            Spinner filter=filters[i];
+            if(filter==null)continue;
+            String value=filterDisplay(values[i]),label=getString(labels[i])+" · "+value;
+            if(!TextUtils.equals(filter.getContentDescription(),label)){
+                filter.setContentDescription(label);filter.setTooltipText(label);
+            }
+            ViewGroup.LayoutParams params=filter.getLayoutParams();
+            if(params!=null){
+                int width=WorkspaceLayoutPolicy.filterChipWidthPx(paint.measureText(value),dp(48),
+                    filter.getPaddingStart()+filter.getPaddingEnd()+dp(4));
+                if(params.width!=width){params.width=width;filter.setLayoutParams(params);}
+            }
+        }
     }
     private void createModelPage() {
         modelPage=column();
@@ -1310,21 +1240,17 @@ public final class MainActivity extends Activity {
             if(action!=android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH)return false;
             onModelSearchChanged(modelFilter.getText().toString(),true);return true;
         });
-        LinearLayout searchOptions=row();
-        sourceFilter=new Spinner(this);sourceFilter.setBackground(bg(FIELD,12));
-        sourceFilter.setMinimumHeight(dp(46));
+        sourceFilter=new Spinner(this,Spinner.MODE_DROPDOWN);sourceFilter.setBackground(bg(FIELD,12));
+        sourceFilter.setMinimumHeight(dp(48));
         sourceFilter.setAdapter(makeFilterAdapter(java.util.Arrays.asList("전체에서 찾기","Ollama에서 찾기","Hugging Face에서 찾기")));
-        sortFilter=new Spinner(this);sortFilter.setBackground(bg(FIELD,12));sortFilter.setMinimumHeight(dp(46));
+        sortFilter=new Spinner(this,Spinner.MODE_DROPDOWN);sortFilter.setBackground(bg(FIELD,12));sortFilter.setMinimumHeight(dp(48));
         sortFilter.setAdapter(makeFilterAdapter(java.util.Arrays.asList("추천 순","용량 작은 순","용량 큰 순","이름 순")));
-        rowItem(searchOptions,sourceFilter,1,6);rowItem(searchOptions,sortFilter,1,0);
-        OnHandGlyphs.spinner(sourceFilter);OnHandGlyphs.spinner(sortFilter);
-        responsiveModelFilterPair(searchOptions,sourceFilter,sortFilter);
-        margin(searchOptions,searchPanel,0,8);
+        OnHandGlyphs.compactFilterSpinner(sourceFilter);OnHandGlyphs.compactFilterSpinner(sortFilter);
         sourceFilter.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
             @Override public void onNothingSelected(AdapterView<?> p){}
             @Override public void onItemSelected(AdapterView<?> p,View view,int pos,long id){
                 String next=String.valueOf(p.getItemAtPosition(pos));
-                if(!next.equals(selectedSource)){selectedSource=next;onModelSearchChanged(modelFilter.getText().toString());}
+                if(!next.equals(selectedSource)){selectedSource=next;refreshModelFilterLabels();onModelSearchChanged(modelFilter.getText().toString());}
             }
         });
         sortFilter.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
@@ -1343,30 +1269,23 @@ public final class MainActivity extends Activity {
             }
             @Override public void afterTextChanged(Editable s){}
         });
-        modelFilterDetailsToggle=button(getString(R.string.filter_label),false);
-        flatNavigationButton(modelFilterDetailsToggle);margin(modelFilterDetailsToggle,searchPanel,0,4);
-        modelFilterDetails=column();
-        LinearLayout filterRow=row();
-        familyFilter=new Spinner(this);
-        familyFilter.setBackground(bg(FIELD,12));
-        familyFilter.setMinimumHeight(dp(46));
-        quantizationFilter=new Spinner(this);
-        quantizationFilter.setBackground(bg(FIELD,12));
-        quantizationFilter.setMinimumHeight(dp(46));
-        rowItem(filterRow,familyFilter,1,6);
-        rowItem(filterRow,quantizationFilter,1,0);
-        OnHandGlyphs.spinner(familyFilter);OnHandGlyphs.spinner(quantizationFilter);
-        responsiveModelFilterPair(filterRow,familyFilter,quantizationFilter);
-        margin(filterRow,modelFilterDetails,0,6);
-        margin(modelFilterDetails,searchPanel,0,0);
-        modelFilterDetailsToggle.setOnClickListener(v->{
-            modelFilterDetailsExpanded=!modelFilterDetailsExpanded;
-            refreshModelFilterDisclosure();
-        });
-        refreshModelFilterDisclosure();
-        margin(top,content,2,8);margin(viewModeRow,content,0,10);
-        populateModelFilters();
-        modelRows=column();margin(modelRows,content,0,7);
+        familyFilter=new Spinner(this,Spinner.MODE_DROPDOWN);
+        familyFilter.setBackground(bg(FIELD,12));familyFilter.setMinimumHeight(dp(48));
+        quantizationFilter=new Spinner(this,Spinner.MODE_DROPDOWN);
+        quantizationFilter.setBackground(bg(FIELD,12));quantizationFilter.setMinimumHeight(dp(48));
+        OnHandGlyphs.compactFilterSpinner(familyFilter);OnHandGlyphs.compactFilterSpinner(quantizationFilter);
+        // Put result count, refresh and view-mode controls above the selector strip.
+        margin(top,searchPanel,0,6);margin(viewModeRow,searchPanel,0,8);
+        modelFilterStrip=new android.widget.HorizontalScrollView(this);
+        modelFilterStrip.setFillViewport(true);modelFilterStrip.setHorizontalScrollBarEnabled(true);
+        modelFilterStrip.setScrollbarFadingEnabled(false);
+        LinearLayout filterRow=row();filterRow.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);
+        addModelFilter(filterRow,sourceFilter,0);addModelFilter(filterRow,sortFilter,1);
+        addModelFilter(filterRow,familyFilter,2);addModelFilter(filterRow,quantizationFilter,3);
+        modelFilterStrip.addView(filterRow,new android.widget.HorizontalScrollView.LayoutParams(-2,-2));
+        margin(modelFilterStrip,searchPanel,0,4);
+        modelRows=column();margin(modelRows,searchPanel,0,7);
+        populateModelFilters();refreshModelFilterLabels();
         modelRows.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
             int width=r-l;
             if(width>0&&width!=lastModelGridWidth){lastModelGridWidth=width;ui.post(this::renderInstalledModels);}
@@ -1921,7 +1840,6 @@ public final class MainActivity extends Activity {
         refreshChatHeader();refreshHeaderAccess();updateTypingChrome();refreshLatestButton();
         if(activeTab==1)loadRecommendedVariants(false);
         if(activeTab==3)refreshDiagnosticViews();
-        refreshTabletRail();
     }
 
     private void showFirstRunGuide() {
@@ -2111,8 +2029,9 @@ public final class MainActivity extends Activity {
         ArrayAdapter<String> adapter=new ArrayAdapter<String>(this,
                 android.R.layout.simple_spinner_item,options){
             @Override public View getView(int pos,View recycled,ViewGroup parent){
-                TextView view=text(filterDisplay(getItem(pos)),13,WHITE,true);
-                view.setPadding(dp(11),dp(8),dp(3),dp(8));
+                TextView view=text(filterDisplay(getItem(pos)),11,WHITE,true);
+                view.setPadding(0,dp(6),0,dp(6));
+                view.setSingleLine(true);view.setEllipsize(TextUtils.TruncateAt.END);
                 return view;
             }
             @Override public View getDropDownView(int pos,View recycled,ViewGroup parent){
@@ -2278,7 +2197,7 @@ public final class MainActivity extends Activity {
                 if(!next.equals(selectedQuantization)){selectedQuantization=next;renderInstalledModels();}
             }
         });
-        refreshModelFilterDisclosure();
+        refreshModelFilterLabels();
     }
 
     private boolean matchesQuantization(String quant) {
@@ -2876,7 +2795,7 @@ public final class MainActivity extends Activity {
     }
 
     private void renderInstalledModels() {
-        refreshModelFilterDisclosure();
+        refreshModelFilterLabels();
         if(modelRows==null)return;
         modelRows.removeAllViews();
         tileStatusLabels.clear();
@@ -2968,6 +2887,19 @@ public final class MainActivity extends Activity {
         updateTileDownloadProgress();
     }
 
+    /** The title returns to an empty local home; only the subtitle selects models. */
+    private void openHomeFromHeader(){
+        if(!foreground||guestOnly||isFinishing()||isDestroyed())return;
+        if(isUiBusy()){toast(getString(R.string.busy));return;}
+        closeWorkbench();
+        if(cloudMode)returnToLocal();
+        // Keep an unsent draft when already on the empty home.
+        if(historyReadable&&history.length()==0&&pendingLocalPrompt.isEmpty()){
+            showTab(0);return;
+        }
+        // Reuse normal new-chat navigation, retaining the previous history and draft.
+        newChat();
+    }
     private void openHeaderModelPicker(){
         if(activeTab!=0||cloudMode||guestOnly||!foreground)return;
         if(isUiBusy()){toast(getString(R.string.model_wait));return;}
@@ -3151,7 +3083,6 @@ public final class MainActivity extends Activity {
             .putString(listKey(),index.toString());
         if(!prefs.contains(scope))change.putString(scope,history.toString());
         change.apply();
-        refreshTabletRail();
     }
     private void saveLocalDraft(){
         if(guestOnly||chatInput==null||currentModel.isEmpty()||!historyReadable||!ownsLoadedScope())return;
@@ -3307,7 +3238,7 @@ public final class MainActivity extends Activity {
                 final boolean partial=incomplete,capped=limited;
                 ui.post(()->{
                     if(isFinishing()||isDestroyed()||serial!=chatSearchSerial||
-                        (drawer!=null&&!drawer.isShowing())||(drawer==null&&currentRailDp<=0))return;
+                        drawer==null||!drawer.isShowing())return;
                     renderDrawerChatItems(list,drawer,found,false,capped,partial);
                 });
             });
@@ -3371,7 +3302,7 @@ public final class MainActivity extends Activity {
             if(!raw.equals(prefs.getString(key,"[]")))throw new IllegalStateException("Conversation list changed");
             prefs.edit().putString(key,index.toString()).apply();
             if(drawer!=null)drawer.dismiss();
-            refreshChatHeader();refreshTabletRail();toast(getString(R.string.chat_manage_done));
+            refreshChatHeader();toast(getString(R.string.chat_manage_done));
         }catch(Exception e){toast(getString(R.string.chat_manage_failed));}
     }
     private void manageConversation(DrawerChat entry,Dialog drawer){
@@ -3423,37 +3354,44 @@ public final class MainActivity extends Activity {
     }
 
     /**
-     * Chat-style left sidebar with scrollable history and pinned app navigation.
+     * Shared on-demand sidebar: one scroll surface from new chat to Help.
      * The previous bottom navigation strip is intentionally removed.
      */
     private void showNavigationDrawer(){
         if(navigationDrawer!=null&&navigationDrawer.isShowing())return;
         Dialog drawer=new Dialog(this);
+        drawer.requestWindowFeature(Window.FEATURE_NO_TITLE);
         navigationDrawer=drawer;
+        ScrollView drawerScroll=new ScrollView(this);
+        drawerScroll.setFillViewport(true);drawerScroll.setVerticalScrollBarEnabled(true);
         LinearLayout shell=column();
+        drawerScroll.addView(shell,new ScrollView.LayoutParams(-1,-2));
+        shell.setFocusableInTouchMode(true);
         shell.setBackgroundColor(BG);
         shell.setElevation(dp(2));
         // Sidebar title and new conversation must clear the top status/cutout.
         shell.setPadding(dp(10),dp(14),dp(10),dp(10));
         shell.setOnApplyWindowInsetsListener((view,insets)->{
-            int top,bottom;
+            int top,bottom,left=0,right=0,ime=0;
             if(Build.VERSION.SDK_INT>=30){
-                top=insets.getInsets(WindowInsets.Type.statusBars()|
-                    WindowInsets.Type.displayCutout()).top;
-                bottom=insets.getInsets(WindowInsets.Type.navigationBars()).bottom;
+                android.graphics.Insets bars=insets.getInsets(WindowInsets.Type.statusBars()|
+                    WindowInsets.Type.navigationBars()|WindowInsets.Type.displayCutout());
+                top=bars.top;bottom=bars.bottom;left=bars.left;right=bars.right;
+                if(insets.isVisible(WindowInsets.Type.ime()))ime=insets.getInsets(WindowInsets.Type.ime()).bottom;
             }else{
                 top=insets.getSystemWindowInsetTop();
                 bottom=insets.getSystemWindowInsetBottom();
             }
-            // Do not double count if Android already inset the dialog.
-            int extraTop=Build.VERSION.SDK_INT>=35?top:0;
-            int extraBottom=Build.VERSION.SDK_INT>=35?bottom:0;
-            view.setPadding(dp(10),dp(14)+extraTop,dp(10),dp(10)+extraBottom);
+            boolean edge=Build.VERSION.SDK_INT>=35;
+            int extraTop=edge?top:0,extraBottom=edge?Math.max(bottom,ime):0;
+            int safeLeft=dp(10)+(edge?left:0),safeRight=dp(10)+(edge?right:0);
+            if(view.getPaddingLeft()!=safeLeft||view.getPaddingRight()!=safeRight||
+                view.getPaddingTop()!=dp(14)+extraTop||view.getPaddingBottom()!=dp(10)+extraBottom)
+                view.setPadding(safeLeft,dp(14)+extraTop,safeRight,dp(10)+extraBottom);
             return insets;
         });
 
         LinearLayout heading=row();
-        rowItem(heading,brandArtwork(36),0,9);
         TextView product=text(getString(R.string.app_name),18,WHITE,true);
         rowItem(heading,product,1,8);
         Button close=button("×",false);
@@ -3479,13 +3417,10 @@ public final class MainActivity extends Activity {
         search.setMinHeight(dp(44));
         margin(search,shell,0,9);
         margin(text(getString(R.string.recent_chats),12,MUTED,true),shell,0,5);
-        ScrollView scroll=new ScrollView(this);
-        scroll.setFillViewport(false);
-        scroll.setVerticalScrollBarEnabled(true);
         LinearLayout chatList=column();
         chatList.setPadding(dp(0),dp(0),dp(2),dp(8));
-        scroll.addView(chatList);
-        shell.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        // History and every destination belong to the same scroll view.
+        shell.addView(chatList,lp(-1,-2));
         final List<DrawerChat> conversations=allSavedConversations();
         renderDrawerChats(chatList,drawer,conversations,"");
         search.addTextChangedListener(new TextWatcher(){
@@ -3496,6 +3431,8 @@ public final class MainActivity extends Activity {
             @Override public void afterTextChanged(Editable s){}
         });
 
+        // Short content fills the viewport; overflowing content scrolls to the last item.
+        shell.addView(new View(this),new LinearLayout.LayoutParams(-1,0,1f));
         View separator=new View(this);
         separator.setBackgroundColor(FIELD);
         LinearLayout.LayoutParams separatorParams=lp(-1,1);
@@ -3515,7 +3452,8 @@ public final class MainActivity extends Activity {
         TextView help=drawerHelpItem();margin(help,shell,0,0);
         help.setOnClickListener(v->{drawer.dismiss();showHelp();});
 
-        drawer.setContentView(shell);
+        drawer.setContentView(drawerScroll,new ViewGroup.LayoutParams(-1,-1));
+        shell.requestFocus();
         drawer.setOnDismissListener(d->{
             chatSearchSerial++;
             if(chatSearchTask!=null)chatSearchTask.cancel(true);
@@ -3531,16 +3469,17 @@ public final class MainActivity extends Activity {
             window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
             window.setDimAmount(0.22f);
             window.setGravity(Gravity.START|Gravity.TOP);
+            window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE|WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
             if(animationsEnabled())window.setWindowAnimations(R.style.AiPocketDrawerMotion);
         }
         drawer.show();
-        shell.post(shell::requestApplyInsets);
+        drawerScroll.post(()->{if(drawer.isShowing())drawerScroll.requestApplyInsets();});
         if(window!=null){
-            int available=getResources().getDisplayMetrics().widthPixels;
-            int width=Math.min(dp(300),Math.max(dp(228),available-dp(56)));
-            window.setLayout(width,WindowManager.LayoutParams.MATCH_PARENT);
+            int available=getWindow().getDecorView().getWidth();
+            if(available<=0)available=getResources().getDisplayMetrics().widthPixels;
+            int width=dp(WorkspaceLayoutPolicy.drawerWidthDp(workspaceMode,(int)(available/getResources().getDisplayMetrics().density)));
+            window.setLayout(Math.max(1,width),WindowManager.LayoutParams.MATCH_PARENT);
             window.setGravity(Gravity.START|Gravity.TOP);
-            window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         }
     }
 
@@ -3555,7 +3494,6 @@ public final class MainActivity extends Activity {
             newer.put(new JSONObject().put("id", id).put("title", title));
             for (int i = 0; i < sessions.length(); i++) newer.put(sessions.get(i));
             getPreferences(MODE_PRIVATE).edit().putString(listKey(), newer.toString()).apply();
-            refreshTabletRail();
         } catch (Exception ignored) { }
     }
     private void loadHistory() {
@@ -3623,7 +3561,6 @@ public final class MainActivity extends Activity {
         getPreferences(MODE_PRIVATE).edit().putString(scope,encoded)
             .putString(listKey(),index.toString()).remove(draftKey(scope)).apply();
         history=next;
-        refreshTabletRail();
     }
     private void branchMessage(int selected,boolean edit){
         if(guestOnly||cloudMode||isUiBusy()||!historyReadable||!ownsLoadedScope())return;
@@ -3693,7 +3630,7 @@ public final class MainActivity extends Activity {
             if(knownModels.isEmpty()){
                 Button install=button(getString(R.string.install_model),true);
                 install.setPaddingRelative(dp(16),dp(8),dp(16),dp(8));
-                WorkbenchStyle.primaryButtonPaint(this,install,24);OnHandGlyphs.label(install,OnHandGlyphs.Kind.EXPORT,false);
+                WorkbenchStyle.primaryButtonPaint(this,install,8);OnHandGlyphs.label(install,OnHandGlyphs.Kind.EXPORT,false);
                 LinearLayout.LayoutParams installParams=lp(-2,-2);installParams.gravity=Gravity.CENTER_HORIZONTAL;
                 installParams.bottomMargin=dp(10);messages.addView(install,installParams);
                 install.setOnClickListener(v->{if(!isUiBusy())showTab(1);});
@@ -3704,7 +3641,7 @@ public final class MainActivity extends Activity {
             refreshStarterVisibility();
             followWanted=false;scrollRevision++;
             if(messageScroll!=null)messageScroll.post(()->{if(isHomeConversation())messageScroll.scrollTo(0,0);});
-            refreshChatHeader();updateDraftBudget();refreshTabletRail();refreshLatestButton();return;
+            refreshChatHeader();updateDraftBudget();refreshLatestButton();return;
         }
         for (int i = 0; i < history.length(); i++) {
             JSONObject item = history.optJSONObject(i);
@@ -3715,7 +3652,7 @@ public final class MainActivity extends Activity {
             final long revision=scrollRevision;
             messageScroll.post(()->{if(revision==scrollRevision){programmaticScroll=true;try{messageScroll.scrollTo(0,oldY);}finally{programmaticScroll=false;}refreshLatestButton();}});
         }
-        refreshChatHeader();updateDraftBudget();refreshTabletRail();
+        refreshChatHeader();updateDraftBudget();
     }
     private TextView bubble(String role,String content){return bubble(role,content,false,-1);}
     private TextView bubble(String role,String content,boolean pending){return bubble(role,content,pending,-1);}
@@ -3840,13 +3777,21 @@ public final class MainActivity extends Activity {
         topPageSubtitle.setTooltipText(selected.isEmpty()?null:selected);
         refreshHeaderAccess();
     }
+    private void refreshHeaderEnabled(boolean busy){
+        if(topPageTitle!=null&&topPageTitle.isEnabled()==busy)topPageTitle.setEnabled(!busy);
+        if(topPageSubtitle!=null){
+            boolean enabled=activeTab!=0||cloudMode||!busy;
+            if(topPageSubtitle.isEnabled()!=enabled)topPageSubtitle.setEnabled(enabled);
+        }
+    }
     private void refreshHeaderAccess(){
         boolean local=activeTab==0&&!cloudMode;
-        if(modelHeader!=null){
-            modelHeader.setClickable(local);modelHeader.setFocusable(local);
-            modelHeader.setContentDescription(local?getString(R.string.app_name)+" · "+topPageSubtitle.getText()+" · "+getString(R.string.model_picker):null);
-            topPageTitle.setImportantForAccessibility(local?View.IMPORTANT_FOR_ACCESSIBILITY_NO:View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
-            topPageSubtitle.setImportantForAccessibility(local?View.IMPORTANT_FOR_ACCESSIBILITY_NO:View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
+        refreshHeaderEnabled(isUiBusy());
+        if(topPageSubtitle!=null){
+            topPageSubtitle.setClickable(local);topPageSubtitle.setFocusable(local);
+            String action=getString(knownModels.isEmpty()?R.string.install_model:R.string.model_picker);
+            topPageSubtitle.setContentDescription(local?topPageSubtitle.getText()+" · "+action:null);
+            topPageSubtitle.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
         }
         if(cloudShortcut!=null){
             int description=cloudMode?R.string.cloud_return:R.string.cloud;
@@ -4001,7 +3946,7 @@ public final class MainActivity extends Activity {
         sendButton.setEnabled(!busy&&chatInput!=null&&ChatWorkspacePolicy.canSend(chatInput.getText().toString(),LocalChatTurns.MAX_PROMPT));sendButton.setVisibility(busy?View.GONE:View.VISIBLE);
         stopChatButton.setEnabled(busy);stopChatButton.setVisibility(busy?View.VISIBLE:View.GONE);
         if(cloudShortcut!=null)cloudShortcut.setEnabled(!busy);
-        if(modelHeader!=null)modelHeader.setEnabled(!busy);
+        refreshHeaderEnabled(busy);
         if(voiceButton!=null)voiceButton.setEnabled(!busy||(voice!=null&&voice.continuous()));
         if(attachFileButton!=null)attachFileButton.setEnabled(!busy&&!attachmentReading);
         if(chatActionsButton!=null)chatActionsButton.setEnabled(!busy&&!KnowledgeWorkspaceUi.busy()&&!ProjectWorkspaceUi.busy()&&!AutomationUi.busy()&&!DocumentBatchUi.busy());

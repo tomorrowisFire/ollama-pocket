@@ -159,6 +159,21 @@ final class OnHandGlyphs extends Drawable {
         view.setBackground(layers);view.setPaddingRelative(dp(c,12),dp(c,6),dp(c,32),dp(c,6));view.setMinimumHeight(dp(c,48));
         view.setTag(R.id.onhand_spinner_spec,Boolean.TRUE);
     }
+    /** Compact selected label, full-size touch target and normal native drop-down. */
+    static void compactFilterSpinner(Spinner view){
+        Context c=view.getContext();WorkbenchVisualPolicy.Palette p=WorkbenchStyle.palette(c);
+        StateListDrawable surfaces=new StateListDrawable();
+        surfaces.addState(new int[]{-android.R.attr.state_enabled},spinnerSurface(c,p.disabled,p.border,1));
+        surfaces.addState(new int[]{android.R.attr.state_focused},spinnerSurface(c,p.field,p.focus,2));
+        surfaces.addState(new int[]{},spinnerSurface(c,p.field,p.border,1));
+        LayerDrawable layers=new LayerDrawable(new Drawable[]{surfaces,drawable(c,Kind.DOWN,p.muted,12)});
+        layers.setLayerWidth(1,dp(c,12));layers.setLayerHeight(1,dp(c,12));
+        layers.setLayerGravity(1,Gravity.END|Gravity.CENTER_VERTICAL);layers.setLayerInsetRelative(1,0,0,dp(c,2),0);
+        view.setBackground(layers);view.setPaddingRelative(dp(c,4),dp(c,6),dp(c,16),dp(c,6));
+        view.setMinimumHeight(dp(c,48));view.setMinimumWidth(dp(c,48));
+        view.setDropDownWidth(android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+        view.setTag(R.id.onhand_spinner_spec,"compact_filter");
+    }
     static void refresh(View v){
         if(v instanceof TextView&&v.getTag(R.id.onhand_glyph_spec) instanceof Spec){
             Spec s=(Spec)v.getTag(R.id.onhand_glyph_spec);
@@ -166,7 +181,11 @@ final class OnHandGlyphs extends Drawable {
                 TextView t=(TextView)v;WorkbenchVisualPolicy.Palette p=WorkbenchStyle.palette(t.getContext());
                 t.setTextColor(p.focus);t.setCompoundDrawablesRelative(drawable(t.getContext(),s.kind,p.focus,22),null,null,null);
             }else apply((TextView)v);
-        }else if(v instanceof Spinner&&Boolean.TRUE.equals(v.getTag(R.id.onhand_spinner_spec)))spinner((Spinner)v);
+        }else if(v instanceof Spinner){
+            Object spec=v.getTag(R.id.onhand_spinner_spec);
+            if("compact_filter".equals(spec))compactFilterSpinner((Spinner)v);
+            else if(Boolean.TRUE.equals(spec))spinner((Spinner)v);
+        }
     }
     static Kind forResource(int id){
         if(id==R.string.send)return Kind.SEND;

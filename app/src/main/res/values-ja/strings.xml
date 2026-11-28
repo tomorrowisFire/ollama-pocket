@@ -169,9 +169,9 @@
     <string name="workspace_auto">自動（既定）</string>
     <string name="workspace_phone">スマートフォンモード</string>
     <string name="workspace_tablet">タブレットモード</string>
-    <string name="workspace_wide">2 ペイン表示</string>
-    <string name="workspace_compact">1 ペイン表示</string>
-    <string name="workspace_help">自動モードは広いウィンドウでナビゲーションと内容を分けます。タブレットモードは中程度の幅にも対応し、狭い分割画面では表示切れを防ぐため1ペインに戻ります。</string>
+    <string name="workspace_wide">タブレット表示</string>
+    <string name="workspace_compact">スマートフォン表示</string>
+    <string name="workspace_help">スマートフォンとタブレットで同じサイドバーを必要なときに開きます。タブレットは広い画面で表示幅を広げ、狭い画面ではスマートフォン表示を維持します。</string>
     <string name="workspace_local_history">ローカル会話履歴</string>
     <string name="workspace_new_local">＋ 新しいローカル会話</string>
     <string name="workspace_no_history">保存済みのローカル会話がありません。新しい会話を始めてください。</string>
@@ -1385,4 +1385,9 @@
     <string name="billing_error">Google Play の確認に失敗しました。復元して再試行してください。</string>
     <string name="billing_cancelled">購入をキャンセルしました。</string>
     <string name="billing_cached_session">このセッションの確認済み権限を保持しています。再確認できませんでした。</string>
+    <string name="header_home">ホームへ</string>
+    <string name="model_filter_source">検索範囲</string>
+    <string name="model_filter_sort">並び順</string>
+    <string name="model_filter_family">モデル系列</string>
+    <string name="model_filter_quant">量子化</string>
 </resources>

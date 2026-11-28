@@ -169,9 +169,9 @@
     <string name="workspace_auto">자동 (기본)</string>
     <string name="workspace_phone">스마트폰 모드</string>
     <string name="workspace_tablet">태블릿 모드</string>
-    <string name="workspace_wide">2열 화면</string>
-    <string name="workspace_compact">단일 화면</string>
-    <string name="workspace_help">자동 모드는 넓은 화면에서 탐색 메뉴와 콘텐츠를 나눕니다. 태블릿 모드는 중간 폭에서도 2열을 사용하며 좁은 분할 화면은 잘림 방지를 위해 단일 화면으로 전환됩니다.</string>
+    <string name="workspace_wide">태블릿 화면</string>
+    <string name="workspace_compact">스마트폰 화면</string>
+    <string name="workspace_help">스마트폰과 태블릿 모두 필요할 때 사이드바를 열 수 있습니다. 태블릿 모드는 넓은 화면에서 읽기 영역을 확장하고 좁은 화면에서는 스마트폰 레이아웃을 유지합니다.</string>
     <string name="workspace_local_history">로컬 대화 목록</string>
     <string name="workspace_new_local">＋ 새 로컬 대화</string>
     <string name="workspace_no_history">저장된 로컬 대화가 없습니다. 새 대화를 시작하세요.</string>
@@ -1385,4 +1385,9 @@
     <string name="billing_error">Google Play 확인 실패. 구매 복원으로 다시 시도하세요.</string>
     <string name="billing_cancelled">구매가 취소되었습니다.</string>
     <string name="billing_cached_session">이번 실행 중 검증된 권한을 유지합니다. 최신 검증은 실패했습니다.</string>
+    <string name="header_home">홈으로</string>
+    <string name="model_filter_source">검색 범위</string>
+    <string name="model_filter_sort">정렬 기준</string>
+    <string name="model_filter_family">모델 계열</string>
+    <string name="model_filter_quant">양자화</string>
 </resources>

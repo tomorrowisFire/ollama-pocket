@@ -1,6 +1,6 @@
 {
-  "stage": "F10A66R1-integrated-scalable-launcher",
-  "revision": "F10A66R1",
-  "priorCandidate": "17a34945d2d0d6c18dbc6cbad030ede868c838c3",
-  "reason": "Reapply exact user-approved vector icon delta after verified F10A65R1 billing API spelling repair. FULL native APK, QA AAB and 16KiB audits required."
+  "stage": "F10A67-shared-drawer-home-and-filter-strip",
+  "revision": "F10A67",
+  "priorCandidate": "ffc751b93ced96973cac4e75636fb848224b4779",
+  "reason": "Device feedback: one phone/tablet drawer, whole-drawer scroll, remove logo, separate home and model actions, 8dp peach install CTA, four native filters in one row and immediate results; keep Recommended default. FULL required."
 }
