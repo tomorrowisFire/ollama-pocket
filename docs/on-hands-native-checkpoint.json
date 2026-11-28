@@ -1,6 +1,6 @@
 {
-  "stage": "F10A70-compact-header-and-titleless-sidebar",
-  "revision": "F10A70",
-  "priorCandidate": "05b9a8e4dae2e8286356c1ba6e05fb22b7ba099d",
-  "reason": "Device feedback: align menu/cloud/new-chat glyphs with OnHand AI title; compact model selector directly under title; remove duplicate sidebar app title and place new-chat/close in one row. Keep smartphone/tablet modes, existing colors, billing and native inference; require full ARM64 device-test build."
+  "stage": "F10A71-visible-warm-brown-peach-foreground",
+  "revision": "F10A71",
+  "priorCandidate": "685764d1e9c9fdaea7479a0a46e9db1edebf6f96",
+  "reason": "Real-device feedback: F10A68 foreground appears black. F10A69 binary verified to contain the original warm tokens; strengthen chroma, split light/dark brown for contrast, cover selected card secondary text and peach table headers, synchronize palette and XML. Preserve F10A70 layout and peach fills. Require full ARM64 APK."
 }

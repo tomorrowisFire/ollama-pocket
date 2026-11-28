@@ -366,7 +366,8 @@ public final class MainActivity extends Activity {
         MUTED=p.muted;DANGER=p.dangerText;BUBBLE=p.bubble;
     }
     private int[] palette(){
-        return new int[]{BG,CARD,FIELD,ACCENT,WHITE,MUTED,DANGER,BUBBLE,bubbleInk()};
+        WorkbenchVisualPolicy.Palette p=WorkbenchVisualPolicy.palette(activeThemeDark);
+        return new int[]{BG,CARD,FIELD,ACCENT,WHITE,MUTED,DANGER,BUBBLE,bubbleInk(),p.bubbleMutedInk(),p.accentSoft};
     }
     private int mappedColor(int current,int[] from,int[] to){
         for(int i=0;i<from.length;i++)if(current==from[i])return to[i];
@@ -2427,7 +2428,7 @@ public final class MainActivity extends Activity {
     }
     private int bubbleInk(){return WorkbenchVisualPolicy.palette(activeThemeDark).bubbleInk();}
     private int tileTextColor(boolean selected){return selected?bubbleInk():WHITE;}
-    private int tileMutedColor(){return MUTED;}
+    private int tileMutedColor(boolean selected){return selected?WorkbenchVisualPolicy.palette(activeThemeDark).bubbleMutedInk():MUTED;}
     private GradientDrawable tileBackground(boolean selected){
         GradientDrawable shape=bg(tileBackgroundColor(selected),18);
         // Readable companion ink outlines selection; the status label remains authoritative.
@@ -2541,7 +2542,7 @@ public final class MainActivity extends Activity {
     private LinearLayout buildModelTile(ModelTileCatalog.Tile item,int sideDp) {
         boolean selected=item.installed&&OllamaQuantCatalog.belongsToModel(item.id,currentModel);
         WorkbenchVisualPolicy.ModelStatus cardStatus=modelCardStatus(item,selected);
-        int ink=tileTextColor(selected), secondary=tileMutedColor();
+        int ink=tileTextColor(selected), secondary=tileMutedColor(selected);
         LinearLayout card=column();
         card.setPadding(dp(10),dp(9),dp(10),dp(9));
         card.setBackground(tileBackground(selected));
@@ -2618,7 +2619,7 @@ public final class MainActivity extends Activity {
     private LinearLayout buildModelListRow(ModelTileCatalog.Tile item){
         boolean selected=item.installed&&OllamaQuantCatalog.belongsToModel(item.id,currentModel);
         WorkbenchVisualPolicy.ModelStatus cardStatus=modelCardStatus(item,selected);
-        int ink=tileTextColor(selected),secondary=tileMutedColor();
+        int ink=tileTextColor(selected),secondary=tileMutedColor(selected);
         LinearLayout card=column();
         card.setPadding(dp(13),dp(11),dp(13),dp(11));
         card.setMinimumHeight(dp(90));
@@ -2662,7 +2663,7 @@ public final class MainActivity extends Activity {
         status.setMaxLines(2);
         badges.addView(status,lp(-2,-2));
         if(item.featured){
-            TextView recommended=text(getString(R.string.model_recommend_mark),11,ACCENT,true);
+            TextView recommended=text(getString(R.string.model_recommend_mark),11,bubbleInk(),true);
             recommended.setPadding(dp(10),dp(5),dp(10),dp(5));recommended.setBackground(bg(BUBBLE,10));
             badges.addView(recommended,lp(-2,-2));
         }

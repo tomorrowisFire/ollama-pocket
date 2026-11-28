@@ -342,9 +342,10 @@ assert colors["onhand_accent_light"]=="#79503E" and colors["onhand_accent_dark"]
 # F10A62R1: distinguish the user-approved peach fill from accessible companion ink.
 assert colors["onhand_primary_fill_light"]=="#E5BBA6" and colors["onhand_primary_fill_dark"]=="#D4A58E"
 for mode in ("light","dark"):
-    assert colors["onhand_primary_ink_"+mode]=="#58382B"
-    assert colors["onhand_bubble_ink_"+mode]==("#6B493B" if mode=="light" else "#F2D9CB")
-    for token in ("primary_fill","primary_ink","bubble_ink"):
+    assert colors["onhand_primary_ink_"+mode]==("#6E3B28" if mode=="light" else "#5F3121")
+    assert colors["onhand_bubble_ink_"+mode]==("#8A5039" if mode=="light" else "#F2C9B4")
+    assert colors["onhand_bubble_muted_ink_"+mode]==("#895B47" if mode=="light" else "#E7B69B")
+    for token in ("primary_fill","primary_ink","bubble_ink","bubble_muted_ink"):
         assert "0xff"+colors["onhand_"+token+"_"+mode][1:].lower() in policy
 assert "this.primaryFill=primaryFill" in policy
 assert "role==Role.PRIMARY?primaryFill" in policy and "status==ModelStatus.ACTIVE?primaryFill" in policy
@@ -367,6 +368,10 @@ assert "ACCENT=p.primary" in main
 assert "active?bubbleInk():WHITE" in main
 assert "user?bubbleInk():WHITE" in main
 assert "selected?bubbleInk():WHITE" in main
+assert "selected?WorkbenchVisualPolicy.palette(activeThemeDark).bubbleMutedInk():MUTED" in main
+assert main.count("tileMutedColor(selected)")==2
+assert "cell.setTextColor(WorkbenchStyle.palette(c).bubbleInk())" in (src/"ChatRichView.java").read_text()
+assert "model_recommend_mark),11,bubbleInk(),true)" in main
 assert "text.setTextColor(p.bubbleInk())" in (src/"CloudChatPanel.java").read_text()
 assert "#B83B12" not in (res/"values/onhand_brand_theme.xml").read_text()
 assert "#FFAD7B" not in (res/"values/onhand_brand_theme.xml").read_text()

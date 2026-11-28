@@ -7,8 +7,9 @@
     <!-- Accent text and outline remain readable; filled actions use the soft peach token. -->
     <color name="onhand_accent_light">#79503E</color>
     <color name="onhand_primary_fill_light">#E5BBA6</color>
-    <color name="onhand_primary_ink_light">#58382B</color>
-    <color name="onhand_bubble_ink_light">#6B493B</color>
+    <color name="onhand_primary_ink_light">#6E3B28</color>
+    <color name="onhand_bubble_ink_light">#8A5039</color>
+    <color name="onhand_bubble_muted_ink_light">#895B47</color>
     <color name="onhand_focus_light">#79503E</color>
     <color name="onhand_canvas_dark">#191A19</color>
     <color name="onhand_surface_dark">#242523</color>
@@ -16,8 +17,9 @@
     <color name="onhand_muted_dark">#C1BEB6</color>
     <color name="onhand_accent_dark">#E7C1AD</color>
     <color name="onhand_primary_fill_dark">#D4A58E</color>
-    <color name="onhand_primary_ink_dark">#58382B</color>
-    <color name="onhand_bubble_ink_dark">#F2D9CB</color>
+    <color name="onhand_primary_ink_dark">#5F3121</color>
+    <color name="onhand_bubble_ink_dark">#F2C9B4</color>
+    <color name="onhand_bubble_muted_ink_dark">#E7B69B</color>
     <color name="onhand_focus_dark">#DDBCAA</color>
     <item type="id" name="onhand_glyph_spec"/>
     <item type="id" name="onhand_spinner_spec"/>

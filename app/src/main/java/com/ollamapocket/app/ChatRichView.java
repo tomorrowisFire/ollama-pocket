@@ -152,6 +152,7 @@ final class ChatRichView {
                             cell.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
                             if(android.os.Build.VERSION.SDK_INT>=28)cell.setAccessibilityHeading(true);
                             cell.setBackgroundColor(WorkbenchStyle.palette(c).accentSoft);
+                            cell.setTextColor(WorkbenchStyle.palette(c).bubbleInk());
                         }else if(i%2==0)cell.setBackgroundColor(0x14808080);
                         TableRow.LayoutParams params=new TableRow.LayoutParams(widths[j],ViewGroup.LayoutParams.WRAP_CONTENT);
                         params.setMargins(0,0,dp(c,1),dp(c,1));row.addView(cell,params);
