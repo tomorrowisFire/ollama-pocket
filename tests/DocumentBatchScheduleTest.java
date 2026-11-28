@@ -42,10 +42,14 @@ public final class DocumentBatchScheduleTest {
         }
         rejects(()->DocumentBatchSchedule.order());
         rejects(()->DocumentBatchSchedule.order((int[])null));
-        rejects(()->DocumentBatchSchedule.order(1,1,1,1));
+        verify(1,1,1,1);
+        int[] twenty=new int[20];Arrays.fill(twenty,4);verify(twenty);
+        int[] excessive=new int[21];Arrays.fill(excessive,1);
+        rejects(()->DocumentBatchSchedule.order(excessive));
         rejects(()->DocumentBatchSchedule.order(0,2));
         rejects(()->DocumentBatchSchedule.order(-1));
-        rejects(()->DocumentBatchSchedule.order(24,1));
+        verify(24,1);
+        rejects(()->DocumentBatchSchedule.order(80,1));
         rejects(()->DocumentBatchSchedule.order(Integer.MAX_VALUE));
         System.out.println("PASS: "+checks+" document schedule assertions");
     }

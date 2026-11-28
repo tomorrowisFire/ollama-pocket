@@ -9,7 +9,7 @@ import java.util.regex.Pattern;
 
 /** Counts distinct referenced excerpt IDs, not the truth or relevance of any claim. */
 final class DocumentCitationCoverage {
-    private static final Pattern ID=Pattern.compile("D[1-3]-S(?:[1-9]|1[0-9]|2[0-4])");
+    private static final Pattern ID=Pattern.compile("D([1-9]|1[0-9]|20)-S(?:[1-9]|1[0-9]|2[0-4])");
     enum Status { NOT_ASSESSED, NO_EVIDENCE, NO_REFERENCES, REFERENCED }
     static final class Source {
         final int completedEvidence,referencedEvidence;
@@ -23,12 +23,12 @@ final class DocumentCitationCoverage {
     private DocumentCitationCoverage(){}
     private static int source(String id,int sourceCount){
         if(id==null||!ID.matcher(id).matches())throw new IllegalArgumentException("Evidence ID");
-        int index=id.charAt(1)-'1';
+        int index=Integer.parseInt(id.substring(1,id.indexOf('-')))-1;
         if(index>=sourceCount)throw new IllegalArgumentException("Evidence source");
         return index;
     }
     static List<Source> summarize(int sourceCount,List<String> evidence,List<String> references,boolean assessed){
-        if(sourceCount<1||sourceCount>3||evidence==null||references==null||evidence.size()>24||references.size()>24||
+        if(sourceCount<1||sourceCount>DocumentBatchPolicy.MAX_SOURCES||evidence==null||references==null||evidence.size()>DocumentBatchPolicy.MAX_UNITS||references.size()>DocumentBatchPolicy.MAX_UNITS||
             (!assessed&&!references.isEmpty()))throw new IllegalArgumentException("Evidence scope");
         int[] completed=new int[sourceCount],cited=new int[sourceCount];
         Set<String> known=new HashSet<>(),seen=new HashSet<>();

@@ -1,0 +1,3 @@
+# F12 batch expansion — policy
+
+20 distinct selected documents; 2 GiB aggregate raw input (long counters); 500 MiB existing per-document cap. Known-size preflight and independently counted streams, shared 30-minute extraction boundary deadline. Preserve prior 1–3-file quotas/time, add up to four excerpts per source for larger selections (80 total); exact round-robin order and D1..D20 citations. Larger analysis up to 60 minutes, at most 160 requests, existing context and safety checks. Generated notes are not full-file coverage. Fixtures for exact aggregate limits, unknown metadata, actual overflow, 20-source round-robin, citation mapping and bounded synthesis.

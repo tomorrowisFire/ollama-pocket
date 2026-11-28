@@ -12,9 +12,11 @@ import java.util.function.IntConsumer;
 
 /** Bounded local multi-document map/reduce. Completion is not fact verification. */
 final class DocumentBatchPolicy {
-    static final int MAX_SOURCES=3,MAX_UNITS=24,UNIT_CHARS=1400,MAX_GOAL=300,NOTE_CHARS=420,FINAL_CHARS=1800;
+    static final int MAX_SOURCES=20,MAX_UNITS=80,LEGACY_UNITS=24,UNIT_CHARS=1400,MAX_GOAL=300,NOTE_CHARS=420,FINAL_CHARS=1800;
     static final int GROUP_SIZE=4,NOTE_TOKENS=256,FINAL_TOKENS=512;
-    static final long MAX_MILLIS=20*60*1000L;
+    static final long MAX_MILLIS=60*60*1000L,LEGACY_MILLIS=20*60*1000L;
+    static final long MAX_INPUT_BYTES=2L*1024*1024*1024;
+    static final long INPUT_READ_BUDGET_NS=30L*60*1_000_000_000L;
     static final int CONTEXT=2048,TEMPLATE_RESERVE=128;
     // Planning estimate, not an exact model tokenizer.
     static int estimateTokens(String value){
@@ -31,22 +33,99 @@ final class DocumentBatchPolicy {
     }
     enum Kind { TEXT, OFFICE, PDF }
     enum Status { COMPLETED, STOPPED, FAILED }
-    static int prefixLimit(int files){
+    static int unitsPerSource(int files){
         if(files<1||files>MAX_SOURCES)throw new IllegalArgumentException("Source count");
-        return (MAX_UNITS/files)*(UNIT_CHARS-1);
+        return Math.max(LEGACY_UNITS,files*4)/files;
+    }
+    static int prefixLimit(int files){return unitsPerSource(files)*(UNIT_CHARS-1);}
+    static long runtimeLimit(int files){
+        unitsPerSource(files);
+        return files<=3?LEGACY_MILLIS:MAX_MILLIS;
+    }
+    static final class InputLimit extends java.io.IOException {
+        InputLimit(){super("Batch aggregate input limit");}
+    }
+    static void validateDeclared(long[] sizes)throws InputLimit{
+        if(sizes==null||sizes.length<1||sizes.length>MAX_SOURCES)throw new IllegalArgumentException("Source count");
+        long total=0;
+        for(long bytes:sizes){
+            if(bytes<0)continue; // unknown provider metadata is checked by the actual stream
+            if(bytes>MAX_INPUT_BYTES-total)throw new InputLimit();
+            total+=bytes;
+        }
+    }
+    /** Shared sequential budget, accounting actual bytes independently of declared metadata. */
+    static final class InputBudget{
+        private final long cap,started;
+        private final java.util.function.LongSupplier clock;
+        private long consumed;
+        InputBudget(){this(MAX_INPUT_BYTES,System::nanoTime);}
+        InputBudget(long cap,java.util.function.LongSupplier clock){
+            if(cap<1||cap>MAX_INPUT_BYTES||clock==null)throw new IllegalArgumentException("Input budget");
+            this.cap=cap;this.clock=clock;started=clock.getAsLong();
+        }
+        long consumed(){return consumed;}
+        private void check()throws java.io.IOException{
+            if(Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("Batch input cancelled");
+            long elapsed=clock.getAsLong()-started;
+            if(elapsed<0||elapsed>=INPUT_READ_BUDGET_NS)throw new java.net.SocketTimeoutException("Batch input deadline");
+        }
+        private void account(int n)throws java.io.IOException{
+            if(n>cap-consumed)throw new InputLimit();
+            consumed+=n;
+        }
+        java.io.InputStream wrap(java.io.InputStream source){
+            if(source==null)throw new IllegalArgumentException("Missing source");
+            return new java.io.FilterInputStream(source){
+                @Override public int read()throws java.io.IOException{
+                    check();int value=in.read();check();
+                    if(value < -1||value>255)throw new java.io.IOException("Invalid source read");
+                    if(value>=0)account(1);
+                    return value;
+                }
+                @Override public int read(byte[] bytes,int off,int len)throws java.io.IOException{
+                    if(bytes==null)throw new NullPointerException();
+                    if(off<0||len<0||off>bytes.length-len)throw new IndexOutOfBoundsException();
+                    check();if(len==0)return 0;
+                    int requested=(int)Math.min((long)len,cap-consumed+1);
+                    int n=in.read(bytes,off,requested);check();
+                    if(n==0||n < -1||n>requested)throw new java.io.IOException("Invalid source read");
+                    if(n>0)account(n);
+                    return n;
+                }
+                @Override public long skip(long amount)throws java.io.IOException{
+                    if(amount<=0)return 0;
+                    byte[] b=new byte[(int)Math.min(8192L,amount)];long skipped=0;
+                    while(skipped<amount){
+                        int n=read(b,0,(int)Math.min(b.length,amount-skipped));
+                        if(n<0)break;skipped+=n;
+                    }
+                    return skipped;
+                }
+                @Override public boolean markSupported(){return false;}
+                @Override public synchronized void mark(int ignored){}
+                @Override public synchronized void reset()throws java.io.IOException{throw new java.io.IOException("Reset unsupported");}
+                // Caller owns the underlying provider stream.
+                @Override public void close(){}
+            };
+        }
     }
     static final class Source {
         final String name,text;
         final Kind kind;
         final boolean partial;
         final int pages,examined,readable;
+        final long inputBytes;
         Source(String name,String text,Kind kind,boolean partial,int pages,int examined,int readable){
-            if(!AttachmentText.hasContent(text)||text.length()>prefixLimit(1)||kind==null)
+            this(name,text,kind,partial,pages,examined,readable,-1L);
+        }
+        Source(String name,String text,Kind kind,boolean partial,int pages,int examined,int readable,long inputBytes){
+            if(!AttachmentText.hasContent(text)||text.length()>prefixLimit(1)||kind==null||inputBytes < -1||inputBytes>AttachmentText.maxBytes(name))
                 throw new IllegalArgumentException("Invalid source");
             if(kind==Kind.PDF&&(pages<1||examined<1||examined>pages||readable<1||readable>examined))
                 throw new IllegalArgumentException("Invalid PDF coverage");
             this.name=AttachmentText.safeName(name);this.text=text;this.kind=kind;this.partial=partial;
-            this.pages=pages;this.examined=examined;this.readable=readable;
+            this.pages=pages;this.examined=examined;this.readable=readable;this.inputBytes=inputBytes;
         }
         String scope(){
             String type=kind==Kind.PDF?"PDF extracted text, first "+examined+" of "+pages+" pages examined; "+readable+" readable pages; visual content omitted":
@@ -71,10 +150,15 @@ final class DocumentBatchPolicy {
             this.goal=goal.trim();this.sources=Collections.unmodifiableList(new ArrayList<>(sources));
             List<Unit> all=new ArrayList<>();included=new int[sources.size()];
             int[] counts=new int[sources.size()];
-            int quota=MAX_UNITS/sources.size();
+            int quota=unitsPerSource(sources.size());
+            long totalBytes=0;
             for(int i=0;i<sources.size();i++){
                 Source s=sources.get(i);
                 if(s==null||s.text.length()>prefixLimit(sources.size()))throw new IllegalArgumentException("Source quota");
+                if(s.inputBytes>=0){
+                    if(s.inputBytes>MAX_INPUT_BYTES-totalBytes)throw new IllegalArgumentException("Source byte quota");
+                    totalBytes+=s.inputBytes;
+                }
                 int part=0;
                 for(int start=0;start<s.text.length()&&part<quota;){
                     int end=Math.min(s.text.length(),start+UNIT_CHARS);

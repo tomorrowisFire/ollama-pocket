@@ -47,7 +47,15 @@ public final class DocumentCitationCoverageTest {
         rejects(()->DocumentCitationCoverage.summarize(1,List.of("D1-S1"),List.of("D1-S2"),true));
         rejects(()->DocumentCitationCoverage.summarize(1,List.of("D1-S1"),List.of("D1-S1"),false));
         rejects(()->DocumentCitationCoverage.summarize(0,List.of(),List.of(),true));
-        rejects(()->DocumentCitationCoverage.summarize(4,List.of(),List.of(),true));
+        ok(DocumentCitationCoverage.summarize(4,List.of(),List.of(),true).size()==4);
+        rejects(()->DocumentCitationCoverage.summarize(21,List.of(),List.of(),true));
+        List<String> twenty=new ArrayList<>();
+        for(int i=1;i<=20;i++)for(int j=1;j<=4;j++)twenty.add("D"+i+"-S"+j);
+        var coverage=DocumentCitationCoverage.summarize(20,twenty,List.of("D10-S1","D20-S4"),true);
+        ok(coverage.size()==20&&coverage.get(9).referencedEvidence==1&&coverage.get(19).referencedEvidence==1);
+        ok(coverage.get(0).completedEvidence==4&&coverage.get(0).referencedEvidence==0);
+        rejects(()->DocumentCitationCoverage.summarize(20,List.of("D21-S1"),List.of(),true));
+        rejects(()->DocumentCitationCoverage.summarize(20,List.of("D020-S1"),List.of(),true));
         rejects(()->DocumentCitationCoverage.summarize(1,null,List.of(),true));
         rejects(()->DocumentCitationCoverage.summarize(1,List.of(),null,true));
         try{DocumentCitationCoverage.summarize(1,List.of(),List.of(),true).clear();throw new AssertionError("Mutable report");}

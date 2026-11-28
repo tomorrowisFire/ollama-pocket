@@ -24,7 +24,26 @@ public final class DocumentBatchPolicyTest {
         ok(DocumentBatchPolicy.prefixLimit(2)==16788);
         ok(DocumentBatchPolicy.prefixLimit(3)==11192);
         rejects(()->DocumentBatchPolicy.prefixLimit(0));
-        rejects(()->DocumentBatchPolicy.prefixLimit(4));
+        ok(DocumentBatchPolicy.prefixLimit(4)==8394);
+        ok(DocumentBatchPolicy.prefixLimit(20)==5596);
+        rejects(()->DocumentBatchPolicy.prefixLimit(21));
+        ok(DocumentBatchPolicy.runtimeLimit(3)==20*60*1000L&&DocumentBatchPolicy.runtimeLimit(20)==60*60*1000L);
+        long mib=1024L*1024;
+        DocumentBatchPolicy.validateDeclared(new long[]{500*mib,500*mib,500*mib,500*mib,48*mib,-1});
+        try{DocumentBatchPolicy.validateDeclared(new long[]{500*mib,500*mib,500*mib,500*mib,48*mib+1});throw new AssertionError("Aggregate cap");}
+        catch(DocumentBatchPolicy.InputLimit expected){n++;}
+        var budget=new DocumentBatchPolicy.InputBudget(8,()->0L);
+        try(var first=budget.wrap(new ByteArrayInputStream(new byte[5]))){ok(first.read(new byte[8])==5&&first.read()==-1);}
+        try(var next=budget.wrap(new ByteArrayInputStream(new byte[3]))){ok(next.skip(3)==3&&next.read()==-1);}
+        ok(budget.consumed()==8);
+        try{budget.wrap(new ByteArrayInputStream(new byte[1])).read();throw new AssertionError("Actual aggregate exceeded");}
+        catch(DocumentBatchPolicy.InputLimit expected){n++;}
+        var clock=new java.util.concurrent.atomic.AtomicLong();
+        var elapsed=new DocumentBatchPolicy.InputBudget(8,clock::get);
+        clock.set(DocumentBatchPolicy.INPUT_READ_BUDGET_NS);
+        try{elapsed.wrap(new ByteArrayInputStream(new byte[1])).read();throw new AssertionError("Input deadline");}
+        catch(java.net.SocketTimeoutException expected){n++;}
+        ok(elapsed.consumed()==0);
         String source="a".repeat(1399)+"😀"+"b".repeat(1397)+"한국어";
         DocumentBatchPolicy.Plan split=plan(source);
         StringBuilder reconstructed=new StringBuilder();int next=0;
@@ -51,7 +70,23 @@ public final class DocumentBatchPolicyTest {
         ok(DocumentBatchPolicy.unitPrompt(max,max.units.get(0)).contains("UNTRUSTED DATA"));
         rejects(()->plan("x".repeat(33577)));
         rejects(()->plan("x".repeat(16789),"y"));
-        rejects(()->plan("x","y","z","w"));
+        ok(plan("x","y","z","w").units.size()==4);
+        String[] twenty=new String[20];java.util.Arrays.fill(twenty,"a".repeat(5596));
+        DocumentBatchPolicy.Plan large=plan(twenty);
+        ok(large.units.size()==80&&large.maxTotal()==160);
+        for(int i=0;i<20;i++)ok(large.units.get(i).id().equals("D"+(i+1)+"-S1"));
+        ok(large.units.get(79).id().equals("D20-S4"));
+        AtomicInteger largeCalls=new AtomicInteger();
+        DocumentBatchPolicy.Result all=DocumentBatchPolicy.analyze(large,(prompt,chars,tokens)->{
+            ok(DocumentBatchPolicy.fits(prompt,tokens));largeCalls.incrementAndGet();
+            return prompt.contains("final analysis")?"Summary [D1-S1] [D20-S4]":"note";
+        },()->false,x->{});
+        ok(all.status==DocumentBatchPolicy.Status.COMPLETED&&all.notes.size()==80&&largeCalls.get()<=160);
+        ok(DocumentBatchPolicy.citationCoverage(20,all,DocumentBatchPolicy.citations(all.synthesis,all.notes)).get(19).referencedEvidence==1);
+        rejects(()->plan(new String[21]));
+        List<DocumentBatchPolicy.Source> overBytes=new ArrayList<>();
+        for(int i=0;i<5;i++)overBytes.add(new DocumentBatchPolicy.Source("x.txt","a",DocumentBatchPolicy.Kind.TEXT,true,0,0,0,500*mib));
+        rejects(()->new DocumentBatchPolicy.Plan("test",overBytes));
         rejects(()->plan(" "));
         rejects(()->plan("\u00a0\u3000\u202f"));
         rejects(()->new DocumentBatchPolicy.Plan("\u2003\u00a0",List.of(text("a","x",false))));
