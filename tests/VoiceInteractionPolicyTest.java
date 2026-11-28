@@ -56,6 +56,12 @@ public final class VoiceInteractionPolicyTest {
         rejects(()->new VoiceInteractionPolicy.Playback("text","",16));
         rejects(()->new VoiceInteractionPolicy.Playback("text","x",1));
         rejects(()->new VoiceInteractionPolicy.Playback("text","x",2001));
+        String sparse=" ".repeat(32)+"hello"+" ".repeat(64);
+        VoiceInteractionPolicy.Playback sparsePlayback=new VoiceInteractionPolicy.Playback(sparse,"sparse-",16);
+        VoiceInteractionPolicy.Playback.Chunk audible=sparsePlayback.nextAudible();
+        ok(audible!=null&&audible.text.contains("hello")&&sparsePlayback.completed()==32);
+        ok(sparsePlayback.acknowledge(audible.id));
+        ok(sparsePlayback.nextAudible()==null&&sparsePlayback.finished()&&sparsePlayback.percent()==100);
         VoiceInteractionPolicy.Capture capture=new VoiceInteractionPolicy.Capture();
         ok(capture.state()==VoiceInteractionPolicy.Capture.State.PREPARING&&!capture.canFinish()&&!capture.finish());
         capture.ready();ok(capture.canFinish()&&capture.state()==VoiceInteractionPolicy.Capture.State.LISTENING);

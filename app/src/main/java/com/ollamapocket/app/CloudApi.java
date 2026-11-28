@@ -103,17 +103,10 @@ final class CloudApi {
     }
     static JSONObject request(Provider provider,String model,java.util.List<CloudHistory.Message> messages) throws Exception {
         if(provider==null||!PrivacyPolicy.validModelId(model))throw new IllegalArgumentException("Invalid model ID");
-        if(messages==null||messages.isEmpty()||messages.size()>25||messages.size()%2==0)
-            throw new IllegalArgumentException("Invalid cloud context");
-        JSONArray input=new JSONArray();int chars=0;
-        for(int i=0;i<messages.size();i++){
-            CloudHistory.Message m=messages.get(i);
-            if(m==null||!(i%2==0?"user":"assistant").equals(m.role)||
-                !CloudHistory.validMessage(m.content,i%2==0?CloudHistory.MAX_PROMPT:CloudHistory.MAX_REPLY))
-                throw new IllegalArgumentException("Invalid cloud message");
-            chars+=m.content.length();if(chars>CloudHistory.MAX_CONTEXT)throw new IllegalArgumentException("Context limit");
+        if(CloudHistory.requestChars(messages)<0)throw new IllegalArgumentException("Invalid cloud context");
+        JSONArray input=new JSONArray();
+        for(CloudHistory.Message m:messages)
             input.put(new JSONObject().put("role",m.role).put("content",m.content));
-        }
         JSONObject body=new JSONObject().put("model",model);
         if(provider.protocol==0){
             body.put("input",input);
@@ -151,10 +144,14 @@ final class CloudApi {
             if(rows!=null)for(int i=0;i<rows.length();i++){
                 JSONObject row=rows.optJSONObject(i);
                 if(row==null)throw incomplete();
-                if(!"message".equals(row.opt("type")))continue;
+                Object kind=row.opt("type");
+                if(!(kind instanceof String))throw incomplete();
+                if("reasoning".equals(kind))continue;
+                if(!"message".equals(kind))throw incomplete();
                 if(!row.isNull("status")&&!"completed".equals(row.opt("status")))throw incomplete();
                 JSONArray parts=row.optJSONArray("content");
-                if(parts!=null)for(int j=0;j<parts.length();j++){
+                if(parts==null)throw incomplete();
+                for(int j=0;j<parts.length();j++){
                     JSONObject part=parts.optJSONObject(j);
                     if(part==null)throw incomplete();
                     if("output_text".equals(part.opt("type")))appendText(out,typedText(part,"text",false));
@@ -268,7 +265,9 @@ final class CloudApi {
                 if(!row.isEmpty()||event.length()==0)continue;
                 String data=event.toString().trim();event.setLength(0);
                 if("[DONE]".equals(data)){complete=provider.protocol==1&&finishedChoice;break;}
-                JSONObject j=new JSONObject(data);String type=j.optString("type","");
+                JSONObject j;
+                try{j=new JSONObject(data);}catch(Exception invalid){throw incomplete();}
+                String type=j.optString("type","");
                 if(!j.isNull("error")||"error".equals(type)||"response.failed".equals(type)||"response.incomplete".equals(type))throw new StreamFailure("Provider stream failed",true);
                 JSONObject usage=j.optJSONObject("usage");
                 String part="";
@@ -277,6 +276,11 @@ final class CloudApi {
                     if("response.refusal.delta".equals(type)||"response.refusal.done".equals(type))throw incomplete();
                     if("response.completed".equals(type)){
                         JSONObject response=j.optJSONObject("response");responseCompleted(response);
+                        if(response.has("output")){
+                            String finalText=parse(provider,response);
+                            if(answer.length()==0)part=finalText;
+                            else if(!finalText.contentEquals(answer))throw incomplete();
+                        }
                         usage=response.optJSONObject("usage");complete=true;
                     }
                 }else if(provider.protocol==2){

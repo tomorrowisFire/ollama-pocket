@@ -498,8 +498,7 @@ final class CloudChatPanel extends LinearLayout {
             if(p.remote()){
                 detail.append("\n").append(getResources().getString(R.string.api_overview_lan_usage));
             }else{
-                java.math.BigDecimal spent=Double.isFinite(totals.estimated)&&totals.estimated>=0?
-                    java.math.BigDecimal.valueOf(totals.estimated):null;
+                java.math.BigDecimal spent=Double.isFinite(totals.estimated)&&totals.estimated>=0?totals.exactCost():null;
                 detail.append("\n").append(getResources().getString(R.string.cloud_session_cost,amount(spent),Long.toString(totals.unpriced)));
                 if(config==CloudProviderOverview.ProfileState.CONFIGURED&&saved!=null){
                     detail.append("\n").append(getResources().getString(R.string.api_review_rates,manualRate(saved.in),manualRate(saved.out)));
@@ -770,11 +769,12 @@ final class CloudChatPanel extends LinearLayout {
             owner.runOnUiThread(()->{
                 if(closed||request!=serial||!active)return;
                 activeRequest=null;setBusy(false);
+                // Account to the reviewed route even if its history changed.
+                ledger.record(ledgerScope,output==null?-1:output.inputTokens,output==null?-1:output.outputTokens,ir,or);
                 if(!current(p,id,s,revision)){status.setText(R.string.cloud_context_changed);return;}
-                if(output==null){ledger.record(ledgerScope,-1,-1,ir,or);String recovered=partial.getText().toString();render(false);prompt.setText(q);
+                if(output==null){String recovered=partial.getText().toString();render(false);prompt.setText(q);
                     if(!recovered.trim().isEmpty()){TextView fragment=conversationText(false,true);fragment.setText(getResources().getString(R.string.chat_stream_incomplete)+"\n\n"+recovered);transcript.addView(fragment,new LayoutParams(-1,-2));}
                     status.setText(getResources().getString(failure)+"\n"+getResources().getString(R.string.chat_draft_recovered)+"\n"+getResources().getString(R.string.cloud_cancel_cost));return;}
-                ledger.record(ledgerScope,output.inputTokens,output.outputTokens,ir,or);
                 try{s.complete(q,output.text);prompt.setText("");status.setText(usageLabel(output));render(false);}
                 catch(IllegalArgumentException e){status.setText(R.string.cloud_fail);}
             });

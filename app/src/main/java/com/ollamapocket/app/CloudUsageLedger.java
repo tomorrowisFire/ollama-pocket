@@ -8,11 +8,15 @@ final class CloudUsageLedger {
     static final class Totals {
         long input,output,requests,unknown;
         double estimated;
+        private java.math.BigDecimal precise=java.math.BigDecimal.ZERO;
         long unpriced;
+        java.math.BigDecimal exactCost(){return precise;}
+        void addCost(java.math.BigDecimal amount){precise=precise.add(amount);estimated=precise.doubleValue();}
     }
     static final int MAX_SCOPES=128;
     private final Map<String,Totals> entries=new LinkedHashMap<>();
     private static long add(long a,long b){return b>Long.MAX_VALUE-a?Long.MAX_VALUE:a+b;}
+    private static boolean validRate(double rate){return Double.isFinite(rate)&&rate>=0&&rate<=1_000_000d;}
     Totals get(String scope){
         Totals t=entries.get(scope);
         return t==null?new Totals():t;
@@ -34,7 +38,7 @@ final class CloudUsageLedger {
             result.input=add(result.input,t.input);result.output=add(result.output,t.output);
             result.requests=add(result.requests,t.requests);result.unknown=add(result.unknown,t.unknown);
             result.unpriced=add(result.unpriced,t.unpriced);
-            if(!remote)result.estimated+=t.estimated;
+            if(!remote)result.addCost(t.exactCost());
         }
         return result;
     }
@@ -45,15 +49,17 @@ final class CloudUsageLedger {
         if(input>=0)t.input=add(t.input,input);
         if(output>=0)t.output=add(t.output,output);
         if(input<0||output<0)t.unknown=add(t.unknown,1);
-        if(input>=0&&output>=0&&Double.isFinite(inRate)&&Double.isFinite(outRate)&&inRate>=0&&outRate>=0)
-            t.estimated+=(inRate*input+outRate*output)/1000000d;
+        if(input>=0&&output>=0&&validRate(inRate)&&validRate(outRate))
+            t.addCost(java.math.BigDecimal.valueOf(inRate).multiply(java.math.BigDecimal.valueOf(input))
+                .add(java.math.BigDecimal.valueOf(outRate).multiply(java.math.BigDecimal.valueOf(output))).movePointLeft(6));
         else t.unpriced=add(t.unpriced,1);
     }
     boolean allows(String scope,double budget,double inRate,double outRate){
         if(!canTrack(scope))return false;
-        if(budget<0)return true;
+        if(budget==-1)return true;
         Totals t=get(scope);
-        return Double.isFinite(budget)&&Double.isFinite(inRate)&&Double.isFinite(outRate)&&inRate>=0&&outRate>=0&&t.unpriced==0&&t.estimated<budget;
+        return validRate(budget)&&validRate(inRate)&&validRate(outRate)&&t.unpriced==0&&t.unknown==0&&
+            t.exactCost().compareTo(java.math.BigDecimal.valueOf(budget))<0;
     }
     void clear(){entries.clear();}
 }

@@ -548,3 +548,10 @@ assert "transfer=ModelDownloadBudget.tryTransfer()" in hf_source
 assert "HuggingFaceCatalog.cancelFor(this)" in main
 assert "serial!=pullSerial" in main
 assert "||ModelDownloadBudget.transferBusy()" in main
+
+# F10A84: consistent cloud preflight, completed response cross-check and common voice chunk ownership.
+assert "CloudHistory.requestChars(messages)" in (src/"CloudApi.java").read_text()
+assert "CloudHistory.requestChars(messages)" in (src/"CloudRequestAdvice.java").read_text()
+assert "finalText.contentEquals(answer)" in (src/"CloudApi.java").read_text()
+assert "playback.nextAudible()" in (src/"OnHandsVoice.java").read_text()
+assert "totals.exactCost()" in (src/"CloudRequestAdvice.java").read_text()

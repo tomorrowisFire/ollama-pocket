@@ -37,8 +37,13 @@ public final class CloudRequestAdviceTest {
         List<CloudHistory.Message> context=Arrays.asList(new CloudHistory.Message("user","a"),new CloudHistory.Message("assistant","b"),new CloudHistory.Message("user","c"));
         check(CloudRequestAdvice.inputUnits(context)==179);
         check(CloudRequestAdvice.inputUnits(Arrays.asList(new CloudHistory.Message("user","a"),new CloudHistory.Message("user","b"),new CloudHistory.Message("user","c")))==-1);
-        check(CloudRequestAdvice.inputUnits(question("a".repeat(64000)))==64144);
-        check(CloudRequestAdvice.inputUnits(question("a".repeat(64001)))==-1);
+        check(CloudRequestAdvice.inputUnits(question("a".repeat(16000)))==16144);
+        check(CloudRequestAdvice.inputUnits(question("a".repeat(16001)))==-1);
+        check(CloudRequestAdvice.inputUnits(question("a".repeat(64000)))==-1);
+        check(CloudRequestAdvice.inputUnits(Arrays.asList(new CloudHistory.Message("user","a".repeat(15999)),
+            new CloudHistory.Message("assistant","b".repeat(48000)),new CloudHistory.Message("user","c")))==64176);
+        check(CloudRequestAdvice.inputUnits(Arrays.asList(new CloudHistory.Message("user","a"),
+            new CloudHistory.Message("assistant","b".repeat(48001)),new CloudHistory.Message("user","c")))==-1);
         List<CloudHistory.Message> many=new ArrayList<>();
         for(int i=0;i<27;i++)many.add(new CloudHistory.Message(i%2==0?"user":"assistant","a"));
         check(CloudRequestAdvice.inputUnits(many)==-1);
@@ -77,6 +82,11 @@ public final class CloudRequestAdviceTest {
         check(!run(true,question(""),2048,-1,-1,-1,t).allows());
         check(CloudRequestAdvice.validRate(1000000)&&!CloudRequestAdvice.validRate(Double.POSITIVE_INFINITY));
         check(CloudRequestAdvice.validBudget(-1)&&!CloudRequestAdvice.validBudget(-0.1));
+        CloudUsageLedger precise=new CloudUsageLedger();
+        for(int i=0;i<10;i++)precise.record("OPENAI",100000,0,0.1,0);
+        check(eq(precise.get("OPENAI").exactCost(),"0.1"));
+        e=run(false,q,2048,0,0,0.1,precise.get("OPENAI"));
+        check(eq(e.knownSpent,"0.1")&&e.state==CloudRequestAdvice.State.OVER_BUDGET);
         System.out.println("PASS: "+n+" bounded API preflight, Unicode and spending assertions");
     }
 }

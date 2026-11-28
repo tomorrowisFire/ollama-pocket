@@ -1,6 +1,6 @@
 {
-  "stage": "F10A83-ninth-focused-integration",
-  "revision": "F10A83",
-  "priorCandidate": "dff23a1e9b66442863150e8dbe2750c21f389599",
-  "reason": "Exact installed inventory readback with size and manifest digest, shared model-transfer worker lease across activity lifecycle, stale pull callback guards, owner cancellation and explicit missing model verification message. Wire previously omitted model regression fixtures into FAST CI. Full ARM64 checkpoint; final device acceptance deferred."
+  "stage": "F10A84-tenth-focused-integration",
+  "revision": "F10A84",
+  "priorCandidate": "5f3d1718d0845edd8d4ab688630184bf77b91e0a",
+  "reason": "Cloud exact request admission, terminal text consistency, decimal estimated spending and reviewed route accounting; common audible chunk processing across voice backends; grouped knowledge citations. Parent FAST/FULL PASS. Exact candidate FAST/FULL and final physical acceptance pending."
 }

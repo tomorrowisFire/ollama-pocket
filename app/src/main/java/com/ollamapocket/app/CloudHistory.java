@@ -119,6 +119,20 @@ final class CloudHistory {
         for(Group g:groups.values())for(Session s:g.items)s.clear();
         groups.clear();count=0;
     }
+    /** Identical admission for the offline review and the actual network request. */
+    static int requestChars(List<Message> messages){
+        if(messages==null||messages.isEmpty()||messages.size()>2*MAX_TURNS+1||messages.size()%2==0)return -1;
+        int chars=0;
+        for(int i=0;i<messages.size();i++){
+            Message m=messages.get(i);
+            boolean user=i%2==0;
+            if(m==null||!(user?"user":"assistant").equals(m.role)||
+                !validMessage(m.content,user?MAX_PROMPT:MAX_REPLY))return -1;
+            chars+=m.content.length();
+            if(chars>MAX_CONTEXT)return -1;
+        }
+        return chars;
+    }
     static boolean validUnicode(String value){
         if(value==null)return false;
         for(int i=0;i<value.length();i++){

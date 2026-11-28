@@ -111,6 +111,15 @@ final class VoiceInteractionPolicy {
             current=prefix+(++serial)+"-"+start;
             return new Chunk(current,text.substring(start,end));
         }
+        /** Both speech backends skip silent chunks while preserving exact source progress. */
+        Chunk nextAudible(){
+            while(!finished()){
+                Chunk chunk=next();
+                if(!VoiceQueuePolicy.silent(chunk.text))return chunk;
+                acknowledge(chunk.id);
+            }
+            return null;
+        }
         boolean current(String id){return current!=null&&current.equals(id);}
         boolean acknowledge(String id){
             if(!current(id))return false;

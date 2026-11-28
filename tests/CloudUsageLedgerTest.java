@@ -23,6 +23,13 @@ public final class CloudUsageLedgerTest {
         check(l.get("B").unpriced==1);
         l.clear();
         check(l.get("A").requests==0);
-        System.out.println("PASS: 14 cloud session budget checks");
+        for(int i=0;i<10;i++)l.record("A",100000,0,0.1,0);
+        check(l.get("A").exactCost().compareTo(new java.math.BigDecimal("0.1"))==0);
+        check(!l.allows("A",0.1,0.1,0));
+        check(l.allows("A",0.100001,0.1,0));
+        check(!l.allows("A",-2,0.1,0));
+        l.record("A",1,1,1000001,0);
+        check(l.get("A").unpriced==1&&!l.allows("A",1,0,0));
+        System.out.println("PASS: 19 cloud session budget checks");
     }
 }

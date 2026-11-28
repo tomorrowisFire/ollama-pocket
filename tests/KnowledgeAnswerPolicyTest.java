@@ -31,7 +31,7 @@ public final class KnowledgeAnswerPolicyTest {
         reject(()->KnowledgeAnswerPolicy.answer(plan,""));
         reject(()->KnowledgeAnswerPolicy.answer(plan,"x".repeat(1801)));
         KnowledgeAnswerPolicy.Answer answer=KnowledgeAnswerPolicy.answer(plan,"claim [K1] [K9] [K01] [K1] [K2] [k1]");
-        ok(answer.known.equals(List.of("K1"))&&answer.unknown.equals(List.of("K9","K01","K2")));
+        ok(answer.known.equals(List.of("K1"))&&answer.unknown.equals(List.of("K9","K01","K2","k1")));
         ok(answer.text.contains("[K01]"));
         ok(KnowledgeAnswerPolicy.answer(plan,"no citation").known.isEmpty());
         ok(KnowledgeAnswerPolicy.answer(plan,"no citation").unknown.isEmpty());
@@ -74,6 +74,10 @@ public final class KnowledgeAnswerPolicyTest {
         int end=0;
         for(var x:tightPlan.excerpts){ok(x.start>end&&!Character.isLowSurrogate(x.text.charAt(0))&&!Character.isHighSurrogate(x.text.charAt(x.text.length()-1)));end=x.end;}
         ok(KnowledgeAnswerPolicy.answer(repeat,"[K1] [K2] [K3] [K4]").known.equals(List.of("K1","K2","K3")));
+        var grouped=KnowledgeAnswerPolicy.answer(repeat,"[K1, K2; K99] ［K3、k1］ [K01, K 2, K1] K7");
+        ok(grouped.known.equals(List.of("K1","K2","K3")));
+        ok(grouped.unknown.equals(List.of("K99","k1","K01","K 2")));
+        ok(KnowledgeAnswerPolicy.answer(repeat,"K1 K7").known.isEmpty());
         System.out.println("PASS: "+n+" bounded knowledge answer evidence, exact identity and citation-ID assertions");
     }
 }

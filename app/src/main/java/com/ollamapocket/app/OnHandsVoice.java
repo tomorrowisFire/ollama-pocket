@@ -150,21 +150,14 @@ final class OnHandsVoice {
         long left=speechDeadline-android.os.SystemClock.elapsedRealtime();
         if(left<=0){cancel();toast(R.string.tts_unavailable);return;}
         try{
+            if(neural==null&&!selectedVoiceCurrent()){cancel();toast(R.string.tts_unavailable);return;}
+            VoiceInteractionPolicy.Playback.Chunk chunk=playback.nextAudible();
+            if(chunk==null){completePlayback();return;}
             if(neural!=null){
-                VoiceInteractionPolicy.Playback.Chunk chunk;
-                // Formatting-only chunks have no waveform; advance without recursive callbacks.
-                for(;;){
-                    chunk=playback.next();
-                    if(!VoiceQueuePolicy.silent(chunk.text))break;
-                    playback.acknowledge(chunk.id);
-                    if(playback.finished()){completePlayback();return;}
-                }
                 armTimeout(Math.min(left,180000L));
                 if(!neural.speak(chunk.text,chunk.id)){cancel();toast(R.string.tts_unavailable);}
                 return;
             }
-            if(!selectedVoiceCurrent()){cancel();toast(R.string.tts_unavailable);return;}
-            VoiceInteractionPolicy.Playback.Chunk chunk=playback.next();
             armTimeout(Math.min(left,VoiceQueuePolicy.timeout(chunk.text.length())));
             if(tts.speak(chunk.text,TextToSpeech.QUEUE_FLUSH,null,chunk.id)!=TextToSpeech.SUCCESS){
                 cancel();toast(R.string.tts_unavailable);

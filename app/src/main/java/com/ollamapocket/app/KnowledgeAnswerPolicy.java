@@ -7,7 +7,8 @@ import java.util.regex.Pattern;
 final class KnowledgeAnswerPolicy {
     static final int MAX_SOURCES=3, MAX_EXCERPTS=3, WINDOW=120, MAX_QUESTION=300, MAX_ANSWER=1800, TOKENS=512;
     static final long MAX_MILLIS=90000L;
-    private static final Pattern CITATION=Pattern.compile("\\[K[0-9]{1,9}\\]");
+    private static final Pattern BRACKET=Pattern.compile("\\[([^\\[\\]\\r\\n]*)\\]|［([^［］\\r\\n]*)］");
+    private static final Pattern CITATION=Pattern.compile("(?i)(?<![A-Za-z0-9_])K[ \\t]*[0-9]+(?![A-Za-z0-9_])");
     private KnowledgeAnswerPolicy(){}
     private static String checked(String text,int max){
         if(text==null||text.isEmpty()||text.length()>max)throw new IllegalArgumentException("Input limit");
@@ -110,10 +111,13 @@ final class KnowledgeAnswerPolicy {
         Set<String> allowed=new HashSet<>();
         for(Excerpt e:plan.excerpts)allowed.add(e.marker);
         Set<String> known=new LinkedHashSet<>(),unknown=new LinkedHashSet<>();
-        Matcher m=CITATION.matcher(text);
-        while(m.find()){
-            String id=m.group().substring(1,m.group().length()-1);
-            (allowed.contains(id)?known:unknown).add(id);
+        Matcher groups=BRACKET.matcher(text);
+        while(groups.find()){
+            Matcher m=CITATION.matcher(groups.group(1)!=null?groups.group(1):groups.group(2));
+            while(m.find()){
+                String id=m.group();
+                (allowed.contains(id)?known:unknown).add(id);
+            }
         }
         return new Answer(text,new ArrayList<>(known),new ArrayList<>(unknown));
     }

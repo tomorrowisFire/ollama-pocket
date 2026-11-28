@@ -46,6 +46,8 @@ public final class VoiceQueuePolicyTest {
         check(VoiceQueuePolicy.bargeFrames(quiet,320,hits)==0);
         check(VoiceQueuePolicy.bargeFrames(loud,320,hits)==8);
         check(VoiceQueuePolicy.bargeFrames(loud,320,8)==8);
+        check(VoiceQueuePolicy.bargeFrames(loud,320,Integer.MAX_VALUE)==8);
+        check(VoiceQueuePolicy.naturalChunkEnd("abcdefghij\u3000xyz123",0,14)==11);
         check(VoiceQueuePolicy.bargeFrames(loud,100,7)==0);
         check(VoiceQueuePolicy.bargeFrames(null,320,7)==0);
         check(VoiceQueuePolicy.bargeFrames(loud,321,7)==0);

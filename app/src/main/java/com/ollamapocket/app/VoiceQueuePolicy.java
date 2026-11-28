@@ -26,7 +26,7 @@ final class VoiceQueuePolicy {
         for(int i=end;i>floor;i--){
             char c=text.charAt(i-1);
             if(".!?。！？；;\n".indexOf(c)>=0)return i;
-            if(space<0&&Character.isWhitespace(c))space=i;
+            if(space<0&&(Character.isWhitespace(c)||Character.isSpaceChar(c)))space=i;
         }
         return space>start?space:end;
     }
@@ -40,7 +40,7 @@ final class VoiceQueuePolicy {
     static int bargeFrames(short[] frame,int count,int previous){
         if(frame==null||count<240||count>frame.length)return 0;
         long sum=0; for(int i=0;i<count;i++){long v=frame[i];sum+=v*v;}
-        return sum>=count*1200L*1200L?Math.min(8,Math.max(0,previous)+1):0;
+        return sum>=count*1200L*1200L?Math.min(7,Math.max(0,previous))+1:0;
     }
     static long timeout(int length){
         return Math.min(1800000L,30000L+Math.max(0,length)*500L);

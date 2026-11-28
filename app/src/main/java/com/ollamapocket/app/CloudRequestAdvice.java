@@ -23,15 +23,10 @@ final class CloudRequestAdvice {
     static boolean validRate(double value){return Double.isFinite(value)&&value>=0&&value<=1000000;}
     static boolean validBudget(double value){return value==-1||validRate(value);}
     static long inputUnits(List<CloudHistory.Message> messages){
-        if(messages==null||messages.isEmpty()||messages.size()>25||messages.size()%2==0)return -1;
-        long units=128;int chars=0;
-        for(int i=0;i<messages.size();i++){
-            CloudHistory.Message m=messages.get(i);
-            if(m==null||!(i%2==0?"user":"assistant").equals(m.role)||m.content==null||
-                !CloudHistory.validMessage(m.content,CloudHistory.MAX_CONTEXT))return -1;
-            chars+=m.content.length();if(chars>CloudHistory.MAX_CONTEXT)return -1;
+        if(CloudHistory.requestChars(messages)<0)return -1;
+        long units=128;
+        for(CloudHistory.Message m:messages)
             units+=16L+m.content.getBytes(StandardCharsets.UTF_8).length;
-        }
         return units;
     }
     static Estimate estimate(boolean remote,List<CloudHistory.Message> messages,int outputLimit,
@@ -45,7 +40,7 @@ final class CloudRequestAdvice {
         boolean known=totals!=null&&Double.isFinite(totals.estimated)&&totals.estimated>=0&&
             totals.unpriced==0&&totals.unknown==0;
         BigDecimal spent=totals!=null&&Double.isFinite(totals.estimated)&&totals.estimated>=0?
-            BigDecimal.valueOf(totals.estimated):null;
+            totals.exactCost():null;
         long unknown=totals==null?-1:Math.max(totals.unpriced,totals.unknown);
         BigDecimal cost=null,projected=null;
         if(validRate(inputRate)&&validRate(outputRate)){

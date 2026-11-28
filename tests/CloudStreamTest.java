@@ -126,6 +126,21 @@ public final class CloudStreamTest {
             try{CloudApi.request(CloudApi.Provider.OPENAI,"model",bad);throw new AssertionError("Invalid request accepted");}
             catch(IllegalArgumentException expected){check(true);}
         }
+        String finalOnly=event("{\"type\":\"response.completed\",\"response\":{\"status\":\"completed\",\"output\":[{\"type\":\"reasoning\"},{\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"안녕\"}]}]}}");
+        for(CloudApi.Provider p:new CloudApi.Provider[]{CloudApi.Provider.OPENAI,CloudApi.Provider.XAI}){
+            check(parse(p,delta+finalOnly).text.equals("안녕"));
+            check(parse(p,finalOnly).text.equals("안녕"));
+            rejects(p,delta+finalOnly.replace("안녕","different"));
+            rejects(p,delta+finalOnly.replace("reasoning","function_call"));
+            rejects(p,delta+event("{\"type\":\"response.completed\",\"response\":{\"output\":[]}}"));
+            rejects(p,delta+event("{\"type\":\"response.completed\",\"response\":{\"output\":null}}"));
+            rejects(p,delta+event("not JSON"));
+        }
+        for(CloudApi.Provider p:CloudApi.Provider.values()){
+            try{CloudApi.request(p,"model",java.util.List.of(new CloudHistory.Message("user","x".repeat(16001))));
+                throw new AssertionError("Oversized user input accepted");}
+            catch(IllegalArgumentException expected){check(true);}
+        }
         System.out.println("PASS: "+checks+" offline SSE protocol checks");
     }
 }
