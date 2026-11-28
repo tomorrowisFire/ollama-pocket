@@ -154,7 +154,7 @@ public final class OllamaHttp {
             LocalStreamCancellation.check(cancelled);
             write(connection,request);
             LocalStreamCancellation.check(cancelled);
-            try(BufferedReader reader=new BufferedReader(new InputStreamReader(checkedStream(connection),StandardCharsets.UTF_8))){
+            try(BufferedReader reader=LocalInferenceStream.strictUtf8(checkedStream(connection))){
                 LocalInferenceStream.pull(reader,listener::onChunk,cancelled);
             }
             LocalStreamCancellation.check(cancelled);
@@ -170,7 +170,7 @@ public final class OllamaHttp {
             LocalStreamCancellation.check(cancelled);
             write(connection,request);
             LocalStreamCancellation.check(cancelled);
-            try(BufferedReader reader=new BufferedReader(new InputStreamReader(checkedStream(connection),StandardCharsets.UTF_8))){
+            try(BufferedReader reader=LocalInferenceStream.strictUtf8(checkedStream(connection))){
                 LocalInferenceStream.ndjson(reader,listener::onChunk,true,cancelled);
             }
             LocalStreamCancellation.check(cancelled);
@@ -226,7 +226,7 @@ public final class OllamaHttp {
             LocalStreamCancellation.check(cancelled);
             write(connection,request);
             LocalStreamCancellation.check(cancelled);
-            try(BufferedReader reader=new BufferedReader(new InputStreamReader(checkedStream(connection),StandardCharsets.UTF_8))){
+            try(BufferedReader reader=LocalInferenceStream.strictUtf8(checkedStream(connection))){
                 LocalInferenceStream.sse(reader,onChunk::onChunk,requireTerminal,cancelled);
             }
             LocalStreamCancellation.check(cancelled);

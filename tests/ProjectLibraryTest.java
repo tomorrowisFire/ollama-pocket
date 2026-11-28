@@ -206,6 +206,21 @@ public final class ProjectLibraryTest {
         mem.mode=4;rejects(()->t.commit(threeSaved,x->ProjectLibrary.editProject(x,"p","Wrong","")));ok(mem.writes==writes);
         mem.mode=0;mem.bytes=new byte[]{1,2,3};
         rejects(()->t.commit(empty,x->ProjectLibrary.createProject(x,"p","Overwrite","")));ok(mem.writes==writes);
+        // A mutating codec client must not disguise an unchanged revision as a no-op.
+        byte[][] mutableBytes={new byte[]{1,7}};
+        ProjectTransactions<int[]> mutable=new ProjectTransactions<>(new ProjectTransactions.Backend(){
+            public byte[] read(){return mutableBytes[0].clone();}
+            public void write(byte[] value){mutableBytes[0]=value.clone();}
+        },new ProjectTransactions.Codec<int[]>(){
+            public int[] decode(byte[] value){return new int[]{value[0],value[1]};}
+            public byte[] encode(int[] value){return new byte[]{(byte)value[0],(byte)value[1]};}
+            public long revision(int[] value){return value[0];}
+        },new Object(),new int[]{0,0},32);
+        var mutableReview=mutable.read();
+        fails(()->mutable.commit(mutableReview,value->{value[1]=8;return value;}),ProjectTransactions.Failure.INVALID);
+        ok(mutableBytes[0][1]==7&&mutable.read().revision==1);
+        fails(()->mutable.commit(mutableReview,value->{throw new InterruptedException("fixture");}),ProjectTransactions.Failure.INVALID);
+        ok(Thread.interrupted()); // preserve worker interrupt, then clear fixture thread
         System.out.println("PASS: "+n+" project schema, isolated version history, exact byte limit and transaction assertions");
     }
 }

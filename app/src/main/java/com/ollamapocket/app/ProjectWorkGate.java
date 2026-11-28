@@ -36,7 +36,10 @@ final class ProjectWorkGate {
             try {
                 T result = null;
                 Exception problem = null;
-                try { result = task.run(); } catch (Exception e) { problem = e; }
+                try { result = task.run(); } catch (Exception e) {
+                    if(e instanceof InterruptedException)Thread.currentThread().interrupt();
+                    problem = e;
+                }
                 final T value = result;
                 final Exception error = problem;
                 try {

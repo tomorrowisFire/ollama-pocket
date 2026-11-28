@@ -60,10 +60,11 @@ final class ProjectTransactions<T> {
             T candidate;byte[] bytes;
             try{
                 if(current.revision==Long.MAX_VALUE)throw new IllegalArgumentException("Revision limit");
+                byte[] original=current.bytes==null?codec.encode(current.value):current.bytes;
                 candidate=Objects.requireNonNull(mutation.apply(current.value));
                 long next=codec.revision(candidate);
                 bytes=codec.encode(candidate);
-                if(next==current.revision&&Arrays.equals(bytes,codec.encode(current.value)))
+                if(next==current.revision&&Arrays.equals(bytes,original))
                     throw new TransactionFailure(Failure.NO_CHANGE,null);
                 if(next!=current.revision+1||bytes==null||bytes.length==0||bytes.length>maxBytes)
                     throw new IllegalArgumentException("Candidate limit/revision");
@@ -71,7 +72,7 @@ final class ProjectTransactions<T> {
                 if(codec.revision(validated)!=next||!Arrays.equals(bytes,codec.encode(validated)))
                     throw new IllegalArgumentException("Candidate round trip");
             }catch(TransactionFailure e){throw e;}
-            catch(Exception e){throw new TransactionFailure(Failure.INVALID,e);}
+            catch(Exception e){if(e instanceof InterruptedException)Thread.currentThread().interrupt();throw new TransactionFailure(Failure.INVALID,e);}
             // A backend failure may occur after data reached disk. Do not claim rollback.
             try{
                 backend.write(bytes.clone());
@@ -79,7 +80,7 @@ final class ProjectTransactions<T> {
                 if(saved.revision!=current.revision+1||!Arrays.equals(saved.bytes,bytes))
                     throw new IOException("Post-write mismatch");
                 return saved;
-            }catch(Exception e){throw new TransactionFailure(Failure.WRITE_UNCERTAIN,e);}
+            }catch(Exception e){if(e instanceof InterruptedException)Thread.currentThread().interrupt();throw new TransactionFailure(Failure.WRITE_UNCERTAIN,e);}
         }
     }
 }

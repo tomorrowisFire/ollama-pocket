@@ -24,6 +24,11 @@ public final class VoiceInteractionPolicyTest {
         ok(VoiceInteractionPolicy.partial("x".repeat(300)).length()==240);
         ok(VoiceInteractionPolicy.partial("😀".repeat(120)).length()==240);
         ok(VoiceInteractionPolicy.partial("\uD800x").equals("x"));
+        ok(VoiceInteractionPolicy.partial("\u0000".repeat(4096)+"later").isEmpty());
+        ok(VoiceInteractionPolicy.partial("\u0000".repeat(4095)+"a").equals("a"));
+        rejects(()->new VoiceInteractionPolicy.Playback("\u3000\u200d","x",16));
+        rejects(()->new VoiceInteractionPolicy.Playback("bad\u0000text","x",16));
+        rejects(()->new VoiceInteractionPolicy.Playback("bad\ud800","x",16));
         String sample="First sentence. Second sentence. 한국어😀日本語。";
         VoiceInteractionPolicy.Playback p=new VoiceInteractionPolicy.Playback(sample,"test-",16);
         ok(p.completed()==0&&p.percent()==0&&!p.finished());

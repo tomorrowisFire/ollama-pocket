@@ -3770,7 +3770,7 @@ public final class MainActivity extends Activity {
     private void completeLocalTurn(String scope,String session,String original,String prompt,String answer)throws Exception{
         if(!historyReadable||!ownsLoadedScope()||!scope.equals(loadedHistoryScope)||!original.equals(history.toString())||
             !originalStillStored(scope,original))throw new IllegalStateException("Chat scope changed");
-        if(!LocalChatTurns.validReply(answer))throw new IllegalArgumentException("Invalid response");
+        if(!LocalChatTurns.validPrompt(prompt)||!LocalChatTurns.validReply(answer))throw new IllegalArgumentException("Invalid conversation turn");
         JSONArray next=new JSONArray(original);
         next.put(new JSONObject().put("role","user").put("content",prompt));
         next.put(new JSONObject().put("role","assistant").put("content",answer));
@@ -4358,7 +4358,7 @@ public final class MainActivity extends Activity {
         });
     }
     private String localChatError(String error){
-        if("CHAT_STREAM_INCOMPLETE".equals(error))return getString(R.string.chat_stream_incomplete);
+        if("CHAT_STREAM_INCOMPLETE".equals(error)||"LOCAL_ENGINE_PROTOCOL".equals(error))return getString(R.string.chat_stream_incomplete);
         if("CHAT_REPLY_LIMIT".equals(error))return getString(R.string.chat_reply_limit);
         if("CHAT_EMPTY_ANSWER".equals(error))return getString(R.string.chat_empty_answer);
         if("CHAT_SAVE_FAILED".equals(error))return getString(R.string.chat_save_failed);

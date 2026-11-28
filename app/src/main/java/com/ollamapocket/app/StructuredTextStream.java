@@ -34,13 +34,12 @@ final class StructuredTextStream {
             JSONObject message=(JSONObject)raw;
             Object value=message.opt("content");
             if(value!=null&&value!=JSONObject.NULL){
-                if(!(value instanceof String))throw bad();
+                if(!(value instanceof String)||!LocalChatTurns.validFragment((String)value))throw bad();
                 String part=(String)value;
                 if((long)text.length()+part.length()>maxChars)throw new IOException("CHAT_STREAM_LIMIT");
                 text.append(part);
             }
-            Object calls=message.opt("tool_calls");
-            if(calls!=null&&calls!=JSONObject.NULL&&(!(calls instanceof JSONArray)||((JSONArray)calls).length()!=0))throw bad();
+            LocalInferenceStream.requireTextOnly(message);
         }
         if(Boolean.TRUE.equals(flag)){
             Object count=item.opt("eval_count");

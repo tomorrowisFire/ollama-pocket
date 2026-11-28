@@ -88,6 +88,29 @@ public final class LocalInferenceStreamTest {
         cancelled(()->LocalInferenceStream.pull(reader("{\"status\":\"success\"}\n"),m->{throw new AssertionError("Cancelled pull callback");},()->true));
         AtomicBoolean pullStopped=new AtomicBoolean();
         cancelled(()->LocalInferenceStream.pull(reader("{\"status\":\"success\"}\n"),m->pullStopped.set(true),pullStopped::get));
+        for(String bad:new String[]{
+            "{\"message\":{\"content\":\"ok\",\"tool_calls\":[{}]},\"done\":true}",
+            "{\"message\":{\"content\":\"ok\",\"function_call\":{}},\"done\":true}",
+            "{\"message\":{\"content\":\"ok\",\"refusal\":\"no\"},\"done\":true}",
+            "{\"done\":true,\"done_reason\":\"load\"}",
+            "{\"done\":true,\"done_reason\":1}",
+            "{\"message\":{\"content\":\"\\uD800\"},\"done\":true}",
+            "{\"message\":{\"content\":\"\\u0000\"},\"done\":true}",
+            "not JSON"
+        })rejects(()->LocalInferenceStream.ndjson(reader(bad+"\n"),m->{throw new AssertionError("Bad callback");},true));
+        ok(nd("{\"message\":{\"content\":\"ok\",\"tool_calls\":[]},\"done\":true,\"done_reason\":\"length\"}\n").equals("ok"));
+        for(String bad:new String[]{
+            "{\"choices\":[{\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"},{\"delta\":{}}]}",
+            "{\"choices\":[{\"index\":1,\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}",
+            "{\"choices\":[{\"index\":\"0\",\"finish_reason\":\"stop\"}]}",
+            "{\"choices\":[{\"delta\":{\"tool_calls\":[{}]},\"finish_reason\":\"stop\"}]}",
+            "{\"choices\":[{\"delta\":{\"content\":\"ok\",\"refusal\":\"no\"},\"finish_reason\":\"stop\"}]}",
+            "{\"choices\":[{\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"tool_calls\"}]}",
+            "not JSON"
+        })rejects(()->LocalInferenceStream.sse(reader("data: "+bad+"\n\n"),m->{throw new AssertionError("Bad callback");},true));
+        byte[] malformed={(byte)0xc3,0x28};
+        rejects(()->LocalInferenceStream.line(LocalInferenceStream.strictUtf8(new java.io.ByteArrayInputStream(malformed)),16));
+        ok(LocalInferenceStream.line(LocalInferenceStream.strictUtf8(new java.io.ByteArrayInputStream("한글😀\n".getBytes(java.nio.charset.StandardCharsets.UTF_8))),16).equals("한글😀"));
         System.out.println("PASS: "+n+" local inference and model pull protocol assertions");
     }
 }

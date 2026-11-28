@@ -555,3 +555,12 @@ assert "CloudHistory.requestChars(messages)" in (src/"CloudRequestAdvice.java").
 assert "finalText.contentEquals(answer)" in (src/"CloudApi.java").read_text()
 assert "playback.nextAudible()" in (src/"OnHandsVoice.java").read_text()
 assert "totals.exactCost()" in (src/"CloudRequestAdvice.java").read_text()
+
+# F10A85: strict local text-only transport and original-byte transaction comparison.
+local_stream=(src/"LocalInferenceStream.java").read_text()
+assert "if(requireTerminal&&choices.length()!=1)" in local_stream
+assert "requireTextOnly(content)" in local_stream and "requireTextOnly(delta)" in local_stream
+assert "LocalInferenceStream.strictUtf8(checkedStream(connection))" in (src/"OllamaHttp.java").read_text()
+assert "LocalChatTurns.validFragment" in (src/"StructuredTextStream.java").read_text()
+assert "Arrays.equals(bytes,original)" in (src/"ProjectTransactions.java").read_text()
+assert "int scanLimit=Math.min(text.length(),4096)" in (src/"VoiceInteractionPolicy.java").read_text()

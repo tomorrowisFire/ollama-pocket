@@ -23,7 +23,8 @@ final class VoiceInteractionPolicy {
     static String partial(String text){
         if(text==null)return "";
         StringBuilder result=new StringBuilder();
-        for(int i=0;i<text.length()&&result.length()<240;){
+        int scanLimit=Math.min(text.length(),4096);
+        for(int i=0;i<scanLimit&&result.length()<240;){
             int cp=text.codePointAt(i);i+=Character.charCount(cp);
             if(Character.isISOControl(cp)||Character.getType(cp)==Character.FORMAT||
                 cp>=0xD800&&cp<=0xDFFF)continue;
@@ -97,8 +98,9 @@ final class VoiceInteractionPolicy {
         private String current;
         private boolean paused;
         Playback(String text,String prefix,int limit){
-            if(text==null||text.trim().isEmpty()||text.length()>160000||prefix==null||prefix.isEmpty()||limit<2||limit>2000)
+            if(prefix==null||prefix.isEmpty()||limit<2||limit>2000)
                 throw new IllegalArgumentException("Playback scope");
+            finalTranscript(text,160000); // validate only; preserve exact reviewed source and offsets
             this.text=text;this.prefix=prefix;this.limit=limit;
         }
         static final class Chunk {

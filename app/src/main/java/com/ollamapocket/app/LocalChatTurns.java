@@ -12,8 +12,8 @@ final class LocalChatTurns {
     static final class Message {
         final String role, content;
         Message(String role,String content){this.role=role;this.content=content;}
-        boolean user(){return "user".equals(role)&&content!=null&&!content.trim().isEmpty();}
-        boolean assistant(){return "assistant".equals(role)&&content!=null&&!content.trim().isEmpty();}
+        boolean user(){return "user".equals(role)&&validText(content,true);}
+        boolean assistant(){return "assistant".equals(role)&&validText(content,true);}
     }
     static final class Branch {
         final int prefixLength;
@@ -21,11 +21,23 @@ final class LocalChatTurns {
         Branch(int prefixLength,String prompt){this.prefixLength=prefixLength;this.prompt=prompt;}
     }
     private LocalChatTurns(){}
+    /** Reject malformed UTF-16 and control payloads, but preserve ordinary layout whitespace. */
+    private static boolean validText(String text,boolean requireVisible){
+        if(text==null)return false;
+        boolean visible=false;
+        for(int i=0;i<text.length();){
+            int cp=text.codePointAt(i);i+=Character.charCount(cp);
+            if(cp>=0xd800&&cp<=0xdfff||Character.isISOControl(cp)&&cp!='\n'&&cp!='\r'&&cp!='\t')return false;
+            if(requireVisible&&!visible&&!Character.isWhitespace(cp)&&!Character.isSpaceChar(cp)&&Character.getType(cp)!=Character.FORMAT)visible=true;
+        }
+        return !requireVisible||visible;
+    }
+    static boolean validFragment(String text){return validText(text,false);}
     static boolean validPrompt(String prompt){
-        return prompt!=null&&!prompt.trim().isEmpty()&&prompt.length()<=MAX_PROMPT;
+        return prompt!=null&&prompt.length()<=MAX_PROMPT&&validText(prompt,true);
     }
     static boolean validReply(String answer){
-        return answer!=null&&!answer.trim().isEmpty()&&answer.length()<=MAX_REPLY;
+        return answer!=null&&answer.length()<=MAX_REPLY&&validText(answer,true);
     }
     static boolean storageFits(int messages,int serializedChars){
         return messages>=0&&messages<=MAX_STORED_MESSAGES&&serializedChars>=0&&serializedChars<=MAX_STORED_JSON_CHARS;

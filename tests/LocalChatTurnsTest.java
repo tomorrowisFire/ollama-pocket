@@ -63,6 +63,14 @@ public final class LocalChatTurnsTest {
             for(int i=0;i<expected.size();i++)ok(actual.get(i)==expected.get(i),"exact legacy context equivalence");
             ok(actual.get(actual.size()-1).content.equals("latest"),"preserve prompt");
         }
+        for(String bad:new String[]{"\u3000","\u00a0\u200d","bad\u0000text","\ud800","\udc00"}){
+            ok(!LocalChatTurns.validPrompt(bad)&&!LocalChatTurns.validReply(bad),"malformed or invisible text");
+        }
+        ok(LocalChatTurns.validPrompt("한글 👩‍💻\n\t日本語")&&LocalChatTurns.validReply("中文"),"Unicode preserved");
+        ok(LocalChatTurns.validFragment("\n\t")&&!LocalChatTurns.validFragment("bad\u0000"),"fragment validation");
+        List<LocalChatTurns.Message> legacy=Arrays.asList(u("ok"),a("answer"),u("broken\ud800"),a("old invalid"),u("new"),a("fine"));
+        req=LocalChatTurns.request(legacy,"next");
+        ok(req.size()==5&&req.get(2).content.equals("new")&&legacy.size()==6,"skip corrupt legacy context without modifying history");
         System.out.println("LocalChatTurnsTest PASS: "+n+" assertions");
     }
 }

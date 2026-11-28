@@ -102,6 +102,11 @@ public final class ProjectWorkGateTest {
             ok(acquired.get() == 1 && gate.busy());
             ok(winner.get().release() && !gate.busy());
         }
+        ProjectWorkGate.Lease interrupted=gate.acquire();
+        ok(interrupted.execute(()->{throw new InterruptedException("fixture");},action->{pending.set(action);return true;},
+            (Object value,Exception error)->ok(value==null&&error instanceof InterruptedException&&!gate.busy())));
+        ok(Thread.interrupted()&&gate.busy());
+        pending.get().run();ok(!gate.busy());
         System.out.println("PASS: " + checks + " project worker ownership and dispatch assertions");
     }
 }
