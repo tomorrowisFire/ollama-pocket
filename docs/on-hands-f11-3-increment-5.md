@@ -1,0 +1,3 @@
+# F11-3 r005 — deadline ownership and late callback rejection
+
+Replaced voice timers carry unique tickets even within one session generation. Old scheduled callbacks cannot cancel a newer timer; expired terminal recognition or playback results are rejected before admission. Check the monotonic elapsed deadline before extending Whisper processing. Guard idle callbacks by runnable identity. Tests cover replacement, expiration boundaries, clock rollback and large timestamps. Design perspectives: lifecycle correctness, speech UX, resource safety. Physical device latency and lifecycle tests remain pending.

@@ -77,6 +77,18 @@ public final class VoiceInteractionPolicyTest {
         ok(VoiceInteractionPolicy.platformFinalizeBudget(1)==1);
         ok(VoiceInteractionPolicy.platformFinalizeBudget(0)==0);
         ok(VoiceInteractionPolicy.platformFinalizeBudget(-1)==0);
+        VoiceInteractionPolicy.Deadline deadline=new VoiceInteractionPolicy.Deadline();
+        ok(!deadline.expired(100));
+        var firstDeadline=deadline.arm(100,20);
+        ok(deadline.owns(firstDeadline)&&!deadline.expired(119)&&deadline.expired(120));
+        ok(deadline.expired(99));
+        var replacementDeadline=deadline.arm(115,30);
+        ok(!deadline.owns(firstDeadline)&&deadline.owns(replacementDeadline)&&!deadline.expired(120));
+        ok(deadline.expired(145));
+        deadline.clear();ok(!deadline.owns(replacementDeadline)&&!deadline.expired(Long.MAX_VALUE));
+        var largeDeadline=deadline.arm(Long.MAX_VALUE-5,10);
+        ok(deadline.owns(largeDeadline)&&!deadline.expired(Long.MAX_VALUE));
+        rejects(()->deadline.arm(-1,20));rejects(()->deadline.arm(1,0));
         VoiceInteractionPolicy.Capture capture=new VoiceInteractionPolicy.Capture();
         ok(capture.state()==VoiceInteractionPolicy.Capture.State.PREPARING&&!capture.canFinish()&&!capture.finish());
         capture.ready();ok(capture.canFinish()&&capture.state()==VoiceInteractionPolicy.Capture.State.LISTENING);

@@ -126,8 +126,25 @@ final class OnHandsVoice {
         };
         handler.postDelayed(resumeListening,PLAYBACK_TAIL_MS);
     }
-    private void clearTimeout(){if(timeout!=null)handler.removeCallbacks(timeout);timeout=null;}
-    private void armTimeout(long ms){clearTimeout();final int token=generation;timeout=()->{if(token==generation){cancel();toast(R.string.voice_error);}};handler.postDelayed(timeout,ms);}
+    private final VoiceInteractionPolicy.Deadline voiceDeadline=new VoiceInteractionPolicy.Deadline();
+    private void clearTimeout(){
+        if(timeout!=null)handler.removeCallbacks(timeout);
+        timeout=null;voiceDeadline.clear();
+    }
+    private boolean rejectExpiredVoice(){
+        if(!voiceDeadline.expired(android.os.SystemClock.elapsedRealtime()))return false;
+        cancel();toast(R.string.voice_error);return true;
+    }
+    private void armTimeout(long ms){
+        clearTimeout();final int token=generation;
+        final VoiceInteractionPolicy.Deadline.Ticket ticket=voiceDeadline.arm(android.os.SystemClock.elapsedRealtime(),ms);
+        timeout=()->{
+            if(!closed&&token==generation&&voiceDeadline.owns(ticket)){
+                cancel();toast(R.string.voice_error);
+            }
+        };
+        handler.postDelayed(timeout,ms);
+    }
     private boolean armRecognizerFinalization(){
         long left=VoiceInteractionPolicy.platformFinalizeBudget(recognizerDeadline-android.os.SystemClock.elapsedRealtime());
         if(left==0){cancel();toast(R.string.voice_error);return false;}
@@ -139,12 +156,13 @@ final class OnHandsVoice {
     }
     private void armRecognizerIdle(int token,VoiceInteractionPolicy.Capture turn){
         if(!continuous||recognizerIdle!=null||!turn.waitingForSpeech())return;
-        recognizerIdle=()->{
+        recognizerIdle=new Runnable(){public void run(){
+            if(recognizerIdle!=this)return;
             recognizerIdle=null;
             if(!closed&&token==generation&&recognizer!=null&&capture==turn&&turn.waitingForSpeech()){
                 cancel();toast(R.string.voice_no_match);
             }
-        };
+        }};
         handler.postDelayed(recognizerIdle,WhisperCapturePolicy.CONTINUOUS_IDLE_MS);
     }
     boolean continuous(){return continuous;}
@@ -154,6 +172,7 @@ final class OnHandsVoice {
         if(closed)return;
         VoiceInteractionPolicy.Playback p=playback;
         if(p==null||!p.current(id))return;
+        if(rejectExpiredVoice())return;
         if(!playbackAllowed()){cancel();return;}
         if(!success){cancel();toast(R.string.tts_unavailable);return;}
         if(!p.acknowledge(id))return;
@@ -220,7 +239,7 @@ final class OnHandsVoice {
             whisper=new WhisperCapture(a,voiceModels,targetLocale(),continuous,new WhisperCapture.Callback(){
                 private boolean current(){return !closed&&id==generation&&capture==turn;}
                 public void onReady(){if(current())turn.ready();}
-                public void onProcessing(){if(current()){turn.end();armTimeout(150000L);}}
+                public void onProcessing(){if(current()&&!rejectExpiredVoice()){turn.end();armTimeout(150000L);}}
                 public void onResult(String text){if(current())acceptTranscript(turn,text,cb);}
                 public void onError(){if(current()&&turn.consumeTerminal()){cancel();toast(R.string.voice_error);}}
                 public void onNoSpeech(){if(current()&&turn.consumeTerminal()){cancel();toast(R.string.voice_no_match);}}
@@ -272,7 +291,7 @@ final class OnHandsVoice {
         }catch(RuntimeException e){cancel();toast(R.string.voice_unavailable);}
     }
     private void acceptTranscript(VoiceInteractionPolicy.Capture turn,String text,Result cb){
-        if(!turn.consumeTerminal())return;
+        if(rejectExpiredVoice()||!turn.consumeTerminal())return;
         final String result;
         try{result=VoiceInteractionPolicy.finalTranscript(text,LocalChatTurns.MAX_PROMPT);}
         catch(IllegalArgumentException e){cancel();toast(R.string.voice_invalid_transcript);return;}

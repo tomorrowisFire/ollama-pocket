@@ -42,6 +42,23 @@ final class VoiceInteractionPolicy {
     static long platformFinalizeBudget(long remaining){
         return Math.max(0L,Math.min(PLATFORM_FINALIZE_MS,remaining));
     }
+    /** Main-thread deadline ownership; replacement invalidates the old scheduled callback. */
+    static final class Deadline {
+        static final class Ticket {
+            final long started,delay;
+            private Ticket(long started,long delay){this.started=started;this.delay=delay;}
+        }
+        private Ticket active;
+        Ticket arm(long now,long delay){
+            if(now<0||delay<=0)throw new IllegalArgumentException("Voice deadline");
+            return active=new Ticket(now,delay);
+        }
+        void clear(){active=null;}
+        boolean owns(Ticket ticket){return ticket!=null&&active==ticket;}
+        boolean expired(long now){
+            return active!=null&&(now<active.started||now-active.started>=active.delay);
+        }
+    }
     static final class Capture {
         enum State { PREPARING, LISTENING, FINALIZING, TERMINAL }
         private State state=State.PREPARING;
