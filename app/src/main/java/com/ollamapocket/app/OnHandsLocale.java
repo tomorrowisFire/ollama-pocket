@@ -42,6 +42,11 @@ public final class OnHandsLocale {
             default: return Locale.US;
         }
     }
+    /** Read-only current preference for the settings summary. */
+    static String currentLabel(Context c){
+        int index=Math.max(0,java.util.Arrays.asList(TAGS).indexOf(choice(c)));
+        return index==0?c.getString(R.string.system_language):LABELS[index];
+    }
     static void choose(Activity a) {
         String[] labels=LABELS.clone(); labels[0]=a.getString(R.string.system_language);
         int current=Math.max(0,java.util.Arrays.asList(TAGS).indexOf(choice(a)));

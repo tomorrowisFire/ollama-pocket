@@ -161,19 +161,25 @@ final class OnHandGlyphs extends Drawable {
         view.setTag(R.id.onhand_spinner_spec,Boolean.TRUE);
     }
     /** Compact selected label, full-size touch target and normal native drop-down. */
-    static void compactFilterSpinner(Spinner view){
+    static void compactFilterSpinner(Spinner view){compactFilterSpinner(view,false);}
+    static void filterSelection(Spinner view,boolean active){
+        String wanted=active?"compact_filter_active":"compact_filter";
+        if(!wanted.equals(view.getTag(R.id.onhand_spinner_spec)))compactFilterSpinner(view,active);
+    }
+    private static void compactFilterSpinner(Spinner view,boolean active){
         Context c=view.getContext();WorkbenchVisualPolicy.Palette p=WorkbenchStyle.palette(c);
         StateListDrawable surfaces=new StateListDrawable();
         surfaces.addState(new int[]{-android.R.attr.state_enabled},spinnerSurface(c,p.disabled,p.border,1));
-        surfaces.addState(new int[]{android.R.attr.state_focused},spinnerSurface(c,p.field,p.focus,2));
-        surfaces.addState(new int[]{},spinnerSurface(c,p.field,p.border,1));
-        LayerDrawable layers=new LayerDrawable(new Drawable[]{surfaces,drawable(c,Kind.DOWN,p.muted,12)});
+        int fill=active?p.choiceFill(true):p.field,border=active?p.choiceBorder(true):p.border;
+        surfaces.addState(new int[]{android.R.attr.state_focused},spinnerSurface(c,fill,p.focus,2));
+        surfaces.addState(new int[]{},spinnerSurface(c,fill,border,1));
+        LayerDrawable layers=new LayerDrawable(new Drawable[]{surfaces,drawable(c,Kind.DOWN,active?p.choiceInk(true):p.muted,12)});
         layers.setLayerWidth(1,dp(c,12));layers.setLayerHeight(1,dp(c,12));
         layers.setLayerGravity(1,Gravity.END|Gravity.CENTER_VERTICAL);layers.setLayerInsetRelative(1,0,0,dp(c,2),0);
         view.setBackground(layers);view.setPaddingRelative(dp(c,4),dp(c,6),dp(c,16),dp(c,6));
         view.setMinimumHeight(dp(c,48));view.setMinimumWidth(dp(c,48));
         view.setDropDownWidth(android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
-        view.setTag(R.id.onhand_spinner_spec,"compact_filter");
+        view.setTag(R.id.onhand_spinner_spec,active?"compact_filter_active":"compact_filter");
     }
     static void refresh(View v){
         if(v instanceof TextView&&v.getTag(R.id.onhand_glyph_spec) instanceof Spec){
@@ -184,7 +190,7 @@ final class OnHandGlyphs extends Drawable {
             }else apply((TextView)v);
         }else if(v instanceof Spinner){
             Object spec=v.getTag(R.id.onhand_spinner_spec);
-            if("compact_filter".equals(spec))compactFilterSpinner((Spinner)v);
+            if("compact_filter".equals(spec)||"compact_filter_active".equals(spec))compactFilterSpinner((Spinner)v,"compact_filter_active".equals(spec));
             else if(Boolean.TRUE.equals(spec))spinner((Spinner)v);
         }
     }

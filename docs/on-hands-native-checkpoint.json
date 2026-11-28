@@ -1,6 +1,6 @@
 {
-  "stage": "F10A97-draft-admission",
-  "revision": "F10A97",
-  "priorCandidate": "e0e61cea45b1bed1dbbd6039a62bd05123c6a7e2",
-  "reason": "Use existing inference input admission in draft UX and dispatch; exact FAST and FULL integration required."
+  "stage": "F11-1A-selection-hierarchy",
+  "revision": "F11-1A",
+  "priorCandidate": "048ef121aadb192e9258026eaf9c73e3a25545ef",
+  "reason": "First scoped F11 UI update: explicit filter selection and settings summaries. Require exact FAST and FULL before further live activation."
 }

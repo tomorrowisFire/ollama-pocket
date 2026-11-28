@@ -1,0 +1,7 @@
+# F11-1A — selection hierarchy and settings overview
+
+Baseline F10A97 048ef121aadb192e9258026eaf9c73e3a25545ef: FAST 46138813757 and FULL 46138813725 accepted. First bounded tranche of the user-requested F11 UI/UX overhaul.
+
+Design gates (simulated product/engineering/QA viewpoints): show non-default filters by check plus quiet peach surface, measure the same marked text, retain the original one-line horizontal selector strip and existing adapters/selection keys; separate settings caption from bold current value with wrapping, >=60dp minimum height, same click target, and accessible title/value description. Display selected language, workspace mode, theme/city, type scale, HUD, motion, compute choice. Preserve theme repaint and model action listeners, no settings key change, no ad/billing/data/permission/engine change. Existing five locale resources reused; no new untranslated UI labels.
+
+Independent pure Java 17 SelectionPresentationTest: 119 assertions executed successfully locally. Exact source/test blob SHA-1 expected eda4e9d902b93be93db0a8c592da86e9570d3b44 and 19e2b22b9ebaac6cbf5e827cae39ab3127ec1210. App integration and structural assertions prepared for exact FAST/FULL. Android screenshots, actual interaction, screen-reader, large-font and tablet/phone physical checks remain NOT_RUN. No score uplift or completed F11-1 claim. Further F11-1 work: model-card information hierarchy, workbench navigation and consistent popup controls, and responsive screen composition.

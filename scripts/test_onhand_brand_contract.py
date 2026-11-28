@@ -564,3 +564,15 @@ assert "LocalInferenceStream.strictUtf8(checkedStream(connection))" in (src/"Oll
 assert "LocalChatTurns.validFragment" in (src/"StructuredTextStream.java").read_text()
 assert "Arrays.equals(bytes,original)" in (src/"ProjectTransactions.java").read_text()
 assert "int scanLimit=Math.min(text.length(),4096)" in (src/"VoiceInteractionPolicy.java").read_text()
+
+# F11-1A: presentation state is separate from persistent model/filter identifiers.
+assert "SelectionPresentation.filterActive(i,values[i])" in main
+assert "SelectionPresentation.filterValue(localized,active)" in main
+assert "OnHandGlyphs.filterSelection(filter,active)" in main
+assert "SelectionPresentation.filterValue(filterDisplay(getItem(pos)),active)" in main
+assert "OnHandsLocale.currentLabel(this)" in main
+assert "WorkbenchStyle.settingValue(workspaceModeButton" in main
+assert "WorkbenchStyle.settingValue(control,getString(R.string.compute),computeChoiceLabel())" in main
+assert "compact_filter_active" in (src/"OnHandGlyphs.java").read_text()
+assert "SelectionPresentation.settingDescription(label,value)" in (src/"WorkbenchStyle.java").read_text()
+print("PASS: F11-1A explicit filter selection and setting summaries")

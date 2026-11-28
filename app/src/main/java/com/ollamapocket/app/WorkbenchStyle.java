@@ -235,6 +235,16 @@ final class WorkbenchStyle {
         b.setPaddingRelative(dp(a,12),dp(a,8),dp(a,12),dp(a,8));
         OnHandGlyphs.refresh(b);
     }
+    /** Separate a setting's name from its current value without changing its click target. */
+    static void settingValue(Button button,String label,String value){
+        String text=SelectionPresentation.settingText(label,value);
+        android.text.SpannableString content=new android.text.SpannableString(text);
+        content.setSpan(new android.text.style.RelativeSizeSpan(0.86f),0,label.length(),android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        content.setSpan(new android.text.style.StyleSpan(Typeface.BOLD),label.length()+1,text.length(),android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        button.setSingleLine(false);button.setMaxLines(Integer.MAX_VALUE);button.setEllipsize(null);
+        button.setText(content);button.setContentDescription(SelectionPresentation.settingDescription(label,value));
+        button.setMinimumHeight(Math.max(button.getMinimumHeight(),dp(button.getContext(),60)));
+    }
     static void field(Activity a,EditText e){
         WorkbenchVisualPolicy.Palette p=palette(a);
         StateListDrawable state=new StateListDrawable();

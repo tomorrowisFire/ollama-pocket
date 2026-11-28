@@ -440,6 +440,9 @@ public final class MainActivity extends Activity {
         refreshHeaderAccess(); // repaint trailing model caret against the new theme
         refreshQuickActionPaint();
         updateModelViewButtons();
+        for(Spinner filter:new Spinner[]{sourceFilter,sortFilter,familyFilter,quantizationFilter})
+            if(filter!=null&&filter.getAdapter() instanceof ArrayAdapter)
+                ((ArrayAdapter<?>)filter.getAdapter()).notifyDataSetChanged();
         renderInstalledModels();
         if(activeTab==3)refreshDiagnosticViews();
         updateDockedDestinations();scheduleDockedHistoryRefresh();
@@ -970,8 +973,8 @@ public final class MainActivity extends Activity {
     private void refreshWorkspaceModeLabel(){
         if(workspaceModeButton==null)return;
         int width=workspace==null?0:(int)(workspace.getWidth()/getResources().getDisplayMetrics().density);
-        workspaceModeButton.setText(getString(R.string.workspace_mode)+" · "+getString(workspaceChoiceLabel())+
-            "\n"+getString(WorkspaceLayoutPolicy.tabletPresentation(workspaceMode,width)?R.string.workspace_wide:R.string.workspace_compact));
+        WorkbenchStyle.settingValue(workspaceModeButton,getString(R.string.workspace_mode),getString(workspaceChoiceLabel())+
+            " · "+getString(WorkspaceLayoutPolicy.tabletPresentation(workspaceMode,width)?R.string.workspace_wide:R.string.workspace_compact));
     }
     /** Only app-authored settings selections; platform and ad dialogs remain unchanged. */
     private void showCompactSettingsDialog(AlertDialog.Builder builder){
@@ -1328,7 +1331,11 @@ public final class MainActivity extends Activity {
         for(int i=0;i<filters.length;i++){
             Spinner filter=filters[i];
             if(filter==null)continue;
-            String value=filterDisplay(values[i]),label=getString(labels[i])+" · "+value;
+            boolean active=SelectionPresentation.filterActive(i,values[i]);
+            String localized=filterDisplay(values[i]);
+            String value=SelectionPresentation.filterValue(localized,active),label=getString(labels[i])+" · "+localized+
+                (active?" · "+getString(R.string.workspace_selected):"");
+            OnHandGlyphs.filterSelection(filter,active);
             if(!TextUtils.equals(filter.getContentDescription(),label)){
                 filter.setContentDescription(label);filter.setTooltipText(label);
             }
@@ -1515,7 +1522,8 @@ public final class MainActivity extends Activity {
         margin(text(getString(R.string.settings),23,WHITE,true),content,0,5);
         margin(text(getString(R.string.settings_intro),13,MUTED,false),content,0,15);
         LinearLayout general=brandSection(content,R.string.brand_app_preferences,OnHandGlyphs.Kind.SETTINGS);
-        Button language=button(getString(R.string.language),false);settingAction(language,OnHandGlyphs.Kind.LANGUAGE);margin(language,general,0,8);
+        Button language=button(getString(R.string.language),false);settingAction(language,OnHandGlyphs.Kind.LANGUAGE);
+        WorkbenchStyle.settingValue(language,getString(R.string.language),OnHandsLocale.currentLabel(this));margin(language,general,0,8);
         language.setOnClickListener(v->{if(isUiBusy())toast(getString(R.string.busy));else OnHandsLocale.choose(this);});
         Button voiceModels=button(getString(R.string.voice_models_title),false);settingAction(voiceModels,OnHandGlyphs.Kind.MIC);margin(voiceModels,general,0,8);
         voiceModels.setOnClickListener(v->{if(isUiBusy())toast(getString(R.string.busy));else VoiceModelsUi.show(this);});
@@ -1531,8 +1539,8 @@ public final class MainActivity extends Activity {
         refreshWorkspaceModeLabel();
         margin(text(getString(R.string.workspace_help),11,MUTED,false),display,0,12);
         String currentTheme=getString("auto".equals(themeMode)?R.string.theme_auto:activeThemeDark?R.string.theme_dark:R.string.theme_light);
-        Button theme=button(getString(R.string.theme)+"  ·  "+currentTheme,false);
-        settingAction(theme,OnHandGlyphs.Kind.THEME);
+        Button theme=button(getString(R.string.theme),false);
+        settingAction(theme,OnHandGlyphs.Kind.THEME);WorkbenchStyle.settingValue(theme,getString(R.string.theme),currentTheme);
         margin(theme,display,0,6);
         String[] themes=new String[]{getString(R.string.theme_light_default),getString(R.string.theme_dark),getString(R.string.theme_auto_detail)};
         int themeIndex="auto".equals(themeMode)?2:activeThemeDark?1:0;
@@ -1546,9 +1554,9 @@ public final class MainActivity extends Activity {
         margin(text(getString(R.string.theme_location),
             11,MUTED,false),display,0,8);
         String chosenCity=getPreferences(MODE_PRIVATE).getString("sunset_city","device");
-        Button cityChoice=button(getString(R.string.theme_city)+"  ·  "+
-            UiText.cityLabels(this)[SolarTheme.cityIndex(chosenCity)],false);
+        Button cityChoice=button(getString(R.string.theme_city),false);
         settingAction(cityChoice,OnHandGlyphs.Kind.LANGUAGE);
+        WorkbenchStyle.settingValue(cityChoice,getString(R.string.theme_city),UiText.cityLabels(this)[SolarTheme.cityIndex(chosenCity)]);
         margin(cityChoice,display,0,12);
         cityChoice.setVisibility("auto".equals(themeMode)?View.VISIBLE:View.GONE);
         cityChoice.setOnClickListener(v->showCompactSettingsDialog(new AlertDialog.Builder(this)
@@ -1561,8 +1569,8 @@ public final class MainActivity extends Activity {
 
         String f=getPreferences(MODE_PRIVATE).getString("font_size","normal");
         String sizeLabel=getString("large".equals(f)?R.string.font_large:"extra".equals(f)?R.string.font_extra:R.string.font_normal);
-        Button typeSize=button(getString(R.string.font_size)+"  ·  "+sizeLabel,false);
-        settingAction(typeSize,OnHandGlyphs.Kind.FONT);
+        Button typeSize=button(getString(R.string.font_size),false);
+        settingAction(typeSize,OnHandGlyphs.Kind.FONT);WorkbenchStyle.settingValue(typeSize,getString(R.string.font_size),sizeLabel);
         margin(typeSize,display,0,8);
         String[] fontOptions=new String[]{getString(R.string.font_normal)+" (100%)",getString(R.string.font_large)+" (113%)",getString(R.string.font_extra)+" (126%)"};
         int fontIndex="large".equals(f)?1:"extra".equals(f)?2:0;
@@ -1574,16 +1582,16 @@ public final class MainActivity extends Activity {
                     applySetting("font_size",which==1?"large":which==2?"extra":"normal");
                 }).setNegativeButton(getString(R.string.cancel),null)));
 
-        Button hud=button(getString(R.string.hud_title)+"  ·  "+getString(showHud?R.string.hud_visible:R.string.hud_hidden),false);
-        settingAction(hud,OnHandGlyphs.Kind.CHIP);
+        Button hud=button(getString(R.string.hud_title),false);
+        settingAction(hud,OnHandGlyphs.Kind.CHIP);WorkbenchStyle.settingValue(hud,getString(R.string.hud_title),getString(showHud?R.string.hud_visible:R.string.hud_hidden));
         margin(hud,display,0,8);
         hud.setOnClickListener(v->{
             if(isUiBusy()){toast(getString(R.string.busy));return;}
             getPreferences(MODE_PRIVATE).edit().putBoolean("show_hud",!showHud).apply();
             recreate();
         });
-        Button motion=button(getString(R.string.motion)+"  ·  "+getString(smoothMotion?R.string.on:R.string.off),false);
-        settingAction(motion,OnHandGlyphs.Kind.PLAY);
+        Button motion=button(getString(R.string.motion),false);
+        settingAction(motion,OnHandGlyphs.Kind.PLAY);WorkbenchStyle.settingValue(motion,getString(R.string.motion),getString(smoothMotion?R.string.on:R.string.off));
         margin(motion,display,0,14);
         motion.setOnClickListener(v->{
             if(isUiBusy()){toast(getString(R.string.busy));return;}
@@ -1592,9 +1600,10 @@ public final class MainActivity extends Activity {
         });
 
         LinearLayout inference=brandSection(content,R.string.local_inference,OnHandGlyphs.Kind.CHIP);
-        Button compute=button(getString(R.string.compute)+"  ·  "+computeChoiceLabel(),false);
+        Button compute=button(getString(R.string.compute),false);
         computeChoiceControl=compute;
         settingAction(compute,OnHandGlyphs.Kind.CHIP);
+        WorkbenchStyle.settingValue(compute,getString(R.string.compute),computeChoiceLabel());
         margin(compute,inference,0,8);
         compute.setOnClickListener(v->showComputeChoiceDialog(compute));
         serverStatus=text(getString(R.string.server_check),13,MUTED,true);
@@ -1942,7 +1951,7 @@ public final class MainActivity extends Activity {
                     if (which == 1) GpuRunner.stop();
                     if (activeEngineLabel != null)
                         activeEngineLabel.setText(getString(R.string.compute_selected,pref));
-                    if(control!=null)control.setText(getString(R.string.compute)+"  ·  "+computeChoiceLabel());
+                    if(control!=null)WorkbenchStyle.settingValue(control,getString(R.string.compute),computeChoiceLabel());
                     toast(getString(R.string.compute_saved));
                     dialog.dismiss();
                 }).setNeutralButton(R.string.help,(d,w)->new AlertDialog.Builder(this).setMessage(R.string.compute_notice).setPositiveButton(R.string.ok,null).show()).setNegativeButton(getString(R.string.cancel), null));
@@ -2192,7 +2201,9 @@ public final class MainActivity extends Activity {
                 LinearLayout item=column();item.setGravity(Gravity.CENTER_VERTICAL);
                 TextView caption=text(getString(label),10,MUTED,false);
                 caption.setSingleLine(true);caption.setEllipsize(TextUtils.TruncateAt.END);
-                TextView value=text(filterDisplay(getItem(pos)),11,WHITE,true);
+                boolean active=pos>0;
+                TextView value=text(SelectionPresentation.filterValue(filterDisplay(getItem(pos)),active),11,
+                    active?WorkbenchStyle.palette(MainActivity.this).choiceInk(true):WHITE,true);
                 value.setSingleLine(true);value.setEllipsize(TextUtils.TruncateAt.END);
                 item.addView(caption,lp(-1,-2));item.addView(value,lp(-1,-2));
                 return item;

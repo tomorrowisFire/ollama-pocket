@@ -219,6 +219,8 @@ jobs:
           mkdir -p /tmp/workspace-tests
           javac -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/WorkspaceLayoutPolicy.java app/src/main/java/com/ollamapocket/app/LocalChatTurns.java app/src/main/java/com/ollamapocket/app/ChatWorkspacePolicy.java tests/WorkspaceLayoutPolicyTest.java tests/ChatWorkspacePolicyTest.java tests/ModelFilterLayoutTest.java
           java -cp /tmp/workspace-tests com.ollamapocket.app.WorkspaceLayoutPolicyTest
+          javac --release 17 -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/SelectionPresentation.java tests/SelectionPresentationTest.java
+          java -cp /tmp/workspace-tests com.ollamapocket.app.SelectionPresentationTest
           java -cp /tmp/workspace-tests com.ollamapocket.app.ModelFilterLayoutTest
           javac -cp /tmp/workspace-tests -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/WorkbenchLayoutPolicy.java tests/WorkbenchLayoutPolicyTest.java
           java -cp /tmp/workspace-tests com.ollamapocket.app.WorkbenchLayoutPolicyTest
