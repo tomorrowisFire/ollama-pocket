@@ -128,6 +128,14 @@ F12_MODIFIABLE = frozenset([
   "tests/test_f11_scope.py"
 ])
 F12_ADDITIONS = frozenset([
+  "app/src/main/java/com/ollamapocket/app/DeepFollowUpPolicy.java",
+  "tests/DeepFollowUpPolicyTest.java",
+  "docs/on-hands-f12-follow-up-policy.md",
+  "docs/on-hands-f12-follow-up-runner.md",
+  "docs/on-hands-f12-follow-up-ui.md",
+  "docs/on-hands-f12-reward-recovery.md",
+  "docs/on-hands-f12-follow-up-locales.md",
+  "docs/on-hands-f12-follow-up-integration.md",
   "app/src/main/java/com/ollamapocket/app/DeepChatPolicy.java",
   "tests/DeepChatPolicyTest.java",
   "docs/on-hands-f12-source-zip.md",

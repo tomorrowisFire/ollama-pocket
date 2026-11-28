@@ -1445,4 +1445,19 @@
     <string name="normal_segment">文字／Office分段（1–256）</string>
     <string name="normal_one_attachment">每份草稿僅允許一個附件。請移除附件、清空草稿或先傳送。</string>
     <string name="deep_zip_notice">深度分析支援唯讀原始碼ZIP。僅讀取支援文字及程式碼的有限擷取內容，略過二進位、巢狀壓縮檔及常見敏感路徑。</string>
+    <string name="deep_follow_title">後續對話</string>
+    <string name="deep_follow_notice">使用已完成的擷取證據繼續提問。每次最多選擇四個原文片段。本工作區保留最近24輪已完成對話；先前生成的回答不是事實證據。關閉或離開應用程式會清除暫時對話。只有新請求需要有效的深度權限。</string>
+    <string name="deep_follow_ask">繼續提問</string>
+    <string name="deep_follow_copy">複製對話</string>
+    <string name="deep_follow_save">儲存對話（TXT）</string>
+    <string name="deep_follow_expired">深度權限已過期。請先儲存對話並續期，再開始新請求。</string>
+    <string name="deep_follow_no_evidence">沒有適合的已完成證據或有效問題。請縮短問題或選擇其他來源。</string>
+    <string name="deep_follow_question">後續問題（最多300字元）</string>
+    <string name="deep_follow_auto">自動選擇來源</string>
+    <string name="deep_follow_source">證據來源</string>
+    <string name="deep_follow_review">審閱請求</string>
+    <string name="deep_follow_review_notice">僅傳送所顯示的確切本機請求及有限原文片段。來源編號標示提供的範圍，而非事實查核。請在開始前審閱。</string>
+    <string name="deep_follow_done">後續問題已完成。</string>
+    <string name="deep_follow_failed">後續問題未完成，保留先前對話。</string>
+    <string name="deep_follow_reset_notice">開始新分析會清除目前暫時後續對話。如需保留，請先儲存。</string>
 </resources>

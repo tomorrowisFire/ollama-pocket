@@ -1,0 +1,3 @@
+# F12 r006 — reward callback lifecycle
+
+Monotonic displayed-at boundary rejects a reward timestamp preceding actual show admission. App-open suppression and two-minute post-reward cooldown now live in the shared process access policy so activity recreation cannot immediately launch an app-open ad. If an SDK completion callback is missing, stale tickets are recovered only when the app is foreground and has window focus; a displayed ad cannot be abandoned solely because a timer fired. Existing load timeout, explicit consent, duplicate callback rejection, original placements, test ad and release lock unchanged. Synthetic policy tests added; SDK callbacks and Android lifecycle remain device-test requirements.

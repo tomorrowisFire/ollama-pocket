@@ -1445,4 +1445,19 @@
     <string name="normal_segment">Text / Office segment (1–256)</string>
     <string name="normal_one_attachment">One attachment per draft. Remove the existing attachment, clear the draft, or send it first.</string>
     <string name="deep_zip_notice">Read-only source ZIP archives are supported in deep analysis. Only bounded supported text/code excerpts are read; binaries, nested archives and common secret paths are skipped.</string>
+    <string name="deep_follow_title">Follow-up dialogue</string>
+    <string name="deep_follow_notice">Ask further questions using completed extracted evidence. Each question selects up to four source windows. Only the last 24 completed turns are retained in this open workspace; prior generated dialogue is not evidence. Closing or leaving clears temporary dialogue. A valid deep pass is required for new requests, not for saving completed dialogue.</string>
+    <string name="deep_follow_ask">Ask follow-up</string>
+    <string name="deep_follow_copy">Copy dialogue</string>
+    <string name="deep_follow_save">Save dialogue (.txt)</string>
+    <string name="deep_follow_expired">Deep access expired. Save the dialogue and renew access before starting a new request.</string>
+    <string name="deep_follow_no_evidence">No fitting completed evidence or valid question. Try a shorter question or select a different source.</string>
+    <string name="deep_follow_question">Follow-up question (up to 300 characters)</string>
+    <string name="deep_follow_auto">Automatic source selection</string>
+    <string name="deep_follow_source">Evidence source</string>
+    <string name="deep_follow_review">Review request</string>
+    <string name="deep_follow_review_notice">Only this exact local request and the shown bounded excerpts will be sent. Source IDs identify supplied ranges, not verified facts. Review before starting.</string>
+    <string name="deep_follow_done">Follow-up completed.</string>
+    <string name="deep_follow_failed">Follow-up did not complete. Earlier dialogue is preserved.</string>
+    <string name="deep_follow_reset_notice">Starting a new analysis clears the current temporary follow-up dialogue. Save it first if needed.</string>
 </resources>

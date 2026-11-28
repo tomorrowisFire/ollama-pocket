@@ -11,11 +11,12 @@ final class DeepChatPolicy {
     static boolean normalSegment(int segment){return segment>=1&&segment<=NORMAL_SEGMENTS;}
     static boolean mayStart(boolean advanced,boolean authorized){return !advanced||authorized;}
     static final class Access {
-        private long granted=-1;
+        private long granted=-1,lastDisplayedEnd=-1;
         private Ticket pending;
         static final class Ticket {
             private final long started;
             private boolean showing,earned;
+            private long displayedAt=-1;
             private Ticket(long now){started=now;}
         }
         synchronized long remaining(long now,boolean owned){
@@ -34,16 +35,23 @@ final class DeepChatPolicy {
         }
         synchronized boolean show(Ticket ticket,long now){
             if(!within(ticket,now)||ticket.showing)return false;
-            ticket.showing=true;return true;
+            ticket.showing=true;ticket.displayedAt=now;return true;
         }
         /** Only an SDK reward callback on the matching displayed ad can grant time. */
         synchronized boolean earned(Ticket ticket,long now){
-            if(!within(ticket,now)||!ticket.showing||ticket.earned)return false;
+            if(!within(ticket,now)||!ticket.showing||ticket.earned||now<ticket.displayedAt||
+                    granted>=0&&now<granted)return false;
             ticket.earned=true;granted=now;return true;
         }
-        synchronized boolean finish(Ticket ticket){
+        synchronized boolean finish(Ticket ticket,long now){
             if(!active(ticket))return false;
+            if(ticket.showing&&now>=ticket.displayedAt)
+                lastDisplayedEnd=Math.max(lastDisplayedEnd,now);
             pending=null;return true;
+        }
+        synchronized boolean expired(Ticket ticket,long now){return active(ticket)&&!within(ticket,now);}
+        synchronized boolean suppressAppOpen(long now){
+            return pending!=null||lastDisplayedEnd>=0&&(now<lastDisplayedEnd||now-lastDisplayedEnd<120_000L);
         }
         synchronized boolean busy(){return pending!=null;}
     }

@@ -48,7 +48,7 @@ public final class AdSupport {
     private Consumer<RewardOutcome> rewardCompletion;
     private Runnable rewardTimeout;
     private boolean rewardShowing,rewardEarned;
-    private long lastRewardEnded=-1;
+    // The reward-to-app-open cooldown is shared by Activities through DEEP_ACCESS.
     // Publisher-supplied AdMob ad-unit IDs; active only in configured release builds.
     private static final String LIVE_APP_OPEN = "ca-app-pub-4763897710237099/8245753612";
     private static final String LIVE_DOWNLOAD_BANNER = "ca-app-pub-4763897710237099/7124243639";
@@ -93,6 +93,14 @@ public final class AdSupport {
     long deepRemaining(){return DEEP_ACCESS.remaining(SystemClock.elapsedRealtime(),testAdFree);}
     boolean deepAuthorized(){return deepRemaining()>0;}
     boolean rewardBusy(){return rewardTicket!=null;}
+    private void recoverExpiredReward(){
+        // Never abandon a displayed ticket while another full-screen window still owns focus.
+        // A missing SDK dismissal callback may be recovered only after the app is foreground/focused.
+        if(rewardTicket!=null&&foreground&&activity.hasWindowFocus()&&
+                DEEP_ACCESS.expired(rewardTicket,SystemClock.elapsedRealtime()))
+            finishReward(rewardTicket,rewardEarned?RewardOutcome.EARNED:RewardOutcome.UNAVAILABLE);
+    }
+    void onWindowFocus(boolean focused){if(focused)recoverExpiredReward();}
     boolean rewardLoading(){return rewardTicket!=null&&!rewardShowing;}
     void cancelRewardLoad(){
         if(rewardLoading())finishReward(rewardTicket,RewardOutcome.CLOSED);
@@ -125,7 +133,9 @@ public final class AdSupport {
                             appOpenShowing||!eligible.getAsBoolean()||!DEEP_ACCESS.show(ticket,SystemClock.elapsedRealtime())){
                         finishReward(ticket,RewardOutcome.UNAVAILABLE);return;
                     }
-                    rewardMain.removeCallbacks(rewardTimeout);rewardTimeout=null;rewardShowing=true;
+                    rewardMain.removeCallbacks(rewardTimeout);rewardShowing=true;
+                    rewardTimeout=()->{if(rewardTicket==ticket)recoverExpiredReward();};
+                    rewardMain.postDelayed(rewardTimeout,DeepChatPolicy.REWARD_FLOW_MILLIS);
                     ad.setFullScreenContentCallback(new FullScreenContentCallback(){
                         @Override public void onAdDismissedFullScreenContent(){
                             finishReward(ticket,rewardEarned?RewardOutcome.EARNED:RewardOutcome.CLOSED);
@@ -146,10 +156,9 @@ public final class AdSupport {
         }catch(RuntimeException failure){finishReward(ticket,RewardOutcome.UNAVAILABLE);}
     }
     private void finishReward(DeepChatPolicy.Access.Ticket ticket,RewardOutcome outcome){
-        if(rewardTicket!=ticket||!DEEP_ACCESS.finish(ticket))return;
+        if(rewardTicket!=ticket||!DEEP_ACCESS.finish(ticket,SystemClock.elapsedRealtime()))return;
         if(rewardTimeout!=null)rewardMain.removeCallbacks(rewardTimeout);
         rewardTimeout=null;rewardTicket=null;
-        if(rewardShowing)lastRewardEnded=SystemClock.elapsedRealtime();
         rewardShowing=false;rewardEarned=false;
         Consumer<RewardOutcome> done=rewardCompletion;rewardCompletion=null;
         if(!disposed&&done!=null)done.accept(outcome);
@@ -313,7 +322,7 @@ public final class AdSupport {
     /** Called only when returning to the app after a meaningful absence. */
     public void showAppOpenIfReady() {
         if (disposed || !foreground || consentFlowActive || privacyShowing || !isEnabled() || !consent.canRequestAds() || appOpenShowing || rewardBusy() || activity.isFinishing() || activity.isDestroyed()) return;
-        if(lastRewardEnded>=0&&SystemClock.elapsedRealtime()-lastRewardEnded<120_000L)return;
+        if(DEEP_ACCESS.suppressAppOpen(SystemClock.elapsedRealtime()))return;
         for(FrameLayout parent:requested){
             if(PLACEMENT_ONBOARDING.equals(placements.get(parent)) || (live.containsKey(parent)&&parent.isShown()))return;
         }
@@ -385,7 +394,7 @@ public final class AdSupport {
         for(AdView view:new ArrayList<>(live.values()))view.pause();
     }
     public void resume(){
-        if(disposed)return;foreground=true;
+        if(disposed)return;foreground=true;recoverExpiredReward();
         if(!isEnabled()){clearLoadedAds(R.string.ad_off);return;}
         if(!consentFlowActive&&!privacyShowing&&consent.canRequestAds())for(AdView view:new ArrayList<>(live.values()))view.resume();
         if(consentRequestStarted)maybeLoadAfterConsent();

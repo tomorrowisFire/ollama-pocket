@@ -1,0 +1,3 @@
+# F12 r006 — reviewed follow-up execution
+
+Use the existing local-only foreground CPU transport, strict terminal text parser, model selection, cancellation watchdog, memory and thermal checks and fixed context budget. A shared single-request helper serves the existing knowledge answer and the new deep follow-up. Follow-up has a 90-second safety deadline, one request, 512 output tokens, 1800 characters. No peers/cloud/history mutation. Access is checked at the user-reviewed dispatch boundary; expiry during the request is not a stop reason. No new engine or dependencies. Actual device inference is deferred.

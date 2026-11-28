@@ -1445,4 +1445,19 @@
     <string name="normal_segment">文本／Office分段（1–256）</string>
     <string name="normal_one_attachment">每份草稿仅允许一个附件。请移除附件、清空草稿或先发送。</string>
     <string name="deep_zip_notice">深度分析支持只读源代码ZIP。仅读取受支持文本和代码的有限摘录，跳过二进制、嵌套压缩包和常见敏感路径。</string>
+    <string name="deep_follow_title">后续对话</string>
+    <string name="deep_follow_notice">使用已完成的提取证据继续提问。每次最多选择四个原文片段。本工作区保留最近24轮已完成对话；以前生成的回答不是事实证据。关闭或离开应用会清除临时对话。只有新请求需要有效的深度权限。</string>
+    <string name="deep_follow_ask">继续提问</string>
+    <string name="deep_follow_copy">复制对话</string>
+    <string name="deep_follow_save">保存对话（TXT）</string>
+    <string name="deep_follow_expired">深度权限已过期。请先保存对话并续期，再开始新请求。</string>
+    <string name="deep_follow_no_evidence">没有适合的已完成证据或有效问题。请缩短问题或选择其他来源。</string>
+    <string name="deep_follow_question">后续问题（最多300字符）</string>
+    <string name="deep_follow_auto">自动选择来源</string>
+    <string name="deep_follow_source">证据来源</string>
+    <string name="deep_follow_review">审核请求</string>
+    <string name="deep_follow_review_notice">仅发送所显示的准确本地请求及有限原文片段。来源编号标识提供的范围，而非事实核验。请在开始前审核。</string>
+    <string name="deep_follow_done">后续问题已完成。</string>
+    <string name="deep_follow_failed">后续问题未完成，保留此前对话。</string>
+    <string name="deep_follow_reset_notice">开始新分析会清除当前临时后续对话。如需保留，请先保存。</string>
 </resources>

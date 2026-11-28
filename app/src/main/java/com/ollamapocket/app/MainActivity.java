@@ -527,6 +527,11 @@ public final class MainActivity extends Activity {
         out.putString("exportModel",exportModel);out.putBoolean("exportJson",exportJson);
         saveLocalDraft();
     }
+    @Override public void onWindowFocusChanged(boolean focused){
+        super.onWindowFocusChanged(focused);
+        if(ads!=null)ads.onWindowFocus(focused);
+        if(focused)refreshDeepMode();
+    }
     @Override protected void onResume() {
         super.onResume();
         foreground=true;

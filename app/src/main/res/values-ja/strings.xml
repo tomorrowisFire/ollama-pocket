@@ -1445,4 +1445,19 @@
     <string name="normal_segment">テキスト・Office区間（1〜256）</string>
     <string name="normal_one_attachment">下書きの添付は1件までです。添付を削除するか、下書きを消去または送信してください。</string>
     <string name="deep_zip_notice">詳細分析では読み取り専用のソースZIPにも対応します。対応テキスト・コードの限定された抜粋のみ読み込み、バイナリ、入れ子の圧縮ファイル、一般的な機密パスは除外します。</string>
+    <string name="deep_follow_title">追加対話</string>
+    <string name="deep_follow_notice">完了した抽出根拠を使って追加質問できます。質問ごとに最大4区間を選びます。この作業領域には直近24件の完了対話を保持し、以前の生成回答は事実の根拠としません。画面を閉じるかアプリを離れると一時対話を消去します。新規要求のみ有効な詳細利用権が必要です。</string>
+    <string name="deep_follow_ask">追加質問</string>
+    <string name="deep_follow_copy">対話をコピー</string>
+    <string name="deep_follow_save">対話を保存（TXT）</string>
+    <string name="deep_follow_expired">詳細利用権の期限が切れました。対話を保存し、更新してから新規要求を開始してください。</string>
+    <string name="deep_follow_no_evidence">適合する完了根拠または有効な質問がありません。質問を短くするか別の資料を選んでください。</string>
+    <string name="deep_follow_question">追加質問（最大300文字）</string>
+    <string name="deep_follow_auto">資料を自動選択</string>
+    <string name="deep_follow_source">根拠資料</string>
+    <string name="deep_follow_review">要求を確認</string>
+    <string name="deep_follow_review_notice">表示された正確なローカル要求と限定された原文区間のみ送信します。資料IDは提供範囲を示し、事実検証ではありません。開始前に確認してください。</string>
+    <string name="deep_follow_done">追加質問が完了しました。</string>
+    <string name="deep_follow_failed">追加質問は完了しませんでした。以前の対話は保持します。</string>
+    <string name="deep_follow_reset_notice">新しい分析を開始すると現在の一時的な追加対話が消去されます。必要に応じて先に保存してください。</string>
 </resources>
