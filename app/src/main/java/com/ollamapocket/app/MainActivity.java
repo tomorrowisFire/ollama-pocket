@@ -429,6 +429,9 @@ public final class MainActivity extends Activity {
         styleLocalComposer(); // Restore stateful colors and outline after live theme recoloring.
         if(cloudPanel!=null)cloudPanel.refreshBrandPaint();
         for(Button button:flatNavigationButtons)WorkbenchStyle.navigationRow(this,button);
+        if(cloudShortcut!=null)paintHeaderCloud(cloudShortcut.length()>0);
+        if(menuButton!=null)OnHandGlyphs.refresh(menuButton);
+        if(newChatShortcut!=null)OnHandGlyphs.refresh(newChatShortcut);
         refreshQuickActionPaint();
         updateModelViewButtons();
         renderInstalledModels();
@@ -839,20 +842,24 @@ public final class MainActivity extends Activity {
         dockedSidebarRequested=getPreferences(MODE_PRIVATE).getBoolean("tablet_sidebar_open",true);
         // The original phone header, status and page stack remain the main pane.
         LinearLayout header = row();
+        header.setGravity(Gravity.TOP);
         Button menu = button("☰", false);
         menuButton=menu;
         menu.setContentDescription(getString(R.string.menu));
         menu.setTextSize(20);
         menu.setMinWidth(dp(48));menu.setMinimumWidth(dp(48));menu.setTooltipText(getString(R.string.menu));
-        iconAction(menu,OnHandGlyphs.Kind.MENU);flatNavigationButton(menu);rowItem(header, menu, 0, 9);
+        flatNavigationButton(menu);iconAction(menu,OnHandGlyphs.Kind.MENU);rowItem(header, menu, 0, 9);
         menu.setOnClickListener(v -> toggleNavigation());
         LinearLayout branding = column();
-        branding.setMinimumHeight(dp(48));branding.setGravity(Gravity.CENTER_VERTICAL);
+        branding.setGravity(Gravity.TOP);
         topPageTitle = text(getString(R.string.app_name), 20, WHITE, true);
         topPageTitle.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));
         topPageTitle.setLetterSpacing(0.005f);
         topPageTitle.setSingleLine(true);topPageTitle.setEllipsize(TextUtils.TruncateAt.END);
-        topPageTitle.setMinHeight(dp(48));topPageTitle.setFocusable(true);
+        topPageTitle.setIncludeFontPadding(false);
+        topPageTitle.setGravity(Gravity.BOTTOM|Gravity.START);
+        topPageTitle.setPadding(0,dp(WorkspaceLayoutPolicy.HEADER_TITLE_TOP_DP),0,0);
+        topPageTitle.setMinHeight(dp(WorkspaceLayoutPolicy.HEADER_TITLE_MIN_DP));topPageTitle.setFocusable(true);
         topPageTitle.setContentDescription(getString(R.string.app_name)+" · "+getString(R.string.header_home));
         topPageTitle.setTooltipText(getString(R.string.header_home));
         topPageTitle.setOnClickListener(v->openHomeFromHeader());
@@ -860,7 +867,10 @@ public final class MainActivity extends Activity {
         branding.addView(topPageTitle,lp(-1,-2));
         topPageSubtitle=text(getString(R.string.coop_select_model),12,MUTED,false);
         topPageSubtitle.setSingleLine(true);topPageSubtitle.setEllipsize(TextUtils.TruncateAt.END);
-        topPageSubtitle.setMinHeight(dp(48));topPageSubtitle.setFocusable(true);
+        topPageSubtitle.setIncludeFontPadding(false);
+        topPageSubtitle.setGravity(Gravity.TOP|Gravity.START);
+        topPageSubtitle.setPadding(0,dp(WorkspaceLayoutPolicy.HEADER_MODEL_GAP_DP),0,0);
+        topPageSubtitle.setMinHeight(dp(WorkspaceLayoutPolicy.HEADER_MODEL_MIN_DP));topPageSubtitle.setFocusable(true);
         topPageSubtitle.setOnClickListener(v->openHeaderModelPicker());
         AdaptiveAnswerActions.feedback(topPageSubtitle,8);
         branding.addView(topPageSubtitle,lp(-1,-2));
@@ -868,7 +878,7 @@ public final class MainActivity extends Activity {
         cloudShortcut=button(getString(R.string.header_cloud),false);
         cloudShortcut.setTextSize(11*uiTextScale);
         cloudShortcut.setContentDescription(getString(R.string.cloud));cloudShortcut.setTooltipText(getString(R.string.cloud));
-        flatNavigationButton(cloudShortcut);OnHandGlyphs.stackedLabel(cloudShortcut,OnHandGlyphs.Kind.CLOUD);
+        flatNavigationButton(cloudShortcut);paintHeaderCloud(true);
         rowItem(header,cloudShortcut,0,4);
         cloudShortcut.setOnClickListener(v->{
             if(isUiBusy()){toast(getString(R.string.busy));return;}
@@ -876,11 +886,15 @@ public final class MainActivity extends Activity {
         });
         Button fresh = button(getString(R.string.new_chat), false);
         newChatShortcut=fresh;fresh.setContentDescription(getString(R.string.new_chat));fresh.setTooltipText(getString(R.string.new_chat));
-        iconAction(fresh,OnHandGlyphs.Kind.NEW_CHAT);flatNavigationButton(fresh);
+        flatNavigationButton(fresh);iconAction(fresh,OnHandGlyphs.Kind.NEW_CHAT);
         rowItem(header, fresh, 0, 0);
         fresh.setOnClickListener(v -> newChat());
-        header.setMinimumHeight(dp(52));
+        header.setMinimumHeight(dp(48));
+        header.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
+            if(r-l!=or-ol)fitHeaderCloudLabel(header);
+        });
         mainPane.addView(header, lp(-1, -2));
+        header.post(()->fitHeaderCloudLabel(header));
         miniStatus = text("● "+getString(R.string.engine_check), 11, MUTED, false);
         margin(miniStatus, mainPane, 2, 6);
         performanceHudView=text(getString(R.string.hud_wait),11,MUTED,false);
@@ -914,6 +928,27 @@ public final class MainActivity extends Activity {
         updateTypingChrome();
     }
 
+    /** Keep the Cloud glyph on the title line; retain its label whenever the measured title fits. */
+    private void paintHeaderCloud(boolean labeled){
+        if(cloudShortcut==null)return;
+        cloudShortcut.setText(labeled?getString(R.string.header_cloud):"");
+        cloudShortcut.setSingleLine(true);cloudShortcut.setIncludeFontPadding(false);
+        cloudShortcut.setGravity(Gravity.CENTER);
+        OnHandGlyphs.label(cloudShortcut,OnHandGlyphs.Kind.CLOUD,!labeled);
+        if(labeled){
+            cloudShortcut.setPaddingRelative(dp(5),0,dp(5),0);
+            cloudShortcut.setCompoundDrawablePadding(dp(4));
+        }
+        cloudShortcut.setMinimumWidth(dp(48));cloudShortcut.setMinWidth(dp(48));
+        cloudShortcut.setMinimumHeight(dp(48));cloudShortcut.setMinHeight(dp(48));
+    }
+    private void fitHeaderCloudLabel(LinearLayout header){
+        if(header.getWidth()<=0||cloudShortcut==null||topPageTitle==null)return;
+        int title=(int)Math.ceil(topPageTitle.getPaint().measureText(getString(R.string.app_name)));
+        int cloud=(int)Math.ceil(cloudShortcut.getPaint().measureText(getString(R.string.header_cloud)));
+        boolean labeled=WorkspaceLayoutPolicy.headerCloudLabelFits(header.getWidth(),title,cloud,dp(48),dp(9)+dp(5)+dp(4),dp(20)+dp(4)+2*dp(5));
+        if(labeled!=(cloudShortcut.length()>0))paintHeaderCloud(labeled);
+    }
     private int workspaceChoiceLabel(){
         return WorkspaceLayoutPolicy.PHONE.equals(workspaceMode)?R.string.workspace_phone:
             WorkspaceLayoutPolicy.TABLET.equals(workspaceMode)?R.string.workspace_tablet:R.string.workspace_auto;
@@ -3491,7 +3526,7 @@ public final class MainActivity extends Activity {
         shell.setFocusableInTouchMode(true);
         shell.setBackgroundColor(BG);
         shell.setElevation(drawer==null?0:dp(2));
-        // Sidebar title and new conversation must clear the top status/cutout.
+        // New conversation and close controls must clear the top status/cutout.
         shell.setPadding(dp(10),dp(14),dp(10),dp(10));
         if(drawer!=null)shell.setOnApplyWindowInsetsListener((view,insets)->{
             int top,bottom,left=0,right=0,ime=0;
@@ -3513,20 +3548,20 @@ public final class MainActivity extends Activity {
             return insets;
         });
 
+        // No duplicate app title: the new-chat and close actions share the first row.
         LinearLayout heading=row();
-        TextView product=text(getString(R.string.app_name),18,WHITE,true);
-        rowItem(heading,product,1,8);
+        TextView newChatItem=drawerRow(getString(R.string.new_chat),"",false);
+        newChatItem.setMinHeight(dp(48));newChatItem.setFocusable(true);
+        OnHandGlyphs.accentLabel(newChatItem,OnHandGlyphs.Kind.PLUS);
+        rowItem(heading,newChatItem,1,4);
         Button close=button("×",false);
         close.setTextSize(20);
         close.setContentDescription(getString(R.string.drawer_close));
+        close.setMinWidth(dp(48));close.setMinimumWidth(dp(48));
         rowItem(heading,close,0,0);
         close.setOnClickListener(v->{if(drawer!=null)drawer.dismiss();else setDockedSidebarRequested(false);});
         heading.setMinimumHeight(dp(48));
         margin(heading,shell,0,8);
-
-        TextView newChatItem=drawerRow(getString(R.string.new_chat),"",false);
-        OnHandGlyphs.accentLabel(newChatItem,OnHandGlyphs.Kind.PLUS);
-        margin(newChatItem,shell,0,8);
         newChatItem.setOnClickListener(v->{
             if(chatBusy){toast(getString(R.string.new_chat_busy));return;}
             if(drawer!=null)drawer.dismiss();

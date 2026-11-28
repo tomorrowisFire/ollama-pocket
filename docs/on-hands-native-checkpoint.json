@@ -1,6 +1,6 @@
 {
-  "stage": "F10A69-adaptive-tablet-shared-sidebar",
-  "revision": "F10A69",
-  "priorCandidate": "ab8479326604899beab53cd04af863928bf912f8",
-  "reason": "User requested OnHand smartphone UI foundation with ChatGPT-like tablet presentation; reusable docked sidebar, centered local/cloud content, safe narrow fallback and manual collapse. Full ARM64 APK checkpoint; device testing remains pending."
+  "stage": "F10A70-compact-header-and-titleless-sidebar",
+  "revision": "F10A70",
+  "priorCandidate": "05b9a8e4dae2e8286356c1ba6e05fb22b7ba099d",
+  "reason": "Device feedback: align menu/cloud/new-chat glyphs with OnHand AI title; compact model selector directly under title; remove duplicate sidebar app title and place new-chat/close in one row. Keep smartphone/tablet modes, existing colors, billing and native inference; require full ARM64 device-test build."
 }

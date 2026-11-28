@@ -8,6 +8,14 @@ final class WorkspaceLayoutPolicy {
     static final int TABLET_MIN_DP=600;
     static final int MIN_RAIL_DP=180;
     static final int FILTER_GAP_DP=4;
+    // Compact, independently clickable title/model lines; icon controls retain 48dp targets.
+    static final int HEADER_TITLE_MIN_DP=36, HEADER_TITLE_TOP_DP=12;
+    static final int HEADER_MODEL_MIN_DP=32, HEADER_MODEL_GAP_DP=2;
+    static boolean headerCloudLabelFits(int width,int title,int label,int target,int margins,int chrome){
+        long icon=Math.max(0,target);
+        long needed=2*icon+Math.max(0,margins)+(long)Math.max(0,title)+Math.max(icon,(long)Math.max(0,label)+Math.max(0,chrome));
+        return width>=needed;
+    }
     private WorkspaceLayoutPolicy(){}
     static String normalize(String value){
         if(PHONE.equals(value)||TABLET.equals(value))return value;

@@ -64,6 +64,13 @@ public final class WorkspaceLayoutPolicyTest {
         ok(WorkspaceLayoutPolicy.compactHeader(480,1.26f),"large text header");
         ok(WorkspaceLayoutPolicy.readingColumnDp(1024)==880,"wide readable column");
         ok(WorkspaceLayoutPolicy.readingColumnDp(360)==360,"phone fills column");
+        ok(WorkspaceLayoutPolicy.HEADER_TITLE_MIN_DP+WorkspaceLayoutPolicy.HEADER_MODEL_MIN_DP<96,"compact two-line branding");
+        ok(WorkspaceLayoutPolicy.HEADER_MODEL_GAP_DP==2,"tight title/model separation");
+        ok(WorkspaceLayoutPolicy.headerCloudLabelFits(336,110,30,48,18,34),"ordinary phone keeps Cloud text");
+        ok(!WorkspaceLayoutPolicy.headerCloudLabelFits(270,140,30,48,18,34),"narrow/large-font header uses icon only");
+        ok(WorkspaceLayoutPolicy.headerCloudLabelFits(284,110,26,48,18,34),"exact width fits");
+        ok(!WorkspaceLayoutPolicy.headerCloudLabelFits(283,110,26,48,18,34),"preserve title width");
+        ok(!WorkspaceLayoutPolicy.headerCloudLabelFits(Integer.MAX_VALUE,Integer.MAX_VALUE,Integer.MAX_VALUE,48,18,34),"overflow safe");
         modelCardLayout();
         System.out.println("WorkspaceLayoutPolicyTest PASS: "+n+" assertions");
     }

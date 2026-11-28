@@ -397,11 +397,20 @@ assert "WorkbenchLayoutPolicy.iconInsetPx(target,glyph,true)" in glyph_src
 assert "v.setPaddingRelative(leading,leading,trailing,trailing)" in glyph_src
 # F10A64: user-approved real-device home feedback.
 assert main.index("rowItem(header,cloudShortcut,0,4)")<main.index("rowItem(header, fresh, 0, 0)")
-assert "OnHandGlyphs.stackedLabel(cloudShortcut,OnHandGlyphs.Kind.CLOUD)" in main
+assert "paintHeaderCloud(true)" in main
+assert "OnHandGlyphs.label(cloudShortcut,OnHandGlyphs.Kind.CLOUD,!labeled)" in main
+assert "WorkspaceLayoutPolicy.headerCloudLabelFits(header.getWidth()" in main
 assert "topPageTitle.setOnClickListener(v->openHomeFromHeader())" in main
 assert "topPageSubtitle.setOnClickListener(v->openHeaderModelPicker())" in main
 assert "branding.setOnClickListener(" not in main
-assert "topPageTitle.setMinHeight(dp(48))" in main and "topPageSubtitle.setMinHeight(dp(48))" in main
+assert "header.setGravity(Gravity.TOP)" in main and "branding.setGravity(Gravity.TOP)" in main
+assert "topPageTitle.setMinHeight(dp(WorkspaceLayoutPolicy.HEADER_TITLE_MIN_DP))" in main
+assert "topPageSubtitle.setMinHeight(dp(WorkspaceLayoutPolicy.HEADER_MODEL_MIN_DP))" in main
+assert "topPageSubtitle.setPadding(0,dp(WorkspaceLayoutPolicy.HEADER_MODEL_GAP_DP),0,0)" in main
+assert "topPageTitle.setIncludeFontPadding(false)" in main and "topPageSubtitle.setIncludeFontPadding(false)" in main
+assert "branding.addView(topPageTitle,lp(-1,-2))" in main and "branding.addView(topPageSubtitle,lp(-1,-2))" in main
+assert "topPageTitle.setGravity(Gravity.BOTTOM|Gravity.START)" in main
+assert "topPageSubtitle.setGravity(Gravity.TOP|Gravity.START)" in main
 title_home=main.split("private void openHomeFromHeader()",1)[1].split("private void openHeaderModelPicker()",1)[0]
 assert "if(isUiBusy())" in title_home and "if(cloudMode)returnToLocal()" in title_home
 assert "historyReadable&&history.length()==0&&pendingLocalPrompt.isEmpty()" in title_home

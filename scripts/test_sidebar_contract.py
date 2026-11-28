@@ -106,4 +106,9 @@ assert "if(drawer!=null)shell.setOnApplyWindowInsetsListener" in drawer
 assert "if(availableRailDp()==0){showNavigationDrawer();return;}" in src
 assert "workspaceReadingColumnDp((int)(width/density))" in src
 assert "rowItem(heading,brandArtwork" not in drawer
+assert "R.string.app_name" not in drawer
+assert "rowItem(heading,newChatItem,1,4)" in drawer
+assert "rowItem(heading,close,0,0)" in drawer
+assert "newChatItem.setMinHeight(dp(48))" in drawer
+assert "close.setMinWidth(dp(48))" in drawer
 print('PASS: shared scrollable drawer, plain help, model navigation, dynamic HUD, safe insets')
