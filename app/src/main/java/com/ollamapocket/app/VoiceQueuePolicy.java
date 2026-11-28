@@ -49,10 +49,13 @@ final class VoiceQueuePolicy {
         if(end==start)end=hardEnd;
         int floor=start+Math.max(1,(end-start)*2/3),space=-1;
         for(int i=end;i>floor;i--){
-            if(!speechBoundary(text,start,i))continue;
             char c=text.charAt(i-1);
-            if(".!?。！？；;\n".indexOf(c)>=0)return i;
-            if(space<0&&(Character.isWhitespace(c)||Character.isSpaceChar(c)))space=i;
+            boolean sentence=".!?。！？；;\n".indexOf(c)>=0;
+            boolean whitespace=space<0&&(Character.isWhitespace(c)||Character.isSpaceChar(c));
+            if(!sentence&&!whitespace)continue;
+            if(!speechBoundary(text,start,i))continue;
+            if(sentence)return i;
+            if(whitespace)space=i;
         }
         return space>start?space:end;
     }
