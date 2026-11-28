@@ -67,17 +67,30 @@ final class DocumentBatchRunner {
     KnowledgeAnswerPolicy.Answer runKnowledge(KnowledgeAnswerPolicy.Plan plan)throws Exception{
         if(plan.excerpts.isEmpty()||!DocumentBatchPolicy.fits(plan.prompt,KnowledgeAnswerPolicy.TOKENS))
             throw new IllegalArgumentException("No fitting evidence");
+        String answer=runSingle(plan.prompt,KnowledgeAnswerPolicy.MAX_ANSWER,KnowledgeAnswerPolicy.TOKENS,KnowledgeAnswerPolicy.MAX_MILLIS);
+        return KnowledgeAnswerPolicy.answer(plan,answer);
+    }
+    /** One reviewed deep follow-up. The access pass was checked at dispatch by the UI;
+     * expiry never changes a running request's existing safety deadline. */
+    String runFollowUp(DeepFollowUpPolicy.Request request)throws Exception{
+        if(request==null||request.evidence.isEmpty()||request.evidence.size()>DeepFollowUpPolicy.MAX_EVIDENCE||
+                !DocumentBatchPolicy.fits(request.prompt,DeepFollowUpPolicy.TOKENS))
+            throw new IllegalArgumentException("No fitting follow-up evidence");
+        return runSingle(request.prompt,DeepFollowUpPolicy.MAX_ANSWER,DeepFollowUpPolicy.TOKENS,DeepFollowUpPolicy.MAX_MILLIS);
+    }
+    private String runSingle(String prompt,int chars,int tokens,long timeLimit)throws Exception{
+        if(!DocumentBatchPolicy.fits(prompt,tokens)||timeLimit<=0)throw new IllegalArgumentException("Single request budget");
         if(!control.begin())throw new IllegalStateException("Batch already used");
-        long started=SystemClock.elapsedRealtime();deadline=started+KnowledgeAnswerPolicy.MAX_MILLIS;
+        long started=SystemClock.elapsedRealtime();deadline=started+timeLimit;
         requestCeiling=1;
-        ScheduledExecutorService watch=Executors.newSingleThreadScheduledExecutor(r->{Thread t=new Thread(r,"knowledge-answer-safety");t.setDaemon(true);return t;});
+        ScheduledExecutorService watch=Executors.newSingleThreadScheduledExecutor(r->{Thread t=new Thread(r,"document-single-answer-safety");t.setDaemon(true);return t;});
         try{
             if(stopped())throw new IOException("Knowledge stopped");
             GpuRunner.stop();DistributedRunner.stop();
             watch.scheduleAtFixedRate(this::watchStop,0,1,TimeUnit.SECONDS);
-            String answer=generate(plan.prompt,KnowledgeAnswerPolicy.MAX_ANSWER,KnowledgeAnswerPolicy.TOKENS);
-            if(stopped()||requests!=1)throw new IOException("Knowledge incomplete");
-            return KnowledgeAnswerPolicy.answer(plan,answer);
+            String answer=generate(prompt,chars,tokens);
+            if(stopped()||requests!=1)throw new IOException("Single request incomplete");
+            return answer;
         }finally{
             HttpURLConnection remaining=control.finish();
             watch.shutdownNow();disconnect(remaining);
