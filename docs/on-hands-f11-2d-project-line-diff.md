@@ -1,0 +1,7 @@
+# F11-2D — bounded line-level comparison in the project workspace
+
+Live predecessor bc95e34feb8f952891d30c1851b9a8b1f0a6b27d: exact FAST 46142743830 and FULL 46142743813 both passed. Include isolated F11-2C tree 697cedb3d6b3c6a670167a212bc08b496c02110f in this batch.
+
+Scope: add a read-only line comparison preview to existing project version comparison. Preserve exact saved text, surrogate pairs, CRLF/LF/CR and unterminated final lines; show line numbers, removed/added lines and line-ending markers. Trim equal prefix/suffix lines, use bounded LCS (at most 500,000 int cells), and explicitly identify a coarse middle replacement when the budget is exceeded. Preview is limited to 200 changed lines and 16,000 UTF-16 units, with a visible truncation notice. Keep the existing exact changed-region viewer, snapshot guard, edit/restore confirmation, six-version and 32,000-unit limits. No filesystem execution, automatic editing, new permission, network, data migration, ads/billing change or measured speed claim. Five locales added.
+
+Actual local javac --release 17 and ProjectLineDiffTest execution: PASS 118,930 assertions (7,225 exhaustive small pairs, 500 seeded pairs, exact reconstruction, minimal insertion/deletion counts for small cases, large inputs and fallback, invalid Unicode and preview bounds). Tested Git blob hashes c984a9eccb9f8da36218b1ab13fbba2266f81447 and 0580b4127b8e9d5c42d0f020d2af94c613711221. Full Python/Android CI, device rendering, real editor usability and independent quality scores remain NOT_RUN at preparation. No release approval.

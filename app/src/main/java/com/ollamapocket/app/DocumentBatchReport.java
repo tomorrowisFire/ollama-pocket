@@ -17,6 +17,7 @@ final class DocumentBatchReport {
     final long elapsedMillis;
     final List<DocumentBatchPolicy.Note> completed;
     final DocumentBatchPolicy.Citations citations;
+    final List<DocumentCitationCoverage.Source> citationCoverage;
 
     DocumentBatchReport(DocumentBatchPolicy.Plan plan,DocumentBatchPolicy.Result result,String model,
                         String stopReason,int requests,long elapsedMillis){
@@ -57,6 +58,7 @@ final class DocumentBatchReport {
         this.requests=requests;this.elapsedMillis=elapsedMillis;
         completed=Collections.unmodifiableList(notes);
         citations=DocumentBatchPolicy.citations(success?result.synthesis:"",completed);
+        citationCoverage=DocumentBatchPolicy.citationCoverage(plan.sources.size(),result,citations);
     }
 
     DocumentBatchPolicy.Note lookup(String id){
@@ -85,6 +87,10 @@ final class DocumentBatchReport {
                 .put("kind",s.kind.name()).put("extraction_partial",s.partial)
                 .put("extracted_utf16",s.text.length()).put("planned_utf16",plan.includedEnd(i))
                 .put("completed_utf16",result.completedEnd(i));
+            DocumentCitationCoverage.Source coverage=citationCoverage.get(i);
+            source.put("completed_evidence_excerpts",coverage.completedEvidence)
+                .put("referenced_evidence_excerpts",coverage.referencedEvidence<0?JSONObject.NULL:(Object)coverage.referencedEvidence)
+                .put("citation_coverage_status",coverage.status.name());
             if(s.kind==DocumentBatchPolicy.Kind.PDF)source.put("pdf_pages",s.pages)
                 .put("pdf_examined_pages",s.examined).put("pdf_readable_pages",s.readable);
             sources.put(source);
@@ -94,7 +100,9 @@ final class DocumentBatchReport {
             notes.put(new JSONObject().put("id",u.id()).put("source_id","D"+(u.source+1))
                 .put("start_utf16_inclusive_1_based",u.start+1).put("end_utf16_inclusive_1_based",u.end)
                 .put("record_kind",hasExtractedEvidence(note)?"GENERATED_NOTE":"WHITESPACE_ONLY")
-                .put("note",hasExtractedEvidence(note)?(Object)note.text:JSONObject.NULL));
+                .put("note",hasExtractedEvidence(note)?(Object)note.text:JSONObject.NULL)
+                .put("referenced_in_synthesis",result.status==DocumentBatchPolicy.Status.COMPLETED&&hasExtractedEvidence(note)?
+                    (Object)citations.valid.contains(u.id()):JSONObject.NULL));
         }
         boolean success=result.status==DocumentBatchPolicy.Status.COMPLETED;
         return boundedJson(new JSONObject().put("schema",1).put("status",result.status.name())

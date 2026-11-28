@@ -39,6 +39,12 @@ public final class DocumentBatchReportTest {
         ok(d.getString("name").equals("quote\".txt")&&d.getBoolean("extraction_partial"));
         ok(d.getInt("extracted_utf16")==source.length()&&d.getInt("planned_utf16")==source.length()&&d.getInt("completed_utf16")==source.length());
         ok(p.getInt("pdf_pages")==40&&p.getInt("pdf_examined_pages")==12&&p.getInt("pdf_readable_pages")==10);
+        ok(d.getInt("completed_evidence_excerpts")==2&&d.getInt("referenced_evidence_excerpts")==1);
+        ok(p.getInt("completed_evidence_excerpts")==1&&p.getInt("referenced_evidence_excerpts")==1);
+        ok(d.getString("citation_coverage_status").equals("REFERENCED")&&p.getString("citation_coverage_status").equals("REFERENCED"));
+        ok(j.getJSONArray("notes").getJSONObject(0).getBoolean("referenced_in_synthesis"));
+        ok(j.getJSONArray("notes").getJSONObject(1).getBoolean("referenced_in_synthesis"));
+        ok(!j.getJSONArray("notes").getJSONObject(2).getBoolean("referenced_in_synthesis"));
         JSONObject note=j.getJSONArray("notes").getJSONObject(0);
         ok(note.getString("note").equals(generated)&&note.getString("source_id").equals("D1"));
         ok(note.getInt("start_utf16_inclusive_1_based")==1&&note.getInt("end_utf16_inclusive_1_based")==1400);
@@ -61,6 +67,12 @@ public final class DocumentBatchReportTest {
         ok(roundJson.getJSONArray("sources").getJSONObject(0).getInt("completed_utf16")==1400);
         ok(roundJson.getJSONArray("sources").getJSONObject(1).getInt("completed_utf16")==pdf.text.length());
         ok(round.extracted(round.lookup("D2-S1")).equals(pdf.text));
+        for(int i=0;i<2;i++){
+            JSONObject row=roundJson.getJSONArray("sources").getJSONObject(i);
+            ok(row.getInt("completed_evidence_excerpts")==1&&row.isNull("referenced_evidence_excerpts"));
+            ok(row.getString("citation_coverage_status").equals("NOT_ASSESSED"));
+            ok(roundJson.getJSONArray("notes").getJSONObject(i).isNull("referenced_in_synthesis"));
+        }
         DocumentBatchPolicy.Result failed=new DocumentBatchPolicy.Result(DocumentBatchPolicy.Status.FAILED,full.notes,1,"",true);
         rejects(()->new DocumentBatchReport(plan,failed,"m",null,3,200));
         JSONObject fj=new JSONObject(new DocumentBatchReport(plan,failed,"m",null,5,200).json());
@@ -93,6 +105,10 @@ public final class DocumentBatchReportTest {
         JSONObject wj=new JSONObject(w.json());
         ok(wj.getJSONArray("notes").getJSONObject(0).getString("record_kind").equals("WHITESPACE_ONLY")&&wj.getJSONArray("notes").getJSONObject(0).isNull("note"));
         ok(w.citations.unknown.equals(List.of("D1-S1"))&&w.citations.valid.equals(List.of("D1-S2")));
+        ok(wj.getJSONArray("sources").getJSONObject(0).getInt("completed_evidence_excerpts")==1);
+        ok(wj.getJSONArray("sources").getJSONObject(0).getInt("referenced_evidence_excerpts")==1);
+        ok(wj.getJSONArray("notes").getJSONObject(0).isNull("referenced_in_synthesis"));
+        ok(wj.getJSONArray("notes").getJSONObject(1).getBoolean("referenced_in_synthesis"));
         DocumentBatchPolicy.Plan unicodeWs=new DocumentBatchPolicy.Plan("extract",List.of(
             new DocumentBatchPolicy.Source("ws.txt"," ".repeat(1399)+"\u00a0"+"end",DocumentBatchPolicy.Kind.TEXT,false,0,0,0)));
         ok(unicodeWs.units.size()==2&&!AttachmentText.hasContent(unicodeWs.units.get(0).text));

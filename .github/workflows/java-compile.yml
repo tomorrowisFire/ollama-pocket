@@ -277,13 +277,14 @@ jobs:
       - name: Test bounded local attachment text extraction
         run: |
           mkdir -p /tmp/attachment-tests
-          javac -d /tmp/attachment-tests app/src/main/java/com/ollamapocket/app/LocalChatTurns.java app/src/main/java/com/ollamapocket/app/AttachmentText.java app/src/main/java/com/ollamapocket/app/OfficeText.java app/src/main/java/com/ollamapocket/app/PdfExcerpt.java app/src/main/java/com/ollamapocket/app/OcrPolicy.java app/src/main/java/com/ollamapocket/app/DocumentWindow.java app/src/main/java/com/ollamapocket/app/DocumentBatchSchedule.java app/src/main/java/com/ollamapocket/app/DocumentBatchPolicy.java tests/DocumentBatchScheduleTest.java tests/DocumentBatchPolicyTest.java tests/AttachmentTextTest.java tests/OfficeTextTest.java tests/PdfExcerptTest.java tests/OcrPolicyTest.java tests/DocumentWindowTest.java
+          javac -d /tmp/attachment-tests app/src/main/java/com/ollamapocket/app/LocalChatTurns.java app/src/main/java/com/ollamapocket/app/AttachmentText.java app/src/main/java/com/ollamapocket/app/OfficeText.java app/src/main/java/com/ollamapocket/app/PdfExcerpt.java app/src/main/java/com/ollamapocket/app/OcrPolicy.java app/src/main/java/com/ollamapocket/app/DocumentWindow.java app/src/main/java/com/ollamapocket/app/DocumentBatchSchedule.java app/src/main/java/com/ollamapocket/app/DocumentCitationCoverage.java app/src/main/java/com/ollamapocket/app/DocumentBatchPolicy.java tests/DocumentBatchScheduleTest.java tests/DocumentCitationCoverageTest.java tests/DocumentBatchPolicyTest.java tests/AttachmentTextTest.java tests/OfficeTextTest.java tests/PdfExcerptTest.java tests/OcrPolicyTest.java tests/DocumentWindowTest.java
           java -cp /tmp/attachment-tests com.ollamapocket.app.AttachmentTextTest
           java -cp /tmp/attachment-tests com.ollamapocket.app.OfficeTextTest
           java -cp /tmp/attachment-tests com.ollamapocket.app.PdfExcerptTest
           java -cp /tmp/attachment-tests com.ollamapocket.app.OcrPolicyTest
           java -cp /tmp/attachment-tests com.ollamapocket.app.DocumentWindowTest
           java -cp /tmp/attachment-tests com.ollamapocket.app.DocumentBatchScheduleTest
+          java -cp /tmp/attachment-tests com.ollamapocket.app.DocumentCitationCoverageTest
           java -cp /tmp/attachment-tests com.ollamapocket.app.DocumentBatchPolicyTest
           javac -d /tmp/attachment-tests app/src/main/java/com/ollamapocket/app/DocumentRequestControl.java tests/DocumentRequestControlTest.java
           java -cp /tmp/attachment-tests com.ollamapocket.app.DocumentRequestControlTest
@@ -506,6 +507,8 @@ jobs:
           java -cp /tmp/project-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.ProjectWorkspacePolicyTest
           javac -d /tmp/project-tests app/src/main/java/com/ollamapocket/app/ProjectVersionComparison.java tests/ProjectVersionComparisonTest.java
           java -cp /tmp/project-tests com.ollamapocket.app.ProjectVersionComparisonTest
+          javac --release 17 -d /tmp/project-tests app/src/main/java/com/ollamapocket/app/ProjectLineDiff.java tests/ProjectLineDiffTest.java
+          java -cp /tmp/project-tests com.ollamapocket.app.ProjectLineDiffTest
           javac -d /tmp/project-tests app/src/main/java/com/ollamapocket/app/WorkspaceTextPolicy.java app/src/main/java/com/ollamapocket/app/ProjectSearchPolicy.java tests/ProjectSearchPolicyTest.java
           java -cp /tmp/project-tests com.ollamapocket.app.ProjectSearchPolicyTest
           javac -d /tmp/project-tests app/src/main/java/com/ollamapocket/app/ProjectWorkGate.java tests/ProjectWorkGateTest.java

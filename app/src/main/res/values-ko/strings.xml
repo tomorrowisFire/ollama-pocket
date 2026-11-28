@@ -1397,4 +1397,13 @@
     <string name="model_filter_sort">정렬 기준</string>
     <string name="model_filter_family">모델 계열</string>
     <string name="model_filter_quant">양자화</string>
+    <string name="batch_citation_source_scope">문서별 인용 ID 현황(사실 검증 아님)</string>
+    <string name="batch_citation_source_counts">인용된 근거 구간: 완료된 %2$d개 중 %1$d개</string>
+    <string name="batch_citation_source_pending">완료된 근거 구간: %1$d개 · 종합 인용 미평가</string>
+    <string name="batch_citation_referenced">종합 결과에서 인용됨</string>
+    <string name="batch_citation_unreferenced">종합 결과에서 인용되지 않음</string>
+    <string name="project_line_diff_notice">줄 단위 비교: - 이전 줄, + 현재 줄. LF·CRLF·CR·EOF는 줄 끝 형식입니다. 읽기 전용 미리보기입니다.</string>
+    <string name="project_line_diff_summary">삭제된 줄 %1$d개 · 추가된 줄 %2$d개</string>
+    <string name="project_line_diff_coarse">비교 한도를 초과했습니다. 가운데 변경 구간을 통째로 교체한 형태이며 최소 변경 줄 수가 아닙니다.</string>
+    <string name="project_line_diff_truncated">미리보기는 변경된 200줄 또는 UTF-16 16,000단위로 제한됩니다. 정확한 변경 구간은 아래에 있습니다.</string>
 </resources>

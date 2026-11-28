@@ -192,6 +192,12 @@ final class DocumentBatchPolicy {
         }
         return new Citations(valid,unknown);
     }
+    /** Counts only exact completed non-whitespace evidence IDs mentioned in the final synthesis. */
+    static List<DocumentCitationCoverage.Source> citationCoverage(int sourceCount,Result result,Citations citations){
+        List<String> evidence=new ArrayList<>();
+        for(Note note:result.notes)if(AttachmentText.hasContent(note.unit.text))evidence.add(note.unit.id());
+        return DocumentCitationCoverage.summarize(sourceCount,evidence,citations.valid,result.status==Status.COMPLETED);
+    }
     private static final class ContextLimit extends IllegalArgumentException {
         ContextLimit(){super("Estimated synthesis context limit");}
     }

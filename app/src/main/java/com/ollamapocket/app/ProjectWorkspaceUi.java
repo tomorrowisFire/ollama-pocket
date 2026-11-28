@@ -419,9 +419,13 @@ final class ProjectWorkspaceUi {
         }
         ProjectLibrary.Version old=a.version(ordinal),current=a.current();
         final ProjectVersionComparison.Result changes;
-        try{changes=ProjectVersionComparison.compare(old.text,current.text);}
-        catch(IllegalArgumentException e){status(R.string.project_compare_invalid);return;}
+        final ProjectLineDiff.Result lines;
+        try{
+            changes=ProjectVersionComparison.compare(old.text,current.text);
+            lines=ProjectLineDiff.compare(old.text,current.text);
+        }catch(IllegalArgumentException e){status(R.string.project_compare_invalid);return;}
         reset();label(p.title+" / "+a.title,true);
+        if(!changes.identical())showLineDiff(lines);
         label(s(R.string.project_compare_notice),false);
         label(s(R.string.project_compare_common,changes.prefix,changes.suffix),false);
         if(changes.identical())label(s(R.string.project_compare_identical),false);
@@ -431,6 +435,19 @@ final class ProjectWorkspaceUi {
         comparisonSpan(R.string.project_compare_previous,old.ordinal,changes.previous,guard);
         comparisonSpan(R.string.project_compare_current,current.ordinal,changes.current,guard);
         button(R.string.project_back,this::render);button(R.string.close,this::pause);
+    }
+    private void showLineDiff(ProjectLineDiff.Result diff){
+        label(s(R.string.project_line_diff_notice),false);
+        if(diff.coarse)label(s(R.string.project_line_diff_coarse),false);
+        label(s(R.string.project_line_diff_summary,diff.removed,diff.added),false);
+        ProjectLineDiff.Preview preview=diff.preview();
+        if(!preview.text.isEmpty()){
+            TextView code=new TextView(owner);code.setText(preview.text);WorkbenchStyle.label(owner,code,12,false,false);
+            code.setTypeface(android.graphics.Typeface.MONOSPACE);code.setSaveEnabled(false);
+            code.setAutoLinkMask(0);code.setTextIsSelectable(true);code.setHorizontallyScrolling(false);
+            body.addView(code,WorkbenchStyle.row(owner));
+        }
+        if(preview.truncated)label(s(R.string.project_line_diff_truncated),false);
     }
     private void comparisonSpan(int heading,int ordinal,String span,BooleanSupplier guard){
         label(s(heading)+" · "+s(R.string.project_version,ordinal)+" · "+s(R.string.project_compare_units,span.length()),false);

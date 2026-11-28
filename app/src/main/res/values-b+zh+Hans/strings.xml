@@ -1397,4 +1397,13 @@
     <string name="model_filter_sort">排序方式</string>
     <string name="model_filter_family">模型系列</string>
     <string name="model_filter_quant">量化</string>
+    <string name="batch_citation_source_scope">逐文档引用ID情况（并非事实核验）</string>
+    <string name="batch_citation_source_counts">引用证据片段：已完成 %2$d 个中的 %1$d 个</string>
+    <string name="batch_citation_source_pending">已完成证据片段：%1$d 个 · 综合引用未评估</string>
+    <string name="batch_citation_referenced">综合结果中已引用</string>
+    <string name="batch_citation_unreferenced">综合结果中未引用</string>
+    <string name="project_line_diff_notice">逐行比较：- 旧行，+ 当前行。LF、CRLF、CR 和 EOF 表示行末格式。此预览为只读。</string>
+    <string name="project_line_diff_summary">删除行：%1$d · 新增行：%2$d</string>
+    <string name="project_line_diff_coarse">已达到比较上限。中间变更范围按整体替换显示，并非最小逐行差异。</string>
+    <string name="project_line_diff_truncated">预览限于200个变更行或16,000个UTF-16单元。下方保留精确变更范围。</string>
 </resources>

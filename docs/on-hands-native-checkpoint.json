@@ -1,6 +1,6 @@
 {
-  "stage": "F11-2B-document-scheduling-batch",
-  "revision": "F11-2B",
-  "priorCandidate": "3479e8fbf01d8056fd327097d4a81ba420b29f38",
-  "reason": "Integrate F11-1E and F11-2A with source-fair bounded document processing. Exact FAST/FULL required; actual device tests deferred."
+  "stage": "F11-2CD-document-coding-batch",
+  "revision": "F11-2D",
+  "priorCandidate": "bc95e34feb8f952891d30c1851b9a8b1f0a6b27d",
+  "reason": "Batch isolated citation coverage and bounded project line diff. Require exact FAST and FULL; real device tests deferred."
 }

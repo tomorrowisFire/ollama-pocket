@@ -1,0 +1,7 @@
+# F11-2C — explicit source citation coverage
+
+Parent bc95e34feb8f952891d30c1851b9a8b1f0a6b27d. FAST 46142743830 and FULL 46142743813 running at initial check. Source-only isolated implementation until the exact parent gates pass.
+
+Scoped design: report the number of distinct completed non-whitespace excerpt IDs per source and how many appear in the final synthesis. Never equate citation existence or counts with factual accuracy, full source coverage or claim support. Stopped/failed results have NOT_ASSESSED and null reference counts, not zero. Preserve existing canonical ID checks, unknown-ID warnings, extracted ranges, prefix checks, request counts, raw synthesis, generated notes, report schema 1 (additive fields only), and private local transport. The reviewed excerpt picker uses existing shared choice styling and marks referenced/nonreferenced evidence only for completed synthesis. Five locales gain matching labels.
+
+Actual local Java 17 execution: DocumentCitationCoverageTest PASS 202,060 assertions (all ternary absent/completed/cited slot combinations for 1–3 sources, invalid identifiers and immutable results). Git source/test blobs 058b66b4d47a1d1c3ff5acfcce905fdbb24d686c and 8a722cd93757c184eeb08d524f6f688e72797574. Seven focused source predicates passed before candidate creation; report JSON regressions and full Android/Java integration remain for CI. No device validation, score uplift, release, production ads or data migration.

@@ -1397,4 +1397,13 @@
     <string name="model_filter_sort">並び順</string>
     <string name="model_filter_family">モデル系列</string>
     <string name="model_filter_quant">量子化</string>
+    <string name="batch_citation_source_scope">文書別の出典ID（事実検証ではありません）</string>
+    <string name="batch_citation_source_counts">参照された根拠区間：完了 %2$d 件中 %1$d 件</string>
+    <string name="batch_citation_source_pending">完了した根拠区間：%1$d 件・統合結果は未評価</string>
+    <string name="batch_citation_referenced">統合結果で参照あり</string>
+    <string name="batch_citation_unreferenced">統合結果で参照なし</string>
+    <string name="project_line_diff_notice">行単位の比較：- 以前の行、+ 現在の行。LF・CRLF・CR・EOFは行末形式です。読み取り専用のプレビューです。</string>
+    <string name="project_line_diff_summary">削除行：%1$d · 追加行：%2$d</string>
+    <string name="project_line_diff_coarse">比較上限に達しました。中央の変更範囲を一括置換として表示し、最小の行差分ではありません。</string>
+    <string name="project_line_diff_truncated">プレビューは変更200行またはUTF-16の16,000単位までです。正確な変更範囲は下に表示されます。</string>
 </resources>

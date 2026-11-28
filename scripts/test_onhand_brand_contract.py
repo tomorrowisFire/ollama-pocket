@@ -655,3 +655,16 @@ assert "WorkspaceChromePolicy.centeredInsetPx(width,dp(workspaceReadingColumnDp(
 assert "WorkspaceChromePolicy.bubbleWidthPx(width,padding,dp(640),dp(80))" in main
 assert "WorkspaceChromePolicy.centeredInsetPx(getWidth(),max,dp(6))" in (src/"CloudChatPanel.java").read_text()
 print("PASS: F11-1E route-based drawer and bounded viewport")
+
+# F11-2D: bounded read-only line preview retains the original exact comparison and guarded viewer.
+project=(src/"ProjectWorkspaceUi.java").read_text()
+comparison=project.split("private void compareVersions(",1)[1].split("private void version(",1)[0]
+for required in ("ProjectVersionComparison.compare(old.text,current.text)", "ProjectLineDiff.compare(old.text,current.text)",
+    "if(!changes.identical())showLineDiff(lines)", "if(diff.coarse)label(s(R.string.project_line_diff_coarse)",
+    "if(preview.truncated)label(s(R.string.project_line_diff_truncated)", "code.setTypeface(android.graphics.Typeface.MONOSPACE)",
+    "code.setTextIsSelectable(true)", "comparisonSpan(R.string.project_compare_previous",
+    "comparisonSpan(R.string.project_compare_current", "comparisonCurrent(state,p,a,ordinal)"):
+    assert required in comparison,required
+for forbidden in ("save(st", "editArtifact(", "restoreArtifact(", "setPrimaryClip(", "setOnClickListener("):
+    assert forbidden not in comparison,forbidden
+print("PASS: F11-2D bounded read-only project diff preview")

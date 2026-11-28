@@ -1397,4 +1397,13 @@
     <string name="model_filter_sort">Sort order</string>
     <string name="model_filter_family">Model family</string>
     <string name="model_filter_quant">Quantization</string>
+    <string name="batch_citation_source_scope">Source-by-source citation IDs (not factual verification)</string>
+    <string name="batch_citation_source_counts">Referenced evidence excerpts: %1$d / %2$d completed</string>
+    <string name="batch_citation_source_pending">Completed evidence excerpts: %1$d · synthesis not assessed</string>
+    <string name="batch_citation_referenced">Referenced in synthesis</string>
+    <string name="batch_citation_unreferenced">Not referenced in synthesis</string>
+    <string name="project_line_diff_notice">Line comparison: - previous line, + current line. LF, CRLF, CR and EOF show line endings. This preview is read-only.</string>
+    <string name="project_line_diff_summary">Removed lines: %1$d · Added lines: %2$d</string>
+    <string name="project_line_diff_coarse">Comparison budget reached. The changed middle region is shown as a replacement, not a minimal line diff.</string>
+    <string name="project_line_diff_truncated">Preview limited to 200 changed lines or 16,000 UTF-16 units. The exact changed regions remain below.</string>
 </resources>

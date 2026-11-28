@@ -325,11 +325,13 @@ final class DocumentBatchUi {
         List<String> labels=new ArrayList<>();
         for(DocumentBatchPolicy.Note note:snapshot.completed){
             DocumentBatchPolicy.Unit u=note.unit;
-            labels.add(u.id()+" · "+snapshot.plan.sources.get(u.source).name+" ["+(u.start+1)+"–"+u.end+"]");
+            String label=u.id()+" · "+snapshot.plan.sources.get(u.source).name+" ["+(u.start+1)+"–"+u.end+"]";
+            if(snapshot.result.status==DocumentBatchPolicy.Status.COMPLETED&&snapshot.hasExtractedEvidence(note))
+                label+=" · "+s(snapshot.citations.valid.contains(u.id())?R.string.batch_citation_referenced:R.string.batch_citation_unreferenced);
+            labels.add(label);
         }
-        ArrayAdapter<String> adapter=new ArrayAdapter<>(owner,android.R.layout.simple_spinner_item,labels);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        selector.setAdapter(adapter);selector.setMinimumHeight(dp(48));
+        selector.setAdapter(WorkbenchStyle.spinnerChoices(selector,labels.toArray(new String[0])));
+        OnHandGlyphs.spinner(selector);selector.setMinimumHeight(dp(48));
         selector.setContentDescription(s(R.string.batch_inspect_excerpt));
         panel.addView(selector,new LinearLayout.LayoutParams(-1,-2));
         TextView range=label(panel,"",false);
@@ -438,9 +440,18 @@ final class DocumentBatchUi {
         }
         b.append("\n\n").append(owner.getString(R.string.batch_run_metrics,
             Integer.toString(reportRequests),Long.toString(reportElapsedMillis)));
-        if(result.status==DocumentBatchPolicy.Status.COMPLETED){
+        boolean complete=result.status==DocumentBatchPolicy.Status.COMPLETED;
+        DocumentBatchPolicy.Citations refs=DocumentBatchPolicy.citations(complete?result.synthesis:"",result.notes);
+        List<DocumentCitationCoverage.Source> counts=DocumentBatchPolicy.citationCoverage(plan.sources.size(),result,refs);
+        b.append("\n\n").append(s(R.string.batch_citation_source_scope));
+        for(int i=0;i<counts.size();i++){
+            DocumentCitationCoverage.Source row=counts.get(i);
+            b.append("\nD").append(i+1).append(" · ").append(row.referencedEvidence<0?
+                owner.getString(R.string.batch_citation_source_pending,row.completedEvidence):
+                owner.getString(R.string.batch_citation_source_counts,row.referencedEvidence,row.completedEvidence));
+        }
+        if(complete){
             b.append("\n\n").append(s(R.string.batch_synthesis)).append('\n').append(result.synthesis);
-            DocumentBatchPolicy.Citations refs=DocumentBatchPolicy.citations(result.synthesis,result.notes);
             b.append("\n\n").append(s(R.string.batch_citation_check));
             if(refs.valid.isEmpty())b.append('\n').append(s(R.string.batch_citation_missing));
             else for(DocumentBatchPolicy.Note n:result.notes)if(refs.valid.contains(n.unit.id()))
