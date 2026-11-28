@@ -687,7 +687,7 @@
     <string name="chat_manage_failed">无法更新对话列表，已保存消息未更改。</string>
     <string name="chat_manage_done">对话已更新</string>
     <string name="attachment_pick">附加文件</string>
-    <string name="attachment_formats">选择文本或源代码（16 MiB）、DOCX/XLSX/PPTX、HWPX、OpenDocument（32 MiB）或 PDF（64 MiB）。常见 Office 模板和宏文档仅只读提取。PNG/JPEG/WEBP（16 MiB）及扫描 PDF 使用 OCR；静态 PNG/JPEG（16 MiB）使用 VLM。PDF 需要 Android 15 或以上。不支持旧二进制 Office/HWP 和可执行文件。</string>
+    <string name="attachment_formats">选择文本或源代码（500 MiB）、DOCX/XLSX/PPTX、HWPX、OpenDocument（500 MiB）或 PDF（500 MiB）。常见 Office 模板和宏文档仅只读提取。PNG/JPEG/WEBP（16 MiB）及扫描 PDF 使用 OCR；静态 PNG/JPEG（16 MiB）使用 VLM。PDF 需要 Android 15 或以上。不支持旧二进制 Office/HWP 和可执行文件。</string>
     <string name="attachment_reading">正在提取文件文本…</string>
     <string name="attachment_preview">预览提取文本</string>
     <string name="attachment_notice">加入本地问题前请检查或编辑摘录。摘录将成为草稿及已保存问题的一部分，可能用于后续本地上下文。不保存原文件。文档服务可能通过网络获取文件。</string>
@@ -721,9 +721,9 @@
     <string name="attachment_ocr_bad_page">请输入文档范围内 1 至 10,000 的有效 PDF 页码。</string>
     <string name="attachment_ocr_image_pick">选择 PNG、JPEG、WEBP 或 PDF 页面</string>
     <string name="attachment_select_range">文本／Office／PDF 文本</string>
-    <string name="attachment_segment">文本分段（1–4096）／Office（1–256）</string>
+    <string name="attachment_segment">文本分段（1–90000）／Office（1–256）</string>
     <string name="attachment_pdf_first">PDF 起始页（1–10,000）</string>
-    <string name="attachment_range_help">选择约 6,000 个 UTF-16 字符的文本、代码或 Office 分段，或 PDF 起始页。仅应用对应格式的设置。Office 引用可能跨段。更大的文件上限不增加模型上下文，请分别分析摘录。</string>
+    <string name="attachment_range_help">选择约 6,000 个 UTF-16 字符的文本、代码或 Office 分段，或 PDF 起始页。仅应用对应格式的设置。Office 引用可能跨段。更大的文件上限不增加模型上下文，请分别分析摘录。 大文件：文本、源代码、Office 或 PDF 单文件最多 500 MiB，图像仍为 16 MiB。解压量、XML 内存、存储空间、时间和模型上下文另有限制；允许导入不代表全文分析。</string>
     <string name="attachment_range_invalid">所选范围超出可提取内容或支持上限。</string>
     <string name="attachment_range_note">分段 %1$d · 提取文本 UTF-16 位置 %2$d–%3$d。不是原始页码或单元格坐标。</string>
     <string name="attachment_remove_last">移除最后插入的摘录</string>
@@ -874,7 +874,7 @@
     <string name="auto_code_step2" formatted="false">目标：%GOAL%。依据上一步需求和测试起草 code，说明 limitations，不声称已执行。</string>
     <string name="auto_code_step3" formatted="false">目标：%GOAL%。审查上一步代码的正确性和安全性，返回修订 code 和 test_plan，不声称实际运行测试。</string>
     <string name="batch_title">长文档与多文档分析</string>
-    <string name="batch_notice">选择 1–3 个受支持的文本、源代码、Office（含 PPTX、HWPX、ODF）或文本 PDF 文件。单文件上限：文本 16 MiB、Office 32 MiB、PDF 64 MiB。提取有限前缀，合计最多 24 个片段并综合分析。文本采用所选编码。PDF 需要 Android 15 或以上。不支持扫描 PDF、图像和 OCR。不保存原始文件或聊天记录。</string>
+    <string name="batch_notice">选择 1–3 个受支持的文本、源代码、Office（含 PPTX、HWPX、ODF）或文本 PDF 文件。单文件上限：文本 500 MiB、Office 500 MiB、PDF 500 MiB。提取有限前缀，合计最多 24 个片段并综合分析。文本采用所选编码。PDF 需要 Android 15 或以上。不支持扫描 PDF、图像和 OCR。不保存原始文件或聊天记录。</string>
     <string name="batch_goal">分析目标（最多300字符）</string>
     <string name="batch_default_goal">整理重要事实、文档差异和缺失信息，不要编造证据。</string>
     <string name="batch_preview">查看提取原文</string>

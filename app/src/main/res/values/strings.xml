@@ -687,7 +687,7 @@
     <string name="chat_manage_failed">Could not update the conversation list. Saved messages were not changed.</string>
     <string name="chat_manage_done">Conversation updated</string>
     <string name="attachment_pick">Attach file</string>
-    <string name="attachment_formats">Choose text or source code (16 MiB), DOCX/XLSX/PPTX, HWPX or OpenDocument (32 MiB), or PDF (64 MiB). Common Office template and macro packages are read-only. Use OCR for PNG/JPEG/WEBP (16 MiB) or scanned PDF; VLM accepts static PNG/JPEG (16 MiB). PDF requires Android 15 or later. Legacy binary Office/HWP and executables are unsupported.</string>
+    <string name="attachment_formats">Choose text or source code (500 MiB), DOCX/XLSX/PPTX, HWPX or OpenDocument (500 MiB), or PDF (500 MiB). Common Office template and macro packages are read-only. Use OCR for PNG/JPEG/WEBP (16 MiB) or scanned PDF; VLM accepts static PNG/JPEG (16 MiB). PDF requires Android 15 or later. Legacy binary Office/HWP and executables are unsupported.</string>
     <string name="attachment_reading">Extracting file text…</string>
     <string name="attachment_preview">Preview extracted text</string>
     <string name="attachment_notice">Review or edit the excerpt before adding it to the local question. It becomes part of the draft and saved question, and may be used in later local context. The original file is not stored. Your document provider may fetch files over the network.</string>
@@ -721,9 +721,9 @@
     <string name="attachment_ocr_bad_page">Enter a valid PDF page number from 1 to 10,000 within the document.</string>
     <string name="attachment_ocr_image_pick">Choose PNG, JPEG, WEBP or a PDF page</string>
     <string name="attachment_select_range">Text / Office / PDF text</string>
-    <string name="attachment_segment">Text segment (1–4096) / Office (1–256)</string>
+    <string name="attachment_segment">Text segment (1–90000) / Office (1–256)</string>
     <string name="attachment_pdf_first">PDF starting page (1–10,000)</string>
-    <string name="attachment_range_help">Select a text/code or Office segment of approximately 6,000 UTF-16 characters, or a PDF starting page. Only the setting for the selected file applies. Office references may be split at segment boundaries. Larger file limits do not increase the model context; analyze each excerpt separately.</string>
+    <string name="attachment_range_help">Select a text/code or Office segment of approximately 6,000 UTF-16 characters, or a PDF starting page. Only the setting for the selected file applies. Office references may be split at segment boundaries. Larger file limits do not increase the model context; analyze each excerpt separately. Large-file input: at most 500 MiB per text/code, Office or PDF file. Images remain 16 MiB. Expanded archives, retained XML, available storage, time and model context have separate limits; admission is not full-file analysis.</string>
     <string name="attachment_range_invalid">The selected range is outside the available extracted content, or exceeds the supported limit.</string>
     <string name="attachment_range_note">Segment %1$d · extracted UTF-16 positions %2$d–%3$d. These are positions in extracted text, not original page or cell coordinates.</string>
     <string name="attachment_remove_last">Remove last inserted excerpt</string>
@@ -874,7 +874,7 @@
     <string name="auto_code_step2" formatted="false">Goal: %GOAL%. Draft code based on the previous requirements and tests, and state limitations. Do not claim to have executed it.</string>
     <string name="auto_code_step3" formatted="false">Goal: %GOAL%. Review the previous code for correctness and safety. Return revised code and a test plan, without claiming any tests ran.</string>
     <string name="batch_title">Long / multiple documents</string>
-    <string name="batch_notice">Select 1–3 supported text/code, Office (including PPTX, HWPX, ODF) or text PDF files. Per-file limits: text 16 MiB, Office 32 MiB, PDF 64 MiB. Each bounded prefix is divided into up to 24 total excerpts and synthesized. Text uses the selected encoding. PDF requires Android 15 or later. Scanned PDF, images and OCR are excluded. No original files or chat records are saved.</string>
+    <string name="batch_notice">Select 1–3 supported text/code, Office (including PPTX, HWPX, ODF) or text PDF files. Per-file limits: text 500 MiB, Office 500 MiB, PDF 500 MiB. Each bounded prefix is divided into up to 24 total excerpts and synthesized. Text uses the selected encoding. PDF requires Android 15 or later. Scanned PDF, images and OCR are excluded. No original files or chat records are saved.</string>
     <string name="batch_goal">Analysis goal (up to 300 characters)</string>
     <string name="batch_default_goal">Summarize the important facts, differences and missing information without inventing evidence.</string>
     <string name="batch_preview">Review extracted source text</string>

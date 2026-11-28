@@ -1,6 +1,6 @@
 {
   "stage": "F12-file-intake-integration-candidate",
-  "revision": "F12-file-intake-r001",
+  "revision": "F12-file-intake-r002",
   "scopeBaseline": "0152869a25bfa63e1e6e94c5ebb079ccc0facba8",
   "priorCandidate": "0152869a25bfa63e1e6e94c5ebb079ccc0facba8",
   "modules": [
@@ -19,7 +19,11 @@
     {
       "stage": "D-ui",
       "sha": "c2a8597b55e04b5d3505d1079ab9d61da47d483e"
+    },
+    {
+      "stage": "E-500MiB",
+      "sha": "5da72d95e986eeda4fdd3367f0fa2337336e9e6f"
     }
   ],
-  "reason": "User requested broad file extension and input size expansion. Preserve F11-7 exact scope and apply a separate F12 whitelist. FAST/FULL and physical acceptance pending."
+  "reason": "User expanded document input cap to 500 MiB; preserve F11-7 exact scope and separately approved F12 changes. Streaming, memory, disk and time guards retained. FAST/FULL, physical acceptance pending."
 }
