@@ -100,6 +100,26 @@ public final class OfficeTextTest {
         try{AttachmentText.read("a.docx",new ByteArrayInputStream(heavy),DocumentWindow.MAX_OFFICE_SEGMENTS+1);throw new AssertionError("Office range");}
         catch(AttachmentText.Failure e){ok(e.problem==AttachmentText.Problem.RANGE,"Office range cap");}
         ok(OfficeText.MAX_RETAINED==24*1024*1024&&OfficeText.MAX_PART==8*1024*1024,"Retained XML memory budgets unchanged");
+        byte[] sourceBundle=zip("src/main.py","print('한국어 😀')","src/index.ts","export const a = 1;",
+                ".env","SECRET_ENV_MARKER","config/credentials.json","SECRET_CREDENTIAL_MARKER",
+                ".git/config","SECRET_GIT_MARKER","node_modules/lib/index.js","DEPENDENCY_MARKER",
+                "bin/main.exe","BINARY_MARKER","nested.zip","NESTED_MARKER","README","Usage");
+        var bundle=read("project.ZIP",sourceBundle);
+        ok(bundle.office&&bundle.partial&&bundle.text.contains("[ZIP entry: src/main.py]")&&
+                bundle.text.contains("한국어 😀")&&bundle.text.contains("[ZIP entry: src/index.ts]")&&
+                bundle.text.contains("[ZIP entry: README]"),"Read-only ZIP source bundle");
+        ok(!bundle.text.contains("SECRET_")&&!bundle.text.contains("DEPENDENCY_MARKER")&&
+                !bundle.text.contains("BINARY_MARKER")&&!bundle.text.contains("NESTED_MARKER"),"Skip sensitive paths, binary and nested archives");
+        bad("bad.zip",zip("../unsafe.py","x"),AttachmentText.Problem.INVALID);
+        bad("bad.zip",zip("C:/unsafe.py","x"),AttachmentText.Problem.INVALID);
+        bad("bad.zip",zip("src//unsafe.py","x"),AttachmentText.Problem.INVALID);
+        bad("empty.zip",zip("main.exe","not source",".env","secret"),AttachmentText.Problem.EMPTY);
+        bad("bad.zip",new byte[]{1,2,3},AttachmentText.Problem.INVALID);
+        var shortBundle=AttachmentText.readPrefix("project.zip",new ByteArrayInputStream(sourceBundle),AttachmentText.Encoding.UNICODE,64);
+        ok(shortBundle.partial&&shortBundle.text.length()<=64,"Bounded ZIP batch prefix");
+        byte[] bigSource=zip("src/large.log","a".repeat(10000)+"OMITTED_TAIL","src/next.py","next code");
+        var excerpt=AttachmentText.readPrefix("source.zip",new ByteArrayInputStream(bigSource),AttachmentText.Encoding.UNICODE,12000);
+        ok(excerpt.partial&&excerpt.text.contains("next code")&&!excerpt.text.contains("OMITTED_TAIL"),"Entry prefix limits and subsequent entries");
         System.out.println("OfficeTextTest PASS: "+n+" assertions");
     }
 }

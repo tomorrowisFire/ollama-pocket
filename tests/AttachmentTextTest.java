@@ -27,8 +27,10 @@ public final class AttachmentTextTest {
         for(String name:new String[]{"main.PY","app.js","index.tsx","page.html","style.css","data.xml","config.yaml","query.sql","Main.java","Program.cs","main.cpp","game.gd","script.ps1","Dockerfile","Makefile",".gitignore","notebook.ipynb","notes.tex","chart.svg","data.jsonl","project.csproj","README"}){
             ok(read(name,bytes("한국어 😀 source")).text.equals("한국어 😀 source"),"Plain source "+name);
         }
-        for(String name:new String[]{"a.exe","a.apk","a.dll","a.zip","a.rar","a.hwp","a.doc","a.xls","a.mp3","../code.py"})
+        for(String name:new String[]{"a.exe","a.apk","a.dll","a.rar","a.hwp","a.doc","a.xls","a.mp3","../code.py"})
             bad(name,bytes("not executable"),AttachmentText.Problem.UNSUPPORTED);
+        bad("a.zip",bytes("not a ZIP archive"),AttachmentText.Problem.INVALID);
+        ok(AttachmentText.maxBytes("project.zip")==OfficeText.MAX_BYTES,"Source archive file cap");
         byte[] large=bytes("a".repeat(2*1024*1024)+"TAIL");
         AttachmentText.Result tail=AttachmentText.read("big.log",new ByteArrayInputStream(large),350);
         ok(tail.text.endsWith("TAIL")&&tail.rangeEnd==large.length,"Late window beyond prior 1 MB limit");

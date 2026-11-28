@@ -25,7 +25,8 @@ final class OfficeText {
     private static AttachmentText.Failure bad(AttachmentText.Problem p){return new AttachmentText.Failure(p);}
     private static AttachmentText.Failure invalid(){return bad(AttachmentText.Problem.INVALID);}
     private static AttachmentText.Failure large(){return bad(AttachmentText.Problem.TOO_LARGE);}
-    private enum Kind { WORD,SHEET,PRESENTATION,HWPX,ODT,ODS,ODP }
+    private enum Kind { WORD,SHEET,PRESENTATION,HWPX,ODT,ODS,ODP,SOURCE_ZIP }
+    static final int MAX_SOURCE_FILES=128,MAX_SOURCE_CHARS=6000;
     private static Kind kind(String name){
         if(name==null)return null;
         String n=name.toLowerCase(Locale.ROOT);int dot=n.lastIndexOf('.');
@@ -38,6 +39,7 @@ final class OfficeText {
             case "odt":case "ott":return Kind.ODT;
             case "ods":case "ots":return Kind.ODS;
             case "odp":case "otp":return Kind.ODP;
+            case "zip":return Kind.SOURCE_ZIP;
             default:return null;
         }
     }
@@ -54,6 +56,7 @@ final class OfficeText {
         if(type==null)throw bad(AttachmentText.Problem.UNSUPPORTED);
         if(source==null)throw invalid();
         try{
+            if(type==Kind.SOURCE_ZIP)return sourceArchive(source,limit);
             Map<String,byte[]> parts=archive(source,type);
             Excerpt out=new Excerpt(limit);
             if(type==Kind.WORD){
@@ -98,6 +101,86 @@ final class OfficeText {
             if(Thread.currentThread().isInterrupted())throw new InterruptedIOException();
             throw invalid();
         }
+    }
+    /** A source ZIP is one reviewed document. No entry is extracted to disk, executed,
+     * recursively opened, or fetched from an external relationship. */
+    private static AttachmentText.Prefix sourceArchive(InputStream source,int limit)throws IOException{
+        AttachmentText.BoundedSource raw=new AttachmentText.BoundedSource(source,MAX_BYTES);
+        PushbackInputStream input=new PushbackInputStream(raw,4);
+        byte[] magic=new byte[4];int got=0;
+        while(got<4){int n=input.read(magic,got,4-got);if(n<0)break;got+=n;}
+        if(got!=4||magic[0]!='P'||magic[1]!='K'||magic[2]!=3||magic[3]!=4){
+            raw.drain();throw invalid();
+        }
+        input.unread(magic);
+        Excerpt out=new Excerpt(limit);Set<String> names=new HashSet<>();
+        final long[] expanded={0};int entries=0,readable=0;
+        try(ZipInputStream zip=new ZipInputStream(new FilterInputStream(input){
+            @Override public void close(){}
+        })){
+            ZipEntry entry;byte[] drain=new byte[8192];
+            while((entry=zip.getNextEntry())!=null){
+                raw.check();
+                if(++entries>MAX_ENTRIES)throw large();
+                String name=entry.getName();
+                if(!safeArchivePath(name,entry.isDirectory())||!names.add(name))throw invalid();
+                String leaf=name.substring(name.lastIndexOf('/')+1);
+                // Wrap every entry, including skipped binaries and nested archives, in the
+                // shared decompressed-byte guard. Do not trust header size declarations.
+                InputStream part=new InputStream(){
+                    @Override public int read()throws IOException{
+                        raw.check();int n=zip.read();raw.check();
+                        if(n>=0&&++expanded[0]>MAX_EXPANDED)throw large();return n;
+                    }
+                    @Override public int read(byte[] b,int off,int len)throws IOException{
+                        raw.check();int n=zip.read(b,off,len);raw.check();
+                        if(n==0&&len>0)throw invalid();
+                        if(n>0&&(expanded[0]+=n)>MAX_EXPANDED)throw large();return n;
+                    }
+                };
+                if(!entry.isDirectory()&&!out.sealed&&readable<MAX_SOURCE_FILES&&AttachmentText.supportsPlain(leaf)&&
+                        !privateArchivePath(name)){
+                    try{
+                        AttachmentText.Prefix text=AttachmentText.readPrefix(leaf,part,AttachmentText.Encoding.UNICODE,MAX_SOURCE_CHARS);
+                        // Entry headers are literal source metadata, not commands or filenames to open.
+                        out.record("[ZIP entry: "+AttachmentText.safeName(name)+"]\n",text.text);
+                        readable++;
+                        if(text.partial)out.partial=true;
+                    }catch(AttachmentText.Failure e){
+                        if(e.problem!=AttachmentText.Problem.INVALID&&e.problem!=AttachmentText.Problem.EMPTY)throw e;
+                        out.partial=true;
+                    }
+                }
+                while(part.read(drain,0,drain.length)>=0){}
+                zip.closeEntry();
+            }
+            raw.drain();
+        }
+        if(!out.hasData)throw bad(AttachmentText.Problem.EMPTY);
+        return new AttachmentText.Prefix(out.text.toString(),true);
+    }
+    private static boolean safeArchivePath(String name,boolean directory){
+        if(name==null||name.isEmpty()||name.length()>512||name.startsWith("/")||name.indexOf('\\')>=0||name.indexOf(':')>=0)return false;
+        String path=directory&&name.endsWith("/")?name.substring(0,name.length()-1):name;
+        String[] parts=path.split("/",-1);
+        if(parts.length>32)return false;
+        for(String item:parts){
+            if(item.isEmpty()||item.equals(".")||item.equals(".."))return false;
+            for(int i=0;i<item.length();){
+                int cp=item.codePointAt(i);i+=Character.charCount(cp);
+                if(Character.isISOControl(cp)||cp>=0xd800&&cp<=0xdfff||cp>=0x202a&&cp<=0x202e||cp>=0x2066&&cp<=0x2069)return false;
+            }
+        }
+        return true;
+    }
+    private static boolean privateArchivePath(String path){
+        for(String item:path.toLowerCase(Locale.ROOT).split("/")){
+            if(item.equals(".git")||item.equals(".svn")||item.equals(".hg")||item.equals("node_modules")||
+                    item.equals(".env")||item.startsWith(".env.")||item.endsWith(".env")||
+                    item.equals("credentials.json")||item.equals("secrets.json")||item.equals("id_rsa")||
+                    item.equals("id_ed25519"))return true;
+        }
+        return false;
     }
     private static boolean wanted(String path,Kind type){
         if(type==Kind.WORD)return path.equals("word/document.xml");
