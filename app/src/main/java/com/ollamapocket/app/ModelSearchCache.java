@@ -7,6 +7,7 @@ public final class ModelSearchCache {
     static final long MAX_TEXT_CHARS=2_000_000L, MAX_ENTRY_CHARS=500_000L;
     private final int limit;private final long ttlMillis;
     private int variants;private long textChars;
+    private Object writeEpoch=new Object();
     private static final class Entry {
         final long stamped,chars;final List<ModelVariantCatalog.Variant> values;
         Entry(long time,List<ModelVariantCatalog.Variant> list,long chars){
@@ -35,6 +36,7 @@ public final class ModelSearchCache {
         }
     }
     public synchronized List<ModelVariantCatalog.Variant> get(String key,long now) {
+        if(now>=0)pruneExpired(now);
         Entry entry=entries.get(key);
         if(entry==null)return null;
         if(now<0||now<entry.stamped||now-entry.stamped>ttlMillis){
@@ -58,5 +60,9 @@ public final class ModelSearchCache {
         while(entries.size()>limit||variants>MAX_VARIANTS||textChars>MAX_TEXT_CHARS)
             remove(entries.keySet().iterator().next());
     }
-    public synchronized void clear(){entries.clear();variants=0;textChars=0;}
+    synchronized Object writeEpoch(){return writeEpoch;}
+    synchronized void putIfCurrent(Object expected,String key,List<ModelVariantCatalog.Variant> values,long now){
+        if(expected==writeEpoch)put(key,values,now);
+    }
+    public synchronized void clear(){entries.clear();variants=0;textChars=0;writeEpoch=new Object();}
 }

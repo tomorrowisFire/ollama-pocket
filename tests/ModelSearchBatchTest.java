@@ -56,6 +56,18 @@ public final class ModelSearchBatchTest {
         ok(expiring.get("expired",1900)!=null); // expired entry is most recently used
         expiring.put("new",List.of(a),2001);
         ok(expiring.get("expired",2001)==null&&expiring.get("recent",2001)!=null&&expiring.get("new",2001)!=null);
+        var memory=new ModelSearchCache(2,1000);
+        Object staleEpoch=memory.writeEpoch();
+        memory.putIfCurrent(staleEpoch,"old",List.of(a),1000);
+        ok(memory.get("old",1000)!=null);
+        memory.clear();
+        memory.putIfCurrent(staleEpoch,"old",List.of(a),1001);
+        ok(memory.get("old",1001)==null);
+        Object currentEpoch=memory.writeEpoch();
+        memory.putIfCurrent(currentEpoch,"new",List.of(b),1001);
+        ok(memory.get("new",1001).equals(List.of(b)));
+        memory.putIfCurrent(staleEpoch,"new",List.of(a),1002);
+        ok(memory.get("new",1002).equals(List.of(b)));
         System.out.println("PASS: "+checks+" model search completeness, cancellation and bounded cache checks");
     }
 }

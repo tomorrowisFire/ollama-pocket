@@ -220,8 +220,7 @@ public final class MainActivity extends Activity {
     private boolean modelListView=true;
     private Button modelListViewButton,modelGridViewButton;
     private String selectedSource="전체에서 찾기", selectedSort="추천 순";
-    private java.util.concurrent.Future<?> onlineSearchTask;
-    private java.util.concurrent.Future<?> onlineHfTask;
+    private final ModelSearchWorkers onlineSearchWorkers=new ModelSearchWorkers();
     private final ModelSearchCache searchCache=new ModelSearchCache(20,600_000L);
     private final Map<String,List<ModelVariantCatalog.Variant>> searchParts=new java.util.LinkedHashMap<>();
     private final java.util.Set<String> expandedGroups=new java.util.LinkedHashSet<>();
@@ -577,8 +576,7 @@ public final class MainActivity extends Activity {
         ui.removeCallbacks(inferenceWatch);
         ui.removeCallbacks(sunsetThemePoll);
         if(onlineSearchRunnable!=null)ui.removeCallbacks(onlineSearchRunnable);
-        if(onlineSearchTask!=null)onlineSearchTask.cancel(true);
-        if(onlineHfTask!=null)onlineHfTask.cancel(true);
+        onlineSearchWorkers.close();searchCache.clear();
         chatSearchSerial++;attachmentSerial++;
         if(chatSearchTask!=null)chatSearchTask.cancel(true);
         chatSearchIo.shutdownNow();
@@ -2758,8 +2756,7 @@ public final class MainActivity extends Activity {
     private void onModelSearchChanged(String nextValue,boolean forceRefresh){
         long sequence=++onlineSearchSerial;
         if(onlineSearchRunnable!=null)ui.removeCallbacks(onlineSearchRunnable);
-        if(onlineSearchTask!=null)onlineSearchTask.cancel(true);
-        if(onlineHfTask!=null)onlineHfTask.cancel(true);
+        onlineSearchWorkers.cancel();
         onlineSearchRunnable=null;
         onlineSearchError="";onlineSearchPending=false;
         String query=nextValue==null?"":nextValue.trim();
@@ -2795,14 +2792,14 @@ public final class MainActivity extends Activity {
             (forceRefresh||!searchParts.containsKey("Hugging Face"));
         onlineSearchRunnable=()->{
             if(isDestroyed()||sequence!=onlineSearchSerial)return;
-            if(needOllama)onlineSearchTask=io.submit(()->fetchSearchSource(
-                sequence,query,"Ollama"));
-            if(needHf)onlineHfTask=io.submit(()->fetchSearchSource(
-                sequence,query,"Hugging Face"));
+            Object cacheEpoch=searchCache.writeEpoch();
+            onlineSearchWorkers.replace(
+                needOllama?()->fetchSearchSource(sequence,query,"Ollama",cacheEpoch):null,
+                needHf?()->fetchSearchSource(sequence,query,"Hugging Face",cacheEpoch):null);
         };
         ui.postDelayed(onlineSearchRunnable,450);
     }
-    private void fetchSearchSource(long sequence,String query,String provider){
+    private void fetchSearchSource(long sequence,String query,String provider,Object cacheEpoch){
         List<ModelVariantCatalog.Variant> ready=Collections.emptyList();
         String error="";
         try{
@@ -2820,7 +2817,7 @@ public final class MainActivity extends Activity {
             if(failure.isEmpty()){
                 searchParts.put(provider,result);
                 // Cache only the active query and complete provider results.
-                if(foreground)searchCache.put(ModelSearchCache.key(provider,query),result,android.os.SystemClock.elapsedRealtime());
+                if(foreground)searchCache.putIfCurrent(cacheEpoch,ModelSearchCache.key(provider,query),result,android.os.SystemClock.elapsedRealtime());
             }else{
                 if(!result.isEmpty())searchParts.put(provider,result);
                 searchFailures.add(failure);

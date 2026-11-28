@@ -141,6 +141,15 @@ public final class CloudStreamTest {
                 throw new AssertionError("Oversized user input accepted");}
             catch(IllegalArgumentException expected){check(true);}
         }
+        // The bad fragment must not reach even the partial preview or a completed reply.
+        for(CloudApi.Provider p:new CloudApi.Provider[]{CloudApi.Provider.OPENAI,CloudApi.Provider.XAI})
+            recovered(p,delta+event("{\"type\":\"response.output_text.delta\",\"delta\":\"bad\\u0000text\"}")+end,"안녕");
+        recovered(CloudApi.Provider.CLAUDE,start+text+event("{\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":\"bad\\u0000text\"}}")+stop+done,"日本語");
+        for(CloudApi.Provider p:new CloudApi.Provider[]{CloudApi.Provider.GEMINI,CloudApi.Provider.DEEPSEEK,CloudApi.Provider.OPENROUTER,CloudApi.Provider.PC_OLLAMA,CloudApi.Provider.PC_LM_STUDIO}){
+            recovered(p,chunk+event("{\"choices\":[{\"delta\":{\"content\":\"bad\\u0000text\"}}]}")+finish+event("[DONE]"),"中文");
+            try{CloudApi.parseReply(p,new org.json.JSONObject("{\"choices\":[{\"message\":{\"content\":\"bad\\u0000text\"},\"finish_reason\":\"stop\"}]}"));throw new AssertionError("Control reply accepted");}
+            catch(CloudApi.StreamFailure expected){check(expected.incomplete);}
+        }
         System.out.println("PASS: "+checks+" offline SSE protocol checks");
     }
 }

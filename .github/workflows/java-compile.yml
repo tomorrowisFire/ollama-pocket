@@ -54,6 +54,7 @@ on:
       - 'tests/LocalChatLibraryTest.java'
       - 'tests/TransferReviewTest.java'
       - 'tests/ChatOrganizationTest.java'
+      - 'tests/F10A94TextAdmissionTest.java'
       - 'tests/AttachmentTextTest.java'
       - 'tests/OfficeTextTest.java'
       - 'tests/PdfExcerptTest.java'
@@ -155,6 +156,8 @@ jobs:
           mkdir -p /tmp/search-batch-tests
           javac --release 17 -d /tmp/search-batch-tests app/src/main/java/com/ollamapocket/app/OllamaLibrarySearch.java app/src/main/java/com/ollamapocket/app/ModelVariantCatalog.java app/src/main/java/com/ollamapocket/app/ModelSearchCache.java tests/ModelSearchBatchTest.java
           java -cp /tmp/search-batch-tests com.ollamapocket.app.ModelSearchBatchTest
+          javac --release 17 -d /tmp/search-batch-tests app/src/main/java/com/ollamapocket/app/ModelSearchWorkers.java tests/ModelSearchWorkersTest.java
+          java -cp /tmp/search-batch-tests com.ollamapocket.app.ModelSearchWorkersTest
           javac --release 17 -cp /tmp/search-batch-tests -d /tmp/search-batch-tests app/src/main/java/com/ollamapocket/app/ModelTileCatalog.java app/src/main/java/com/ollamapocket/app/ModelListFilter.java app/src/main/java/com/ollamapocket/app/ModelGroupings.java app/src/main/java/com/ollamapocket/app/ModelDownloadBudget.java app/src/main/java/com/ollamapocket/app/BenchmarkRecommendation.java tests/ModelTileCatalogTest.java tests/ModelListFilterTest.java tests/ModelVariantCatalogTest.java tests/ModelExperienceTest.java
           for test in ModelTileCatalogTest ModelListFilterTest ModelVariantCatalogTest ModelExperienceTest; do java -cp /tmp/search-batch-tests "$test"; done
           javac --release 17 -d /tmp/search-batch-tests app/src/main/java/com/ollamapocket/app/OllamaQuantCatalog.java tests/OllamaQuantCatalogTest.java
@@ -256,6 +259,8 @@ jobs:
           mkdir -p /tmp/chat-organization-tests
           javac -d /tmp/chat-organization-tests app/src/main/java/com/ollamapocket/app/ChatOrganization.java tests/ChatOrganizationTest.java
           java -cp /tmp/chat-organization-tests com.ollamapocket.app.ChatOrganizationTest
+          javac --release 17 -d /tmp/chat-organization-tests app/src/main/java/com/ollamapocket/app/ChatOrganization.java app/src/main/java/com/ollamapocket/app/CloudHistory.java tests/F10A94TextAdmissionTest.java
+          java -cp /tmp/chat-organization-tests com.ollamapocket.app.F10A94TextAdmissionTest
       - name: Test bounded local attachment text extraction
         run: |
           mkdir -p /tmp/attachment-tests

@@ -123,7 +123,7 @@ final class CloudApi {
         if(raw==null||raw==JSONObject.NULL){if(optional)return "";throw incomplete();}
         if(!(raw instanceof String))throw incomplete();
         String text=(String)raw;
-        if(!CloudHistory.validUnicode(text))throw incomplete();
+        if(!CloudHistory.validFragment(text))throw incomplete();
         return text;
     }
     private static boolean claudeStop(String reason){return "end_turn".equals(reason)||"stop_sequence".equals(reason);}

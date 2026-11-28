@@ -1,6 +1,6 @@
 {
-  "stage": "F10A93-local-catalog-workflow-bounds",
-  "revision": "F10A93",
-  "priorCandidate": "5dcd7884e1e103a02cced851cb49dac064bd171a",
-  "reason": "Integrate local-only complete model tag admission and verifier payload limit alignment; exact FAST/FULL required. Device/release deferred."
+  "stage": "F10A95-search-memory-integration",
+  "revision": "F10A95",
+  "priorCandidate": "b00016dc0a5b646164d551d8fa284e0a5363638f",
+  "reason": "Batch F10A94 text admission with bounded search workers, cancellation and memory-cache epoch. Exact FAST/FULL required. Device and release deferred."
 }

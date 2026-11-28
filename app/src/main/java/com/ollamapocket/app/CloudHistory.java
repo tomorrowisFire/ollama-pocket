@@ -143,8 +143,17 @@ final class CloudHistory {
         }
         return true;
     }
+    /** Validate every fragment before publication or persistence, retaining normal layout whitespace. */
+    static boolean validFragment(String value){
+        if(!validUnicode(value))return false;
+        for(int i=0;i<value.length();){
+            int cp=value.codePointAt(i);i+=Character.charCount(cp);
+            if(Character.isISOControl(cp)&&cp!='\n'&&cp!='\r'&&cp!='\t')return false;
+        }
+        return true;
+    }
     static boolean validMessage(String value,int max){
-        if(value==null||value.isEmpty()||value.length()>max||!validUnicode(value))return false;
+        if(value==null||value.isEmpty()||value.length()>max||!validFragment(value))return false;
         for(int i=0;i<value.length();){
             int cp=value.codePointAt(i);i+=Character.charCount(cp);
             if(!Character.isWhitespace(cp)&&!Character.isSpaceChar(cp)&&!Character.isISOControl(cp)&&Character.getType(cp)!=Character.FORMAT)return true;

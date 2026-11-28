@@ -1,0 +1,7 @@
+# F10A95 — batch text admission and bounded search lifecycle
+
+Live parent F10A93 b00016dc0a5b646164d551d8fa284e0a5363638f: FAST 46133058253 and FULL 46133058132 both passed. Carry F10A94 detached tree 018726262267788c4cb901ade39b9602ac010b84 into this batch.
+
+Model catalog searches now use a dedicated two-worker pool and at most two pending tasks. Replacing a query cancels and purges prior jobs; a blocked old provider may delay a new query, but cannot cause unlimited growth of top-level search threads. The existing sequence guard, provider-specific partial results, debounce, and UI behavior are retained. Existing inner provider network pools and socket timeout policies are not changed. Low-memory cache clearing invalidates outstanding cache write epochs; a stale result may still be rendered if it is the current query, but cannot repopulate the cleared cache. Expired entries are pruned on valid reads. Activity destruction closes the dedicated pool and clears the cache.
+
+Local Java --release 17: 1,011 worker assertions passed, including 1,000 successive replacements while old workers are deliberately held. New source/test expected blobs 7e1158e5cc4e3f9c0924aca72f3967ca78031924 and 70bf97cc73e114983b79b355aef3a3064ea154c3. F10A94 exact independent text tests rerun: 57 passed. Cache/UI wiring and cloud streaming integration tests are prepared for exact CI, not locally executed. No memory-performance measurements, physical device verification, quality score uplift or release claim. Ads, billing, user data, native binaries and permissions unchanged.
