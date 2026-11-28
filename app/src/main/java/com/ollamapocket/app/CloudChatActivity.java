@@ -38,7 +38,7 @@ public final class CloudChatActivity extends Activity {
         provider=new Spinner(this);
         CloudApi.Provider[] values=CloudApi.Provider.hosted();
         String[] names=new String[values.length];for(int i=0;i<names.length;i++)names[i]=values[i].title;
-        provider.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,names));
+        provider.setAdapter(WorkbenchStyle.spinnerChoices(provider,names));
         OnHandGlyphs.spinner(provider);WorkbenchStyle.fieldLabel(this,fields,R.string.cloud_provider_model,provider);fields.addView(provider,WorkbenchStyle.row(this));
         model=edit(R.string.cloud_model,InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS,200);addLabeledField(fields,model,R.string.cloud_model);
         key=edit(R.string.cloud_key,InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD,4096);addLabeledField(fields,key,R.string.cloud_key);

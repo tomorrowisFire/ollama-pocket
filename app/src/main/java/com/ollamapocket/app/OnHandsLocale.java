@@ -45,12 +45,13 @@ public final class OnHandsLocale {
     static void choose(Activity a) {
         String[] labels=LABELS.clone(); labels[0]=a.getString(R.string.system_language);
         int current=Math.max(0,java.util.Arrays.asList(TAGS).indexOf(choice(a)));
-        new AlertDialog.Builder(a).setTitle(R.string.language)
-            .setSingleChoiceItems(labels,current,(dialog,index)->{
+        AlertDialog picker=new AlertDialog.Builder(a).setTitle(R.string.language)
+            .setSingleChoiceItems(WorkbenchStyle.choiceRows(a,labels,current),current,(dialog,index)->{
                 dialog.dismiss();
                 if(index==current)return;
                 a.getSharedPreferences(PREF,Context.MODE_PRIVATE).edit().putString("tag",TAGS[index]).apply();
                 a.recreate();
             }).setNegativeButton(R.string.cancel,null).show();
+        WorkbenchWindow.fitCompact(a,picker);
     }
 }

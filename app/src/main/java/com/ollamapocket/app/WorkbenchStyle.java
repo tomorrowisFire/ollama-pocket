@@ -70,7 +70,7 @@ final class WorkbenchStyle {
         GradientDrawable circle=new GradientDrawable();circle.setShape(GradientDrawable.OVAL);
         circle.setColor(Color.TRANSPARENT);circle.setStroke(dp(c,1),p.muted);circle.setSize(dp(c,20),dp(c,20));
         mark.addState(new int[]{},circle);
-        row.setCheckMarkDrawable(mark);
+        row.setCheckMarkTintList(null);row.setCheckMarkDrawable(mark);
         row.setText(label);row.setSingleLine(false);row.setEllipsize(null);
         row.setTextColor(new ColorStateList(new int[][]{new int[]{android.R.attr.state_checked},new int[]{}},
             new int[]{p.choiceInk(true),p.choiceInk(false)}));
@@ -83,6 +83,19 @@ final class WorkbenchStyle {
         return new android.widget.ArrayAdapter<String>(c,android.R.layout.simple_list_item_single_choice,labels){
             @Override public View getView(int position,View recycled,android.view.ViewGroup parent){
                 return choiceRow(c,getItem(position),position==checked);
+            }
+        };
+    }
+    static android.widget.ArrayAdapter<String> spinnerChoices(android.widget.Spinner spinner,String[] labels){
+        Context c=spinner.getContext();
+        return new android.widget.ArrayAdapter<String>(c,android.R.layout.simple_spinner_item,labels){
+            @Override public View getView(int position,View recycled,android.view.ViewGroup parent){
+                TextView row=new TextView(c);row.setText(getItem(position));row.setTextColor(palette(c).text);
+                row.setTextSize(14*(c instanceof Activity?scale((Activity)c):1f));
+                row.setGravity(Gravity.CENTER_VERTICAL);row.setMinimumHeight(dp(c,40));return row;
+            }
+            @Override public View getDropDownView(int position,View recycled,android.view.ViewGroup parent){
+                return choiceRow(c,getItem(position),position==spinner.getSelectedItemPosition());
             }
         };
     }

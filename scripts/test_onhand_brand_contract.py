@@ -372,6 +372,10 @@ assert "WorkbenchStyle.choiceRow(MainActivity.this,filterDisplay(getItem(pos)),p
 assert "TextView caption=text(getString(label),10,MUTED,false)" in main
 assert "row.setCheckMarkDrawable(mark)" in style_source
 assert "row.setChecked(selected)" in style_source
+assert "WorkbenchStyle.choiceRows(activity,labels,checked)" in (src/"OllamaFamilyPicker.java").read_text()
+assert "WorkbenchStyle.choiceRows(activity,labels,checked)" in (src/"OllamaQuantPicker.java").read_text()
+assert "WorkbenchStyle.choiceRows(a,labels,current)" in (src/"OnHandsLocale.java").read_text()
+assert "WorkbenchStyle.spinnerChoices(pick,names)" in (src/"CloudChatPanel.java").read_text()
 assert "p.choiceFill(true),p.choiceBorder(true),2" in style_source
 assert "ACCENT=p.primary" in main
 assert "active?bubbleInk():WHITE" in main

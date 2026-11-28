@@ -20,7 +20,8 @@ public final class OllamaFamilyPicker {
     private OllamaFamilyPicker(){}
     static String displayLabel(Activity activity,OllamaQuantCatalog.Variant variant){
         String quant="기본 양자화".equals(variant.quantization)?activity.getString(R.string.picker_default_quant):variant.quantization;
-        return (variant.installed?activity.getString(R.string.model_installed)+" · ":"")+quant+"\n"+variant.tag;
+        boolean active=activity instanceof MainActivity&&((MainActivity)activity).isActiveLocalModel(variant.tag);
+        return activity.getString(active?R.string.model_active:variant.installed?R.string.model_installed:R.string.model_not_installed)+" · "+quant+"\n"+variant.tag;
     }
     private static final AtomicBoolean OPEN=new AtomicBoolean(false);
     private static final int MAX_PAGE=3_000_000;
@@ -87,11 +88,14 @@ public final class OllamaFamilyPicker {
                     WorkbenchWindow.fitCompact(activity,errorDialog);
                     return;
                 }
-                String[] labels=new String[results.size()];
-                for(int i=0;i<results.size();i++)labels[i]=displayLabel(activity,results.get(i));
+                String[] labels=new String[results.size()];int checked=-1;
+                for(int i=0;i<results.size();i++){
+                    labels[i]=displayLabel(activity,results.get(i));
+                    if(activity instanceof MainActivity&&((MainActivity)activity).isActiveLocalModel(results.get(i).tag))checked=i;
+                }
                 AlertDialog chooser=new AlertDialog.Builder(activity)
                     .setTitle(activity.getString(R.string.picker_family_select,family))
-                    .setItems(labels,(d,index)->{
+                    .setAdapter(WorkbenchStyle.choiceRows(activity,labels,checked),(d,index)->{
                         OllamaQuantCatalog.Variant selected=results.get(index);
                         OPEN.set(false);
                         onChoose.onChosen(selected.tag,selected.installed);

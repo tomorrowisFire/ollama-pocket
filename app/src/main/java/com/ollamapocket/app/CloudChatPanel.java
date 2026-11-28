@@ -392,7 +392,7 @@ final class CloudChatPanel extends LinearLayout {
         String[] labels=new String[items.size()];
         for(int i=0;i<items.size();i++)labels[i]=title(items.get(i));
         showAction(new AlertDialog.Builder(owner).setTitle(R.string.cloud_conversations)
-            .setSingleChoiceItems(labels,items.indexOf(old),(d,w)->{
+            .setSingleChoiceItems(WorkbenchStyle.choiceRows(owner,labels,items.indexOf(old)),items.indexOf(old),(d,w)->{
                 d.dismiss();if(!current(p,id,old,rev))return;
                 try{history.select(scope(p),id,items.get(w));restoreDraft();status.setText("");render();}
                 catch(Exception e){toast(R.string.cloud_context_changed);}
@@ -535,7 +535,7 @@ final class CloudChatPanel extends LinearLayout {
         int pad=dp(18);fields.setPadding(pad,pad,pad,pad);sc.addView(fields);
         CloudApi.Provider[] values=CloudApi.Provider.values();
         String[] names=new String[values.length];for(int i=0;i<names.length;i++)names[i]=values[i].title;
-        Spinner pick=new Spinner(owner);pick.setAdapter(new ArrayAdapter<>(owner,android.R.layout.simple_spinner_dropdown_item,names));
+        Spinner pick=new Spinner(owner);pick.setAdapter(WorkbenchStyle.spinnerChoices(pick,names));OnHandGlyphs.spinner(pick);
         pick.setSelection(initial.ordinal());pick.setMinimumHeight(dp(48));
         WorkbenchStyle.fieldLabel(owner,fields,R.string.cloud_provider_model,pick);fields.addView(pick,WorkbenchStyle.row(owner));
         EditText chosenModel=input(R.string.cloud_model,InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS,200);

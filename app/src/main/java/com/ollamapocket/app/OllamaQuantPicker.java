@@ -89,13 +89,16 @@ public final class OllamaQuantPicker {
                         Toast.LENGTH_SHORT).show();
                     return;
                 }
-                String[] labels=new String[variants.size()];
-                for(int i=0;i<variants.size();i++)labels[i]=OllamaFamilyPicker.displayLabel(activity,variants.get(i));
+                String[] labels=new String[variants.size()];int checked=-1;
+                for(int i=0;i<variants.size();i++){
+                    labels[i]=OllamaFamilyPicker.displayLabel(activity,variants.get(i));
+                    if(activity instanceof MainActivity&&((MainActivity)activity).isActiveLocalModel(variants.get(i).tag))checked=i;
+                }
                 String note=reason!=null?activity.getString(R.string.picker_fallback_note,reason):
                     activity.getString(variants.size()==1?R.string.picker_base_note:R.string.picker_real_note);
                 AlertDialog picker=new AlertDialog.Builder(activity)
                     .setTitle(activity.getString(R.string.picker_quant_title,baseTag))
-                    .setItems(labels,(d,which)->{
+                    .setAdapter(WorkbenchStyle.choiceRows(activity,labels,checked),(d,which)->{
                         active.set(false);
                         OllamaQuantCatalog.Variant picked=variants.get(which);
                         selected.onChosen(picked.tag,picked.installed);
