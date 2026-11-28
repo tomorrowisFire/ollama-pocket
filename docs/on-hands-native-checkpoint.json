@@ -1,24 +1,24 @@
 {
-  "stage": "F11-3-through-6-r005-integration-candidate",
-  "revision": "F11-3-6-r005",
-  "priorCandidate": "3af80fc853edc5684fe06f862f15cb64b5f191a2",
+  "stage": "F11-3-through-6-r006-integration-candidate",
+  "revision": "F11-3-6-r006",
+  "priorCandidate": "71540609ad0f1519ea7fdcb93aaeea09b15a03c5",
   "isolated": [
     {
       "stage": "F11-3",
-      "sha": "f098a597d58dd148690baea6c6c114a9f26c76c2"
+      "sha": "558d802b2ea2d9ba7affd0e3d378916bc72056d7"
     },
     {
       "stage": "F11-4",
-      "sha": "219bfc6bf3ddb8af10ca2eb153df2c95047bd5ad"
+      "sha": "0f8e039b5d1cf818fc736000f529c1b3ef58125e"
     },
     {
       "stage": "F11-5",
-      "sha": "8f77f718ec9b5443dc6ab0874383454c5e0c1f25"
+      "sha": "1fb9d455ee97bd1223413af78114a98530e52b4d"
     },
     {
       "stage": "F11-6",
-      "sha": "3b0c65f54d089faa6afcffd4eb44ec435a3230ac"
+      "sha": "3c0020f96bbae7984239231206f5cf922d73a70a"
     }
   ],
-  "reason": "Combine disjoint voice deadline ownership, bounded catalog aggregation, exact workflow output evidence, and cloud usage integrity changes. Require exact predecessor and combined FAST/FULL gates before official integration; actual device and external independent evaluation pending."
+  "reason": "Combine disjoint Whisper deadline, catalog read, workflow settlement, cloud stream deadline changes. Require exact predecessor and combined FAST/FULL gates before official integration; F11-7 regression acceptance and physical device/external review pending."
 }

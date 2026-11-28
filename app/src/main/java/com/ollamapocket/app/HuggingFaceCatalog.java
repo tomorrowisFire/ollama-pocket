@@ -182,15 +182,7 @@ public final class HuggingFaceCatalog {
                 throw new Exception("이 저장소는 로그인·라이선스 동의가 필요합니다. 공개 GGUF만 지원합니다.");
             if(status>=400)throw new Exception("Hugging Face HTTP "+status);
             try(InputStream stream=conn.getInputStream()){
-                byte[] buffer=new byte[8192];
-                java.io.ByteArrayOutputStream out=new java.io.ByteArrayOutputStream();
-                int n;
-                while((n=stream.read(buffer))!=-1){
-                    if(Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("Search cancelled");
-                    if(out.size()+n>max)throw new Exception("Hugging Face 목록이 너무 큽니다");
-                    out.write(buffer,0,n);
-                }
-                return out.toString(StandardCharsets.UTF_8.name());
+                return ModelVariantCatalog.readCatalogText(stream,max,System::nanoTime);
             }
         } finally {conn.disconnect();}
     }

@@ -97,9 +97,44 @@ public final class CloudStreamTest {
             catch(java.io.InterruptedIOException expected){check(reads.get()==1);}
         }finally{Thread.interrupted();}
     }
+    private static void streamReadBudget()throws Exception{
+        String delta=event("{\"type\":\"response.output_text.delta\",\"delta\":\"한국어\"}");
+        String end=event("{\"type\":\"response.completed\",\"response\":{}}");
+        byte[] wire=(delta+end).getBytes(StandardCharsets.UTF_8);
+        var clock=new java.util.concurrent.atomic.AtomicLong();
+        var reads=new java.util.concurrent.atomic.AtomicInteger();
+        java.io.InputStream slow=new java.io.InputStream(){
+            @Override public int read(){throw new AssertionError("Unexpected single byte read");}
+            @Override public int read(byte[] bytes,int off,int len){
+                reads.incrementAndGet();clock.set(CloudApi.JSON_READ_BUDGET_NS);
+                int n=Math.min(len,wire.length);System.arraycopy(wire,0,bytes,off,n);return n;
+            }
+        };
+        try{CloudApi.parseStream(CloudApi.Provider.OPENAI,slow,null,clock::get);throw new AssertionError("Expired stream read");}
+        catch(java.net.SocketTimeoutException expected){check(reads.get()==1);}
+        Thread.currentThread().interrupt();
+        try{
+            try{CloudApi.parseStream(CloudApi.Provider.OPENAI,slow,null,()->0L);throw new AssertionError("Cancelled stream read");}
+            catch(java.io.InterruptedIOException expected){check(reads.get()==1);}
+        }finally{Thread.interrupted();}
+        clock.set(0L);
+        try{
+            CloudApi.parseStream(CloudApi.Provider.OPENAI,new ByteArrayInputStream(wire),
+                value->clock.set(CloudApi.JSON_READ_BUDGET_NS),clock::get);
+            throw new AssertionError("Expired preview accepted as terminal");
+        }catch(java.net.SocketTimeoutException expected){check(true);}
+        try{
+            CloudApi.parseStream(CloudApi.Provider.OPENAI,new ByteArrayInputStream(wire),
+                value->Thread.currentThread().interrupt(),()->0L);
+            throw new AssertionError("Cancelled preview accepted as terminal");
+        }catch(java.io.InterruptedIOException expected){check(true);}
+        finally{Thread.interrupted();}
+        check(CloudApi.parseStream(CloudApi.Provider.OPENAI,new ByteArrayInputStream(wire),null,()->0L).text.equals("한국어"));
+    }
     public static void main(String[] args)throws Exception{
         requestBufferOwnership();
         responseReadBudget();
+        streamReadBudget();
         for(String type:new String[]{"text/event-stream","Text/Event-Stream; charset=UTF-8"," text/event-stream ; charset=utf-8 "})
             check(CloudApi.isEventStream(type));
         for(String type:new String[]{null,"text/html; type=text/event-stream","application/text/event-stream","text/event-streaming",""})

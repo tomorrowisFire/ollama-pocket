@@ -6,7 +6,38 @@ import java.util.concurrent.*;
 public final class ModelSearchBatchTest {
     private static int checks;
     private static void ok(boolean pass){checks++;if(!pass)throw new AssertionError("search batch check "+checks);}
+    private static void catalogReadBounds()throws Exception{
+        byte[] utf8="한국어 中文 日本語 😀".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        ok(ModelVariantCatalog.readCatalogText(new java.io.ByteArrayInputStream(utf8),utf8.length,()->0L).equals("한국어 中文 日本語 😀"));
+        for(byte[] invalid:new byte[][]{new byte[]{(byte)0xff},new byte[utf8.length+1]}){
+            try{ModelVariantCatalog.readCatalogText(new java.io.ByteArrayInputStream(invalid),utf8.length,()->0L);throw new AssertionError("Bad catalog accepted");}
+            catch(java.io.IOException expected){checks++;}
+        }
+        java.util.concurrent.atomic.AtomicLong clock=new java.util.concurrent.atomic.AtomicLong();
+        java.util.concurrent.atomic.AtomicInteger reads=new java.util.concurrent.atomic.AtomicInteger();
+        java.io.InputStream slow=new java.io.InputStream(){
+            @Override public int read(){throw new AssertionError("Single-byte read");}
+            @Override public int read(byte[] bytes){
+                reads.incrementAndGet();clock.set(ModelVariantCatalog.CATALOG_READ_BUDGET_NS);
+                bytes[0]='x';return 1;
+            }
+        };
+        try{ModelVariantCatalog.readCatalogText(slow,10,clock::get);throw new AssertionError("Expired catalog accepted");}
+        catch(java.net.SocketTimeoutException expected){ok(reads.get()==1);}
+        Thread.currentThread().interrupt();
+        try{
+            try{ModelVariantCatalog.readCatalogText(slow,10,()->0L);throw new AssertionError("Cancelled catalog read");}
+            catch(java.io.InterruptedIOException expected){ok(reads.get()==1);}
+        }finally{Thread.interrupted();}
+        java.io.InputStream stalled=new java.io.InputStream(){
+            @Override public int read(){return 0;}
+            @Override public int read(byte[] bytes){return 0;}
+        };
+        try{ModelVariantCatalog.readCatalogText(stalled,10,()->0L);throw new AssertionError("Zero-progress read");}
+        catch(java.io.IOException expected){checks++;}
+    }
     public static void main(String[] args)throws Exception{
+        catalogReadBounds();
         var a=new ModelVariantCatalog.Variant("Ollama","a:latest","",10);
         var b=new ModelVariantCatalog.Variant("Hugging Face","org/b","b.gguf",20);
         var failed=new CompletableFuture<List<ModelVariantCatalog.Variant>>();

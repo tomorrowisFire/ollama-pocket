@@ -1,0 +1,3 @@
+# F11-4 r006 — bounded provider metadata reads
+
+Ollama and Hugging Face catalog metadata now share bounded UTF-8 decoding and cancellation checks before and after each read. Keep provider byte caps, add a 30-second elapsed read budget, reject malformed UTF-8 and zero-progress reads. Existing socket timeouts remain; the elapsed budget is not a hard interrupt of a blocked socket. No changes to weight download, license prompts or credentials. Fixtures cover exact multilingual text, invalid/oversized bytes, cancellation and deadline. Live network performance pending. Design perspectives: search responsiveness, resource safety, data integrity.

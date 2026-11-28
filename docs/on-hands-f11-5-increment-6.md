@@ -1,0 +1,3 @@
+# F11-5 r006 — verify deadline at workflow settlement
+
+Check cancellation and the run time window again after constructing the reviewed request and immediately before settling generated evidence. If time expires between generation and settlement, discard the newly generated evidence and live answer and record a cancelled reservation rather than a verified branch. Recheck retry backoff against settlement time. Preserve the prior accepted preview, persistent schemas and original attempt identity. Synthetic delayed-settlement fixture added. A durable transaction can itself take time; this is a pre-settlement admission guard, not a guaranteed real-time commit cutoff. Design perspectives: durable execution, evidence integrity, user control. Device validation pending.

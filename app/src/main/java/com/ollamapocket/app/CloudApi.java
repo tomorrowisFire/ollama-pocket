@@ -292,9 +292,12 @@ final class CloudApi {
         if(type.startsWith("response.function_call_arguments.")||type.startsWith("response.refusal."))throw incomplete();
     }
     static Reply parseStream(Provider provider,InputStream raw,Progress progress)throws Exception{
+        return parseStream(provider,raw,progress,System::nanoTime);
+    }
+    static Reply parseStream(Provider provider,InputStream raw,Progress progress,java.util.function.LongSupplier clock)throws Exception{
         StringBuilder answer=new StringBuilder();long lastUi=0;
         UsageCounter input=new UsageCounter(),output=new UsageCounter();
-        final long deadline=System.nanoTime()+300000000000L;
+        final long started=clock.getAsLong();
         boolean complete=false,finishedChoice=false,finishedClaude=false;
         int published=0;
         try{
@@ -303,9 +306,11 @@ final class CloudApi {
                 .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT))){
             StringBuilder line=new StringBuilder(),event=new StringBuilder();int ch;long consumed=0;
             boolean afterCr=false;
-            while((ch=reader.read())!=-1){
-                if(Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("Stream interrupted");
-                if(System.nanoTime()-deadline>=0)throw new java.net.SocketTimeoutException("Stream deadline");
+            for(;;){
+                checkReadBudget(clock,started);
+                ch=reader.read();
+                checkReadBudget(clock,started);
+                if(ch==-1)break;
                 if(++consumed>4000000)throw new StreamFailure("Stream limit",true);
                 if(consumed==1&&ch==0xfeff)continue;
                 if(afterCr){afterCr=false;if(ch=='\n')continue;}
@@ -382,15 +387,18 @@ final class CloudApi {
                         }
                     }
                 }
+                checkReadBudget(clock,started);
                 input.observe(usage,provider.protocol==1?"prompt_tokens":"input_tokens");
                 output.observe(usage,provider.protocol==1?"completion_tokens":"output_tokens");
                 appendText(answer,part);
                 long now=System.nanoTime();if(progress!=null&&!part.isEmpty()&&(lastUi==0||now-lastUi>=100000000L)){
                     lastUi=now;published=answer.length();progress.update(answer.toString());
                 }
+                checkReadBudget(clock,started);
                 if(complete)break;
             }
         }
+        checkReadBudget(clock,started);
         if(!complete||!CloudHistory.validMessage(answer.toString(),CloudHistory.MAX_REPLY))throw new StreamFailure("Incomplete stream",true);
         return new Reply(answer.toString(),input.value(),output.value());
         }catch(Exception failure){

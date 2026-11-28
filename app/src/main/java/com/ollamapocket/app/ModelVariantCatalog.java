@@ -106,6 +106,33 @@ public final class ModelVariantCatalog {
         }
         return new ArrayList<>(found.values());
     }
+    static final long CATALOG_READ_BUDGET_NS=30_000_000_000L;
+    private static void checkCatalogRead(java.util.function.LongSupplier clock,long started)throws IOException{
+        if(Thread.currentThread().isInterrupted())throw new InterruptedIOException("Search cancelled");
+        long elapsed=clock.getAsLong()-started;
+        if(elapsed<0||elapsed>=CATALOG_READ_BUDGET_NS)throw new SocketTimeoutException("Catalog read deadline");
+    }
+    /** Shared bounded UTF-8 metadata reader. Socket timeout remains the blocking-read limit. */
+    static String readCatalogText(InputStream in,int max,java.util.function.LongSupplier clock)throws IOException{
+        if(in==null||max<1||max>5_000_000)throw new IllegalArgumentException("Catalog bounds");
+        long started=clock.getAsLong();
+        ByteArrayOutputStream out=new ByteArrayOutputStream();
+        byte[] buffer=new byte[8192];
+        for(;;){
+            checkCatalogRead(clock,started);
+            int n=in.read(buffer);
+            checkCatalogRead(clock,started);
+            if(n==-1)break;
+            if(n<=0||n>buffer.length||n>max-out.size())throw new IOException("Catalog size or read limit");
+            out.write(buffer,0,n);
+        }
+        String result=StandardCharsets.UTF_8.newDecoder()
+            .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+            .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+            .decode(java.nio.ByteBuffer.wrap(out.toByteArray())).toString();
+        checkCatalogRead(clock,started);
+        return result;
+    }
     public static String readPage(String address) throws Exception{
         HttpURLConnection c=(HttpURLConnection)new URL(address).openConnection();
         c.setConnectTimeout(6500);c.setReadTimeout(9500);
@@ -116,14 +143,8 @@ public final class ModelVariantCatalog {
         try{
             int status=c.getResponseCode();
             if(status!=200)throw new IOException("Ollama HTTP "+status);
-            try(InputStream in=c.getInputStream();ByteArrayOutputStream out=new ByteArrayOutputStream()){
-                byte[] buffer=new byte[8192];int n;
-                while((n=in.read(buffer))!=-1){
-                    if(Thread.currentThread().isInterrupted())throw new InterruptedIOException("검색 취소");
-                    if(out.size()+n>5_000_000)throw new IOException("모델 목록 크기 초과");
-                    out.write(buffer,0,n);
-                }
-                return out.toString(StandardCharsets.UTF_8.name());
+            try(InputStream in=c.getInputStream()){
+                return readCatalogText(in,5_000_000,System::nanoTime);
             }
         }finally{c.disconnect();}
     }
