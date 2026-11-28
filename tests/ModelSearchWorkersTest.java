@@ -49,6 +49,25 @@ public final class ModelSearchWorkersTest {
         }finally{releaseAgain.countDown();cancelled.close();}
         ok(cancelled.awaitTermination(5000),"cancelled owner terminates");
         ok(stale.get()==0,"no cancelled task ran");
+        // Ollama ignores cancellation; Hugging Face must still publish the newest query.
+        for(boolean reverse:new boolean[]{false,true}){
+            ModelSearchWorkers isolated=new ModelSearchWorkers();
+            CountDownLatch hung=new CountDownLatch(1),unblock=new CountDownLatch(1),otherReady=new CountDownLatch(1);
+            AtomicInteger obsolete=new AtomicInteger();
+            try{
+                Runnable hold=()->stubborn(hung,unblock);
+                isolated.replace(reverse?null:hold,reverse?hold:null);
+                ok(waitFor(hung),"one provider is blocked");
+                for(int i=0;i<100;i++)isolated.replace(reverse?null:obsolete::incrementAndGet,reverse?obsolete::incrementAndGet:null);
+                isolated.replace(reverse?otherReady::countDown:latest::countDown,reverse?latest::countDown:otherReady::countDown);
+                ok(waitFor(otherReady),"other provider completes without blocked provider");
+                ok(isolated.queued()==1&&obsolete.get()==0,"only latest blocked-lane request retained");
+                isolated.cancel();
+                ok(isolated.queued()==0,"cancel clears isolated queues");
+            }finally{unblock.countDown();isolated.close();}
+            ok(isolated.awaitTermination(5000),"isolated lanes terminate");
+            ok(obsolete.get()==0,"superseded provider jobs never dispatched");
+        }
         System.out.println("PASS: "+checks+" bounded search worker assertions");
     }
 }
