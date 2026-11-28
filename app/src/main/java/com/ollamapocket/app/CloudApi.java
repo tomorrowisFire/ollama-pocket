@@ -93,6 +93,22 @@ final class CloudApi {
             return value>=0?value:-1;
         }catch(ArithmeticException|NumberFormatException invalid){return -1;}
     }
+    /** Missing usage is normal for intermediate chunks; malformed or decreasing
+     * cumulative evidence is not a reliable token total. Never infer a zero. */
+    private static final class UsageCounter {
+        private long count=-1;
+        private boolean unreliable;
+        void observe(Object raw,String key){
+            if(raw==null||raw==JSONObject.NULL)return;
+            if(!(raw instanceof JSONObject)){unreliable=true;return;}
+            JSONObject usage=(JSONObject)raw;
+            if(usage.isNull(key))return;
+            long next=tokenCount(usage,key);
+            if(next<0||count>=0&&next<count){unreliable=true;return;}
+            count=next;
+        }
+        long value(){return unreliable?-1:count;}
+    }
     static Reply parseReply(Provider provider,JSONObject body)throws Exception{
         JSONObject usage=body.optJSONObject("usage");
         return new Reply(parse(provider,body),tokenCount(usage,provider.protocol==1?"prompt_tokens":"input_tokens"),
@@ -276,7 +292,8 @@ final class CloudApi {
         if(type.startsWith("response.function_call_arguments.")||type.startsWith("response.refusal."))throw incomplete();
     }
     static Reply parseStream(Provider provider,InputStream raw,Progress progress)throws Exception{
-        StringBuilder answer=new StringBuilder();long input=-1,output=-1,lastUi=0;
+        StringBuilder answer=new StringBuilder();long lastUi=0;
+        UsageCounter input=new UsageCounter(),output=new UsageCounter();
         final long deadline=System.nanoTime()+300000000000L;
         boolean complete=false,finishedChoice=false,finishedClaude=false;
         int published=0;
@@ -308,7 +325,7 @@ final class CloudApi {
                 if(rawType!=null&&rawType!=JSONObject.NULL&&!(rawType instanceof String))throw incomplete();
                 String type=rawType instanceof String?(String)rawType:"";
                 if(!j.isNull("error")||"error".equals(type)||"response.failed".equals(type)||"response.incomplete".equals(type))throw new StreamFailure("Provider stream failed",true);
-                JSONObject usage=j.optJSONObject("usage");
+                Object usage=j.opt("usage");
                 String part="";
                 if(provider.protocol==0){
                     validateResponsesEvent(j,type);
@@ -320,10 +337,10 @@ final class CloudApi {
                             if(answer.length()==0)part=finalText;
                             else if(!finalText.contentEquals(answer))throw incomplete();
                         }
-                        usage=response.optJSONObject("usage");complete=true;
+                        usage=response.opt("usage");complete=true;
                     }
                 }else if(provider.protocol==2){
-                    if("message_start".equals(type)){JSONObject message=j.optJSONObject("message");if(message==null)throw incomplete();usage=message.optJSONObject("usage");}
+                    if("message_start".equals(type)){JSONObject message=j.optJSONObject("message");if(message==null)throw incomplete();usage=message.opt("usage");}
                     if("content_block_start".equals(type)){
                         if(finishedClaude)throw incomplete();
                         JSONObject block=j.optJSONObject("content_block");
@@ -365,8 +382,8 @@ final class CloudApi {
                         }
                     }
                 }
-                long a=tokenCount(usage,provider.protocol==1?"prompt_tokens":"input_tokens"),b=tokenCount(usage,provider.protocol==1?"completion_tokens":"output_tokens");
-                if(a>=0)input=Math.max(input,a);if(b>=0)output=Math.max(output,b);
+                input.observe(usage,provider.protocol==1?"prompt_tokens":"input_tokens");
+                output.observe(usage,provider.protocol==1?"completion_tokens":"output_tokens");
                 appendText(answer,part);
                 long now=System.nanoTime();if(progress!=null&&!part.isEmpty()&&(lastUi==0||now-lastUi>=100000000L)){
                     lastUi=now;published=answer.length();progress.update(answer.toString());
@@ -375,7 +392,7 @@ final class CloudApi {
             }
         }
         if(!complete||!CloudHistory.validMessage(answer.toString(),CloudHistory.MAX_REPLY))throw new StreamFailure("Incomplete stream",true);
-        return new Reply(answer.toString(),input,output);
+        return new Reply(answer.toString(),input.value(),output.value());
         }catch(Exception failure){
             // Only previously accepted, bounded text; never synthesize a successful completion.
             // The preview throttle must not discard the tail of an interrupted reply.

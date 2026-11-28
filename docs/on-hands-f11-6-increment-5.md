@@ -1,0 +1,3 @@
+# F11-6 r005 — reliable cumulative usage evidence
+
+Track cumulative input/output token evidence separately in cloud streams. Ignore absent/null fields, but mark malformed values, malformed usage containers or decreasing cumulative counts as unknown for the affected total, even if a later chunk supplies a number. Preserve valid completed text; the existing usage ledger treats unknown totals as unpriced and blocks configured budget continuation. Tests cover Claude cumulative output, compatibility routes, malformed and regressing counters. This is not provider billing verification. Design perspectives: accounting integrity, protocol compatibility, budget safety. Live provider and device validation pending.
