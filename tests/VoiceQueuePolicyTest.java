@@ -57,6 +57,23 @@ public final class VoiceQueuePolicyTest {
         check(VoiceQueuePolicy.currentEvent(null,"old",true)==VoiceQueuePolicy.Event.IGNORE);
         String sentences="Hello world. Next sentence.";
         check(VoiceQueuePolicy.naturalChunkEnd(sentences,0,15)==12);
+        check(VoiceQueuePolicy.naturalChunkEnd("abc\r\ndef",0,4)==3);
+        check(VoiceQueuePolicy.naturalChunkEnd("abc" + "e\u0301" + "xyz",0,4)==3);
+        check(VoiceQueuePolicy.naturalChunkEnd("abc👩‍💻xyz",0,6)==3);
+        check(VoiceQueuePolicy.naturalChunkEnd("abc👍🏽xyz",0,5)==3);
+        check(VoiceQueuePolicy.naturalChunkEnd("abc🇰🇷xyz",0,5)==3);
+        check(VoiceQueuePolicy.naturalChunkEnd("abc🇰🇷xyz",0,7)==7);
+        String joined="abc👩‍💻 e\u0301 🇰🇷 👍🏽\r\n中文 한국어 日本語 ".repeat(200);
+        for(int limit:new int[]{2,5,9,120,2000}){
+            StringBuilder rebuiltJoined=new StringBuilder();
+            for(int start=0;start<joined.length();){
+                int end=VoiceQueuePolicy.naturalChunkEnd(joined,start,limit);
+                check(end>start&&end-start<=limit);
+                check(end==joined.length()||!Character.isLowSurrogate(joined.charAt(end)));
+                rebuiltJoined.append(joined,start,end);start=end;
+            }
+            check(joined.contentEquals(rebuiltJoined));
+        }
         String multilingual="한국어 문장입니다. 中文句子。 日本語です！ 😀 and more ".repeat(180);
         StringBuilder exact=new StringBuilder();
         for(int pos=0;pos<multilingual.length();){

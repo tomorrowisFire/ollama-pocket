@@ -18,12 +18,38 @@ final class VoiceQueuePolicy {
         if(expected==null||!expected.equals(actual))return Event.IGNORE;
         return success?Event.COMPLETE:Event.ERROR;
     }
+    /** Prefer a boundary outside common joined Unicode sequences. A single sequence
+     * larger than the backend limit must still be split at a valid code-point boundary. */
+    private static boolean speechBoundary(String text,int start,int end){
+        if(end<=start)return false;
+        if(end>=text.length())return true;
+        if(Character.isHighSurrogate(text.charAt(end-1))&&Character.isLowSurrogate(text.charAt(end)))return false;
+        int left=text.codePointBefore(end),right=text.codePointAt(end),kind=Character.getType(right);
+        if(left=='\r'&&right=='\n'||left==0x200d||right==0x200d||right==0x200c||
+                kind==Character.NON_SPACING_MARK||kind==Character.COMBINING_SPACING_MARK||kind==Character.ENCLOSING_MARK||
+                right>=0x1f3fb&&right<=0x1f3ff)return false;
+        // Preserve pairs of regional-indicator characters when the pair fits.
+        if(left>=0x1f1e6&&left<=0x1f1ff&&right>=0x1f1e6&&right<=0x1f1ff){
+            int count=0,pos=end;
+            while(pos>start){
+                int cp=text.codePointBefore(pos);
+                if(cp<0x1f1e6||cp>0x1f1ff)break;
+                count++;pos-=Character.charCount(cp);
+            }
+            return (count&1)==0;
+        }
+        return true;
+    }
     /** Prefer sentence and word boundaries without deleting any code units. */
     static int naturalChunkEnd(String text,int start,int limit){
-        int end=chunkEnd(text,start,limit);
-        if(end==text.length())return end;
+        int hardEnd=chunkEnd(text,start,limit);
+        if(hardEnd==text.length())return hardEnd;
+        int end=hardEnd;
+        while(end>start&&!speechBoundary(text,start,end))end--;
+        if(end==start)end=hardEnd;
         int floor=start+Math.max(1,(end-start)*2/3),space=-1;
         for(int i=end;i>floor;i--){
+            if(!speechBoundary(text,start,i))continue;
             char c=text.charAt(i-1);
             if(".!?。！？；;\n".indexOf(c)>=0)return i;
             if(space<0&&(Character.isWhitespace(c)||Character.isSpaceChar(c)))space=i;
