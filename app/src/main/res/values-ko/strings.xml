@@ -1445,4 +1445,19 @@
     <string name="normal_segment">텍스트·Office 구간(1~256)</string>
     <string name="normal_one_attachment">작성 중인 메시지에 파일은 1개만 첨부할 수 있습니다. 기존 첨부를 제거하거나 메시지를 비우거나 전송하세요.</string>
     <string name="deep_zip_notice">심화 분석은 읽기 전용 소스 ZIP도 지원합니다. 지원하는 텍스트·코드의 제한된 발췌문만 읽으며 바이너리·중첩 압축파일·일반적인 비밀정보 경로는 건너뜁니다.</string>
+    <string name="deep_follow_title">심화 후속 대화</string>
+    <string name="deep_follow_notice">완료된 발췌 근거를 바탕으로 추가 질문을 할 수 있습니다. 질문마다 최대 4개 원문 구간을 선택합니다. 이 화면에서는 최근 완료 대화 24개를 유지하며 이전 생성 답변은 사실 근거로 사용하지 않습니다. 화면을 닫거나 앱을 벗어나면 임시 대화가 삭제됩니다. 신규 요청에만 유효한 심화 이용권이 필요합니다.</string>
+    <string name="deep_follow_ask">후속 질문</string>
+    <string name="deep_follow_copy">대화 복사</string>
+    <string name="deep_follow_save">대화 저장(TXT)</string>
+    <string name="deep_follow_expired">심화 이용권이 만료되었습니다. 대화를 저장하고 이용권을 갱신한 후 새 요청을 시작하세요.</string>
+    <string name="deep_follow_no_evidence">적합한 완료 근거 또는 질문이 없습니다. 질문을 줄이거나 다른 자료를 선택하세요.</string>
+    <string name="deep_follow_question">후속 질문(최대 300자)</string>
+    <string name="deep_follow_auto">자료 자동 선택</string>
+    <string name="deep_follow_source">근거 자료</string>
+    <string name="deep_follow_review">요청 검토</string>
+    <string name="deep_follow_review_notice">표시된 정확한 로컬 요청과 제한된 원문 구간만 전송합니다. 자료 번호는 제공 범위를 뜻하며 사실 검증 결과가 아닙니다. 실행 전에 확인하세요.</string>
+    <string name="deep_follow_done">후속 질문 분석 완료</string>
+    <string name="deep_follow_failed">후속 질문이 완료되지 않았습니다. 이전 대화는 유지됩니다.</string>
+    <string name="deep_follow_reset_notice">새 분석을 시작하면 현재 임시 후속 대화가 삭제됩니다. 필요한 경우 먼저 저장하세요.</string>
 </resources>
