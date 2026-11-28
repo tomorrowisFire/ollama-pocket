@@ -51,6 +51,10 @@ public final class ReviewedExecutionIntegrationTest {
         String raw=BranchWorkflowRun.example(MODEL,SHA);
         BranchWorkflowRun.Definition plan=BranchWorkflowRun.parse(raw);
         ok(plan.graph.nodes().size()==3&&plan.tasks.get("check").condition);
+        ok(plan.graph.maxPathNodes()==2);
+        ok(plan.maxRequests()==2*WorkflowAttemptStore.MAX_PER_NODE);
+        ok(plan.maxOutputTokens()==plan.maxRequests()*BranchWorkflowRun.MAX_TASK_OUTPUT_TOKENS);
+        ok(plan.maxRequests()<=WorkflowAttemptStore.MAX_TOTAL);
         reject(()->BranchWorkflowRun.parse(raw.replace("\"condition\"","\"shell\"")));
         reject(()->BranchWorkflowRun.parse(raw.replace("\"false\": \"no\"","\"false\": \"check\"")));
         reject(()->BranchWorkflowRun.parse(raw.replace("\"modelSha256\"","\"apiKey\"")));

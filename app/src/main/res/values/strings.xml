@@ -1421,4 +1421,5 @@
     <string name="project_save_version_file">Save selected version to file</string>
     <string name="project_report_artifact_name">Report artifact name</string>
     <string name="workspace_file_export_notice">Save only the selected content: %1$s (%2$d bytes). The destination provider may synchronize the file. Opening the file picker closes this workspace; save important unsaved reports to a project first.</string>
+    <string name="integration_branch_budget">Plan upper bound: %1$d nodes, %2$d model requests including retries, %3$d output tokens in total. Actual usage may be lower.</string>
 </resources>

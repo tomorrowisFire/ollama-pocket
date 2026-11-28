@@ -24,7 +24,50 @@ public final class CloudStreamTest {
         String last="";
         for(String value:previews){check(value.startsWith(last)&&expected.startsWith(value));last=value;}
     }
+    private static final class RequestSink extends java.net.HttpURLConnection{
+        final java.io.ByteArrayOutputStream sent=new java.io.ByteArrayOutputStream();
+        final boolean failWrite,failOpen;
+        int opened,closed;
+        RequestSink(boolean failWrite,boolean failOpen)throws Exception{
+            super(new java.net.URL("https://example.invalid"));this.failWrite=failWrite;this.failOpen=failOpen;
+        }
+        @Override public void connect(){}
+        @Override public void disconnect(){}
+        @Override public boolean usingProxy(){return false;}
+        @Override public java.io.OutputStream getOutputStream()throws java.io.IOException{
+            opened++;
+            if(failOpen)throw new java.io.IOException("fixture open failure");
+            return new java.io.OutputStream(){
+                @Override public void write(int b)throws java.io.IOException{
+                    if(failWrite)throw new java.io.IOException("fixture write failure");
+                    sent.write(b);
+                }
+                @Override public void close(){closed++;}
+            };
+        }
+        int fixedLength(){return fixedContentLength;}
+    }
+    private static boolean zeroed(byte[] bytes){for(byte b:bytes)if(b!=0)return false;return true;}
+    private static void requestBufferOwnership()throws Exception{
+        byte[] exact="한국어 日本語 中文 😀".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        for(int mode=0;mode<4;mode++){
+            RequestSink sink=new RequestSink(mode==1,mode==2);
+            byte[] payload=exact.clone();
+            if(mode==3)Thread.currentThread().interrupt();
+            boolean rejected=false;
+            try{CloudApi.writeRequestBody(sink,payload);}
+            catch(java.io.IOException expected){rejected=true;}
+            finally{if(mode==3)Thread.interrupted();}
+            check(zeroed(payload));
+            check(rejected==(mode!=0));
+            if(mode==0)check(sink.fixedLength()==exact.length&&java.util.Arrays.equals(sink.sent.toByteArray(),exact)&&sink.closed==1);
+            if(mode==1)check(sink.opened==1&&sink.closed==1);
+            if(mode==2)check(sink.opened==1&&sink.closed==0);
+            if(mode==3)check(sink.opened==0);
+        }
+    }
     public static void main(String[] args)throws Exception{
+        requestBufferOwnership();
         for(String type:new String[]{"text/event-stream","Text/Event-Stream; charset=UTF-8"," text/event-stream ; charset=utf-8 "})
             check(CloudApi.isEventStream(type));
         for(String type:new String[]{null,"text/html; type=text/event-stream","application/text/event-stream","text/event-streaming",""})

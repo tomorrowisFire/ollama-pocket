@@ -14,6 +14,10 @@ public final class WorkflowBranchPlanTest {
     private static WorkflowBranchPlan example(){return new WorkflowBranchPlan(List.of(branch("check","alpha","beta"),task("alpha","finish"),task("beta","finish"),task("finish",COMPLETE)));}
     private static void paths(){
         WorkflowBranchPlan p=example();
+        ok(p.maxPathNodes()==3,"longest converging path excludes skipped branch");
+        ok(new WorkflowBranchPlan(List.of(task("only",COMPLETE))).maxPathNodes()==1,"single node");
+        WorkflowBranchPlan unequal=new WorkflowBranchPlan(List.of(branch("a","b",BLOCK),task("b","c"),task("c",COMPLETE)));
+        ok(unequal.maxPathNodes()==3,"longest path includes terminal-producing node");
         for(boolean yes:new boolean[]{true,false}){
             Snapshot s=p.start();ok(s.status==Status.READY&&s.nextNode.equals("check"),"entry");
             s=p.advance(s,visit("check",yes?Outcome.CONDITION_TRUE:Outcome.CONDITION_FALSE));
@@ -90,6 +94,7 @@ public final class WorkflowBranchPlanTest {
                 nodes.add(next.equals(skip)?task("n"+i,next):branch("n"+i,next,skip));
             }
             WorkflowBranchPlan p=new WorkflowBranchPlan(nodes);
+            ok(p.maxPathNodes()==count,"maximum route length");
             for(int mask=0;mask<(1<<count);mask++){
                 Snapshot s=p.start();int index=0,visits=0;
                 while(s.status==Status.READY){

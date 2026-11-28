@@ -46,6 +46,7 @@ final class BranchWorkflowRun {
             return retry?WorkflowAttemptStore.Outcome.RETRY_SAFE:WorkflowAttemptStore.Outcome.BLOCKED;
         }
     }
+    static final int MAX_TASK_OUTPUT_TOKENS=512;
     static final class Definition {
         final String raw,model,digest;
         final WorkflowBranchPlan graph;
@@ -55,6 +56,10 @@ final class BranchWorkflowRun {
             this.raw=raw;this.model=model;this.digest=digest;this.graph=graph;this.retainOutputs=retainOutputs;
             this.tasks=Collections.unmodifiableMap(new LinkedHashMap<>(tasks));
         }
+        int maxRequests(){
+            return Math.min(WorkflowAttemptStore.MAX_TOTAL,graph.maxPathNodes()*WorkflowAttemptStore.MAX_PER_NODE);
+        }
+        int maxOutputTokens(){return maxRequests()*MAX_TASK_OUTPUT_TOKENS;}
     }
     static Definition parse(String raw)throws Exception{
         ToolJsonPolicy.requireObject(raw);

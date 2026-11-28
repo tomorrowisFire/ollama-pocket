@@ -1,24 +1,24 @@
 {
-  "stage": "F11-3-through-6-increment-1-integration-candidate",
-  "revision": "F11-3-6-r001",
-  "priorCandidate": "fe5be0a8037fa37d5c1cce77752c60946ec9216d",
+  "stage": "F11-3-through-6-increment-2-integration-candidate",
+  "revision": "F11-3-6-r002",
+  "priorCandidate": "5a56334661fef43d484f08d6ab82ef0a2d912b18",
   "isolated": [
     {
       "stage": "F11-3",
-      "sha": "efb068abf1166394d319c362136c6228d57a963c"
+      "sha": "69de9e12ee935a7f2370c66da93a7b50273936d5"
     },
     {
       "stage": "F11-4",
-      "sha": "7945f3066e33b2a7871deaaa6f690820a577a969"
+      "sha": "2613dad76e7bc18cd3f0e8f5378df7eb7a659d06"
     },
     {
       "stage": "F11-5",
-      "sha": "558ab13de39d425644110d0dd6e5e72dc4628d64"
+      "sha": "85efd54f8fe581f21dae9d4aed5e84b3281969ec"
     },
     {
       "stage": "F11-6",
-      "sha": "0a0b02527e9d2e4e252eea494ad40e5517578b3a"
+      "sha": "10819f7c81130ca665af416aff97de9d0ed8072f"
     }
   ],
-  "reason": "Independent changes combined for candidate-only validation; predecessor and candidate exact FAST/FULL required; actual device and independent review pending."
+  "reason": "Independent candidate modules combined without overlapping paths. Predecessor and exact combined FAST/FULL gates required before official integration; actual device and external expert evaluation pending."
 }

@@ -1421,4 +1421,5 @@
     <string name="project_save_version_file">선택한 버전 파일 저장</string>
     <string name="project_report_artifact_name">보고서 산출물 이름</string>
     <string name="workspace_file_export_notice">선택한 내용만 저장합니다: %1$s (%2$d바이트). 저장 위치의 제공자가 파일을 동기화할 수 있습니다. 파일 선택기를 열면 작업공간이 닫힙니다. 중요한 미저장 보고서는 먼저 프로젝트에 저장하세요.</string>
+    <string name="integration_branch_budget">계획 상한: 경로 %1$d단계, 재시도 포함 모델 요청 %2$d회, 총 출력 토큰 %3$d개. 실제 사용량은 더 적을 수 있습니다.</string>
 </resources>

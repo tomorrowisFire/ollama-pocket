@@ -210,13 +210,25 @@ final class CloudApi {
     }
     static Reply executeReply(Provider provider,java.net.HttpURLConnection c,String model,java.util.List<CloudHistory.Message> messages) throws Exception {
         checkCancelled();byte[] payload=request(provider,model,messages).toString().getBytes(StandardCharsets.UTF_8);
-        c.setFixedLengthStreamingMode(payload.length);
-        checkCancelled();
-        try(java.io.OutputStream stream=c.getOutputStream()){checkCancelled();stream.write(payload);}
-        checkCancelled();
+        writeRequestBody(c,payload);
         int status=c.getResponseCode();
         if(status<200||status>=300)throw new HttpFailure(status); // Never expose response bodies containing secrets.
         return parseReply(provider,readJson(c));
+    }
+    /** The caller transfers ownership of this temporary UTF-8 buffer; wipe it on all exits.
+     * Request strings and networking-stack copies are outside this best-effort protection. */
+    static void writeRequestBody(java.net.HttpURLConnection connection,byte[] payload)throws Exception{
+        if(payload==null)throw new IllegalArgumentException("Missing request body");
+        try{
+            checkCancelled();
+            connection.setFixedLengthStreamingMode(payload.length);
+            checkCancelled();
+            try(java.io.OutputStream stream=connection.getOutputStream()){
+                checkCancelled();
+                stream.write(payload);
+            }
+            checkCancelled();
+        }finally{java.util.Arrays.fill(payload,(byte)0);}
     }
     static boolean isEventStream(String contentType){
         if(contentType==null)return false;
@@ -241,10 +253,7 @@ final class CloudApi {
         if(provider==Provider.DEEPSEEK||provider==Provider.OPENROUTER)body.put("stream_options",new JSONObject().put("include_usage",true));
         c.setRequestProperty("Accept","text/event-stream");
         byte[] payload=body.toString().getBytes(StandardCharsets.UTF_8);
-        c.setFixedLengthStreamingMode(payload.length);
-        checkCancelled();
-        try(java.io.OutputStream stream=c.getOutputStream()){checkCancelled();stream.write(payload);}
-        checkCancelled();
+        writeRequestBody(c,payload);
         int status=c.getResponseCode();if(status<200||status>=300)throw new HttpFailure(status);
         String contentType=c.getContentType();
         if(!isEventStream(contentType))throw new java.io.IOException("Expected SSE");
