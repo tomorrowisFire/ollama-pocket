@@ -25,7 +25,7 @@ final class DocumentWindow {
         if(end<source.length()&&end>0&&Character.isLowSurrogate(source.charAt(end))&&Character.isHighSurrogate(source.charAt(end-1)))end--;
         if(end<=start)throw new AttachmentText.Failure(AttachmentText.Problem.EMPTY);
         String text=source.substring(start,end);
-        if(text.trim().isEmpty())throw new AttachmentText.Failure(AttachmentText.Problem.EMPTY);
+        if(!AttachmentText.hasContent(text))throw new AttachmentText.Failure(AttachmentText.Problem.EMPTY);
         return new Slice(text,segment,start,end,omitted||start>0||end<source.length());
     }
 }

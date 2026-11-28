@@ -6,7 +6,7 @@ public final class PdfExcerptTest {
     public static void main(String[] args)throws Exception{
         PdfExcerpt.Builder b=new PdfExcerpt.Builder(3);
         b.startPage(1);b.append("한국어 中文 日本語");b.endPage();
-        b.startPage(2);b.append(" \n\u0001");b.endPage();
+        b.startPage(2);b.append(" \n\u0001");b.append("\u00a0\u3000\u202f\u0085");b.endPage();
         b.startPage(3);b.append("Third");b.endPage();
         AttachmentText.Result r=b.result("Sample.PDF");
         ok(r.pdf&&!r.office&&r.pdfPages==3&&r.pdfExamined==3&&r.pdfTextPages==2,"metadata");

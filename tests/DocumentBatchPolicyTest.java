@@ -44,6 +44,9 @@ public final class DocumentBatchPolicyTest {
         rejects(()->plan("x".repeat(16789),"y"));
         rejects(()->plan("x","y","z","w"));
         rejects(()->plan(" "));
+        rejects(()->plan("\u00a0\u3000\u202f"));
+        rejects(()->new DocumentBatchPolicy.Plan("\u2003\u00a0",List.of(text("a","x",false))));
+        rejects(()->DocumentBatchPolicy.checked("\u3000\u00a0",420));
         rejects(()->new DocumentBatchPolicy.Plan("",List.of(text("a","x",false))));
         rejects(()->new DocumentBatchPolicy.Plan("a".repeat(301),List.of(text("a","x",false))));
         DocumentBatchPolicy.Source pdf=new DocumentBatchPolicy.Source("pdf","page text",DocumentBatchPolicy.Kind.PDF,true,40,12,10);

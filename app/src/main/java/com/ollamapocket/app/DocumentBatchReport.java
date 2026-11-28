@@ -20,7 +20,7 @@ final class DocumentBatchReport {
 
     DocumentBatchReport(DocumentBatchPolicy.Plan plan,DocumentBatchPolicy.Result result,String model,
                         String stopReason,int requests,long elapsedMillis){
-        if(plan==null||result==null||result.status==null||model==null||model.trim().isEmpty()||model.length()>256||
+        if(plan==null||result==null||result.status==null||!AttachmentText.hasContent(model)||model.length()>256||
             requests<0||requests>plan.maxTotal()||elapsedMillis<0)
             throw new IllegalArgumentException("Report metadata");
         if(result.notes.size()>plan.units.size()||result.groupsDone<0||
@@ -29,7 +29,7 @@ final class DocumentBatchReport {
             result.synthesis==null)throw new IllegalArgumentException("Report scope");
         boolean success=result.status==DocumentBatchPolicy.Status.COMPLETED;
         if(success){
-            if(result.notes.size()!=plan.units.size()||result.contextLimited||result.synthesis.trim().isEmpty()||
+            if(result.notes.size()!=plan.units.size()||result.contextLimited||!AttachmentText.hasContent(result.synthesis)||
                 result.synthesis.length()>DocumentBatchPolicy.FINAL_CHARS)
                 throw new IllegalArgumentException("Incomplete synthesis");
         }else if(!result.synthesis.isEmpty()||(result.contextLimited&&result.status!=DocumentBatchPolicy.Status.FAILED))
@@ -43,11 +43,10 @@ final class DocumentBatchReport {
         for(int i=0;i<result.notes.size();i++){
             DocumentBatchPolicy.Note note=result.notes.get(i);
             // Only the actual unit instance from this immutable plan is accepted.
-            if(note==null||note.unit!=plan.units.get(i)||note.text==null||
-                note.text.trim().isEmpty()||note.text.length()>DocumentBatchPolicy.NOTE_CHARS)
+            if(note==null||note.unit!=plan.units.get(i)||!AttachmentText.hasContent(note.text)||note.text.length()>DocumentBatchPolicy.NOTE_CHARS)
                 throw new IllegalArgumentException("Invalid completed prefix");
             notes.add(note);
-            if(!note.unit.text.trim().isEmpty())recordedRequests++;
+            if(AttachmentText.hasContent(note.unit.text))recordedRequests++;
         }
         // A committed note/group/final synthesis must have a corresponding dispatched
         // request (except whitespace-only ledger entries). An interrupted request may
@@ -66,7 +65,7 @@ final class DocumentBatchReport {
         return null;
     }
     boolean hasExtractedEvidence(DocumentBatchPolicy.Note note){
-        return note!=null&&lookup(note.unit.id())==note&&!note.unit.text.trim().isEmpty();
+        return note!=null&&lookup(note.unit.id())==note&&AttachmentText.hasContent(note.unit.text);
     }
     String extracted(DocumentBatchPolicy.Note note){
         if(note==null||lookup(note.unit.id())!=note)throw new IllegalArgumentException("Unknown completed note");

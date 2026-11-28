@@ -15,7 +15,7 @@ final class ChatBlocks {
             this.kind=kind;this.raw=raw;this.body=body;this.language=language;this.rows=rows;
         }
     }
-    private static final Pattern FENCE=Pattern.compile("^ {0,3}\u0060\u0060\u0060[ \\t]*[A-Za-z0-9_+.#-]{0,40}[ \\t]*$");
+    private static final Pattern FENCE=Pattern.compile("^ {0,3}(`{3,}|~{3,})[ \\t]*([A-Za-z0-9_+.#-]{0,40})[ \\t]*$");
     private static final Pattern DIVIDER=Pattern.compile("^:?-{3,}:?$");
     private ChatBlocks(){}
     private static Block text(String raw){return new Block(Kind.TEXT,raw,raw,"",Collections.emptyList());}
@@ -31,12 +31,14 @@ final class ChatBlocks {
         List<Block> blocks=new ArrayList<>();int plainStart=0,cells=0;
         for(int i=0;i<lines.length;){
             String line=clean(lines[i]),trim=line.trim();Block special=null;int end=i+1;
-            if(FENCE.matcher(line).matches()){
+            java.util.regex.Matcher fence=FENCE.matcher(line);
+            if(fence.matches()){
+                String marker=fence.group(1);
                 int close=i+1;
-                while(close<lines.length&&!clean(lines[close]).trim().equals("\u0060\u0060\u0060"))close++;
+                while(close<lines.length&&!closesFence(clean(lines[close]),marker.charAt(0),marker.length()))close++;
                 if(close==lines.length)break; // Unclosed fence remains original plain text.
                 end=close+1;
-                String lang=trim.substring(3).trim();
+                String lang=fence.group(2);
                 String raw=source.substring(offsets[i],offsets[end]);
                 String code=source.substring(offsets[i+1],offsets[close]); // exact interior including final line ending
                 special=new Block(Kind.CODE,raw,code,lang,Collections.emptyList());
@@ -82,6 +84,20 @@ final class ChatBlocks {
         return Collections.unmodifiableList(blocks);
     }
     private static String clean(String line){return line.endsWith("\r")?line.substring(0,line.length()-1):line;}
+    /** A closing fence must use the same marker, at least the opening width, and no info string. */
+    private static boolean closesFence(String line,char marker,int width){
+        int i=0;
+        while(i<line.length()&&line.charAt(i)==' ')i++;
+        if(i>3)return false;
+        int start=i;
+        while(i<line.length()&&line.charAt(i)==marker)i++;
+        if(i-start<width)return false;
+        while(i<line.length()){
+            char c=line.charAt(i++);
+            if(c!=' '&&c!='\t')return false;
+        }
+        return true;
+    }
     private static List<String> splitCells(String input){
         String s=input.trim();List<String> out=new ArrayList<>();
         if(s.startsWith("|"))s=s.substring(1);

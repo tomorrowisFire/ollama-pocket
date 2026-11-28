@@ -41,7 +41,7 @@ final class DocumentBatchPolicy {
         final boolean partial;
         final int pages,examined,readable;
         Source(String name,String text,Kind kind,boolean partial,int pages,int examined,int readable){
-            if(text==null||text.trim().isEmpty()||text.length()>prefixLimit(1)||kind==null)
+            if(!AttachmentText.hasContent(text)||text.length()>prefixLimit(1)||kind==null)
                 throw new IllegalArgumentException("Invalid source");
             if(kind==Kind.PDF&&(pages<1||examined<1||examined>pages||readable<1||readable>examined))
                 throw new IllegalArgumentException("Invalid PDF coverage");
@@ -66,7 +66,7 @@ final class DocumentBatchPolicy {
         final List<Unit> units;
         private final int[] included;
         Plan(String goal,List<Source> sources){
-            if(goal==null||goal.trim().isEmpty()||goal.length()>MAX_GOAL||sources==null||sources.isEmpty()||sources.size()>MAX_SOURCES)
+            if(!AttachmentText.hasContent(goal)||goal.length()>MAX_GOAL||sources==null||sources.isEmpty()||sources.size()>MAX_SOURCES)
                 throw new IllegalArgumentException("Batch plan");
             this.goal=goal.trim();this.sources=Collections.unmodifiableList(new ArrayList<>(sources));
             List<Unit> all=new ArrayList<>();included=new int[sources.size()];
@@ -129,7 +129,7 @@ final class DocumentBatchPolicy {
     }
     interface Generator {String generate(String prompt,int maxChars,int maxTokens)throws Exception;}
     static String checked(String text,int limit){
-        if(text==null||text.trim().isEmpty()||text.length()>limit)throw new IllegalArgumentException("Invalid analysis output");
+        if(!AttachmentText.hasContent(text)||text.length()>limit)throw new IllegalArgumentException("Invalid analysis output");
         return text.trim();
     }
     static String unitPrompt(Plan plan,Unit u){
@@ -178,7 +178,7 @@ final class DocumentBatchPolicy {
     private static final Pattern REFERENCE=Pattern.compile("(?i)(?<![A-Za-z0-9_])D[ \\t]*[0-9]+[ \\t]*[-‐‑–—][ \\t]*S[ \\t]*[0-9]+(?![A-Za-z0-9_])");
     static Citations citations(String synthesis,List<Note> notes){
         Set<String> known=new LinkedHashSet<>(),valid=new LinkedHashSet<>(),unknown=new LinkedHashSet<>();
-        for(Note n:notes)if(!n.unit.text.trim().isEmpty())known.add(n.unit.id());
+        for(Note n:notes)if(AttachmentText.hasContent(n.unit.text))known.add(n.unit.id());
         Matcher groups=BRACKET.matcher(synthesis==null?"":synthesis);
         while(groups.find()){
             Matcher m=REFERENCE.matcher(groups.group(1)!=null?groups.group(1):groups.group(2));
@@ -199,7 +199,7 @@ final class DocumentBatchPolicy {
             for(Unit u:plan.units){
                 if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"");
                 // Whitespace is still included in the coverage ledger, with no invented model result.
-                String text=u.text.trim().isEmpty()?"[Whitespace-only extracted range]":boundedGenerate(model,unitPrompt(plan,u),NOTE_CHARS,NOTE_TOKENS);
+                String text=!AttachmentText.hasContent(u.text)?"[Whitespace-only extracted range]":boundedGenerate(model,unitPrompt(plan,u),NOTE_CHARS,NOTE_TOKENS);
                 if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"");
                 notes.add(new Note(u,text));progress.accept(notes.size());
             }

@@ -33,7 +33,7 @@ final class PdfExcerpt {
             boolean useful=false;
             for(int i=0;i<text.length();i++){
                 char c=text.charAt(i);
-                if(!Character.isWhitespace(c)&&!Character.isISOControl(c)&&c!='\uFFFD'){useful=true;break;}
+                if(!Character.isWhitespace(c)&&!Character.isSpaceChar(c)&&!Character.isISOControl(c)&&c!='\uFFFD'){useful=true;break;}
             }
             if(!useful)return;
             if(!hasText){hasText=true;withText++;add("\n[Page "+(first+examined-1)+"]\n");}

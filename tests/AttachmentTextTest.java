@@ -21,6 +21,15 @@ public final class AttachmentTextTest {
         bad("a.txt",new byte[]{(byte)0xff},AttachmentText.Problem.INVALID);
         bad("a.txt",new byte[AttachmentText.MAX_BYTES+1],AttachmentText.Problem.TOO_LARGE);
         bad("a.txt",bytes(" \n"),AttachmentText.Problem.EMPTY);
+        for(String blank:new String[]{"\u00a0","\u3000","\u2003","\u202f","\u0085","\u00a0 \u3000\t"}){
+            bad("a.txt",bytes(blank),AttachmentText.Problem.EMPTY);
+            ok(!AttachmentText.hasContent(blank),"Unicode blank");
+            ok(AttachmentText.hasContent(blank+"한글😀"),"mixed content");
+            try{AttachmentText.include("q","a.txt",blank);throw new AssertionError("blank excerpt");}
+            catch(IllegalArgumentException expected){n++;}
+        }
+        String mixed="\u00a0한글\u3000";
+        ok(read("a.txt",bytes(mixed)).text.equals(mixed),"preserve Unicode source offsets");
         String included=AttachmentText.include("Summarize","report.txt","raw text");
         ok(included.startsWith("Summarize")&&included.contains("source data")&&included.contains("raw text"),"explicit context");
         try{AttachmentText.include("q".repeat(16000),"a.txt","x");throw new AssertionError("limit");}catch(IllegalArgumentException e){n++;}

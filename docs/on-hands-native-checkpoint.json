@@ -1,6 +1,6 @@
 {
-  "stage": "F10A86-focused-quality-integration",
-  "revision": "F10A86",
-  "priorCandidate": "1edccbdd5f53fc3816295e8f4794236fcc2a8938",
-  "reason": "Integrate three locally checked independent quality fixes and preserve exact unchanged visual workflow drafts; require exact FAST and full ARM64 APK/QA AAB, native and release audit; device and production release deferred."
+  "stage": "F10A87-document-code-integration",
+  "revision": "F10A87",
+  "priorCandidate": "e6405b0287a460988d6631fce9b65fe9754f42fb",
+  "reason": "Unicode whitespace-only source, document evidence/citation accounting and bounded exact Markdown code fence improvements. Require exact FAST/FULL and packaging audit; physical device and production release deferred."
 }

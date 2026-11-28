@@ -174,7 +174,7 @@ final class OfficeText {
             text.append(value,0,end);partial=true;sealed=true;
         }
         void record(String label,String value){
-            if(value.trim().isEmpty())return;
+            if(!AttachmentText.hasContent(value))return;
             hasData=true;add(label);add(value);add("\n");
         }
     }
@@ -283,7 +283,7 @@ final class OfficeText {
                 catch(NumberFormatException e){throw new SAXException("Invalid shared string reference");}
             }else if("inlineStr".equals(type))value=t.toString();
             if(f.length()>0)value="[formula: "+f+"] [cached value: "+value+"]";
-            if(!value.trim().isEmpty()){
+            if(AttachmentText.hasContent(value)){
                 if(!heading){out.add("\n[Sheet: "+name+"]\n");heading=true;}
                 out.record((ref!=null&&ref.matches("[A-Za-z]{1,3}[0-9]{1,7}")?ref:"?")+": ",value);
             }

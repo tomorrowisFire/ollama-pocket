@@ -84,6 +84,19 @@ public final class DocumentBatchReportTest {
         JSONObject wj=new JSONObject(w.json());
         ok(wj.getJSONArray("notes").getJSONObject(0).getString("record_kind").equals("WHITESPACE_ONLY")&&wj.getJSONArray("notes").getJSONObject(0).isNull("note"));
         ok(w.citations.unknown.equals(List.of("D1-S1"))&&w.citations.valid.equals(List.of("D1-S2")));
+        DocumentBatchPolicy.Plan unicodeWs=new DocumentBatchPolicy.Plan("extract",List.of(
+            new DocumentBatchPolicy.Source("ws.txt"," ".repeat(1399)+"\u00a0"+"end",DocumentBatchPolicy.Kind.TEXT,false,0,0,0)));
+        ok(unicodeWs.units.size()==2&&!AttachmentText.hasContent(unicodeWs.units.get(0).text));
+        java.util.concurrent.atomic.AtomicInteger dispatched=new java.util.concurrent.atomic.AtomicInteger();
+        DocumentBatchPolicy.Result ur=DocumentBatchPolicy.analyze(unicodeWs,(prompt,chars,tokens)->{
+            dispatched.incrementAndGet();return "ok [D1-S1] [D1-S2]";
+        },()->false,x->{});
+        ok(ur.status==DocumentBatchPolicy.Status.COMPLETED&&dispatched.get()==3);
+        DocumentBatchReport unicodeReport=new DocumentBatchReport(unicodeWs,ur,"m",null,3,10);
+        ok(!unicodeReport.hasExtractedEvidence(unicodeReport.lookup("D1-S1")));
+        ok(unicodeReport.extracted(unicodeReport.lookup("D1-S1")).equals(" ".repeat(1399)+"\u00a0"));
+        ok(unicodeReport.citations.unknown.equals(List.of("D1-S1"))&&unicodeReport.citations.valid.equals(List.of("D1-S2")));
+        ok(new JSONObject(unicodeReport.json()).getJSONArray("notes").getJSONObject(0).isNull("note"));
         DocumentBatchPolicy.Plan singleton=new DocumentBatchPolicy.Plan("extract",List.of(
             new DocumentBatchPolicy.Source("short.txt","short evidence",DocumentBatchPolicy.Kind.TEXT,false,0,0,0)));
         DocumentBatchPolicy.Result direct=DocumentBatchPolicy.analyze(singleton,(prompt,chars,tokens)->"note [D1-S1]",()->false,x->{});
