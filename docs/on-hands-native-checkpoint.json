@@ -1,6 +1,6 @@
 {
-  "stage": "F10A89-engine-locale-batch-integration",
-  "revision": "F10A89",
-  "priorCandidate": "586f8b5ae1d188d247808fb9543ec26fb272199b",
-  "reason": "Batch exact detached F10A88 voice, VLM and strict local stream validation with five-locale UI and error resource improvements; exact FAST and FULL packaging required. Physical tests and release deferred."
+  "stage": "F10A90-quality",
+  "revision": "F10A90",
+  "priorCandidate": "a635ad67feba4b069361f4724eed41d936242d80",
+  "reason": "Guard installed selection and observed size; finite benchmark arithmetic. Exact CI required."
 }

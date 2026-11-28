@@ -30,6 +30,9 @@ public final class BenchmarkStatsTest {
         ok(BenchmarkStats.reportRepeats(1,3)==2,"legacy denominator");
         ok(BenchmarkStats.reportRepeats(2,3)==3,"new denominator");
         try{BenchmarkStats.reportRepeats(2,2);throw new AssertionError("invalid protocol");}catch(IllegalArgumentException expected){}
-        System.out.println("PASS: BenchmarkStats (23 assertions)");
+        ok(BenchmarkStats.median(Arrays.asList(Double.MAX_VALUE,Double.MAX_VALUE))==Double.MAX_VALUE,"finite median");
+        ok(Math.abs(BenchmarkStats.dropPercent(Double.MAX_VALUE,Double.MAX_VALUE/2)-50)<1e-8,"finite decline");
+        ok("gpu".equals(BenchmarkStats.winner("cpu",Double.NaN,"gpu",25)),"invalid baseline");
+        System.out.println("PASS: BenchmarkStats (26 assertions)");
     }
 }

@@ -30,6 +30,8 @@ public final class DeviceRecommendationGridTest {
             "matching quantized variant counts as installed");
         ok("Q8_0".equals(installedVariant.get(0).quantization),
             "installed quantization metadata used for base model tile");
-        System.out.println("PASS: DeviceRecommendationGrid (12 assertions)");
+        ok(ModelTileCatalog.forDevice(List.of("qwen3:1.7b"),null,Map.of("qwen3:1.7b",100L),
+            List.of("qwen3:1.7b"),null,null,6).get(0).bytes==0,"missing installed size is not registry estimate");
+        System.out.println("PASS: DeviceRecommendationGrid (13 assertions)");
     }
 }

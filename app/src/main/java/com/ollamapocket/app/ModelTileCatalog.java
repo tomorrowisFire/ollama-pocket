@@ -150,8 +150,8 @@ public final class ModelTileCatalog {
                 }
                 boolean isInstalled=installedTag!=null;
                 if((pass==0)!=isInstalled)continue;
-                long bytes=isInstalled&&sizes!=null
-                        ?Math.max(0,sizes.getOrDefault(installedTag,0L)):
+                long bytes=isInstalled
+                        ?(sizes==null?0:Math.max(0,sizes.getOrDefault(installedTag,0L))):
                         estimatedBytes==null?0:Math.max(0,estimatedBytes.getOrDefault(id,0L));
                 String quant=quantizations==null?"미확인":
                     quantizations.getOrDefault(isInstalled?installedTag:id,"미확인");

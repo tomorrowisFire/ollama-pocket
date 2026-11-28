@@ -21,7 +21,7 @@ public final class BenchmarkStats {
         Collections.sort(valid);
         int n = valid.size();
         return n % 2 == 1 ? valid.get(n/2) :
-                (valid.get(n/2-1) + valid.get(n/2))/2.0;
+                valid.get(n/2-1)/2.0 + valid.get(n/2)/2.0;
     }
 
     /** New reports require the entire sample set; zero latency is a valid clock reading. */
@@ -51,14 +51,14 @@ public final class BenchmarkStats {
     public static double dropPercent(double first, double last) {
         if (!(first > 0) || !(last > 0) || !Double.isFinite(first)
                 || !Double.isFinite(last)) return 0;
-        return Math.max(0, (first-last) * 100.0 / first);
+        return Math.max(0, (1.0-last/first) * 100.0);
     }
 
     /** Use a 5% margin to avoid switching modes for noise-level improvements. */
     public static String winner(String previous, double previousRate,
                                 String candidate, double candidateRate) {
         if (!Double.isFinite(candidateRate) || candidateRate <= 0) return previous;
-        if (previous == null || previousRate <= 0 || candidateRate > previousRate * 1.05)
+        if (previous == null || !Double.isFinite(previousRate) || previousRate <= 0 || candidateRate > previousRate * 1.05)
             return candidate;
         return previous;
     }

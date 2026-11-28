@@ -2522,7 +2522,7 @@ public final class MainActivity extends Activity {
                 }).setNegativeButton(getString(R.string.close),null));
             return;
         }
-        if(tile.installed){selectModel(tile.id);showTab(0);return;}
+        if(tile.installed&&knownModels.contains(tile.id)){selectModel(tile.id);showTab(0);return;}
         OllamaQuantPicker.show(this,tile.id,new ArrayList<>(knownModels),(tag,installed)->{
             if(isUiBusy())return;
             if(installed&&knownModels.contains(tag)){selectModel(tag);showTab(0);}
