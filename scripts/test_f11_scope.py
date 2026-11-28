@@ -130,6 +130,7 @@ F12_MODIFIABLE = frozenset([
   "tests/test_f11_scope.py"
 ])
 F12_ADDITIONS = frozenset([
+  "docs/on-hands-f12-r012-integration.md",
   "docs/on-hands-f12-input-budget-hardening.md",
   "docs/on-hands-f12-compact-project-report.md",
   "docs/on-hands-f12-r008-integration.md",

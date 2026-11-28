@@ -45,15 +45,23 @@ final class DocumentBatchRunner {
         return false;
     }
     DocumentBatchPolicy.Result run(DocumentBatchPolicy.Plan plan,IntConsumer progress){
+        return runBatch(plan,null,progress);
+    }
+    DocumentBatchPolicy.Result resume(DocumentBatchPolicy.Plan plan,DocumentBatchPolicy.Result previous,IntConsumer progress){
+        if(!DocumentBatchPolicy.canResume(plan,previous))throw new IllegalArgumentException("Invalid resume");
+        return runBatch(plan,previous,progress);
+    }
+    private DocumentBatchPolicy.Result runBatch(DocumentBatchPolicy.Plan plan,DocumentBatchPolicy.Result previous,IntConsumer progress){
         if(!control.begin())throw new IllegalStateException("Batch already used");
         long started=SystemClock.elapsedRealtime();
         deadline=started+DocumentBatchPolicy.runtimeLimit(plan.sources.size());
-        requestCeiling=plan.maxTotal();
+        requestCeiling=previous==null?plan.maxTotal():DocumentBatchPolicy.resumeCeiling(plan,previous);
         ScheduledExecutorService watch=Executors.newSingleThreadScheduledExecutor(r->{Thread t=new Thread(r,"document-batch-safety");t.setDaemon(true);return t;});
         try{
             if(!stopped()){GpuRunner.stop();DistributedRunner.stop();}
             watch.scheduleAtFixedRate(this::watchStop,0,1,TimeUnit.SECONDS);
-            return DocumentBatchPolicy.analyze(plan,this::generate,this::stopped,progress);
+            return previous==null?DocumentBatchPolicy.analyze(plan,this::generate,this::stopped,progress):
+                DocumentBatchPolicy.resume(plan,previous,this::generate,this::stopped,progress);
         }finally{
             HttpURLConnection remaining=control.finish();
             watch.shutdownNow();disconnect(remaining);

@@ -1469,4 +1469,7 @@
     <string name="deep_follow_project_compact_notice">完整对话超出项目大小限制。是否保存精简版本？保留的所有问题、来源范围和引用 ID 均会保留，但部分生成的回答可能省略。仍可单独导出完整的保留对话。</string>
     <string name="deep_workspace_reward_notice">观看激励广告时，当前分析与已完成的对话将保留在此安全界面中。不会自动开始新分析。</string>
     <string name="deep_workspace_reward_wait">激励广告处理中…</string>
+    <string name="deep_resume_batch">继续上次分析</string>
+    <string name="deep_resume_notice">复用上次目标已完成的 %1$d 个摘录。重新生成中间摘要和最终分析。失败或停止时保留原报告和对话。</string>
+    <string name="deep_resume_metrics">复用摘录：%1$d 个。上述请求次数和耗时仅对应本次继续分析。</string>
 </resources>

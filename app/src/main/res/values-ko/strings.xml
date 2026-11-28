@@ -1469,4 +1469,7 @@
     <string name="deep_follow_project_compact_notice">전체 대화가 프로젝트 용량 한도를 초과합니다. 축약본을 저장하시겠습니까? 보존된 질문, 출처 범위, 인용 ID는 모두 유지되지만 일부 생성 답변은 생략될 수 있습니다. 보존된 전체 대화는 별도로 내보낼 수 있습니다.</string>
     <string name="deep_workspace_reward_notice">리워드 광고 중에는 현재 분석 화면과 완료된 대화를 안전하게 유지합니다. 새 분석이 자동으로 시작되지는 않습니다.</string>
     <string name="deep_workspace_reward_wait">리워드 광고 진행 중…</string>
+    <string name="deep_resume_batch">이전 분석 이어하기</string>
+    <string name="deep_resume_notice">이전 분석 목표에서 완료된 발췌문 %1$d개를 재사용합니다. 중간 요약과 최종 분석은 다시 생성합니다. 실패하거나 중단하면 기존 보고서와 대화를 유지합니다.</string>
+    <string name="deep_resume_metrics">재사용 발췌문: %1$d개. 위 요청 횟수와 소요 시간은 이번 이어하기 실행만 기준으로 합니다.</string>
 </resources>

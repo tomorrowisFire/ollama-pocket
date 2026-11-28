@@ -46,7 +46,7 @@ final class DocumentBatchUi {
     private TextView status,output;
     private EditText goal;
     private ProgressBar progress;
-    private Button preset,preview,copy,inspect,copyJson,saveProject,dictateGoal,readReport,viewReport,saveJsonFile,saveTextFile;
+    private Button preset,preview,copy,inspect,copyJson,saveProject,dictateGoal,readReport,viewReport,saveJsonFile,saveTextFile,resumeBatch;
     private ProjectWorkspaceUi reportWorkspace;
     private DeepFollowUpPolicy.Session followSession;
     private Button followAsk,followSave,followCopy,followSaveJson,followProject;
@@ -96,6 +96,7 @@ final class DocumentBatchUi {
         boolean hasEvidence=false;
         if(result!=null)for(DocumentBatchPolicy.Note note:result.notes)
             if(AttachmentText.hasContent(note.unit.text)){hasEvidence=true;break;}
+        resumeBatch.setEnabled(idle&&DocumentBatchPolicy.canResume(analyzed,result));
         followAsk.setEnabled(idle&&hasEvidence);
         boolean hasDialogue=idle&&followSession!=null&&followSession.count()>0;
         followCopy.setEnabled(hasDialogue);
@@ -245,6 +246,8 @@ final class DocumentBatchUi {
         LinearLayout inspectionActions=new AdaptiveAnswerActions(owner);panel.addView(inspectionActions,WorkbenchStyle.row(owner));
         preview=button(inspectionActions,R.string.batch_preview,this::showSourcePreview);
         inspect=button(inspectionActions,R.string.batch_inspect_excerpt,this::inspectCompleted);
+        resumeBatch=button(panel,R.string.deep_resume_batch,()->start(true));
+        resumeBatch.setEnabled(false);
         LinearLayout copyActions=new AdaptiveAnswerActions(owner);panel.addView(copyActions,WorkbenchStyle.row(owner));
         copy=button(copyActions,R.string.batch_copy,()->{
             if(result==null||analyzed==null||busy())return;
@@ -646,27 +649,39 @@ final class DocumentBatchUi {
                     ()->visible()&&!busy()&&confirmation==null&&followSession==reviewed&&reviewed.count()==revision&&eligible.getAsBoolean(),false);
         }catch(Exception invalid){toast(R.string.artifact_file_export_invalid);}
     }
-    private void start(){
-        if(!visible()||busy()||sources==null||!eligible.getAsBoolean())return;
+    private void start(){start(false);}
+    private void start(boolean resume){
+        if(!visible()||busy()||reward.blocked()||sources==null||!eligible.getAsBoolean())return;
         if(!startAuthorized.getAsBoolean()){toast(R.string.deep_locked);return;}
+        final DocumentBatchPolicy.Result previous=resume?result:null;
         final DocumentBatchPolicy.Plan plan;
-        try{plan=new DocumentBatchPolicy.Plan(goal.getText().toString(),sources);}catch(IllegalArgumentException e){toast(R.string.batch_goal);return;}
-        final String reviewed=goal.getText().toString();
-        confirm(R.string.batch_start,owner.getString(R.string.batch_run_notice,plan.units.size(),plan.maxTotal(),
+        if(resume){
+            if(!DocumentBatchPolicy.canResume(analyzed,previous))return;
+            plan=analyzed;
+        }else try{plan=new DocumentBatchPolicy.Plan(goal.getText().toString(),sources);}catch(IllegalArgumentException e){toast(R.string.batch_goal);return;}
+        final String reviewed=resume?plan.goal:goal.getText().toString();
+        int ceiling=resume?DocumentBatchPolicy.resumeCeiling(plan,previous):plan.maxTotal();
+        confirm(resume?R.string.deep_resume_batch:R.string.batch_start,owner.getString(R.string.batch_run_notice,plan.units.size(),ceiling,
                 DocumentBatchPolicy.runtimeLimit(plan.sources.size())/60000L)+
                 (result!=null?"\n\n"+s(R.string.deep_follow_reset_notice):"")+
-                "\n\n"+coverage(sources)+"\n\n"+plannedCoverage(plan)+"\n\n"+s(R.string.batch_goal)+": "+reviewed,()->{
-            if(busy()||!eligible.getAsBoolean()||!reviewed.equals(goal.getText().toString()))return;
+                (resume?"\n\n"+owner.getString(R.string.deep_resume_notice,previous.notes.size()):"")+
+                "\n\n"+coverage(plan.sources)+"\n\n"+plannedCoverage(plan)+"\n\n"+s(R.string.batch_goal)+": "+reviewed,()->{
+            if(busy()||reward.blocked()||!eligible.getAsBoolean())return;
+            if(resume?(result!=previous||analyzed!=plan||!DocumentBatchPolicy.canResume(plan,previous)):
+                    !reviewed.equals(goal.getText().toString()))return;
             if(!startAuthorized.getAsBoolean()){toast(R.string.deep_locked);return;}
             if(!OllamaForegroundService.isRunning()){toast(R.string.test_need_server);return;}
             if(!"off".equals(CoopSession.get(owner).role())){toast(R.string.guest_stop_first);return;}
             // Keep the current immutable report and dialogue until a replacement completes.
             // Busy controls prevent export or follow-up against an in-flight replacement.
-            output.setText(coverage(sources)+"\n\n"+plannedCoverage(plan));status.setText(R.string.thinking);progress.setMax(plan.maxTotal());progress.setProgress(0);
+            output.setText(coverage(plan.sources)+"\n\n"+plannedCoverage(plan));status.setText(R.string.thinking);progress.setMax(plan.maxTotal());progress.setProgress(resume?previous.notes.size():0);
             final DocumentBatchRunner active=new DocumentBatchRunner(owner,model);runner=active;
-            boolean started=work((lease,screen,main)->active.run(plan,done->postProgress(lease,screen,main,()->{
-                progress.setProgress(done);status.setText(owner.getString(R.string.batch_progress,Integer.toString(done),"≤"+plan.maxTotal()));
-            })),finished->{
+            boolean started=work((lease,screen,main)->{
+                java.util.function.IntConsumer update=done->postProgress(lease,screen,main,()->{
+                    progress.setProgress(done);status.setText(owner.getString(R.string.batch_progress,Integer.toString(done),"≤"+plan.maxTotal()));
+                });
+                return resume?active.resume(plan,previous,update):active.run(plan,update);
+            },finished->{
                 runner=null;
                 int terminalStatus=finished.status==DocumentBatchPolicy.Status.COMPLETED?R.string.batch_completed:
                     finished.status==DocumentBatchPolicy.Status.STOPPED?stopLabel(active.reason()):
@@ -732,6 +747,7 @@ final class DocumentBatchUi {
         }
         b.append("\n\n").append(owner.getString(R.string.batch_run_metrics,
             Integer.toString(reportRequests),Long.toString(reportElapsedMillis)));
+        if(result.reusedNotes>0)b.append('\n').append(owner.getString(R.string.deep_resume_metrics,result.reusedNotes));
         boolean complete=result.status==DocumentBatchPolicy.Status.COMPLETED;
         DocumentBatchPolicy.Citations refs=DocumentBatchPolicy.citations(complete?result.synthesis:"",result.notes);
         List<DocumentCitationCoverage.Source> counts=DocumentBatchPolicy.citationCoverage(plan.sources.size(),result,refs);

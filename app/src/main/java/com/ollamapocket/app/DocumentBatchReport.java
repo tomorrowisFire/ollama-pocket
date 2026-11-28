@@ -22,7 +22,7 @@ final class DocumentBatchReport {
     DocumentBatchReport(DocumentBatchPolicy.Plan plan,DocumentBatchPolicy.Result result,String model,
                         String stopReason,int requests,long elapsedMillis){
         if(plan==null||result==null||result.status==null||!AttachmentText.hasContent(model)||model.length()>256||
-            requests<0||requests>plan.maxTotal()||elapsedMillis<0)
+            requests<0||requests>plan.maxTotal()-result.reusedNotes||elapsedMillis<0)
             throw new IllegalArgumentException("Report metadata");
         if(result.notes.size()>plan.units.size()||result.groupsDone<0||
             result.groupsDone>Math.max(1,plan.units.size()-1)||
@@ -47,7 +47,7 @@ final class DocumentBatchReport {
             if(note==null||note.unit!=plan.units.get(i)||!AttachmentText.hasContent(note.text)||note.text.length()>DocumentBatchPolicy.NOTE_CHARS)
                 throw new IllegalArgumentException("Invalid completed prefix");
             notes.add(note);
-            if(AttachmentText.hasContent(note.unit.text))recordedRequests++;
+            if(i>=result.reusedNotes&&AttachmentText.hasContent(note.unit.text))recordedRequests++;
         }
         // A committed note/group/final synthesis must have a corresponding dispatched
         // request (except whitespace-only ledger entries). An interrupted request may
@@ -106,7 +106,7 @@ final class DocumentBatchReport {
                     (Object)citations.valid.contains(u.id()):JSONObject.NULL));
         }
         boolean success=result.status==DocumentBatchPolicy.Status.COMPLETED;
-        return boundedJson(new JSONObject().put("schema",1).put("status",result.status.name())
+        JSONObject exported=new JSONObject().put("schema",1).put("status",result.status.name())
             .put("stop_reason",stopReason==null?JSONObject.NULL:stopReason)
             .put("context_limited",result.contextLimited).put("model",model).put("goal",plan.goal)
             .put("scope","EXTRACTED_TEXT_ONLY").put("factual_verification",false)
@@ -118,6 +118,9 @@ final class DocumentBatchReport {
             .put("synthesis",success?(Object)result.synthesis:JSONObject.NULL)
             .put("citation_check_scope","COMPLETED_NONWHITESPACE_ID_EXISTENCE_ONLY")
             .put("known_citation_ids",new JSONArray(citations.valid))
-            .put("unknown_citation_ids",new JSONArray(citations.unknown)).toString(2));
+            .put("unknown_citation_ids",new JSONArray(citations.unknown));
+        if(result.reusedNotes>0)exported.put("reused_completed_excerpts",result.reusedNotes)
+            .put("request_and_elapsed_scope","LATEST_RESUME_ATTEMPT_ONLY");
+        return boundedJson(exported.toString(2));
     }
 }

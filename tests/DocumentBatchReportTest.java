@@ -144,6 +144,16 @@ public final class DocumentBatchReportTest {
         ok(wideJson.getJSONArray("sources").length()==20&&wideJson.getJSONArray("notes").length()==80);
         ok(wideJson.getJSONArray("sources").getJSONObject(19).getLong("input_bytes")==2000);
         ok(wideReport.citationCoverage.get(19).referencedEvidence==1);
+        var resumed=DocumentBatchPolicy.resume(plan,stopped,(prompt,chars,tokens)->"continued [D1-S1]",()->false,x->{});
+        ok(resumed.status==DocumentBatchPolicy.Status.COMPLETED&&resumed.reusedNotes==1);
+        var resumedReport=new DocumentBatchReport(plan,resumed,"model:test",null,4,30);
+        JSONObject resumedJson=new JSONObject(resumedReport.json());
+        ok(resumedReport.completed.get(0)==first&&resumedJson.getInt("reused_completed_excerpts")==1);
+        ok(resumedJson.getString("request_and_elapsed_scope").equals("LATEST_RESUME_ATTEMPT_ONLY")&&resumedJson.getInt("local_chat_request_attempts")==4);
+        ok(resumedJson.getInt("completed_excerpts")==3&&!resumedReport.json().contains("ORIGINAL-PRIVATE-MARKER"));
+        rejects(()->new DocumentBatchReport(plan,resumed,"model:test",null,5,30));
+        rejects(()->new DocumentBatchReport(plan,resumed,"model:test",null,3,30));
+        ok(!j.has("reused_completed_excerpts"));
         System.out.println("PASS: "+n+" document report snapshot, citation lookup and JSON assertions");
     }
 }

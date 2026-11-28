@@ -1469,4 +1469,7 @@
     <string name="deep_follow_project_compact_notice">The full dialogue exceeds the project size limit. Save a compact version? All retained questions, source ranges and citation IDs remain; some generated answers may be omitted. The complete retained dialogue can still be exported.</string>
     <string name="deep_workspace_reward_notice">Your idle analysis and completed dialogue stay in this secure screen during the rewarded ad. No new analysis starts automatically.</string>
     <string name="deep_workspace_reward_wait">Rewarded ad in progress…</string>
+    <string name="deep_resume_batch">Resume previous analysis</string>
+    <string name="deep_resume_notice">Reuse %1$d completed excerpts from the previous goal. Reduction and synthesis are regenerated. Failed or stopped resume retains the previous report and dialogue.</string>
+    <string name="deep_resume_metrics">Reused excerpts: %1$d. Request count and elapsed time above refer to this resume attempt only.</string>
 </resources>

@@ -1,8 +1,8 @@
 {
   "stage": "F12-file-intake-integration-candidate",
-  "revision": "F12-file-intake-r011-report-preservation",
+  "revision": "F12-file-intake-r012-resume-prefix",
   "scopeBaseline": "0152869a25bfa63e1e6e94c5ebb079ccc0facba8",
-  "priorCandidate": "cfe05765e60b5f831cc9b0e2a963b3b45bdee5d9",
+  "priorCandidate": "b7f21a525c155e2bd277f19b22abab183576e81e",
   "modules": [
     {
       "stage": "A-text",
@@ -119,7 +119,15 @@
     {
       "stage": "AC-export-report-linkage",
       "sha": "b2c801a8f77839963e6e169657bc43fb4abe1a08"
+    },
+    {
+      "stage": "AD-resume-exact-prefix",
+      "sha": "d7c315efa700f946dfe04cadf9591e4793a57ed6"
+    },
+    {
+      "stage": "AE-resume-reviewed-ui",
+      "sha": "267cdf912f962c612672eef55cae38d46ead5495"
     }
   ],
-  "reason": "r009 exact FAST 46168395064 and FULL 46168395116 passed all required jobs, fixed-signed update skipped; official promotion confirmed, r010 linked to existing validation branch. r011 detached pending exact r010 CI; previous report and dialogue retained on unsuccessful reanalysis, exported dialogue linked to existing shareable report JSON digest. No raw source hashing, native/dependency/manifest/production lock or persistent schema changes. Device/independent review NOT_RUN."
+  "reason": "r010 exact FAST 46173864673 and FULL 46173864635 passed all required jobs; fixed-signed update skipped. Official r010 promotion and r011 validation ref update succeeded. r012 detached pending r011 required CI; explicit same-workspace resume reuses only exact completed immutable map notes, regenerates reduction, retains previous report/dialogue on failure, measures latest attempt independently. No persistent recovery, native/dependency/manifest/production lock or storage schema changes. Device/independent review NOT_RUN."
 }

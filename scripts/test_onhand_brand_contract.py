@@ -136,7 +136,9 @@ assert "DeepChatPolicy.normalLimit(pdf||image||office)" in main
 assert "if(deepMode||normalAttachmentPresent())" in main
 deep_batch=(src/"DocumentBatchUi.java").read_text()
 assert deep_batch.count("if(!startAuthorized.getAsBoolean()){toast(R.string.deep_locked);return;}")==3
-assert "active.run(plan,done->" in deep_batch
+assert "active.run(plan,update)" in deep_batch and "active.resume(plan,previous,update)" in deep_batch
+assert "result!=previous||analyzed!=plan||!DocumentBatchPolicy.canResume(plan,previous)" in deep_batch
+assert "resumeBatch.setEnabled(idle&&DocumentBatchPolicy.canResume(analyzed,result))" in deep_batch
 assert "DocumentBatchPolicy.acceptReplacement(result,finished)" in deep_batch
 assert "new DocumentBatchReport(plan,finished,model,terminalReason" in deep_batch
 assert "restorePreviousReport(" in deep_batch

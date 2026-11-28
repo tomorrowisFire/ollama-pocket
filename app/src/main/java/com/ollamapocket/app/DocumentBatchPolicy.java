@@ -212,7 +212,7 @@ final class DocumentBatchPolicy {
     static final class Result {
         final Status status;
         final List<Note> notes;
-        final int groupsDone;
+        final int groupsDone,reusedNotes;
         final String synthesis;
         final boolean contextLimited;
         int completedEnd(int source){
@@ -222,6 +222,11 @@ final class DocumentBatchPolicy {
         }
         Result(Status status,List<Note> notes,int groupsDone,String synthesis){this(status,notes,groupsDone,synthesis,false);}
         Result(Status status,List<Note> notes,int groupsDone,String synthesis,boolean contextLimited){
+            this(status,notes,groupsDone,synthesis,contextLimited,0);
+        }
+        private Result(Status status,List<Note> notes,int groupsDone,String synthesis,boolean contextLimited,int reusedNotes){
+            if(reusedNotes<0||reusedNotes>notes.size())throw new IllegalArgumentException("Reused prefix");
+            this.reusedNotes=reusedNotes;
             this.status=status;this.notes=Collections.unmodifiableList(new ArrayList<>(notes));
             this.groupsDone=groupsDone;this.synthesis=synthesis;this.contextLimited=contextLimited;
         }
@@ -303,14 +308,42 @@ final class DocumentBatchPolicy {
         if(!fits(prompt,tokens))throw new ContextLimit();
         return checked(model.generate(prompt,chars,tokens),chars);
     }
+    static boolean canResume(Plan plan,Result previous){
+        if(plan==null||previous==null||previous.status==null||previous.status==Status.COMPLETED||
+                previous.contextLimited||previous.notes.isEmpty()||previous.notes.size()>plan.units.size()||
+                !previous.synthesis.isEmpty()||previous.groupsDone<0||
+                previous.groupsDone>Math.max(1,plan.units.size()-1)||
+                previous.groupsDone>0&&previous.notes.size()!=plan.units.size())return false;
+        for(int i=0;i<previous.notes.size();i++){
+            Note n=previous.notes.get(i);
+            if(n==null||n.unit!=plan.units.get(i)||!AttachmentText.hasContent(n.text)||n.text.length()>NOTE_CHARS)
+                return false;
+        }
+        return true;
+    }
+    static int resumeCeiling(Plan plan,Result previous){
+        if(!canResume(plan,previous))throw new IllegalArgumentException("No exact resumable prefix");
+        return plan.maxTotal()-previous.notes.size();
+    }
     static Result analyze(Plan plan,Generator model,BooleanSupplier stopped,IntConsumer progress){
-        List<Note> notes=new ArrayList<>();List<String> groups=new ArrayList<>();int completedGroups=0;
+        return analyzePrefix(plan,Collections.emptyList(),model,stopped,progress);
+    }
+    /** Only exact immutable unit instances from the same in-memory plan can be reused.
+     * Reduction summaries are not retained and are regenerated; no persistence or implicit retry. */
+    static Result resume(Plan plan,Result previous,Generator model,BooleanSupplier stopped,IntConsumer progress){
+        if(!canResume(plan,previous))throw new IllegalArgumentException("No exact resumable prefix");
+        return analyzePrefix(plan,previous.notes,model,stopped,progress);
+    }
+    private static Result analyzePrefix(Plan plan,List<Note> prefix,Generator model,BooleanSupplier stopped,IntConsumer progress){
+        List<Note> notes=new ArrayList<>(prefix);List<String> groups=new ArrayList<>();int completedGroups=0;
+        final int reused=prefix.size();
         try{
-            for(Unit u:plan.units){
-                if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"");
+            for(int index=reused;index<plan.units.size();index++){
+                Unit u=plan.units.get(index);
+                if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"",false,reused);
                 // Whitespace is still included in the coverage ledger, with no invented model result.
                 String text=!AttachmentText.hasContent(u.text)?"[Whitespace-only extracted range]":boundedGenerate(model,unitPrompt(plan,u),NOTE_CHARS,NOTE_TOKENS);
-                if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"");
+                if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"",false,reused);
                 notes.add(new Note(u,text));progress.accept(notes.size());
             }
             // A one-unit batch already has a source-bound note. If it fits the final
@@ -322,39 +355,39 @@ final class DocumentBatchPolicy {
             }
             // Largest fitting group first; carry a singleton intact rather than truncating it.
             for(int start=groups.isEmpty()?0:notes.size();start<notes.size();){
-                if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"");
+                if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"",false,reused);
                 int end=Math.min(start+GROUP_SIZE,notes.size());
                 while(end>start+1&&!fits(groupPrompt(plan,notes,start,end),NOTE_TOKENS))end--;
                 if(end==start+1&&notes.size()>1){
                     Note n=notes.get(start);groups.add("["+n.unit.id()+"]: "+n.text);start=end;continue;
                 }
                 String summary=boundedGenerate(model,groupPrompt(plan,notes,start,end),NOTE_CHARS,NOTE_TOKENS);
-                if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"");
+                if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"",false,reused);
                 groups.add(summary);start=end;progress.accept(notes.size()+(++completedGroups));
             }
             while(groups.size()>GROUP_SIZE||!fits(finalPrompt(plan,groups),FINAL_TOKENS)){
                 List<String> next=new ArrayList<>();
                 for(int start=0;start<groups.size();){
-                    if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"");
+                    if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"",false,reused);
                     int end=Math.min(start+GROUP_SIZE,groups.size());
                     while(end>start+1&&!fits(reducePrompt(plan,groups,start,end),NOTE_TOKENS))end--;
                     if(end==start+1){next.add(groups.get(start));start=end;continue;}
                     String merged=boundedGenerate(model,reducePrompt(plan,groups,start,end),NOTE_CHARS,NOTE_TOKENS);
-                    if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"");
+                    if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"",false,reused);
                     next.add(merged);start=end;progress.accept(notes.size()+(++completedGroups));
                 }
                 // Every round must reduce the number of summaries. No retry loop or silent text loss.
                 if(next.size()>=groups.size())throw new ContextLimit();
                 groups=next;
             }
-            if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"");
+            if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"",false,reused);
             String finalText=boundedGenerate(model,finalPrompt(plan,groups),FINAL_CHARS,FINAL_TOKENS);
-            if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"");
+            if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"",false,reused);
             progress.accept(notes.size()+completedGroups+1);
-            return new Result(Status.COMPLETED,notes,completedGroups,finalText);
+            return new Result(Status.COMPLETED,notes,completedGroups,finalText,false,reused);
         }catch(Exception failure){
             boolean cancelled=stopped.getAsBoolean();
-            return new Result(cancelled?Status.STOPPED:Status.FAILED,notes,completedGroups,"",!cancelled&&failure instanceof ContextLimit);
+            return new Result(cancelled?Status.STOPPED:Status.FAILED,notes,completedGroups,"",!cancelled&&failure instanceof ContextLimit,reused);
         }
     }
 }

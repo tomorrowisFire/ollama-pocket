@@ -261,6 +261,25 @@ public final class DocumentBatchPolicyTest {
         ok(!whole.partial&&whole.text.equals("한글 문서"));
         AttachmentText.Prefix prior=new AttachmentText.Prefix("abc",true).bounded(10);
         ok(prior.partial&&prior.text.equals("abc"));
+        // Resume exact completed map notes only. No reuse from another plan, completed
+        // report or context-limit failure, and no reduction result is treated as cached.
+        ok(DocumentBatchPolicy.canResume(max,failed)&&DocumentBatchPolicy.resumeCeiling(max,failed)==max.maxTotal()-3);
+        ok(!DocumentBatchPolicy.canResume(new DocumentBatchPolicy.Plan(max.goal,max.sources),failed));
+        ok(!DocumentBatchPolicy.canResume(max,complete)&&!DocumentBatchPolicy.canResume(adaptive,noFit));
+        calls.set(0);
+        var resumed=DocumentBatchPolicy.resume(max,failed,(prompt,chars,tokens)->{
+            calls.incrementAndGet();return "resumed note";
+        },()->false,x->{});
+        ok(resumed.status==DocumentBatchPolicy.Status.COMPLETED&&resumed.reusedNotes==3&&calls.get()==13);
+        for(int i=0;i<3;i++)ok(resumed.notes.get(i)==failed.notes.get(i));
+        ok(failed.notes.size()==3);
+        calls.set(0);
+        var summaryRetry=DocumentBatchPolicy.resume(max,finalFailure,(prompt,chars,tokens)->{
+            ok(!prompt.contains("BEGIN SOURCE"));calls.incrementAndGet();return "retry";
+        },()->false,x->{});
+        ok(summaryRetry.status==DocumentBatchPolicy.Status.COMPLETED&&summaryRetry.reusedNotes==12&&calls.get()==4);
+        var stoppedRetry=DocumentBatchPolicy.resume(max,failed,(prompt,chars,tokens)->{throw new AssertionError("Unexpected request");},()->true,x->{});
+        ok(stoppedRetry.status==DocumentBatchPolicy.Status.STOPPED&&stoppedRetry.notes.equals(failed.notes)&&stoppedRetry.reusedNotes==3);
         System.out.println("PASS: "+n+" bounded document batch, coverage and failure-policy assertions");
     }
 }
