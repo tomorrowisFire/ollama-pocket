@@ -1406,4 +1406,14 @@
     <string name="project_line_diff_summary">삭제된 줄 %1$d개 · 추가된 줄 %2$d개</string>
     <string name="project_line_diff_coarse">비교 한도를 초과했습니다. 가운데 변경 구간을 통째로 교체한 형태이며 최소 변경 줄 수가 아닙니다.</string>
     <string name="project_line_diff_truncated">미리보기는 변경된 200줄 또는 UTF-16 16,000단위로 제한됩니다. 정확한 변경 구간은 아래에 있습니다.</string>
+    <string name="artifact_save_code">코드 저장(.txt)</string>
+    <string name="artifact_save_markdown">Markdown 저장</string>
+    <string name="artifact_save_csv">CSV 저장</string>
+    <string name="artifact_save_html">HTML 저장</string>
+    <string name="artifact_file_export_title">결과물 파일 저장</string>
+    <string name="artifact_file_export_notice">선택한 결과물만 저장합니다: %1$s (%2$d바이트). 저장 위치를 선택하세요. 해당 서비스에서 파일을 동기화할 수 있습니다. CSV는 수식형 텍스트를 보호 처리한 변환본이므로 자동 서식을 확인하세요.</string>
+    <string name="artifact_file_export_done">파일 저장 완료</string>
+    <string name="artifact_file_export_failed">저장에 실패했습니다. 불완전한 파일이 남을 수 있으며 원문은 변경되지 않았습니다.</string>
+    <string name="artifact_file_export_expired">내보내기 요청이 만료됐거나 저장 위치가 올바르지 않습니다. 다시 선택하세요.</string>
+    <string name="artifact_file_export_invalid">결과물이 올바르지 않거나 안전한 저장 한도를 초과했습니다.</string>
 </resources>

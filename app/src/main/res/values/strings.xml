@@ -1406,4 +1406,14 @@
     <string name="project_line_diff_summary">Removed lines: %1$d · Added lines: %2$d</string>
     <string name="project_line_diff_coarse">Comparison budget reached. The changed middle region is shown as a replacement, not a minimal line diff.</string>
     <string name="project_line_diff_truncated">Preview limited to 200 changed lines or 16,000 UTF-16 units. The exact changed regions remain below.</string>
+    <string name="artifact_save_code">Save code (.txt)</string>
+    <string name="artifact_save_markdown">Save Markdown</string>
+    <string name="artifact_save_csv">Save CSV</string>
+    <string name="artifact_save_html">Save HTML</string>
+    <string name="artifact_file_export_title">Save artifact</string>
+    <string name="artifact_file_export_notice">Save the selected artifact only: %1$s (%2$d bytes). Choose a destination. Its provider may synchronize the file. CSV uses derived, formula-neutralized text; check spreadsheet formatting.</string>
+    <string name="artifact_file_export_done">Artifact saved</string>
+    <string name="artifact_file_export_failed">Save failed. An incomplete destination file may remain. Original content is unchanged.</string>
+    <string name="artifact_file_export_expired">Export request expired or destination is invalid. Select the artifact again.</string>
+    <string name="artifact_file_export_invalid">Artifact is invalid or exceeds the safe export limit.</string>
 </resources>

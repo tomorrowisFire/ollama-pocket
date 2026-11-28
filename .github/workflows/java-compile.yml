@@ -184,6 +184,8 @@ jobs:
           mkdir -p /tmp/chat-block-tests
           javac -d /tmp/chat-block-tests app/src/main/java/com/ollamapocket/app/MarkdownTableCells.java app/src/main/java/com/ollamapocket/app/ChatBlocks.java app/src/main/java/com/ollamapocket/app/SimpleFormula.java tests/ChatBlocksTest.java tests/MarkdownTableCellsTest.java
           java -cp /tmp/chat-block-tests com.ollamapocket.app.ChatBlocksTest
+          javac --release 17 -d /tmp/chat-block-tests app/src/main/java/com/ollamapocket/app/ArtifactFileExport.java tests/ArtifactFileExportTest.java
+          java -cp /tmp/chat-block-tests com.ollamapocket.app.ArtifactFileExportTest
           java -cp /tmp/chat-block-tests com.ollamapocket.app.MarkdownTableCellsTest
       - name: Test fail-closed billing policy (pure Java, synthetic keys only)
         run: |

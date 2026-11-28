@@ -48,6 +48,16 @@ final class ChatRichView {
         if(onClick!=null)b.setOnClickListener(v->onClick.run());
         return b;
     }
+    static Button exportButton(Context c,int title,float scale,ArtifactFileExport.Format format,java.util.function.Supplier<String> content){
+        if(!(c instanceof MainActivity))return null;
+        Button b=action(c,title,scale,null);
+        b.setOnClickListener(v->{
+            if(!v.isAttachedToWindow()||!v.hasWindowFocus())return;
+            try{((MainActivity)c).requestArtifactExport(ArtifactFileExport.prepare(format,content.get()));}
+            catch(RuntimeException e){Toast.makeText(c,R.string.artifact_file_export_invalid,Toast.LENGTH_SHORT).show();}
+        });
+        return b;
+    }
     private static void section(Context c,LinearLayout root,String title,int button,String original,View content,int ink,int surface,float scale){
         section(c,root,title,button,original,content,ink,surface,scale,new Button[0]);
     }
@@ -135,7 +145,8 @@ final class ChatRichView {
                 });
                 section(c,root,c.getString(R.string.chat_code_block)+(b.language.isEmpty()?"":" · "+b.language)+
                         " · "+c.getString(R.string.chat_code_line_count,ChatBlocks.codeLineCount(b.body)),
-                    R.string.chat_copy_code,b.body,holder,ink,surface,scale,wrap,numbers);
+                    R.string.chat_copy_code,b.body,holder,ink,surface,scale,wrap,numbers,
+                    exportButton(c,R.string.artifact_save_code,scale,ArtifactFileExport.Format.CODE,()->b.body));
             }else if(b.kind==ChatBlocks.Kind.TABLE){
                 TableLayout table=new TableLayout(c);
                 int count=b.rows.get(0).size();int[] widths=new int[count];
@@ -164,7 +175,10 @@ final class ChatRichView {
                     catch(IllegalArgumentException e){Toast.makeText(c,R.string.chat_spreadsheet_limit,Toast.LENGTH_SHORT).show();}
                 });
                 section(c,root,c.getString(R.string.chat_table_block),R.string.chat_copy_table,b.raw,
-                    horizontal(c,table),ink,surface,scale,spreadsheet);
+                    horizontal(c,table),ink,surface,scale,spreadsheet,
+                    exportButton(c,R.string.artifact_save_markdown,scale,ArtifactFileExport.Format.MARKDOWN,()->b.raw),
+                    exportButton(c,R.string.artifact_save_csv,scale,ArtifactFileExport.Format.TABLE_CSV,
+                        ()->ArtifactFileExport.csvFromSafeTsv(ChatBlocks.spreadsheetTsv(b))));
             }else{
                 String formula=SimpleFormula.display(b.body);
                 boolean converted=!b.body.equals(formula);

@@ -208,7 +208,8 @@ final class OnHandGlyphs extends Drawable {
         if(id==R.string.knowledge_workspace||id==R.string.knowledge_review)return Kind.KNOWLEDGE;
         if(id==R.string.auto_title||id==R.string.integration_form_editor)return Kind.FLOW;
         if(id==R.string.cloud||id==R.string.api_manager_title||id==R.string.cloud_fetch_models)return Kind.CLOUD;
-        if(id==R.string.chat_export)return Kind.EXPORT;
+        if(id==R.string.chat_export||id==R.string.artifact_save_code||id==R.string.artifact_save_markdown||
+            id==R.string.artifact_save_csv||id==R.string.artifact_save_html)return Kind.EXPORT;
         if(id==R.string.compute_select||id==R.string.compute||id==R.string.integration_form_bind_model)return Kind.CHIP;
         if(id==R.string.project_delete||id==R.string.auto_editor_remove||id==R.string.cloud_key_delete)return Kind.TRASH;
         if(id==R.string.conference_start||id==R.string.auto_start||id==R.string.auto_resume||id==R.string.knowledge_generate)return Kind.PLAY;

@@ -1406,4 +1406,14 @@
     <string name="project_line_diff_summary">削除行：%1$d · 追加行：%2$d</string>
     <string name="project_line_diff_coarse">比較上限に達しました。中央の変更範囲を一括置換として表示し、最小の行差分ではありません。</string>
     <string name="project_line_diff_truncated">プレビューは変更200行またはUTF-16の16,000単位までです。正確な変更範囲は下に表示されます。</string>
+    <string name="artifact_save_code">コードを保存 (.txt)</string>
+    <string name="artifact_save_markdown">Markdownを保存</string>
+    <string name="artifact_save_csv">CSVを保存</string>
+    <string name="artifact_save_html">HTMLを保存</string>
+    <string name="artifact_file_export_title">成果物を保存</string>
+    <string name="artifact_file_export_notice">選択した成果物のみ保存：%1$s（%2$dバイト）。保存先を選択してください。保存サービスが同期する場合があります。CSVは数式風の文字列を保護した変換結果です。自動書式を確認してください。</string>
+    <string name="artifact_file_export_done">保存しました</string>
+    <string name="artifact_file_export_failed">保存できませんでした。不完全なファイルが残る場合があります。元の内容は変更されていません。</string>
+    <string name="artifact_file_export_expired">保存要求が期限切れか保存先が無効です。再選択してください。</string>
+    <string name="artifact_file_export_invalid">成果物が無効か、安全な保存上限を超えています。</string>
 </resources>

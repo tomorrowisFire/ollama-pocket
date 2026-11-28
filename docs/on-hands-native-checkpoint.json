@@ -1,6 +1,6 @@
 {
-  "stage": "F11-2CD-document-coding-batch",
-  "revision": "F11-2D",
-  "priorCandidate": "bc95e34feb8f952891d30c1851b9a8b1f0a6b27d",
-  "reason": "Batch isolated citation coverage and bounded project line diff. Require exact FAST and FULL; real device tests deferred."
+  "stage": "F11-2E-artifact-file-export",
+  "revision": "F11-2E",
+  "priorCandidate": "4f043662cf365447b761afa4fadf5e2d930edb00",
+  "reason": "Explicit user-approved native document picker for selected rich artifacts; exact FAST/FULL required."
 }

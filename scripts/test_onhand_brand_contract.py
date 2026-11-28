@@ -668,3 +668,23 @@ for required in ("ProjectVersionComparison.compare(old.text,current.text)", "Pro
 for forbidden in ("save(st", "editArtifact(", "restoreArtifact(", "setPrimaryClip(", "setOnClickListener("):
     assert forbidden not in comparison,forbidden
 print("PASS: F11-2D bounded read-only project diff preview")
+
+# F11-2E: explicit, bounded artifact file export; keep all existing clipboard actions.
+assert "private static final int EXPORT_ARTIFACT = 707;" in main
+assert "if(code==EXPORT_ARTIFACT){finishArtifactExport(result,data);return;}" in main
+artifact=main.split("private boolean canExportArtifact()",1)[1].split("@Override protected void onActivityResult(",1)[0]
+for required in ("artifactExportPending==null&&!artifactExportWriting&&exportScope.isEmpty()",
+    "Intent.ACTION_CREATE_DOCUMENT", "Intent.CATEGORY_OPENABLE", "picker.setType(payload.format.mime)",
+    "artifactExportPending=payload", "artifactExportPending=null", '"content".equals(data.getData().getScheme())',
+    'openOutputStream(destination,"wt")', "payload.writeTo(out)", "FLAG_SECURE", "artifactExportWriting=false"):
+    assert required in artifact,required
+for forbidden in ("takePersistableUriPermission(", "getPreferences(", "putString(", "ACTION_SEND", "Runtime.getRuntime("):
+    assert forbidden not in artifact,forbidden
+assert "ArtifactFileExport.prepare(format,content.get())" in rich
+assert "ArtifactFileExport.Format.CODE,()->b.body" in rich
+assert "ArtifactFileExport.Format.MARKDOWN,()->b.raw" in rich
+assert "ArtifactFileExport.csvFromSafeTsv(ChatBlocks.spreadsheetTsv(b))" in rich
+chart_view=(src/"ChartArtifactView.java").read_text()
+assert "ArtifactFileExport.Format.CHART_CSV,chart::csv" in chart_view
+assert "ArtifactFileExport.Format.CHART_HTML,chart::html" in chart_view
+print("PASS: F11-2E explicit artifact storage picker and immutable payload")

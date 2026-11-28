@@ -1406,4 +1406,14 @@
     <string name="project_line_diff_summary">刪除行：%1$d · 新增行：%2$d</string>
     <string name="project_line_diff_coarse">已達比較上限。中間變更範圍按整體取代顯示，並非最小逐行差異。</string>
     <string name="project_line_diff_truncated">預覽限於200個變更行或16,000個UTF-16單元。下方保留精確變更範圍。</string>
+    <string name="artifact_save_code">儲存程式碼 (.txt)</string>
+    <string name="artifact_save_markdown">儲存 Markdown</string>
+    <string name="artifact_save_csv">儲存 CSV</string>
+    <string name="artifact_save_html">儲存 HTML</string>
+    <string name="artifact_file_export_title">儲存成果檔案</string>
+    <string name="artifact_file_export_notice">僅儲存所選成果：%1$s（%2$d 位元組）。請選擇儲存位置，服務提供者可能同步檔案。CSV 為已保護類公式文字的轉換結果，請檢查自動格式。</string>
+    <string name="artifact_file_export_done">檔案已儲存</string>
+    <string name="artifact_file_export_failed">儲存失敗，可能留下不完整的檔案。原始內容未變更。</string>
+    <string name="artifact_file_export_expired">儲存要求已過期或目的地無效，請重新選擇。</string>
+    <string name="artifact_file_export_invalid">成果無效或超過安全匯出限制。</string>
 </resources>

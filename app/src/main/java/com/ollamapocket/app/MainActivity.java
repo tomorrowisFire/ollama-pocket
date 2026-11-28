@@ -77,6 +77,7 @@ public final class MainActivity extends Activity {
     private static final int PICK_ATTACHMENT = 704;
     private static final int PICK_DOCUMENT_BATCH = 705;
     private static final int PICK_VISION = 706;
+    private static final int EXPORT_ARTIFACT = 707;
     private boolean visionPickerPending;
     private Uri pendingVisionUri;
     private String batchScope="",batchModel="";
@@ -163,6 +164,9 @@ public final class MainActivity extends Activity {
     private long chatSearchSerial;
     private String exportScope="",exportDigest="",exportModel="";
     private boolean exportJson;
+    // Explicit snapshot, deliberately not persisted in Activity state or preferences.
+    private ArtifactFileExport artifactExportPending;
+    private boolean artifactExportWriting;
     private LinearLayout localChatContent;
     private CloudChatPanel cloudPanel;
     private boolean cloudMode;
@@ -559,6 +563,7 @@ public final class MainActivity extends Activity {
         super.onLowMemory();searchCache.clear();
     }
     @Override protected void onDestroy() {
+        artifactExportPending=null;
         visionPickerPending=false;pendingVisionUri=null;
         closeWorkbench();saveLocalDraft();
         VoiceModelsUi.cancel(this);
@@ -4767,6 +4772,7 @@ public final class MainActivity extends Activity {
         WorkbenchWindow.fitCompact(this,chooser);
     }
     private void beginChatExport(boolean json){
+        if(artifactExportPending!=null||artifactExportWriting){toast(getString(R.string.busy));return;}
         if(isUiBusy()||cloudMode||!ownsLoadedScope()||!historyReadable||history.length()==0)return;
         try{
             String raw=getPreferences(MODE_PRIVATE).getString(loadedHistoryScope,"");
@@ -4815,6 +4821,54 @@ public final class MainActivity extends Activity {
             ui.post(()->{if(!isFinishing()&&!isDestroyed())toast(getString(state));});
         });
     }
+    /** Export one explicitly chosen rendered artifact; never run its contents or request broad storage access. */
+    private boolean canExportArtifact(){
+        return foreground&&!guestOnly&&!isFinishing()&&!isDestroyed()&&activeTab==0&&!isUiBusy()&&
+            artifactExportPending==null&&!artifactExportWriting&&exportScope.isEmpty();
+    }
+    void requestArtifactExport(ArtifactFileExport payload){
+        if(payload==null||!canExportArtifact()){toast(getString(R.string.busy));return;}
+        final String filename=payload.filename(Math.max(0L,System.currentTimeMillis()));
+        AlertDialog review=new AlertDialog.Builder(this).setTitle(R.string.artifact_file_export_title)
+            .setMessage(getString(R.string.artifact_file_export_notice,filename,payload.size()))
+            .setNegativeButton(R.string.cancel,null)
+            .setPositiveButton(R.string.ok,(d,w)->{
+                if(!canExportArtifact()){toast(getString(R.string.busy));return;}
+                artifactExportPending=payload;
+                try{
+                    Intent picker=new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                    picker.addCategory(Intent.CATEGORY_OPENABLE);picker.setType(payload.format.mime);
+                    picker.putExtra(Intent.EXTRA_TITLE,filename);
+                    startActivityForResult(picker,EXPORT_ARTIFACT);
+                }catch(RuntimeException e){artifactExportPending=null;toast(getString(R.string.chat_export_unavailable));}
+            }).create();
+        if(review.getWindow()!=null)review.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        review.show();
+        if(review.getWindow()!=null)review.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        WorkbenchWindow.fitCompact(this,review);
+    }
+    private void finishArtifactExport(int result,Intent data){
+        final ArtifactFileExport payload=artifactExportPending;
+        artifactExportPending=null;
+        if(result!=RESULT_OK)return;
+        if(payload==null||guestOnly||isFinishing()||isDestroyed()||artifactExportWriting||
+            data==null||data.getData()==null||!"content".equals(data.getData().getScheme())){
+            toast(getString(R.string.artifact_file_export_expired));return;
+        }
+        final Uri destination=data.getData();artifactExportWriting=true;
+        try{
+            io.execute(()->{
+                int message=R.string.artifact_file_export_failed;
+                try(java.io.OutputStream out=getContentResolver().openOutputStream(destination,"wt")){
+                    payload.writeTo(out);
+                    // Report success only after the provider stream has closed successfully.
+                    message=R.string.artifact_file_export_done;
+                }catch(Exception e){message=R.string.artifact_file_export_failed;}
+                final int state=message;
+                ui.post(()->{artifactExportWriting=false;if(!isFinishing()&&!isDestroyed())toast(getString(state));});
+            });
+        }catch(RuntimeException e){artifactExportWriting=false;toast(getString(R.string.artifact_file_export_failed));}
+    }
     @Override protected void onActivityResult(int code, int result, Intent data) {
         super.onActivityResult(code, result, data);
         if(code==PICK_VISION){
@@ -4827,6 +4881,7 @@ public final class MainActivity extends Activity {
         if(code==PICK_ATTACHMENT){finishChatAttachment(result,data);return;}
         if(code==PICK_DOCUMENT_BATCH){finishDocumentBatch(result,data);return;}
         if(code==EXPORT_CHAT){finishChatExport(result,data);return;}
+        if(code==EXPORT_ARTIFACT){finishArtifactExport(result,data);return;}
         if (code != PICK_GGUF || result != RESULT_OK || data == null || data.getData() == null) return;
         if(!canStartModelImport()){toast(getString(R.string.busy));return;}
         Uri uri = data.getData();

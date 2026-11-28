@@ -38,6 +38,10 @@ final class ChartArtifactView {
         AdaptiveAnswerActions actions=new AdaptiveAnswerActions(c);
         addCopy(c,actions,R.string.integration_copy_csv,scale,chart::csv);
         addCopy(c,actions,R.string.integration_copy_html,scale,chart::html);
+        Button saveCsv=ChatRichView.exportButton(c,R.string.artifact_save_csv,scale,ArtifactFileExport.Format.CHART_CSV,chart::csv);
+        Button saveHtml=ChatRichView.exportButton(c,R.string.artifact_save_html,scale,ArtifactFileExport.Format.CHART_HTML,chart::html);
+        if(saveCsv!=null)actions.addView(saveCsv,new LinearLayout.LayoutParams(-2,-2));
+        if(saveHtml!=null)actions.addView(saveHtml,new LinearLayout.LayoutParams(-2,-2));
         panel.addView(actions,new LinearLayout.LayoutParams(-1,-2));
         return panel;
     }
