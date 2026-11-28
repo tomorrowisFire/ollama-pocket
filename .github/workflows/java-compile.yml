@@ -165,8 +165,10 @@ jobs:
       - name: Test model-family ownership, Unicode draft and exact layer progress
         run: |
           mkdir -p /tmp/focused-independent-tests
-          javac --release 17 -d /tmp/focused-independent-tests app/src/main/java/com/ollamapocket/app/ChatWorkspacePolicy.java app/src/main/java/com/ollamapocket/app/ModelListFilter.java app/src/main/java/com/ollamapocket/app/ModelDownloadBudget.java tests/FocusedIndependentRegressionTest.java
+          javac --release 17 -d /tmp/focused-independent-tests app/src/main/java/com/ollamapocket/app/LocalChatTurns.java app/src/main/java/com/ollamapocket/app/ChatWorkspacePolicy.java app/src/main/java/com/ollamapocket/app/ModelListFilter.java app/src/main/java/com/ollamapocket/app/ModelDownloadBudget.java tests/FocusedIndependentRegressionTest.java
           java -cp /tmp/focused-independent-tests com.ollamapocket.app.FocusedIndependentRegressionTest
+          javac --release 17 -cp /tmp/focused-independent-tests -d /tmp/focused-independent-tests tests/F10A97DraftAdmissionTest.java
+          java -cp /tmp/focused-independent-tests com.ollamapocket.app.F10A97DraftAdmissionTest
       - name: Test pinned fixture mirror and cache integrity without network
         run: python3 -m unittest discover -s tests -p test_pinned_test_jar.py
       - name: Test stage-scoped native build policy
@@ -215,7 +217,7 @@ jobs:
       - name: Test responsive workspace policy (pure Java)
         run: |
           mkdir -p /tmp/workspace-tests
-          javac -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/WorkspaceLayoutPolicy.java app/src/main/java/com/ollamapocket/app/ChatWorkspacePolicy.java tests/WorkspaceLayoutPolicyTest.java tests/ChatWorkspacePolicyTest.java tests/ModelFilterLayoutTest.java
+          javac -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/WorkspaceLayoutPolicy.java app/src/main/java/com/ollamapocket/app/LocalChatTurns.java app/src/main/java/com/ollamapocket/app/ChatWorkspacePolicy.java tests/WorkspaceLayoutPolicyTest.java tests/ChatWorkspacePolicyTest.java tests/ModelFilterLayoutTest.java
           java -cp /tmp/workspace-tests com.ollamapocket.app.WorkspaceLayoutPolicyTest
           java -cp /tmp/workspace-tests com.ollamapocket.app.ModelFilterLayoutTest
           javac -cp /tmp/workspace-tests -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/WorkbenchLayoutPolicy.java tests/WorkbenchLayoutPolicyTest.java

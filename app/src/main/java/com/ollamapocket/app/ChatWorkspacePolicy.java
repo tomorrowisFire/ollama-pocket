@@ -46,14 +46,15 @@ final class ChatWorkspacePolicy {
         return false;
     }
     static boolean canSend(String draft,int max){
-        return draft!=null&&max>0&&draft.length()<=max&&hasDraftText(draft);
+        return draft!=null&&max>0&&draft.length()<=max&&LocalChatTurns.validPrompt(draft);
     }
     /** Preserve the entire existing draft including its attachment suffix. */
     static String prependStarter(String draft,String starter,int max){
-        if(draft==null||!hasDraftText(starter)||max<1)throw new IllegalArgumentException("Invalid starter");
+        if(draft==null||!LocalChatTurns.validPrompt(starter)||!LocalChatTurns.validFragment(draft)||max<1)
+            throw new IllegalArgumentException("Invalid starter or draft");
         String prefix=starter.trim();
-        String next=prefix+(draft.isEmpty()?"":"\n\n"+draft);
-        if(next.length()>max)throw new IllegalArgumentException("Draft limit");
-        return next;
+        long length=(long)prefix.length()+(draft.isEmpty()?0:2L+draft.length());
+        if(length>max||length>LocalChatTurns.MAX_PROMPT)throw new IllegalArgumentException("Draft limit");
+        return prefix+(draft.isEmpty()?"":"\n\n"+draft);
     }
 }

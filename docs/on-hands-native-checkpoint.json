@@ -1,6 +1,6 @@
 {
-  "stage": "F10A96-search-contract-repair",
-  "revision": "F10A96",
-  "priorCandidate": "8e99f9502fffeca9c37fa28f9380d93b0938c47d",
-  "reason": "Scoped repair of failed F10A95 structural search assertion; stronger epoch/worker guard checks, unchanged application code. Exact FAST and FULL rerun required."
+  "stage": "F10A97-draft-admission",
+  "revision": "F10A97",
+  "priorCandidate": "e0e61cea45b1bed1dbbd6039a62bd05123c6a7e2",
+  "reason": "Use existing inference input admission in draft UX and dispatch; exact FAST and FULL integration required."
 }

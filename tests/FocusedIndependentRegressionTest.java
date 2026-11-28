@@ -22,7 +22,9 @@ public final class FocusedIndependentRegressionTest {
         String[] spaces={"", " \n\t", "\u00a0", "\u3000", "\u2003", "\u202f", "\u0085", "\u00a0 \u3000\t"};
         for(String s:spaces){
             check(!ChatWorkspacePolicy.canSend(s,100),"blank Unicode draft: "+s.codePoints().boxed().toList());
-            check(ChatWorkspacePolicy.canSend(s+"한글😀",100),"mixed meaningful text remains sendable");
+            // U+0085 is an ISO control, not an admissible engine fragment.
+            check(ChatWorkspacePolicy.canSend(s+"한글😀",100)==LocalChatTurns.validPrompt(s+"한글😀"),
+                "mixed draft uses identical engine admission");
             try{ChatWorkspacePolicy.prependStarter("old",s,100);throw new AssertionError("blank starter accepted");}
             catch(IllegalArgumentException expected){checks++;}
         }

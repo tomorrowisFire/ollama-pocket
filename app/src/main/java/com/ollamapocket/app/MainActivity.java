@@ -4210,9 +4210,10 @@ public final class MainActivity extends Activity {
     }
     private void sendChat(String approvedTransfer) {
         if(guestOnly||cloudMode)return;
-        String prompt=chatInput.getText().toString().trim();
-        if(!ChatWorkspacePolicy.hasDraftText(prompt))return;
-        if(!LocalChatTurns.validPrompt(prompt)){toast(getString(R.string.chat_prompt_limit));return;}
+        String rawPrompt=chatInput.getText().toString();
+        if(!ChatWorkspacePolicy.hasDraftText(rawPrompt))return;
+        if(!ChatWorkspacePolicy.canSend(rawPrompt,LocalChatTurns.MAX_PROMPT)){toast(getString(R.string.chat_prompt_limit));return;}
+        String prompt=rawPrompt.trim();
         if(!historyReadable||!ownsLoadedScope()){toast(getString(R.string.chat_history_invalid));return;}
         if(currentModel.isEmpty()||!knownModels.contains(currentModel)){toast(getString(R.string.need_model));showTab(1);return;}
         if(isUiBusy()){toast(getString(benchmarkBusy?R.string.benchmark_wait:R.string.busy));return;}
