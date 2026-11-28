@@ -83,15 +83,23 @@ public final class OfficeTextTest {
         ok(read("test.docm",zip("word/document.xml",doc(para("macro text")),"word/vbaProject.bin","NOT EXECUTED")).text.contains("macro text"),"Macro package text only");
         ok(read("test.xlsm",excel).text.equals(data),"XLSM stored values only");
         ok(AttachmentText.maxBytes("a.xlsx")==OfficeText.MAX_BYTES&&AttachmentText.maxBytes("a.txt")==AttachmentText.MAX_BYTES,"separate size limits");
-        ok(OfficeText.MAX_BYTES==32*1024*1024,"32 MiB compressed cap");
+        ok(OfficeText.MAX_BYTES==500*1024*1024&&OfficeText.MAX_EXPANDED==768*1024*1024,"500 MiB compressed cap and bounded expansion");
         byte[] heavy=zip("word/document.xml",doc(para("large package")),"word/media/large.bin","x".repeat(10*1024*1024));
         ok(read("big.docx",heavy).text.contains("large package"),"Stream unretained large media");
         // Actual compressed-byte cap includes bytes after the last local ZIP entry.
-        byte[] oversized=java.util.Arrays.copyOf(heavy,OfficeText.MAX_BYTES+1);
-        bad("big.docx",oversized,AttachmentText.Problem.TOO_LARGE);
+        InputStream oversized=new SequenceInputStream(new ByteArrayInputStream(heavy),new InputStream(){
+            long left=(long)OfficeText.MAX_BYTES-heavy.length+1;
+            @Override public int read(){if(left==0)return -1;left--;return 0;}
+            @Override public int read(byte[] b,int off,int len){
+                if(len==0)return 0;if(left==0)return -1;
+                int n=(int)Math.min(left,len);java.util.Arrays.fill(b,off,off+n,(byte)0);left-=n;return n;
+            }
+        });
+        try{AttachmentText.read("big.docx",oversized);throw new AssertionError("Oversized archive");}
+        catch(AttachmentText.Failure e){ok(e.problem==AttachmentText.Problem.TOO_LARGE,"Physical byte limit without large array");}
         try{AttachmentText.read("a.docx",new ByteArrayInputStream(heavy),DocumentWindow.MAX_OFFICE_SEGMENTS+1);throw new AssertionError("Office range");}
         catch(AttachmentText.Failure e){ok(e.problem==AttachmentText.Problem.RANGE,"Office range cap");}
-        bad("a.docx",new byte[OfficeText.MAX_BYTES+1],AttachmentText.Problem.TOO_LARGE);
+        ok(OfficeText.MAX_RETAINED==24*1024*1024&&OfficeText.MAX_PART==8*1024*1024,"Retained XML memory budgets unchanged");
         System.out.println("OfficeTextTest PASS: "+n+" assertions");
     }
 }

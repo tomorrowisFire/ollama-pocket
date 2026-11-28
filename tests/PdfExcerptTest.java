@@ -23,7 +23,7 @@ public final class PdfExcerptTest {
         try{empty.result("scan.pdf");throw new AssertionError("invented text");}
         catch(AttachmentText.Failure e){ok(e.problem==AttachmentText.Problem.PDF_NO_TEXT,"no text distinct from corruption");}
         ok(PdfExcerpt.supports("a.PDF")&&!PdfExcerpt.supports("a.png"),"extension");
-        ok(AttachmentText.maxBytes("a.pdf")==64*1024*1024&&PdfExcerpt.MAX_BYTES==64*1024*1024,"64 MiB PDF cap");
+        ok(AttachmentText.maxBytes("a.pdf")==500*1024*1024&&PdfExcerpt.MAX_BYTES==500*1024*1024,"500 MiB PDF cap");
         PdfExcerpt.Builder control=new PdfExcerpt.Builder(1);
         control.startPage(1);control.append("a\u0001b");control.endPage();
         ok(control.result("a.pdf").text.endsWith("a b"),"control sanitization");

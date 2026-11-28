@@ -10,6 +10,17 @@ public final class AttachmentTextTest {
         try{read(name,data);}catch(AttachmentText.Failure e){ok(e.problem==reason,"expected "+reason+" got "+e.problem);return;}
         throw new AssertionError("unexpected acceptance "+name);
     }
+    /** Generate hundreds of MiB without allocating a file-sized array. */
+    private static InputStream repeated(long count){
+        return new InputStream(){
+            long left=count;
+            @Override public int read(){if(left==0)return -1;left--;return 'a';}
+            @Override public int read(byte[] b,int off,int len){
+                if(len==0)return 0;if(left==0)return -1;
+                int n=(int)Math.min(left,len);java.util.Arrays.fill(b,off,off+n,(byte)'a');left-=n;return n;
+            }
+        };
+    }
     public static void main(String[] args)throws Exception{
         ok(read("a.TXT",bytes("한국어 中文 日本語")).text.equals("한국어 中文 日本語"),"Unicode");
         ok(read("a.csv",bytes("A,B\n1,2")).text.equals("A,B\n1,2"),"CSV source");
@@ -24,10 +35,12 @@ public final class AttachmentTextTest {
         ok(AttachmentText.readPrefix("big.log",new ByteArrayInputStream(large),AttachmentText.Encoding.UNICODE,50).partial,"Bounded batch prefix");
         byte[] lateBad=large.clone();lateBad[lateBad.length-1]=(byte)0xff;
         bad("bad.py",lateBad,AttachmentText.Problem.INVALID);
-        byte[] edge=bytes("a".repeat(AttachmentText.MAX_BYTES));
-        ok(read("large.txt",edge).partial,"Exact larger byte cap");
-        bad("large.txt",java.util.Arrays.copyOf(edge,edge.length+1),AttachmentText.Problem.TOO_LARGE);
-        ok(AttachmentText.MAX_BYTES==16*1024*1024,"16 MiB text limit");
+        int lastSegment=(AttachmentText.MAX_BYTES-1)/DocumentWindow.STRIDE+1;
+        var edge=AttachmentText.read("large.txt",repeated(AttachmentText.MAX_BYTES),lastSegment);
+        ok(edge.partial&&edge.rangeEnd==AttachmentText.MAX_BYTES&&edge.text.length()<=6000,"Exact 500 MiB cap and last window");
+        try{AttachmentText.read("large.txt",repeated((long)AttachmentText.MAX_BYTES+1));throw new AssertionError("Oversized stream");}
+        catch(AttachmentText.Failure e){ok(e.problem==AttachmentText.Problem.TOO_LARGE,"Actual 500 MiB limit");}
+        ok(AttachmentText.MAX_BYTES==500*1024*1024,"500 MiB text limit");
         String lateUnicode="a".repeat(5999*300-1)+"😀"+"last";
         byte[] unicodeBytes=bytes(lateUnicode);
         var left=AttachmentText.read("late.py",new ByteArrayInputStream(unicodeBytes),300);
@@ -50,7 +63,10 @@ public final class AttachmentTextTest {
         bad("a.pdf",bytes("text"),AttachmentText.Problem.UNSUPPORTED);
         bad("a.txt",new byte[]{0,1,2},AttachmentText.Problem.INVALID);
         bad("a.txt",new byte[]{(byte)0xff},AttachmentText.Problem.INVALID);
-        bad("a.txt",new byte[AttachmentText.MAX_BYTES+1],AttachmentText.Problem.TOO_LARGE);
+        try{
+            new AttachmentText.BoundedSource(repeated(9),8).drain();
+            throw new AssertionError("Bounded source overflow");
+        }catch(AttachmentText.Failure e){ok(e.problem==AttachmentText.Problem.TOO_LARGE,"Actual byte count");}
         bad("a.txt",bytes(" \n"),AttachmentText.Problem.EMPTY);
         for(String blank:new String[]{"\u00a0","\u3000","\u2003","\u202f","\u0085","\u00a0 \u3000\t"}){
             bad("a.txt",bytes(blank),AttachmentText.Problem.EMPTY);

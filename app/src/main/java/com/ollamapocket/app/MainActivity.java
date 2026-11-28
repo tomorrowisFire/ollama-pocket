@@ -4576,7 +4576,7 @@ public final class MainActivity extends Activity {
         margin(text(getString(R.string.attachment_formats),12,WHITE,false),panel,0,6);
         margin(text(getString(R.string.attachment_range_help),12,MUTED,false),panel,0,8);
         EditText segment=edit(getString(R.string.attachment_segment),"1",false);
-        segment.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);segment.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(4)});
+        segment.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);segment.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(5)});
         WorkbenchStyle.fieldLabel(this,panel,R.string.attachment_segment,segment);margin(segment,panel,0,6);
         EditText page=edit(getString(R.string.attachment_pdf_first),"1",false);
         page.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);page.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(5)});

@@ -6,7 +6,7 @@ import java.util.*;
 
 /** Bounded text excerpt extraction. No networking, persistence or execution. */
 final class AttachmentText {
-    static final int MAX_BYTES=16*1024*1024,MAX_EXCERPT=6000;
+    static final int MAX_BYTES=500*1024*1024,MAX_EXCERPT=6000;
     private static final Set<String> TEXT_EXTENSIONS=Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
         ("txt md markdown log csv tsv json jsonl ndjson xml yaml yml toml ini cfg conf config properties "+
          "sql html htm css scss sass less js mjs cjs jsx ts mts cts tsx vue svelte "+
@@ -128,10 +128,12 @@ final class AttachmentText {
     /** Enforce the actual byte limit even for providers with unknown or inaccurate sizes. */
     static final class BoundedSource extends FilterInputStream {
         private final int limit;
+        private final long started=System.nanoTime();
         private int count;
         BoundedSource(InputStream source,int limit){super(source);this.limit=limit;}
-        private void check()throws InterruptedIOException{
+        void check()throws InterruptedIOException{
             if(Thread.currentThread().isInterrupted())throw new InterruptedIOException("Attachment cancelled");
+            if(System.nanoTime()-started>=300_000_000_000L)throw new java.net.SocketTimeoutException("Attachment read deadline");
         }
         @Override public int read()throws IOException{
             check();if(count>limit)throw new Failure(Problem.TOO_LARGE);

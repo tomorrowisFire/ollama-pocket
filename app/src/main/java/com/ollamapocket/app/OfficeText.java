@@ -11,7 +11,7 @@ import org.xml.sax.helpers.DefaultHandler;
 
 /** Read-only packaged office text reader. No file extraction, external relationships or execution. */
 final class OfficeText {
-    static final int MAX_BYTES=32*1024*1024, MAX_EXPANDED=64*1024*1024,
+    static final int MAX_BYTES=500*1024*1024, MAX_EXPANDED=768*1024*1024,
         MAX_PART=8*1024*1024, MAX_RETAINED=24*1024*1024, MAX_ENTRIES=2048,
         MAX_SHEETS=32,MAX_SLIDES=256,MAX_SECTIONS=256;
     private static final String W="http://schemas.openxmlformats.org/wordprocessingml/2006/main",
@@ -135,7 +135,7 @@ final class OfficeText {
                 ByteArrayOutputStream part=keep?new ByteArrayOutputStream():null;
                 int count=0,n;
                 while((n=zip.read(buf))!=-1){
-                    if(Thread.currentThread().isInterrupted())throw new InterruptedIOException();
+                    raw.check();
                     if(n==0)throw invalid();
                     total+=n;count+=n;
                     if(total>MAX_EXPANDED||(keep&&(count>MAX_PART||retained+count>MAX_RETAINED)))throw large();

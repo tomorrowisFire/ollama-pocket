@@ -41,7 +41,10 @@ final class KnowledgeLibrary {
             }
             boolean valid;
             switch(kind){
-                case TEXT:case OFFICE:
+                case TEXT:
+                    // Existing integer fields preserve legacy byte layout; admit larger text offsets only.
+                    valid=segment>=1&&segment<=90000&&first>=1&&last>=first&&last<=500*1024*1024&&total==0&&readable==0&&(segment==1||partial);break;
+                case OFFICE:
                     valid=segment>=1&&segment<=256&&first>=1&&last>=first&&last<=1535745&&total==0&&readable==0&&(segment==1||partial);break;
                 case PDF_TEXT:
                     valid=segment==0&&first>=1&&first<=10000&&last>=first&&last<=total&&(long)last-first<12&&readable>=1&&readable<=(long)last-first+1&&(first==1&&last==total&&readable==total||partial);break;

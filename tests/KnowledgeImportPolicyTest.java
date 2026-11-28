@@ -29,6 +29,14 @@ public final class KnowledgeImportPolicyTest {
         ok(java.nio.ByteBuffer.wrap(KnowledgeLibrary.encode(KnowledgeLibrary.remove(saved,"file"))).getInt(4)==1);
         AttachmentText.Result office=AttachmentText.Result.window("a.xlsx",DocumentWindow.select("x".repeat(6000),1,false),true);
         ok(KnowledgeImportPolicy.review(saved,"office",office,office.text).origin.kind==KnowledgeLibrary.Kind.OFFICE);
+        int offset=499*1024*1024;
+        int lateSegment=offset/DocumentWindow.STRIDE+1;
+        AttachmentText.Result late=AttachmentText.Result.window("large.log",
+                new DocumentWindow.Slice("tail",lateSegment,offset,offset+4,true),false);
+        var lateReview=KnowledgeImportPolicy.review(saved,"late",late,late.text);
+        var lateSaved=KnowledgeLibrary.decode(KnowledgeLibrary.encode(lateReview.apply(saved))).source("late");
+        ok(lateSaved.origin.first==offset+1&&lateSaved.origin.last==offset+4&&lateSaved.text.equals("tail"));
+        reject(()->new KnowledgeLibrary.Origin(KnowledgeLibrary.Kind.OFFICE,"bad.xlsx",true,lateSegment,offset+1,offset+4,0,0));
         AttachmentText.Result pdf=new AttachmentText.Result("a.pdf","text",true,false,true,20,2,1,false,0,0,0,0,0,3);
         KnowledgeImportPolicy.Review pr=KnowledgeImportPolicy.review(saved,"pdf",pdf,pdf.text);
         ok(pr.origin.first==3&&pr.origin.last==4&&pr.origin.total==20&&pr.origin.readable==1);
