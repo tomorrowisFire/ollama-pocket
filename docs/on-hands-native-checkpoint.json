@@ -1,24 +1,24 @@
 {
-  "stage": "F11-3-through-6-r004-integration-candidate",
-  "revision": "F11-3-6-r004",
-  "priorCandidate": "63029e8c8cdf32ad81cfba6b868a126ad922e924",
+  "stage": "F11-3-through-6-r005-integration-candidate",
+  "revision": "F11-3-6-r005",
+  "priorCandidate": "3af80fc853edc5684fe06f862f15cb64b5f191a2",
   "isolated": [
     {
       "stage": "F11-3",
-      "sha": "18e790f7cc259b5179baa33001ebde151f785959"
+      "sha": "f098a597d58dd148690baea6c6c114a9f26c76c2"
     },
     {
       "stage": "F11-4",
-      "sha": "0bef50ada39aaeb49d2b84a3a21b57a98c60d179"
+      "sha": "219bfc6bf3ddb8af10ca2eb153df2c95047bd5ad"
     },
     {
       "stage": "F11-5",
-      "sha": "cdfd00743900bb63f4fada515f76b37177ca1005"
+      "sha": "8f77f718ec9b5443dc6ab0874383454c5e0c1f25"
     },
     {
       "stage": "F11-6",
-      "sha": "a939ca0207330714edaa060e018fd37c537d7da1"
+      "sha": "3b0c65f54d089faa6afcffd4eb44ec435a3230ac"
     }
   ],
-  "reason": "Combine disjoint voice, model search, workflow remaining-budget, and cloud event admission changes. Require exact corrected predecessor and combined FAST/FULL gates before official integration; actual device and external independent evaluation pending."
+  "reason": "Combine disjoint voice deadline ownership, bounded catalog aggregation, exact workflow output evidence, and cloud usage integrity changes. Require exact predecessor and combined FAST/FULL gates before official integration; actual device and external independent evaluation pending."
 }

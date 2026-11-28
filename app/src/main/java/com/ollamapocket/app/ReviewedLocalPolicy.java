@@ -101,6 +101,13 @@ final class ReviewedLocalPolicy {
         final String text;final boolean truncated;
         Result(String text,boolean truncated){
             if(text==null||text.length()>MAX_OUTPUT)throw new IllegalArgumentException("Local output limit");
+            // A result may be empty or incomplete, but its exact evidence must be encodable
+            // without replacement characters or hidden control data.
+            for(int i=0;i<text.length();){
+                int cp=text.codePointAt(i);i+=Character.charCount(cp);
+                if(cp>=0xd800&&cp<=0xdfff||Character.isISOControl(cp)&&cp!='\n'&&cp!='\r'&&cp!='\t')
+                    throw new IllegalArgumentException("Invalid local result text");
+            }
             this.text=text;this.truncated=truncated;
         }
         String evidence(){return sha((truncated?"length\n":"stop\n")+text);}

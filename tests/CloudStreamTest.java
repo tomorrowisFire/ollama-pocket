@@ -159,6 +159,17 @@ public final class CloudStreamTest {
         String done=event("{\"type\":\"message_stop\"}");
         CloudApi.Reply a=parse(CloudApi.Provider.CLAUDE,start+text+stop+done);
         check(a.text.equals("日本語")&&a.inputTokens==12&&a.outputTokens==4);
+        String firstUsage=event("{\"type\":\"message_start\",\"message\":{\"usage\":{\"input_tokens\":12,\"output_tokens\":1}}}");
+        CloudApi.Reply monotonic=parse(CloudApi.Provider.CLAUDE,firstUsage+text+stop+done);
+        check(monotonic.inputTokens==12&&monotonic.outputTokens==4);
+        String malformedUsage=event("{\"type\":\"ping\",\"usage\":{\"output_tokens\":\"4\"}}");
+        CloudApi.Reply unknown=parse(CloudApi.Provider.CLAUDE,firstUsage+text+malformedUsage+stop+done);
+        check(unknown.text.equals("日本語")&&unknown.inputTokens==12&&unknown.outputTokens==-1);
+        String contradictory=event("{\"type\":\"ping\",\"usage\":{\"input_tokens\":11}}");
+        CloudApi.Reply regression=parse(CloudApi.Provider.CLAUDE,firstUsage+text+contradictory+stop+done);
+        check(regression.inputTokens==-1&&regression.outputTokens==4);
+        CloudApi.Reply badShape=parse(CloudApi.Provider.CLAUDE,firstUsage+text+event("{\"type\":\"ping\",\"usage\":[]}")+stop+done);
+        check(badShape.inputTokens==-1&&badShape.outputTokens==-1);
         rejects(CloudApi.Provider.CLAUDE,start+text+stop);
         rejects(CloudApi.Provider.CLAUDE,start+text+event("{\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"max_tokens\"}}")+done);
         String chunk=event("{\"choices\":[{\"delta\":{\"content\":\"中文\"},\"finish_reason\":null}]}");
@@ -167,6 +178,11 @@ public final class CloudStreamTest {
         for(CloudApi.Provider p:new CloudApi.Provider[]{CloudApi.Provider.GEMINI,CloudApi.Provider.DEEPSEEK,CloudApi.Provider.OPENROUTER,CloudApi.Provider.PC_OLLAMA,CloudApi.Provider.PC_LM_STUDIO}){
             CloudApi.Reply r=parse(p,chunk+finish+usage+event("[DONE]"));
             check(r.text.equals("中文")&&r.inputTokens==9&&r.outputTokens==3);
+            String lower=event("{\"choices\":[],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":3}}");
+            CloudApi.Reply uncertainUsage=parse(p,chunk+finish+usage+lower+event("[DONE]"));
+            check(uncertainUsage.text.equals("中文")&&uncertainUsage.inputTokens==-1&&uncertainUsage.outputTokens==3);
+            CloudApi.Reply invalidUsage=parse(p,chunk+finish+event("{\"choices\":[],\"usage\":{\"prompt_tokens\":-1}}")+usage+event("[DONE]"));
+            check(invalidUsage.inputTokens==-1&&invalidUsage.outputTokens==3);
             rejects(p,chunk+event("[DONE]"));
             rejects(p,chunk+finish);
             rejects(p,chunk+event("{\"choices\":[{\"finish_reason\":\"length\"}]}")+event("[DONE]"));
