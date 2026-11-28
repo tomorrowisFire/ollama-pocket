@@ -1,6 +1,6 @@
 {
-  "stage": "F10A95-search-memory-integration",
-  "revision": "F10A95",
-  "priorCandidate": "b00016dc0a5b646164d551d8fa284e0a5363638f",
-  "reason": "Batch F10A94 text admission with bounded search workers, cancellation and memory-cache epoch. Exact FAST/FULL required. Device and release deferred."
+  "stage": "F10A96-search-contract-repair",
+  "revision": "F10A96",
+  "priorCandidate": "8e99f9502fffeca9c37fa28f9380d93b0938c47d",
+  "reason": "Scoped repair of failed F10A95 structural search assertion; stronger epoch/worker guard checks, unchanged application code. Exact FAST and FULL rerun required."
 }

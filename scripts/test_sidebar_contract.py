@@ -77,7 +77,25 @@ assert 'bestQuantizations(' in src
 assert 'allSearchTiles(filter)' in src
 assert 'onlineSearchSerial' in src
 assert 'if(!batch.complete())error=' in src
-assert 'searchCache.put(ModelSearchCache.key(provider,query),result' in src
+# Search-cache writes must retain query ownership and the memory-clear epoch.
+search_change=src.split("private void onModelSearchChanged(String nextValue,boolean forceRefresh){",1)[1].split("private void fetchSearchSource(",1)[0]
+search_worker=src.split("private void fetchSearchSource(",1)[1].split("private void rebuildSearchParts()",1)[0]
+assert "onlineSearchWorkers.cancel();" in search_change
+assert search_change.index("Object cacheEpoch=searchCache.writeEpoch();")<search_change.index("onlineSearchWorkers.replace(")
+assert 'fetchSearchSource(sequence,query,"Ollama",cacheEpoch)' in search_change
+assert 'fetchSearchSource(sequence,query,"Hugging Face",cacheEpoch)' in search_change
+assert "long sequence,String query,String provider,Object cacheEpoch" in search_worker
+assert search_worker.index("sequence!=onlineSearchSerial")<search_worker.index("if(failure.isEmpty())")
+assert search_worker.index("if(failure.isEmpty())")<search_worker.index("if(foreground)searchCache.putIfCurrent(cacheEpoch,ModelSearchCache.key(provider,query),result")
+assert "searchCache.put(" not in src, "Direct cache writes bypass the memory-clear epoch"
+assert "onlineSearchWorkers.close();searchCache.clear();" in src
+cache_src=Path("app/src/main/java/com/ollamapocket/app/ModelSearchCache.java").read_text()
+assert "if(expected==writeEpoch)put(key,values,now);" in cache_src
+assert "entries.clear();variants=0;textChars=0;writeEpoch=new Object();" in cache_src
+workers_src=Path("app/src/main/java/com/ollamapocket/app/ModelSearchWorkers.java").read_text()
+assert "new ThreadPoolExecutor(2,2," in workers_src
+assert "new ArrayBlockingQueue<>(2)" in workers_src
+assert "pool.purge();" in workers_src and "pool.shutdownNow();" in workers_src
 assert 'onModelSearchChanged(s.toString())' in src
 assert 'downloadingCardId' in src
 assert '이 기기에 추천하는 모델' not in src
