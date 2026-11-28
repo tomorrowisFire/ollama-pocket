@@ -303,6 +303,7 @@ final class BranchWorkflowRun {
             WorkflowAttemptStore.Attempt attempt=current.value.last();
             Task task=definition.tasks.get(attempt.node);
             ReviewedLocalPolicy.Result result=null;
+            final String previousAnswer=last;
             WorkflowAttemptStore.Outcome outcome;String evidence=null;
             try{
                 if(observer!=null)observer.accept(new Progress(current,last));
@@ -310,6 +311,8 @@ final class BranchWorkflowRun {
                     throw new InterruptedIOException("Branch cancelled");
                 Task dispatch=task.withPrevious(current.value.previousOutput());
                 dispatch.request(); // fail closed if reviewed input cannot fit; never silently truncate.
+                if(stop.getAsBoolean()||Thread.currentThread().isInterrupted()||!withinWindow(clock.getAsLong(),attempt.reserved))
+                    throw new InterruptedIOException("Branch cancelled");
                 result=Objects.requireNonNull(generate.run(dispatch));
                 final long received=clock.getAsLong();
                 if(stop.getAsBoolean()||Thread.currentThread().isInterrupted()||!withinWindow(received,attempt.reserved))
@@ -329,10 +332,18 @@ final class BranchWorkflowRun {
                 outcome=stop.getAsBoolean()||Thread.currentThread().isInterrupted()||failure instanceof InterruptedException||
                         failure instanceof InterruptedIOException?WorkflowAttemptStore.Outcome.CANCELLED:WorkflowAttemptStore.Outcome.UNCERTAIN;
             }
+            // Recheck the deadline immediately before settlement, not just when generation returns.
+            final long settledAt=clock.getAsLong();
+            if(evidence!=null&&(stop.getAsBoolean()||Thread.currentThread().isInterrupted()||!withinWindow(settledAt,attempt.reserved))){
+                outcome=WorkflowAttemptStore.Outcome.CANCELLED;evidence=null;last=previousAnswer;
+            }else if(outcome==WorkflowAttemptStore.Outcome.RETRY_SAFE&&
+                    settledAt-started>=WorkflowAttemptStore.WINDOW_MS-(current.value.currentAttempts==1?2000L:4000L)){
+                outcome=WorkflowAttemptStore.Outcome.BLOCKED;
+            }
             // Persist the actual terminal/uncertain outcome. If this fails, the durable pending reservation prevents replay.
             boolean interrupted=Thread.interrupted();
             String retained=definition.retainOutputs&&WorkflowAttemptStore.accepted(outcome)?result.text:null;
-            try{current=ledger.finish(current,attempt.key,outcome,evidence,retained,Math.max(attempt.reserved,clock.getAsLong()));}
+            try{current=ledger.finish(current,attempt.key,outcome,evidence,retained,Math.max(attempt.reserved,settledAt));}
             finally{if(interrupted)Thread.currentThread().interrupt();}
             if(observer!=null)observer.accept(new Progress(current,last));
         }

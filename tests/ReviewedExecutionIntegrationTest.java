@@ -135,6 +135,16 @@ public final class ReviewedExecutionIntegrationTest {
         },()->false,null,now::get,ms->now.addAndGet(ms));
         ok(afterDeadline.snapshot.value.last().outcome==WorkflowAttemptStore.Outcome.CANCELLED);
         ok(afterDeadline.lastAnswer.isEmpty()&&afterDeadline.snapshot.value.last().evidence==null);
+        BranchWorkflowRun lateSettlement=BranchWorkflowRun.create(root.toFile(),plan,now.get());
+        AtomicBoolean returned=new AtomicBoolean();AtomicInteger afterReturn=new AtomicInteger();
+        var settlement=lateSettlement.execute(lateSettlement.ledger.read(),task->{
+            returned.set(true);return new ReviewedLocalPolicy.Result("true",false);
+        },()->false,null,()->{
+            if(returned.get()&&afterReturn.incrementAndGet()>1)now.set(lateSettlement.started+WorkflowAttemptStore.WINDOW_MS);
+            return now.get();
+        },ms->now.addAndGet(ms));
+        ok(settlement.snapshot.value.last().outcome==WorkflowAttemptStore.Outcome.CANCELLED);
+        ok(settlement.snapshot.value.attempts.size()==1&&settlement.snapshot.value.last().evidence==null&&settlement.lastAnswer.isEmpty());
         BranchWorkflowRun beforeDispatch=BranchWorkflowRun.create(root.toFile(),plan,now.get());
         var beforeDeadline=beforeDispatch.execute(beforeDispatch.ledger.read(),task->{throw new AssertionError("Expired dispatch");},
                 ()->false,event->{if(event.snapshot.value.pending())now.set(beforeDispatch.started+WorkflowAttemptStore.WINDOW_MS);},
