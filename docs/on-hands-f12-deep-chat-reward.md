@@ -1,0 +1,3 @@
+# F12 rewarded access SDK
+
+Explicit opt-in only; Google's dedicated Android test rewarded unit, existing UMP consent and debug/disabled-ad lock. Single load/show ticket with a 30-second load timeout and exact SDK reward callback admission; no grant for dismissal or failure. Keep app-open ads from overlapping or immediately following the rewarded ad. Grant survives Activity recreation within the same process. Verified test purchase bypass uses existing billing callback. No production ad-unit identifier or live billing entitlement configured; real SDK/device verification remains pending. Production reward deployment needs publisher ID, consent and callback-order/verification review.

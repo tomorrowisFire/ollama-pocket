@@ -124,6 +124,20 @@ assert attachment.count("getString(R.string.integration_vision)")==2
 assert "else if(w==3){if(scope.equals(loadedHistoryScope)&&ownsLoadedScope())pickVisionForAutomation();}" in attachment
 assert "else if(w==4)removeLastAttachment();" in attachment
 assert "guestOnly||cloudMode||isUiBusy()||!historyReadable||!ownsLoadedScope()" in attachment
+# F12: every expanded batch starts from a mode-bound, explicitly rewarded workspace.
+assert "createChatModes();" in chat
+assert "localChatContent.setVisibility(visible&&!deepMode?View.VISIBLE:View.GONE)" in main
+assert "deepChatContent.setVisibility(visible&&deepMode?View.VISIBLE:View.GONE)" in main
+assert "ads.requestDeepReward(this::rewardScopeEligible" in main
+assert "if(!deepAuthorized()){refreshDeepMode();return;}" in main
+assert "if(!deepMode||!deepAuthorized()||guestOnly||cloudMode||isUiBusy()" in main
+assert "InputStream in=new AttachmentText.BoundedSource(raw,cap)" in main
+assert "DeepChatPolicy.normalLimit(pdf||image||office)" in main
+assert "if(deepMode||normalAttachmentPresent())" in main
+deep_batch=(src/"DocumentBatchUi.java").read_text()
+assert deep_batch.count("if(!startAuthorized.getAsBoolean()){toast(R.string.deep_locked);return;}")==3
+assert "active.run(plan,done->" in deep_batch
+assert "new AttachmentText.BoundedSource(input,DeepChatPolicy.NORMAL_STRUCTURED_BYTES)" in (src/"AutomationUi.java").read_text()
 vision=main.split("void pickVisionForAutomation()",1)[1].split("private void openPickedVision()",1)[0]
 assert "guestOnly||cloudMode||isUiBusy()||activeTab!=0" in vision and "visionPickerPending" in vision
 assert "Intent.ACTION_OPEN_DOCUMENT" in vision and "PICK_VISION" in vision

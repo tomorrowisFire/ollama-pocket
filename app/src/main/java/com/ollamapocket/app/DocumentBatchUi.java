@@ -29,7 +29,7 @@ final class DocumentBatchUi {
     private final WorkspaceReadAloud reading;
     private final WorkspaceTextViewer viewer;
     private final String model;
-    private final BooleanSupplier eligible;
+    private final BooleanSupplier eligible,startAuthorized;
     private final AttachmentText.Encoding encoding;
     private final AtomicReference<Thread> worker=new AtomicReference<>();
     private volatile InputStream activeInput;
@@ -49,8 +49,8 @@ final class DocumentBatchUi {
     private Button preset,preview,copy,inspect,copyJson,saveProject,dictateGoal,readReport,viewReport,saveJsonFile,saveTextFile;
     private ProjectWorkspaceUi reportWorkspace;
     static boolean busy(){return BUSY.busy();}
-    DocumentBatchUi(Activity owner,String model,AttachmentText.Encoding encoding,BooleanSupplier eligible){
-        this.owner=owner;this.model=model;this.encoding=encoding;this.eligible=eligible;this.dictation=new WorkspaceDictation(owner);this.reading=new WorkspaceReadAloud(owner);this.viewer=new WorkspaceTextViewer(owner);
+    DocumentBatchUi(Activity owner,String model,AttachmentText.Encoding encoding,BooleanSupplier eligible,BooleanSupplier startAuthorized){
+        this.owner=owner;this.model=model;this.encoding=encoding;this.eligible=eligible;this.startAuthorized=startAuthorized;this.dictation=new WorkspaceDictation(owner);this.reading=new WorkspaceReadAloud(owner);this.viewer=new WorkspaceTextViewer(owner);
     }
     private String s(int resource){return owner.getString(resource);}
     private int dp(int value){return Math.round(value*owner.getResources().getDisplayMetrics().density);}
@@ -153,6 +153,7 @@ final class DocumentBatchUi {
     }
     void show(List<Uri> selected){
         if(closed||dialog!=null||busy()||!eligible.getAsBoolean()){toast(R.string.busy);return;}
+        if(!startAuthorized.getAsBoolean()){toast(R.string.deep_locked);return;}
         LinearLayout panel=column();
         label(panel,s(R.string.batch_notice),false);
         label(panel,s(R.string.model_label)+": "+model,false);
@@ -429,12 +430,14 @@ final class DocumentBatchUi {
     }
     private void start(){
         if(!visible()||busy()||sources==null||!eligible.getAsBoolean())return;
+        if(!startAuthorized.getAsBoolean()){toast(R.string.deep_locked);return;}
         final DocumentBatchPolicy.Plan plan;
         try{plan=new DocumentBatchPolicy.Plan(goal.getText().toString(),sources);}catch(IllegalArgumentException e){toast(R.string.batch_goal);return;}
         final String reviewed=goal.getText().toString();
         confirm(R.string.batch_start,owner.getString(R.string.batch_run_notice,plan.units.size(),plan.maxTotal(),
                 DocumentBatchPolicy.runtimeLimit(plan.sources.size())/60000L)+"\n\n"+coverage(sources)+"\n\n"+plannedCoverage(plan)+"\n\n"+s(R.string.batch_goal)+": "+reviewed,()->{
             if(busy()||!eligible.getAsBoolean()||!reviewed.equals(goal.getText().toString()))return;
+            if(!startAuthorized.getAsBoolean()){toast(R.string.deep_locked);return;}
             if(!OllamaForegroundService.isRunning()){toast(R.string.test_need_server);return;}
             if(!"off".equals(CoopSession.get(owner).role())){toast(R.string.guest_stop_first);return;}
             result=null;analyzed=null;reportRequests=0;reportElapsedMillis=0;reportStopReason=null;reportStatus=R.string.thinking;output.setText(coverage(sources)+"\n\n"+plannedCoverage(plan));status.setText(R.string.thinking);progress.setMax(plan.maxTotal());progress.setProgress(0);

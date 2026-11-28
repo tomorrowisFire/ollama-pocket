@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 /** Immutable, bounded UTF-8 artifact prepared for a user-selected document destination. */
 final class ArtifactFileExport {
     static final int MAX_CHARS=320000, MAX_BYTES=640000;
+    static final int MAX_REPORT_BYTES=1024*1024;
     enum Format {
         CODE("code","txt","text/plain"), MARKDOWN("table","md","text/markdown"),
         TABLE_CSV("table","csv","text/csv"), CHART_CSV("chart","csv","text/csv"),
@@ -19,6 +20,7 @@ final class ArtifactFileExport {
         PROJECT_TEXT("project-version","txt","text/plain");
         final String stem,extension,mime;
         Format(String stem,String extension,String mime){this.stem=stem;this.extension=extension;this.mime=mime;}
+        int byteLimit(){return this==REPORT_JSON||this==REPORT_TEXT?MAX_REPORT_BYTES:MAX_BYTES;}
     }
     final Format format;
     private final byte[] bytes;
@@ -29,7 +31,7 @@ final class ArtifactFileExport {
         try{
             ByteBuffer encoded=StandardCharsets.UTF_8.newEncoder().onMalformedInput(CodingErrorAction.REPORT)
                 .onUnmappableCharacter(CodingErrorAction.REPORT).encode(CharBuffer.wrap(text));
-            if(encoded.remaining()>MAX_BYTES)throw new IllegalArgumentException("Artifact byte limit");
+            if(encoded.remaining()>format.byteLimit())throw new IllegalArgumentException("Artifact byte limit");
             byte[] bytes=new byte[encoded.remaining()];encoded.get(bytes);
             return new ArtifactFileExport(format,bytes);
         }catch(CharacterCodingException e){throw new IllegalArgumentException("Invalid artifact Unicode",e);}

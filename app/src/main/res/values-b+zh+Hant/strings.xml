@@ -721,7 +721,7 @@
     <string name="attachment_ocr_bad_page">請輸入文件範圍內 1 至 10,000 的有效 PDF 頁碼。</string>
     <string name="attachment_ocr_image_pick">選擇 PNG、JPEG、WEBP 或 PDF 頁面</string>
     <string name="attachment_select_range">文字／Office／PDF 文字</string>
-    <string name="attachment_segment">文字分段（1–90000）／Office（1–256）</string>
+    <string name="attachment_segment">文字／Office分段（1–256）</string>
     <string name="attachment_pdf_first">PDF 起始頁（1–10,000）</string>
     <string name="attachment_range_help">選擇約 6,000 個 UTF-16 字元的文字、程式碼或 Office 分段，或 PDF 起始頁。僅套用對應格式設定。Office 參照可能跨段。較大的檔案上限不增加模型上下文，請分別分析摘錄。 大檔案：文字、原始碼、Office 或 PDF 單檔最多 500 MiB，影像仍為 16 MiB。解壓量、XML 記憶體、儲存空間、時間及模型上下文另有限制；允許匯入不代表全文分析。</string>
     <string name="attachment_range_invalid">所選範圍超出可擷取內容或支援上限。</string>
@@ -1427,4 +1427,22 @@
     <string name="batch_input_progress">正在讀取檔案：%1$d / %2$d · %3$d 位元組</string>
     <string name="batch_total_limit">輸入檔案總量超過 2 GiB。請選擇較少或較小的檔案。</string>
     <string name="batch_input_deadline">已達到檔案讀取時間限制。請選擇較少或較小的檔案。</string>
+    <string name="chat_mode_normal">一般聊天</string>
+    <string name="chat_mode_deep">深度聊天</string>
+    <string name="deep_chat_intro">選擇最多20個檔案（每個500 MiB，合計2 GiB）。在獨立本機工作區分析已審閱的擷取內容，不加入一般聊天紀錄。每次取得廣告獎勵可使用30分鐘；到期後不啟動新分析，已開始的前景分析仍受原有安全與時間限制。</string>
+    <string name="deep_reward_watch">觀看廣告 · 解鎖30分鐘</string>
+    <string name="deep_reward_renew">觀看廣告 · 更新30分鐘</string>
+    <string name="deep_chat_open">開始深度分析</string>
+    <string name="deep_locked">深度權限未解鎖</string>
+    <string name="deep_remaining">剩餘時間：%1$d:%2$02d</string>
+    <string name="deep_unlimited">不限時（已驗證的測試購買）</string>
+    <string name="deep_reward_notice">觀看一次獎勵廣告並取得獎勵後，可使用30分鐘深度分析。續期重設為30分鐘，不累計。可取消並繼續一般聊天。本版本僅使用測試廣告。</string>
+    <string name="deep_reward_earned">已取得30分鐘深度權限。</string>
+    <string name="deep_reward_closed">廣告已關閉，未取得獎勵。</string>
+    <string name="deep_reward_unavailable">獎勵廣告無法使用。仍可使用一般聊天。</string>
+    <string name="normal_attachment_formats">一般聊天支援一個不超過1 MiB的文字或程式碼檔案，或一個不超過8 MiB的Office、PDF或影像檔案。大型、多個檔案及原始碼ZIP請使用深度聊天。PDF需要Android 15或以上。</string>
+    <string name="normal_range_help">選擇文字／Office分段1–256或PDF起始頁。僅插入已審閱的擷取內容。</string>
+    <string name="normal_segment">文字／Office分段（1–256）</string>
+    <string name="normal_one_attachment">每份草稿僅允許一個附件。請移除附件、清空草稿或先傳送。</string>
+    <string name="deep_zip_notice">深度分析支援唯讀原始碼ZIP。僅讀取支援文字及程式碼的有限擷取內容，略過二進位、巢狀壓縮檔及常見敏感路徑。</string>
 </resources>

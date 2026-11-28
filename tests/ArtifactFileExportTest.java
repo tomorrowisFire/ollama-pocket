@@ -30,6 +30,15 @@ public final class ArtifactFileExportTest {
         exact(ArtifactFileExport.Format.REPORT_JSON,"{\"status\":\"STOPPED\",\"synthesis\":null}");
         exact(ArtifactFileExport.Format.PROJECT_TEXT,"historical version\n  한글 😀\n");
         exact(ArtifactFileExport.Format.REPORT_JSON,"한".repeat(120000));
+        // A multilingual wide-batch report may exceed the old UTF-8 byte cap while
+        // remaining within the same reviewed character limit.
+        String wide="한".repeat(280000);
+        exact(ArtifactFileExport.Format.REPORT_JSON,wide);
+        exact(ArtifactFileExport.Format.REPORT_TEXT,wide);
+        exact(ArtifactFileExport.Format.REPORT_TEXT,"한".repeat(320000));
+        rejects(()->ArtifactFileExport.prepare(ArtifactFileExport.Format.PROJECT_TEXT,wide));
+        rejects(()->ArtifactFileExport.prepare(ArtifactFileExport.Format.REPORT_JSON,"x".repeat(320001)));
+        ok(ArtifactFileExport.Format.REPORT_JSON.byteLimit()==1024*1024&&ArtifactFileExport.Format.CODE.byteLimit()==640000);
         String safe="Name\tValue\tEmpty\n'=SUM(A1:A9)\t\"a,b\"\t\n한글😀\t-12.5\t001";
         ok(ArtifactFileExport.csvFromSafeTsv(safe).equals("\"Name\",\"Value\",\"Empty\"\r\n\"'=SUM(A1:A9)\",\"\"\"a,b\"\"\",\"\"\r\n\"한글😀\",\"-12.5\",\"001\"\r\n"));
         rejects(()->ArtifactFileExport.csvFromSafeTsv("a\tb\nc"));

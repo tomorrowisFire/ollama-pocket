@@ -13,6 +13,13 @@ import android.widget.TextView;
 import com.google.android.gms.ads.AdError;
 import com.google.android.gms.ads.FullScreenContentCallback;
 import com.google.android.gms.ads.appopen.AppOpenAd;
+import com.google.android.gms.ads.rewarded.RewardedAd;
+import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.SystemClock;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import com.google.android.gms.ads.AdListener;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdSize;
@@ -33,6 +40,15 @@ public final class AdSupport {
     private static final String DEMO_BANNER = "ca-app-pub-3940256099942544/6300978111";
     private static final String DEMO_ADAPTIVE_BANNER = "ca-app-pub-3940256099942544/9214589741";
     private static final String DEMO_APP_OPEN = "ca-app-pub-3940256099942544/9257395921";
+    private static final String DEMO_REWARDED = "ca-app-pub-3940256099942544/5224354917";
+    private static final DeepChatPolicy.Access DEEP_ACCESS=new DeepChatPolicy.Access();
+    enum RewardOutcome { EARNED, CLOSED, UNAVAILABLE, BUSY }
+    private final Handler rewardMain=new Handler(Looper.getMainLooper());
+    private DeepChatPolicy.Access.Ticket rewardTicket;
+    private Consumer<RewardOutcome> rewardCompletion;
+    private Runnable rewardTimeout;
+    private boolean rewardShowing,rewardEarned;
+    private long lastRewardEnded=-1;
     // Publisher-supplied AdMob ad-unit IDs; active only in configured release builds.
     private static final String LIVE_APP_OPEN = "ca-app-pub-4763897710237099/8245753612";
     private static final String LIVE_DOWNLOAD_BANNER = "ca-app-pub-4763897710237099/7124243639";
@@ -73,6 +89,66 @@ public final class AdSupport {
     public boolean isEnabled() {
         if(testAdFree)return false;
         return BuildConfig.DEBUG && prefs.getBoolean("enabled", true);
+    }
+    long deepRemaining(){return DEEP_ACCESS.remaining(SystemClock.elapsedRealtime(),testAdFree);}
+    boolean deepAuthorized(){return deepRemaining()>0;}
+    boolean rewardBusy(){return rewardTicket!=null;}
+    /** Called only after a separate, explicit user opt-in that discloses the 30-minute reward. */
+    void requestDeepReward(BooleanSupplier eligible,Consumer<RewardOutcome> finished){
+        if(disposed||!foreground||activity.isFinishing()||activity.isDestroyed()||!isEnabled()){
+            finished.accept(RewardOutcome.UNAVAILABLE);return;
+        }
+        if(rewardBusy()||DEEP_ACCESS.busy()||appOpenShowing||consentFlowActive||privacyShowing){
+            finished.accept(RewardOutcome.BUSY);return;
+        }
+        if(!adsInitialized||!consent.canRequestAds()){
+            prepareConsent();finished.accept(RewardOutcome.UNAVAILABLE);return;
+        }
+        final DeepChatPolicy.Access.Ticket ticket=DEEP_ACCESS.begin(SystemClock.elapsedRealtime());
+        if(ticket==null){finished.accept(RewardOutcome.BUSY);return;}
+        rewardTicket=ticket;rewardCompletion=finished;rewardEarned=false;
+        rewardTimeout=()->{
+            if(rewardTicket==ticket&&!rewardShowing)finishReward(ticket,RewardOutcome.UNAVAILABLE);
+        };
+        rewardMain.postDelayed(rewardTimeout,30_000L);
+        try{
+            // No publisher rewarded unit is configured; production remains locked by isEnabled().
+            RewardedAd.load(activity,DEMO_REWARDED,new AdRequest.Builder().build(),new RewardedAdLoadCallback(){
+                @Override public void onAdLoaded(RewardedAd ad){
+                    if(rewardTicket!=ticket)return;
+                    if(disposed||!foreground||activity.isFinishing()||activity.isDestroyed()||
+                            !isEnabled()||!consent.canRequestAds()||privacyShowing||consentFlowActive||
+                            appOpenShowing||!eligible.getAsBoolean()||!DEEP_ACCESS.show(ticket,SystemClock.elapsedRealtime())){
+                        finishReward(ticket,RewardOutcome.UNAVAILABLE);return;
+                    }
+                    rewardMain.removeCallbacks(rewardTimeout);rewardTimeout=null;rewardShowing=true;
+                    ad.setFullScreenContentCallback(new FullScreenContentCallback(){
+                        @Override public void onAdDismissedFullScreenContent(){
+                            finishReward(ticket,rewardEarned?RewardOutcome.EARNED:RewardOutcome.CLOSED);
+                        }
+                        @Override public void onAdFailedToShowFullScreenContent(AdError error){
+                            finishReward(ticket,rewardEarned?RewardOutcome.EARNED:RewardOutcome.UNAVAILABLE);
+                        }
+                    });
+                    try{
+                        ad.show(activity,item->{
+                            if(rewardTicket==ticket&&rewardShowing&&!disposed&&item!=null&&item.getAmount()>0&&
+                                    DEEP_ACCESS.earned(ticket,SystemClock.elapsedRealtime()))rewardEarned=true;
+                        });
+                    }catch(RuntimeException failure){finishReward(ticket,RewardOutcome.UNAVAILABLE);}
+                }
+                @Override public void onAdFailedToLoad(LoadAdError error){finishReward(ticket,RewardOutcome.UNAVAILABLE);}
+            });
+        }catch(RuntimeException failure){finishReward(ticket,RewardOutcome.UNAVAILABLE);}
+    }
+    private void finishReward(DeepChatPolicy.Access.Ticket ticket,RewardOutcome outcome){
+        if(rewardTicket!=ticket||!DEEP_ACCESS.finish(ticket))return;
+        if(rewardTimeout!=null)rewardMain.removeCallbacks(rewardTimeout);
+        rewardTimeout=null;rewardTicket=null;
+        if(rewardShowing)lastRewardEnded=SystemClock.elapsedRealtime();
+        rewardShowing=false;rewardEarned=false;
+        Consumer<RewardOutcome> done=rewardCompletion;rewardCompletion=null;
+        if(!disposed&&done!=null)done.accept(outcome);
     }
     /** Only the configured test billing controller can suppress demo ads. Never enable live ads. */
     void setTestAdFree(boolean owned){
@@ -232,7 +308,8 @@ public final class AdSupport {
 
     /** Called only when returning to the app after a meaningful absence. */
     public void showAppOpenIfReady() {
-        if (disposed || !foreground || consentFlowActive || privacyShowing || !isEnabled() || !consent.canRequestAds() || appOpenShowing || activity.isFinishing() || activity.isDestroyed()) return;
+        if (disposed || !foreground || consentFlowActive || privacyShowing || !isEnabled() || !consent.canRequestAds() || appOpenShowing || rewardBusy() || activity.isFinishing() || activity.isDestroyed()) return;
+        if(lastRewardEnded>=0&&SystemClock.elapsedRealtime()-lastRewardEnded<120_000L)return;
         for(FrameLayout parent:requested){
             if(PLACEMENT_ONBOARDING.equals(placements.get(parent)) || (live.containsKey(parent)&&parent.isShown()))return;
         }
@@ -260,7 +337,7 @@ public final class AdSupport {
     }
 
     public void showPrivacyChoices() {
-        if(disposed||consentFlowActive||privacyShowing)return;
+        if(disposed||consentFlowActive||privacyShowing||rewardBusy()||appOpenShowing)return;
         if(!BuildConfig.DEBUG){new AlertDialog.Builder(activity).setTitle(R.string.privacy_settings).setMessage(R.string.ad_off).setPositiveButton(R.string.close,null).show();return;}
         if (consent.getPrivacyOptionsRequirementStatus()
                 == ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED) {
@@ -290,6 +367,7 @@ public final class AdSupport {
     }
 
     private void clearLoadedAds(int message){
+        if(rewardTicket!=null&&!rewardShowing)finishReward(rewardTicket,RewardOutcome.UNAVAILABLE);
         adGeneration++;appOpenLoading=false;appOpenAd=null;
         for (FrameLayout parent : new ArrayList<>(requested)) {
             AdView view = live.remove(parent);
@@ -297,7 +375,11 @@ public final class AdSupport {
             status(parent, activity.getString(message));
         }
     }
-    public void pause(){foreground=false;for(AdView view:new ArrayList<>(live.values()))view.pause();}
+    public void pause(){
+        foreground=false;
+        if(rewardTicket!=null&&!rewardShowing)finishReward(rewardTicket,RewardOutcome.UNAVAILABLE);
+        for(AdView view:new ArrayList<>(live.values()))view.pause();
+    }
     public void resume(){
         if(disposed)return;foreground=true;
         if(!isEnabled()){clearLoadedAds(R.string.ad_off);return;}
@@ -324,6 +406,8 @@ public final class AdSupport {
 
     public void destroy() {
         disposed = true;foreground=false;adGeneration++;appOpenLoading=false;
+        if(rewardTicket!=null)finishReward(rewardTicket,RewardOutcome.UNAVAILABLE);
+        rewardMain.removeCallbacksAndMessages(null);
         for(Map.Entry<FrameLayout,View.OnLayoutChangeListener> e:layoutListeners.entrySet())
             e.getKey().removeOnLayoutChangeListener(e.getValue());
         layoutListeners.clear();

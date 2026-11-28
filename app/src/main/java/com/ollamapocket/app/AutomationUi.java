@@ -444,7 +444,9 @@ final class AutomationUi {
         if(uri==null)return null;
         if(!"content".equals(uri.getScheme()))throw new java.io.IOException("Invalid visual URI");
         try(java.io.InputStream input=owner.getContentResolver().openInputStream(uri)){
-            VisionImagePolicy.Prepared image=VisionImageInput.prepare(input,()->!valid(token));
+            if(input==null)throw new java.io.IOException("Missing visual source");
+            VisionImagePolicy.Prepared image=VisionImageInput.prepare(
+                    new AttachmentText.BoundedSource(input,DeepChatPolicy.NORMAL_STRUCTURED_BYTES),()->!valid(token));
             byte[] bytes=image.copyBytes();
             try{
                 android.graphics.Bitmap bitmap=android.graphics.BitmapFactory.decodeByteArray(bytes,0,bytes.length);

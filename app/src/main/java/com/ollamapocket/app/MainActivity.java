@@ -129,7 +129,7 @@ public final class MainActivity extends Activity {
         if(chatActionsButton!=null)chatActionsButton.setEnabled(!busy);
         if(cloudShortcut!=null)cloudShortcut.setEnabled(!busy);
         if(newChatShortcut!=null)newChatShortcut.setEnabled(!busy);
-        refreshStarterVisibility();
+        refreshStarterVisibility();refreshDeepMode();
     }
     private void refreshVoiceState(){
         if(voiceStateView==null||voiceButton==null)return;
@@ -168,7 +168,19 @@ public final class MainActivity extends Activity {
     private ArtifactFileExport artifactExportPending;
     private boolean artifactExportWriting;
     private AlertDialog artifactExportReview;
-    private LinearLayout localChatContent;
+    private LinearLayout localChatContent,chatModeBar;
+    private ScrollView deepChatContent;
+    private Button normalModeButton,deepModeButton,deepWatchButton,deepAnalyzeButton;
+    private TextView deepRemainingView;
+    private boolean deepMode;
+    private PendingDeepBatch pendingDeepBatch;
+    private static final class PendingDeepBatch {
+        final String scope,model;final int encoding;final List<Uri> files;
+        PendingDeepBatch(String scope,String model,int encoding,List<Uri> files){
+            this.scope=scope;this.model=model;this.encoding=encoding;
+            this.files=java.util.Collections.unmodifiableList(new ArrayList<>(files));
+        }
+    }
     private CloudChatPanel cloudPanel;
     private boolean cloudMode;
     private long lastStreamUi;
@@ -528,6 +540,8 @@ public final class MainActivity extends Activity {
         ui.removeCallbacks(sunsetThemePoll);
         ui.post(sunsetThemePoll);
         if(pendingVisionUri!=null)ui.post(this::openPickedVision);
+        if(pendingDeepBatch!=null)ui.post(this::openPendingDeepBatch);
+        refreshDeepMode();
         long now = android.os.SystemClock.elapsedRealtime();
         if (lastPauseElapsed > 0 && now - lastPauseElapsed > 120_000
                 && getPreferences(MODE_PRIVATE).getBoolean("welcome_v2_seen", false)
@@ -566,7 +580,7 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onDestroy() {
         artifactExportPending=null;
-        visionPickerPending=false;pendingVisionUri=null;
+        visionPickerPending=false;pendingVisionUri=null;pendingDeepBatch=null;
         closeWorkbench();saveLocalDraft();
         VoiceModelsUi.cancel(this);
         if(documentBatch!=null){documentBatch.pause();documentBatch=null;}
@@ -639,20 +653,21 @@ public final class MainActivity extends Activity {
             cloudPanel=new CloudChatPanel(this,this::returnToLocal);
             chatPage.addView(cloudPanel,new LinearLayout.LayoutParams(-1,0,1));
         }
-        cloudMode=true;
-        localChatContent.setVisibility(View.GONE);cloudPanel.setVisibility(View.VISIBLE);
+        cloudMode=true;deepMode=false;
+        refreshDeepMode();cloudPanel.setVisibility(View.VISIBLE);
         cloudPanel.activate();showTab(0);
     }
     private void returnToLocal(){
         if(!cloudMode)return;
         cloudMode=false;
         if(cloudPanel!=null){cloudPanel.pause();cloudPanel.setVisibility(View.GONE);}
-        if(localChatContent!=null)localChatContent.setVisibility(View.VISIBLE);
+        deepMode=false;refreshDeepMode();
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
         refreshChatHeader();updateTypingChrome();refreshLatestButton();scheduleDockedHistoryRefresh();
     }
     @Override public void onBackPressed(){
         if(cloudMode){returnToLocal();return;}
+        if(deepMode&&!isUiBusy()){selectChatMode(false);return;}
         super.onBackPressed();
     }
     private void openVoice(){
@@ -1142,6 +1157,7 @@ public final class MainActivity extends Activity {
     }
     private void createChatPage() {
         chatPage = column();
+        createChatModes();
         localChatContent=column();
         chatPage.addView(localChatContent,new LinearLayout.LayoutParams(-1,0,1));
         localChatContent.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
@@ -1246,7 +1262,91 @@ public final class MainActivity extends Activity {
         stopChatButton.setOnClickListener(v -> stopChat());
         margin(text(getString(R.string.disclaimer),
             10, MUTED, false), localChatContent, 0, 0);
-        localChatContent.post(this::applyChatLayout);updateDraftBudget();
+        localChatContent.post(this::applyChatLayout);updateDraftBudget();refreshDeepMode();
+    }
+    private boolean deepAuthorized(){return ads!=null&&ads.deepAuthorized();}
+    private void createChatModes(){
+        chatModeBar=row();
+        normalModeButton=button(getString(R.string.chat_mode_normal),true);
+        deepModeButton=button(getString(R.string.chat_mode_deep),false);
+        rowItem(chatModeBar,normalModeButton,1,4);rowItem(chatModeBar,deepModeButton,1,0);
+        margin(chatModeBar,chatPage,0,4);
+        normalModeButton.setOnClickListener(v->selectChatMode(false));
+        deepModeButton.setOnClickListener(v->selectChatMode(true));
+        deepChatContent=new ScrollView(this);deepChatContent.setFillViewport(true);deepChatContent.setVisibility(View.GONE);
+        LinearLayout panel=column();panel.setPadding(dp(12),dp(12),dp(12),dp(12));
+        TextView heading=text(getString(R.string.chat_mode_deep),23,WHITE,true);
+        if(Build.VERSION.SDK_INT>=28)heading.setAccessibilityHeading(true);
+        margin(heading,panel,0,8);
+        deepRemainingView=text("",15,WHITE,true);
+        margin(deepRemainingView,panel,0,8);
+        margin(text(getString(R.string.deep_chat_intro),14,MUTED,false),panel,0,12);
+        deepWatchButton=button(getString(R.string.deep_reward_watch),true);
+        deepWatchButton.setOnClickListener(v->chooseDeepReward());
+        margin(deepWatchButton,panel,0,8);
+        deepAnalyzeButton=button(getString(R.string.deep_chat_open),true);
+        deepAnalyzeButton.setOnClickListener(v->chooseDocumentBatch(loadedHistoryScope));
+        margin(deepAnalyzeButton,panel,0,8);
+        deepChatContent.addView(panel,new ScrollView.LayoutParams(-1,-2));
+        chatPage.addView(deepChatContent,new LinearLayout.LayoutParams(-1,0,1));
+    }
+    private void selectChatMode(boolean advanced){
+        if(guestOnly||cloudMode||activeTab!=0||!foreground||isUiBusy())return;
+        if(voice!=null)voice.cancel();
+        closeWorkbench();deepMode=advanced;
+        if(chatInput!=null){
+            ((InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(chatInput.getWindowToken(),0);
+            chatInput.clearFocus();
+        }
+        refreshDeepMode();
+    }
+    private void paintChatMode(Button view,boolean selected){
+        if(view==null||view.isSelected()==selected&&view.getTag()!=null)return;
+        view.setTag(Boolean.TRUE);view.setSelected(selected);
+        if(selected){view.setTypeface(Typeface.DEFAULT,Typeface.BOLD);WorkbenchStyle.primaryButtonPaint(this,view,14);}
+        else{view.setTypeface(Typeface.DEFAULT,Typeface.NORMAL);view.setTextColor(WHITE);view.setBackground(bg(FIELD,14));AdaptiveAnswerActions.feedback(view,14);}
+    }
+    private void refreshDeepMode(){
+        if(chatModeBar==null||localChatContent==null||deepChatContent==null)return;
+        boolean busy=isUiBusy(),visible=!cloudMode&&!guestOnly;
+        chatModeBar.setVisibility(visible?View.VISIBLE:View.GONE);
+        localChatContent.setVisibility(visible&&!deepMode?View.VISIBLE:View.GONE);
+        deepChatContent.setVisibility(visible&&deepMode?View.VISIBLE:View.GONE);
+        paintChatMode(normalModeButton,!deepMode);paintChatMode(deepModeButton,deepMode);
+        normalModeButton.setEnabled(!busy);deepModeButton.setEnabled(!busy);
+        long remaining=ads==null?0:ads.deepRemaining();
+        long seconds=(remaining==Long.MAX_VALUE?0:(remaining+999)/1000);
+        String label=remaining==Long.MAX_VALUE?getString(R.string.deep_unlimited):
+                remaining==0?getString(R.string.deep_locked):getString(R.string.deep_remaining,seconds/60,seconds%60);
+        if(!label.contentEquals(deepRemainingView.getText()))deepRemainingView.setText(label);
+        deepWatchButton.setVisibility(remaining==Long.MAX_VALUE?View.GONE:View.VISIBLE);
+        int rewardLabel=remaining>0?R.string.deep_reward_renew:R.string.deep_reward_watch;
+        String watch=getString(rewardLabel);
+        if(!watch.contentEquals(deepWatchButton.getText()))deepWatchButton.setText(watch);
+        deepWatchButton.setEnabled(!busy);
+        deepAnalyzeButton.setEnabled(!busy&&remaining>0);
+    }
+    private boolean rewardScopeEligible(){
+        return foreground&&!isFinishing()&&!isDestroyed()&&!guestOnly&&!cloudMode&&deepMode&&activeTab==0
+                &&!isUiWorkBusy(false)&&(billing==null||!billing.busy());
+    }
+    private void chooseDeepReward(){
+        if(!rewardScopeEligible()||ads==null||ads.rewardBusy())return;
+        if(ads.deepRemaining()==Long.MAX_VALUE)return;
+        AlertDialog d=new AlertDialog.Builder(this).setTitle(R.string.deep_reward_watch).setMessage(R.string.deep_reward_notice)
+                .setNegativeButton(R.string.cancel,null)
+                .setPositiveButton(R.string.deep_reward_watch,(x,w)->{
+                    if(!rewardScopeEligible()||ads.rewardBusy())return;
+                    if(voice!=null)voice.cancel();
+                    ads.requestDeepReward(this::rewardScopeEligible,result->{
+                        refreshDeepMode();
+                        if(foreground&&!isFinishing()&&!isDestroyed())toast(getString(result==AdSupport.RewardOutcome.EARNED?
+                                R.string.deep_reward_earned:result==AdSupport.RewardOutcome.CLOSED?
+                                R.string.deep_reward_closed:R.string.deep_reward_unavailable));
+                    });
+                    refreshDeepMode();
+                }).show();
+        WorkbenchWindow.fitCompact(this,d);
     }
 
     private boolean workbenchOpen(){return workbenchDialog!=null&&workbenchDialog.isShowing();}
@@ -1642,7 +1742,8 @@ public final class MainActivity extends Activity {
 
     private boolean isUiBusy(){return isUiBusy(false);}
     // A reviewed project export may own the foreground modal, never the store's work lease.
-    private boolean isUiBusy(boolean projectModal){
+    private boolean isUiBusy(boolean projectModal){return isUiWorkBusy(projectModal)||(ads!=null&&ads.rewardBusy());}
+    private boolean isUiWorkBusy(boolean projectModal){
         return KnowledgeWorkspaceUi.busy()||(projectModal?ProjectWorkspaceUi.workBusy():ProjectWorkspaceUi.busy())||AutomationUi.busy()||DocumentBatchUi.busy()||attachmentReading||ggufImportBusy||chatBusy||pullBusy||diagnosticBusy||benchmarkBusy||ModelDownloadBudget.transferBusy()
                ||(cloudPanel!=null&&cloudPanel.isBusy())||HuggingFaceCatalog.isDownloading();
     }
@@ -2000,7 +2101,7 @@ public final class MainActivity extends Activity {
             topPageSubtitle.setText(getString(subtitles[activeTab])+"  ·  "+getString(R.string.local));
             topPageSubtitle.setTooltipText(null);
         }
-        refreshChatHeader();refreshHeaderAccess();updateTypingChrome();refreshLatestButton();
+        refreshChatHeader();refreshHeaderAccess();updateTypingChrome();refreshLatestButton();refreshDeepMode();
         updateDockedDestinations();scheduleDockedHistoryRefresh();
         if(activeTab==1)loadRecommendedVariants(false);
         if(activeTab==3)refreshDiagnosticViews();
@@ -3381,6 +3482,7 @@ public final class MainActivity extends Activity {
     private void newChat() {
         if(cloudMode){if(cloudPanel!=null)cloudPanel.newChat();return;}
         if (isUiBusy()) { toast(getString(R.string.new_chat_busy)); return; }
+        deepMode=false;refreshDeepMode();
         if(voice!=null)voice.cancel();
         saveLocalDraft();
         String id=freshSessionId();
@@ -3454,6 +3556,7 @@ public final class MainActivity extends Activity {
             return;
         }
         if(cloudMode)returnToLocal();
+        deepMode=false;refreshDeepMode();
         saveLocalDraft();
         if(!entry.model.equals(currentModel))selectModel(entry.model);
         if(!entry.model.equals(currentModel))return;
@@ -4286,7 +4389,7 @@ public final class MainActivity extends Activity {
         if(dialog.getWindow()!=null)dialog.getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE);
     }
     private void sendChat(String approvedTransfer) {
-        if(guestOnly||cloudMode)return;
+        if(guestOnly||cloudMode||deepMode)return;
         String rawPrompt=chatInput.getText().toString();
         if(!ChatWorkspacePolicy.hasDraftText(rawPrompt))return;
         if(!ChatWorkspacePolicy.canSend(rawPrompt,LocalChatTurns.MAX_PROMPT)){toast(getString(R.string.chat_prompt_limit));return;}
@@ -4512,8 +4615,15 @@ public final class MainActivity extends Activity {
             }).show();
         WorkbenchWindow.fitCompact(this,confirmation);
     }
+    private boolean normalAttachmentPresent(){
+        if(chatInput==null)return false;
+        String draft=chatInput.getText().toString();
+        if(draft.trim().isEmpty()){forgetLastAttachment();return false;}
+        return (loadedHistoryScope.equals(lastAttachmentScope)&&lastAttachmentLength>0)||draft.contains("[Attached file excerpt: ");
+    }
     private void pickChatAttachment(){
         if(guestOnly||cloudMode||isUiBusy()||!historyReadable||!ownsLoadedScope()){toast(getString(R.string.busy));return;}
+        if(deepMode){chooseDocumentBatch(loadedHistoryScope);return;}
         if(currentModel.isEmpty()){toast(getString(R.string.need_model));return;}
         final String scope=loadedHistoryScope;
         String[] items=canRemoveLastAttachment()?new String[]{getString(R.string.attachment_select_range),getString(R.string.batch_title),getString(R.string.attachment_ocr),getString(R.string.integration_vision),getString(R.string.attachment_remove_last)}:
@@ -4526,7 +4636,10 @@ public final class MainActivity extends Activity {
         WorkbenchWindow.fitCompact(this,chooser);
     }
     private void chooseDocumentBatch(String scope){
-        if(isUiBusy()||cloudMode||guestOnly||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
+        if(isUiBusy()||cloudMode||guestOnly||!foreground||activeTab!=0||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
+        if(!deepMode)selectChatMode(true);
+        if(!deepAuthorized()){refreshDeepMode();return;}
+        if(currentModel.isEmpty()||!knownModels.contains(currentModel)){toast(getString(R.string.need_model));showTab(1);return;}
         String[] encodings={getString(R.string.attachment_encoding_auto),"CP949 / MS949","Windows-31J (Shift-JIS)","GB18030","Big5"};
         LinearLayout panel=column();panel.setPadding(dp(16),dp(8),dp(16),dp(8));
         margin(text(getString(R.string.batch_notice),13,WHITE,false),panel,0,8);
@@ -4536,7 +4649,7 @@ public final class MainActivity extends Activity {
         OnHandGlyphs.spinner(encoding);WorkbenchStyle.fieldLabel(this,panel,R.string.attachment_encoding,encoding);margin(encoding,panel,0,4);
         AlertDialog setup=new AlertDialog.Builder(this).setTitle(R.string.batch_title).setView(panel).setNegativeButton(R.string.cancel,null)
             .setPositiveButton(R.string.ok,(d,w)->{
-                if(isUiBusy()||cloudMode||guestOnly||!foreground||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
+                if(isUiBusy()||cloudMode||guestOnly||!foreground||!deepMode||!deepAuthorized()||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
                 if(voice!=null)voice.cancel();
                 batchScope=scope;batchModel=currentModel;batchEncoding=encoding.getSelectedItemPosition();
                 try{
@@ -4553,7 +4666,7 @@ public final class MainActivity extends Activity {
         final String scope=batchScope,model=batchModel;final int encoding=batchEncoding;
         batchScope="";batchModel="";
         if(result!=RESULT_OK||data==null)return;
-        if(guestOnly||cloudMode||isUiBusy()||!ownsLoadedScope()||!scope.equals(loadedHistoryScope)||!model.equals(currentModel)
+        if(guestOnly||cloudMode||!deepMode||!deepAuthorized()||isUiBusy()||!ownsLoadedScope()||!scope.equals(loadedHistoryScope)||!model.equals(currentModel)
             ||model.isEmpty()||encoding<0||encoding>=AttachmentText.Encoding.values().length){
             toast(getString(R.string.attachment_scope_changed));return;
         }
@@ -4567,18 +4680,33 @@ public final class MainActivity extends Activity {
             toast(getString(R.string.batch_file_limit));return;
         }
         for(Uri uri:unique)if(uri==null||!"content".equals(uri.getScheme())){toast(getString(R.string.attachment_unsupported));return;}
+        pendingDeepBatch=new PendingDeepBatch(scope,model,encoding,new ArrayList<>(unique));
+        ui.post(this::openPendingDeepBatch);
+    }
+    private void openPendingDeepBatch(){
+        if(!foreground||pendingDeepBatch==null)return;
+        PendingDeepBatch picked=pendingDeepBatch;pendingDeepBatch=null;
+        String scope=picked.scope,model=picked.model;
+        if(!deepMode||!deepAuthorized()||guestOnly||cloudMode||isUiBusy()||activeTab!=0||!ownsLoadedScope()||
+                !scope.equals(loadedHistoryScope)||!model.equals(currentModel)||!knownModels.contains(model)){
+            toast(getString(R.string.deep_locked));return;
+        }
         if(voice!=null)voice.cancel();
-        documentBatch=new DocumentBatchUi(this,model,AttachmentText.Encoding.values()[encoding],()->foreground&&!guestOnly&&!cloudMode&&!isUiBusy()
-            &&activeTab==0&&ownsLoadedScope()&&scope.equals(loadedHistoryScope)&&model.equals(currentModel)&&knownModels.contains(model));
-        documentBatch.show(new ArrayList<>(unique));
+        documentBatch=new DocumentBatchUi(this,model,AttachmentText.Encoding.values()[picked.encoding],
+                ()->foreground&&!guestOnly&&!cloudMode&&deepMode&&!isUiBusy()&&activeTab==0&&ownsLoadedScope()
+                &&scope.equals(loadedHistoryScope)&&model.equals(currentModel)&&knownModels.contains(model),
+                this::deepAuthorized);
+        documentBatch.show(picked.files);
     }
     private void chooseAttachmentRange(String scope){
         if(isUiBusy()||cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
         ScrollView scroll=new ScrollView(this);LinearLayout panel=column();panel.setPadding(dp(16),dp(8),dp(16),dp(8));scroll.addView(panel);
-        margin(text(getString(R.string.attachment_formats),12,WHITE,false),panel,0,6);
-        margin(text(getString(R.string.attachment_range_help),12,MUTED,false),panel,0,8);
+        if(normalAttachmentPresent()){toast(getString(R.string.normal_one_attachment));return;}
+        margin(text(getString(R.string.normal_attachment_formats),12,WHITE,false),panel,0,6);
+        margin(text(getString(R.string.normal_range_help),12,MUTED,false),panel,0,8);
         EditText segment=edit(getString(R.string.attachment_segment),"1",false);
-        segment.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);segment.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(5)});
+        segment.setHint(R.string.normal_segment);
+        segment.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);segment.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(3)});
         WorkbenchStyle.fieldLabel(this,panel,R.string.attachment_segment,segment);margin(segment,panel,0,6);
         EditText page=edit(getString(R.string.attachment_pdf_first),"1",false);
         page.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);page.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(5)});
@@ -4593,7 +4721,7 @@ public final class MainActivity extends Activity {
         d.show();WorkbenchWindow.fitCompact(this,d);d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
             try{
                 int seg=Integer.parseInt(segment.getText().toString().trim()),first=Integer.parseInt(page.getText().toString().trim());
-                if(!DocumentWindow.validSegment(seg)||!OcrPolicy.validPage(first))throw new NumberFormatException();
+                if(!DeepChatPolicy.normalSegment(seg)||!OcrPolicy.validPage(first))throw new NumberFormatException();
                 d.dismiss();openAttachmentPicker(scope,false,0,first,seg,encoding.getSelectedItemPosition());
             }catch(NumberFormatException e){toast(getString(R.string.attachment_range_invalid));}
         });
@@ -4623,7 +4751,8 @@ public final class MainActivity extends Activity {
         });
     }
     private void openAttachmentPicker(String scope,boolean ocr,int script,int page,int segment,int encoding){
-        if(guestOnly||isUiBusy()||cloudMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
+        if(guestOnly||isUiBusy()||cloudMode||deepMode||!ownsLoadedScope()||!scope.equals(loadedHistoryScope))return;
+        if(normalAttachmentPresent()){toast(getString(R.string.normal_one_attachment));return;}
         attachmentScope=scope;attachmentOcr=ocr;attachmentOcrScript=script;attachmentOcrPage=page;attachmentSegment=segment;attachmentEncoding=encoding;
         try{
             Intent picker=new Intent(Intent.ACTION_OPEN_DOCUMENT);
@@ -4638,7 +4767,7 @@ public final class MainActivity extends Activity {
         final int script=attachmentOcrScript,page=attachmentOcrPage,segment=attachmentSegment,encoding=attachmentEncoding;
         if(result!=RESULT_OK||data==null||data.getData()==null)return;
         Uri uri=data.getData();
-        if(guestOnly||cloudMode||isUiBusy()||!ownsLoadedScope()||!scope.equals(loadedHistoryScope)||!"content".equals(uri.getScheme())){
+        if(guestOnly||cloudMode||deepMode||isUiBusy()||!ownsLoadedScope()||!scope.equals(loadedHistoryScope)||!"content".equals(uri.getScheme())){
             toast(getString(R.string.attachment_scope_changed));return;
         }
         attachmentReading=true;long serial=++attachmentSerial;
@@ -4660,8 +4789,14 @@ public final class MainActivity extends Activity {
                 boolean image=OcrPolicy.image(name);
                 if(ocr&&(!pdf&&!image||script<0||script>=OcrPolicy.Script.values().length))throw new AttachmentText.Failure(AttachmentText.Problem.UNSUPPORTED);
                 if(pdf&&Build.VERSION.SDK_INT<35)throw new AttachmentText.Failure(AttachmentText.Problem.PDF_VERSION);
-                if(bytes>AttachmentText.maxBytes(name))throw new AttachmentText.Failure(AttachmentText.Problem.TOO_LARGE);
-                try(InputStream in=getContentResolver().openInputStream(uri)){
+                boolean office=OfficeText.supports(name);
+                if(!ocr&&(!pdf&&!office&&!AttachmentText.supportsPlain(name)||name!=null&&name.toLowerCase(java.util.Locale.ROOT).endsWith(".zip")))
+                    throw new AttachmentText.Failure(AttachmentText.Problem.UNSUPPORTED);
+                int cap=DeepChatPolicy.normalLimit(pdf||image||office);
+                if(bytes>cap||!DeepChatPolicy.normalSegment(segment))throw new AttachmentText.Failure(AttachmentText.Problem.TOO_LARGE);
+                try(InputStream raw=getContentResolver().openInputStream(uri)){
+                    if(raw==null)throw new AttachmentText.Failure(AttachmentText.Problem.INVALID);
+                    InputStream in=new AttachmentText.BoundedSource(raw,cap);
                     if(ocr){
                         OcrPolicy.Script chosen=OcrPolicy.Script.values()[script];
                         extracted=pdf?PdfTextClient.ocr(this,name,in,chosen,page):ImageOcr.read(name,in,chosen);
@@ -4754,6 +4889,7 @@ public final class MainActivity extends Activity {
                 dialog.dismiss();toast(getString(R.string.attachment_scope_changed));return;
             }
             try{
+                if(deepMode||normalAttachmentPresent()){toast(getString(R.string.normal_one_attachment));return;}
                 String previous=chatInput.getText().toString();
                 String combined=AttachmentText.includeReviewed(previous,preview,excerpt.getText().toString());
                 String suffix=combined.substring(previous.length());

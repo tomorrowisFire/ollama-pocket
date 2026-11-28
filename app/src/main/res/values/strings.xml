@@ -721,7 +721,7 @@
     <string name="attachment_ocr_bad_page">Enter a valid PDF page number from 1 to 10,000 within the document.</string>
     <string name="attachment_ocr_image_pick">Choose PNG, JPEG, WEBP or a PDF page</string>
     <string name="attachment_select_range">Text / Office / PDF text</string>
-    <string name="attachment_segment">Text segment (1–90000) / Office (1–256)</string>
+    <string name="attachment_segment">Text / Office segment (1–256)</string>
     <string name="attachment_pdf_first">PDF starting page (1–10,000)</string>
     <string name="attachment_range_help">Select a text/code or Office segment of approximately 6,000 UTF-16 characters, or a PDF starting page. Only the setting for the selected file applies. Office references may be split at segment boundaries. Larger file limits do not increase the model context; analyze each excerpt separately. Large-file input: at most 500 MiB per text/code, Office or PDF file. Images remain 16 MiB. Expanded archives, retained XML, available storage, time and model context have separate limits; admission is not full-file analysis.</string>
     <string name="attachment_range_invalid">The selected range is outside the available extracted content, or exceeds the supported limit.</string>
@@ -1427,4 +1427,22 @@
     <string name="batch_input_progress">Reading files: %1$d / %2$d · %3$d bytes read</string>
     <string name="batch_total_limit">The combined input exceeds 2 GiB. Select fewer or smaller files.</string>
     <string name="batch_input_deadline">The input read time limit was reached. Select fewer or smaller files.</string>
+    <string name="chat_mode_normal">Normal chat</string>
+    <string name="chat_mode_deep">Deep chat</string>
+    <string name="deep_chat_intro">Choose up to 20 files (500 MiB each, 2 GiB combined). Analyze reviewed excerpts in a separate local workspace, without adding them to normal chat history. One earned rewarded ad grants 30 minutes. New runs require valid access; an admitted foreground analysis can finish after expiry. Device safety and run limits still apply.</string>
+    <string name="deep_reward_watch">Watch ad · 30 minutes</string>
+    <string name="deep_reward_renew">Renew · 30 minutes</string>
+    <string name="deep_chat_open">Open deep analysis</string>
+    <string name="deep_locked">Deep access locked</string>
+    <string name="deep_remaining">Time left: %1$d:%2$02d</string>
+    <string name="deep_unlimited">Unlimited access (verified test purchase)</string>
+    <string name="deep_reward_notice">Watch one rewarded ad to unlock deep analysis for 30 minutes from the earned reward. Renewal resets the timer; it does not accumulate time. You may cancel and continue normal chat without watching. An earned reward is required. Test ads only in this build.</string>
+    <string name="deep_reward_earned">30-minute deep access granted.</string>
+    <string name="deep_reward_closed">Ad closed without an earned reward.</string>
+    <string name="deep_reward_unavailable">Rewarded ad unavailable. Normal chat remains available.</string>
+    <string name="normal_attachment_formats">Normal chat accepts one text/code file up to 1 MiB, or one Office/PDF/image file up to 8 MiB. Larger or multiple files require deep chat. ZIP source archives are deep-only. PDF requires Android 15 or later.</string>
+    <string name="normal_range_help">Choose text/Office segment 1–256 or a PDF starting page. Only reviewed extracted text is inserted.</string>
+    <string name="normal_segment">Text / Office segment (1–256)</string>
+    <string name="normal_one_attachment">One attachment per draft. Remove the existing attachment, clear the draft, or send it first.</string>
+    <string name="deep_zip_notice">Read-only source ZIP archives are supported in deep analysis. Only bounded supported text/code excerpts are read; binaries, nested archives and common secret paths are skipped.</string>
 </resources>
