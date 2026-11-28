@@ -56,6 +56,23 @@ public final class ModelSearchBatchTest {
         ok(expiring.get("expired",1900)!=null); // expired entry is most recently used
         expiring.put("new",List.of(a),2001);
         ok(expiring.get("expired",2001)==null&&expiring.get("recent",2001)!=null&&expiring.get("new",2001)!=null);
+        var negative=new ModelSearchCache(2,600000L);
+        negative.put("none",List.of(),1000L);
+        negative.put("found",List.of(a),1000L);
+        ok(negative.get("none",31000L).isEmpty());
+        ok(negative.get("none",31001L)==null);
+        ok(negative.get("found",31001L).equals(List.of(a)));
+        negative.put("none",List.of(),40000L);
+        negative.put("next",List.of(b),70001L);
+        ok(negative.get("none",70001L)==null);
+        ok(negative.get("found",70001L).equals(List.of(a)));
+        ok(negative.get("next",70001L).equals(List.of(b)));
+        var shortNegative=new ModelSearchCache(1,1000L);
+        shortNegative.put("none",List.of(),1000L);
+        ok(shortNegative.get("none",2000L).isEmpty());
+        ok(shortNegative.get("none",2001L)==null);
+        negative.put("none",List.of(),80000L);
+        ok(negative.get("none",79999L)==null);
         var memory=new ModelSearchCache(2,1000);
         Object staleEpoch=memory.writeEpoch();
         memory.putIfCurrent(staleEpoch,"old",List.of(a),1000);
