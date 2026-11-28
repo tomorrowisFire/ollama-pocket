@@ -1,0 +1,3 @@
+# F11-6 r004 — text-only Responses stream admission
+
+Validate announced output-item and content-part types in Responses-style streams before accepting a terminal response, including cases where terminal metadata omits the output array. Reject tool calls, refusal events and non-text parts; continue to accept message and reasoning metadata without exposing reasoning. Reject non-string event types. Synthetic fixtures check successful multilingual text and preserve already accepted partial text on rejection. No cloud tool execution or permission change. KPI: unsupported announced items cannot become a completed reply. Live provider compatibility and device tests remain pending. Design perspectives: protocol compatibility, privacy/safety, error recovery.

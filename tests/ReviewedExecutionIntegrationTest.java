@@ -64,12 +64,17 @@ public final class ReviewedExecutionIntegrationTest {
         ok(BranchWorkflowRun.list(root.toFile()).contains(run.id));
         BranchWorkflowRun reopen=BranchWorkflowRun.open(root.toFile(),run.id);
         ok(reopen.definition.raw.equals(raw)&&reopen.started==1000);
+        ok(plan.remainingRequests(reopen.ledger.read().value)==6);
         var result=reopen.execute(reopen.ledger.read(),task->{
-            ok(reopen.ledger.read().value.pending());
+            var current=reopen.ledger.read().value;
+            ok(current.pending());
             int count=calls.incrementAndGet();
+            ok(plan.remainingRequests(current)==(count==1?5:count==2?4:2));
+            ok(plan.remainingOutputTokens(current)==plan.remainingRequests(current)*BranchWorkflowRun.MAX_TASK_OUTPUT_TOKENS);
             return new ReviewedLocalPolicy.Result(count==1?"not a boolean":count==2?"true":"verified",false);
         },()->false,null,now::get,ms->now.addAndGet(ms));
         ok(result.snapshot.value.cursor.status==WorkflowBranchPlan.Status.COMPLETED&&calls.get()==3);
+        ok(plan.remainingRequests(result.snapshot.value)==0&&plan.remainingOutputTokens(result.snapshot.value)==0);
         ok(result.snapshot.value.attempts.size()==3&&result.snapshot.value.attempts.get(0).outcome==WorkflowAttemptStore.Outcome.RETRY_SAFE);
         ok(result.snapshot.value.attempts.get(1).reserved>=3000&&result.snapshot.value.cursor.visits.size()==2);
         ok(result.snapshot.value.cursor.visits.get(1).node.equals("yes"));
@@ -82,6 +87,7 @@ public final class ReviewedExecutionIntegrationTest {
         },pause::get,null,now::get,ms->{waited.addAndGet(ms);now.addAndGet(ms);pause.set(true);});
         ok(waited.get()==100L&&pausedCalls.get()==1);
         ok(pauseResult.snapshot.value.attempts.size()==1&&!pauseResult.snapshot.value.pending());
+        ok(plan.remainingRequests(pauseResult.snapshot.value)==5);
         ok(pauseResult.snapshot.value.cursor.status==WorkflowBranchPlan.Status.READY&&
                 pauseResult.snapshot.value.last().outcome==WorkflowAttemptStore.Outcome.RETRY_SAFE);
         pause.set(false);
@@ -132,6 +138,7 @@ public final class ReviewedExecutionIntegrationTest {
         var recoveredResult=recovered.execute(recovered.ledger.read(),task->{throw new AssertionError("Pending reservation replay");},
                 ()->false,null,now::get,ms->now.addAndGet(ms));
         ok(recoveredResult.snapshot.value.pending()&&recoveredResult.snapshot.value.last().key.equals(pending.value.last().key));
+        ok(plan.remainingRequests(recoveredResult.snapshot.value)==5);
         reject(()->BranchWorkflowRun.delete(root.toFile(),unresolved.id,pending.revision));
         var abandoned=recovered.abandon(recoveredResult.snapshot,now.get());
         ok(abandoned.snapshot.value.last().outcome==WorkflowAttemptStore.Outcome.UNCERTAIN&&

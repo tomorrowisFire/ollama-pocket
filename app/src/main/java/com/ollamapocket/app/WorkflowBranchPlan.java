@@ -80,7 +80,9 @@ final class WorkflowBranchPlan {
 
     List<Node> nodes() { return nodes; }
     /** Longest possible route, including its terminal-producing node; no execution or prediction. */
-    int maxPathNodes(){
+    int maxPathNodes(){return maxPathNodesFrom(nodes.get(0).id);}
+    int maxPathNodesFrom(String id){
+        if(!byId.containsKey(id))throw new IllegalArgumentException("Unknown workflow cursor");
         Map<String,Integer> lengths=new HashMap<>();
         for(int i=nodes.size()-1;i>=0;i--){
             Node node=nodes.get(i);
@@ -88,7 +90,7 @@ final class WorkflowBranchPlan {
             int no=node.kind==Kind.TASK||terminal(node.onFalse)?0:lengths.get(node.onFalse);
             lengths.put(node.id,1+Math.max(yes,no));
         }
-        return lengths.get(nodes.get(0).id);
+        return lengths.get(id);
     }
     Snapshot start() { return new Snapshot(sha256,nodes.get(0).id,Status.READY,Collections.emptyList()); }
 

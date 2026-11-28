@@ -1422,4 +1422,5 @@
     <string name="project_report_artifact_name">Report artifact name</string>
     <string name="workspace_file_export_notice">Save only the selected content: %1$s (%2$d bytes). The destination provider may synchronize the file. Opening the file picker closes this workspace; save important unsaved reports to a project first.</string>
     <string name="integration_branch_budget">Plan upper bound: %1$d nodes, %2$d model requests including retries, %3$d output tokens in total. Actual usage may be lower.</string>
+    <string name="integration_branch_remaining">Reserved requests: %1$d. Remaining plan bound (excluding reserved requests and time limits): %2$d additional requests, %3$d output tokens.</string>
 </resources>

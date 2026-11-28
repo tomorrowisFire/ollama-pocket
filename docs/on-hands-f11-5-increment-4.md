@@ -1,0 +1,3 @@
+# F11-5 r004 — remaining workflow budget
+
+Display actual durable reservation count and structural maximum future reservations and output tokens, using the current graph cursor and already-spent retries. Count an in-flight reservation only once, report zero for terminal runs, and retain the independent wall-time/approval gate. Five localized labels explicitly distinguish this upper bound from actual consumption. Tests cover divergent/convergent routes, pending/retry/completed states and exact output token ceiling. Design perspectives: graph accuracy, resource transparency, automation UX. Device and independent review pending.

@@ -1,26 +1,24 @@
 {
-  "stage": "F11-3-through-6-r003-corrected-integration-candidate",
-  "revision": "F11-3-6-r003",
-  "priorCandidate": "49d6c05d5fe3b72c42f47e650b45d0bec3ff460c",
-  "supersedesFailedCandidate": "49d6c05d5fe3b72c42f47e650b45d0bec3ff460c",
-  "knownFailureRun": 46146091734,
+  "stage": "F11-3-through-6-r004-integration-candidate",
+  "revision": "F11-3-6-r004",
+  "priorCandidate": "63029e8c8cdf32ad81cfba6b868a126ad922e924",
   "isolated": [
     {
       "stage": "F11-3",
-      "sha": "8dea9707f37a7c5622f0fe13826f20c2930da818"
+      "sha": "18e790f7cc259b5179baa33001ebde151f785959"
     },
     {
       "stage": "F11-4",
-      "sha": "4cd8c4b6d981eee313111273bf4ef108ae42ab5b"
+      "sha": "0bef50ada39aaeb49d2b84a3a21b57a98c60d179"
     },
     {
       "stage": "F11-5",
-      "sha": "6c85d9e4e5f16d038a1d72ef9443cb4ceb24b037"
+      "sha": "cdfd00743900bb63f4fada515f76b37177ca1005"
     },
     {
       "stage": "F11-6",
-      "sha": "1d3e906d5f7bc818fa7cc652c8803cec72953276"
+      "sha": "a939ca0207330714edaa060e018fd37c537d7da1"
     }
   ],
-  "reason": "Fix obsolete shared pool structural assertion while maintaining bounded isolated provider lane guarantees. Combined candidate also includes continuous recognition parity, cancellable retry backoff and bounded response reads. Require exact corrected FAST/FULL plus previously required verified baseline before advancing official integration. No claim of r002 PASS."
+  "reason": "Combine disjoint voice, model search, workflow remaining-budget, and cloud event admission changes. Require exact corrected predecessor and combined FAST/FULL gates before official integration; actual device and external independent evaluation pending."
 }

@@ -5,6 +5,7 @@ import java.util.*;
 public final class ModelSearchCache {
     static final int MAX_VARIANTS=8192, MAX_ENTRY_VARIANTS=4096, MAX_KEY_CHARS=512;
     static final long MAX_TEXT_CHARS=2_000_000L, MAX_ENTRY_CHARS=500_000L;
+    static final long EMPTY_RESULT_TTL_MS=30_000L;
     private final int limit;private final long ttlMillis;
     private int variants;private long textChars;
     private Object writeEpoch=new Object();
@@ -26,11 +27,15 @@ public final class ModelSearchCache {
         Entry old=entries.remove(key);
         if(old!=null){variants-=old.values.size();textChars-=old.chars;}
     }
+    private boolean expired(Entry entry,long now){
+        long lifetime=entry.values.isEmpty()?Math.min(ttlMillis,EMPTY_RESULT_TTL_MS):ttlMillis;
+        return now<entry.stamped||now-entry.stamped>lifetime;
+    }
     private void pruneExpired(long now){
         Iterator<Map.Entry<String,Entry>> it=entries.entrySet().iterator();
         while(it.hasNext()){
             Entry e=it.next().getValue();
-            if(now<e.stamped||now-e.stamped>ttlMillis){
+            if(expired(e,now)){
                 variants-=e.values.size();textChars-=e.chars;it.remove();
             }
         }
@@ -39,7 +44,7 @@ public final class ModelSearchCache {
         if(now>=0)pruneExpired(now);
         Entry entry=entries.get(key);
         if(entry==null)return null;
-        if(now<0||now<entry.stamped||now-entry.stamped>ttlMillis){
+        if(now<0||expired(entry,now)){
             remove(key);return null;
         }
         return entry.values;
