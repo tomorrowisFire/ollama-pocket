@@ -39,6 +39,17 @@ public final class OllamaHttp {
         try { return readSingle(conn); } finally { conn.disconnect(); }
     }
 
+    /** Verify the daemon's inventory before publishing a newly installed model. */
+    static String confirmInstalledTag(String requested,BooleanSupplier cancelled)throws Exception{
+        LocalStreamCancellation.check(cancelled);
+        String tag;
+        try{tag=InstalledModelInventory.confirmedTag(get("/api/tags"),requested);}
+        catch(Exception failure){InferenceSafetyPolicy.restoreInterrupt(failure);LocalStreamCancellation.check(cancelled);throw new IOException("MODEL_INSTALL_UNCONFIRMED",failure);}
+        LocalStreamCancellation.check(cancelled);
+        if(tag==null)throw new IOException("MODEL_INSTALL_UNCONFIRMED");
+        return tag;
+    }
+
     /** A short, aggregate handoff budget avoids an entire cold-start timeout per resident model.
      * Network timeouts bound individual blocking operations; check elapsed time again after each response. */
     private static int releaseTimeout(long started,BooleanSupplier cancelled)throws IOException{

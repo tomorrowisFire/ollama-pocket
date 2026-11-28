@@ -92,7 +92,9 @@ public final class MainActivity extends Activity {
     private AlertDialog attachmentPreviewDialog;
     private AlertDialog workbenchDialog;
     private boolean attachmentReading;
-    private volatile boolean ggufImportBusy;
+    private volatile boolean ggufImportBusy,ggufImportCancelled;
+    private volatile Process ggufRegistration;
+    private long pullSerial;
     private Button attachFileButton;
     private boolean guestOnly, foreground, speakNextAnswer;
     private OnHandsVoice voice;
@@ -563,7 +565,9 @@ public final class MainActivity extends Activity {
         if(projectWorkspaceUi!=null){projectWorkspaceUi.pause();projectWorkspaceUi=null;}
         if(knowledgeWorkspaceUi!=null){knowledgeWorkspaceUi.pause();knowledgeWorkspaceUi=null;}
         if(attachmentPreviewDialog!=null){attachmentPreviewDialog.dismiss();attachmentPreviewDialog=null;}
-        chatCancelled=true;pullCancelled=true;
+        chatCancelled=true;pullCancelled=true;ggufImportCancelled=true;
+        Process registration=ggufRegistration;if(registration!=null)registration.destroyForcibly();
+        HuggingFaceCatalog.cancelFor(this);
         if(navigationDrawer!=null&&navigationDrawer.isShowing())navigationDrawer.dismiss();
         removeDockedSidebar();
         if (chatConnection != null) chatConnection.disconnect();
@@ -1628,7 +1632,7 @@ public final class MainActivity extends Activity {
     }
 
     private boolean isUiBusy(){
-        return KnowledgeWorkspaceUi.busy()||ProjectWorkspaceUi.busy()||AutomationUi.busy()||DocumentBatchUi.busy()||attachmentReading||ggufImportBusy||chatBusy||pullBusy||diagnosticBusy||benchmarkBusy
+        return KnowledgeWorkspaceUi.busy()||ProjectWorkspaceUi.busy()||AutomationUi.busy()||DocumentBatchUi.busy()||attachmentReading||ggufImportBusy||chatBusy||pullBusy||diagnosticBusy||benchmarkBusy||ModelDownloadBudget.transferBusy()
                ||(cloudPanel!=null&&cloudPanel.isBusy())||HuggingFaceCatalog.isDownloading();
     }
 
@@ -2084,20 +2088,14 @@ public final class MainActivity extends Activity {
             try {
                 JSONObject result=OllamaHttp.get("/api/tags");
                 JSONArray list=result.optJSONArray("models");
-                if(list==null||!ModelTileCatalog.validSnapshotCount(list.length()))throw new java.io.IOException("Invalid model snapshot");
-                List<String> names=new ArrayList<>();
-                java.util.Set<String> seenNames=new java.util.HashSet<>();
+                List<String> names=new ArrayList<>(InstalledModelInventory.names(result));
                 Map<String,String> descriptions=new HashMap<>();
                 Map<String,String> quantizations=new HashMap<>();
                 Map<String,Long> actualSizes=new HashMap<>();
                 Map<String,String> actualDigests=new HashMap<>();
                 for(int i=0;i<list.length();i++){
                     JSONObject item=list.optJSONObject(i);
-                    Object rawName=item==null?null:item.opt("name");
-                    if(!(rawName instanceof String)||!ModelTileCatalog.validInstalledTag((String)rawName)||!seenNames.add((String)rawName))
-                        throw new java.io.IOException("Invalid model identity");
-                    String name=(String)rawName;
-                    names.add(name);
+                    String name=names.get(i);
                     JSONObject detail=item.optJSONObject("details");
                     String p=detail==null?"":detail.optString("parameter_size","");
                     String q=detail==null?"":detail.optString("quantization_level","");
@@ -3170,6 +3168,7 @@ public final class MainActivity extends Activity {
             toast(getString(R.string.download_server_wait));
             startServer(); return;
         }
+        final long serial=++pullSerial;
         pullBusy = true; pullCancelled = false;
         lastFailedPullModel="";
         if(downloadRetryButton!=null)downloadRetryButton.setVisibility(View.GONE);
@@ -3192,16 +3191,19 @@ public final class MainActivity extends Activity {
         cancelPullButton.setEnabled(true); cancelPullButton.setVisibility(View.VISIBLE);
         progressStatus.setText(getString(R.string.download_prepare_model,model));
         io.execute(() -> {
-            String error = null;
+            String error = null,confirmedTag=null;
+            ModelDownloadBudget.TransferGate.Lease transfer=null;
             try {
                 LocalStreamCancellation.check(()->pullCancelled);
+                transfer=ModelDownloadBudget.tryTransfer();
+                if(transfer==null)throw new java.io.IOException(getString(R.string.busy));
                 HttpURLConnection connection = OllamaHttp.newPullConnection(); pullConnection = connection;
                 OllamaHttp.streamPull(connection, OllamaHttp.pullBody(model), item -> {
                     String status = item.optString("status", "진행 중");
                     long total = item.optLong("total", 0), completed = item.optLong("completed", 0);
                     String info=model+" · "+localizedLayerLabel(status,completed,total);
                     ui.post(() -> {
-                        if(isFinishing()||isDestroyed()||pullCancelled||!pullBusy||!model.equals(downloadingModel))return;
+                        if(isFinishing()||isDestroyed()||serial!=pullSerial||pullCancelled||!pullBusy||!model.equals(downloadingModel))return;
                         progressStatus.setText(info);
                         downloadingPercent=ModelDownloadBudget.layerPercent(completed,total);
                         updateTileDownloadProgress();
@@ -3213,21 +3215,22 @@ public final class MainActivity extends Activity {
                         }
                     });
                 },()->pullCancelled);
+                confirmedTag=OllamaHttp.confirmInstalledTag(model,()->pullCancelled);
             } catch (Exception ex) {
                 InferenceSafetyPolicy.restoreInterrupt(ex);
                 error=ex.getMessage()==null?ex.getClass().getSimpleName():ex.getMessage();
-            } finally { pullConnection = null; }
-            final String failure = error;
+            } finally { pullConnection = null;if(transfer!=null)transfer.close(); }
+            final String failure = error,verifiedTag=confirmedTag;
             ui.post(() -> {
                 pullBusy = false;
-                if(isFinishing()||isDestroyed())return;
+                if(isFinishing()||isDestroyed()||serial!=pullSerial)return;
                 downloadingModel="";
                 downloadingCardId="";
                 downloadingPercent=-1;
                 renderInstalledModels();
                 pullButton.setEnabled(true); pullButton.setAlpha(1f);
                 cancelPullButton.setEnabled(false); cancelPullButton.setVisibility(View.GONE);
-                progressStatus.setText(pullCancelled?getString(R.string.download_stopped):failure!=null?getString(R.string.download_failed,UiText.error(this,failure)):getString(R.string.download_completed,model));
+                progressStatus.setText(pullCancelled?getString(R.string.download_stopped):failure!=null?getString(R.string.download_failed,UiText.error(this,failure)):getString(R.string.download_completed,verifiedTag));
                 lastFailedPullModel=!pullCancelled&&failure!=null?model:"";
                 if(downloadRetryButton!=null)
                     downloadRetryButton.setVisibility(lastFailedPullModel.isEmpty()?View.GONE:View.VISIBLE);
@@ -3236,9 +3239,10 @@ public final class MainActivity extends Activity {
                 else downloadProgress.setVisibility(View.GONE);
                 if (failure == null && !pullCancelled) {
                     refreshModels(()->{
+                        if(serial!=pullSerial||pullCancelled)return;
                         String installed=ModelTileCatalog.resolveInstalledTag(model,knownModels);
-                        if(installed==null){
-                            progressStatus.setText(getString(R.string.download_failed,getString(R.string.chat_stream_incomplete)));
+                        if(!verifiedTag.equals(installed)){
+                            progressStatus.setText(getString(R.string.download_failed,getString(R.string.model_install_unconfirmed)));
                             lastFailedPullModel=model;
                             if(downloadRetryButton!=null)downloadRetryButton.setVisibility(View.VISIBLE);
                             downloadProgress.setVisibility(View.GONE);
@@ -3248,7 +3252,7 @@ public final class MainActivity extends Activity {
                             .setMessage(getString(R.string.download_ready_message,installed))
                             .setNegativeButton(getString(R.string.stay_models), null)
                             .setPositiveButton(getString(R.string.start_chat), (d,w) -> {
-                                if(isUiBusy()||!knownModels.contains(installed)){toast(getString(R.string.need_model));return;}
+                                if(serial!=pullSerial||isUiBusy()||!knownModels.contains(installed)){toast(getString(R.string.need_model));return;}
                                 selectModel(installed);showTab(0);
                             }).show();
                     });
@@ -4755,13 +4759,17 @@ public final class MainActivity extends Activity {
             toast(getString(R.string.gguf_pick)); return;
         }
         final String modelName = "imported-" + System.currentTimeMillis();
-        ggufImportBusy=true;
+        ggufImportBusy=true;ggufImportCancelled=false;
         progressStatus.setText(getString(R.string.gguf_importing));
         io.execute(() -> {
             File copied = null, modelfile = null;
             Process registration=null;
+            ModelDownloadBudget.TransferGate.Lease transfer=null;
             String importStatus = "";
             try {
+                LocalStreamCancellation.check(()->ggufImportCancelled);
+                transfer=ModelDownloadBudget.tryTransfer();
+                if(transfer==null)throw new java.io.IOException(getString(R.string.busy));
                 File imports = new File(getFilesDir(), "imports");
                 if (!imports.exists() && !imports.mkdirs()) throw new Exception(getString(R.string.file_directory_failed));
                 copied = new File(imports, modelName + ".gguf");
@@ -4774,7 +4782,7 @@ public final class MainActivity extends Activity {
                     byte[] buf = new byte[1024 * 1024];
                     int n;
                     while ((n = in.read(buf)) != -1) {
-                        if(Thread.currentThread().isInterrupted())throw new InterruptedException("Import cancelled");
+                        if(ggufImportCancelled||Thread.currentThread().isInterrupted())throw new InterruptedException("Import cancelled");
                         if(n>Long.MAX_VALUE-total)throw new java.io.IOException(getString(R.string.storage_low));
                         total += n;
                         if(available<ModelDownloadBudget.importRequiredBytes(total))
@@ -4782,7 +4790,7 @@ public final class MainActivity extends Activity {
                         out.write(buf, 0, n);
                     }
                 }
-                if(Thread.currentThread().isInterrupted())throw new InterruptedException("Import cancelled");
+                if(ggufImportCancelled||Thread.currentThread().isInterrupted())throw new InterruptedException("Import cancelled");
                 if(!NativeWeightPreflight.validGguf(copied,total))throw new java.io.IOException(getString(R.string.gguf_pick));
                 if(new StatFs(imports.getAbsolutePath()).getAvailableBytes()<ModelDownloadBudget.registrationRequiredBytes(total))
                     throw new java.io.IOException(getString(R.string.storage_low));
@@ -4792,12 +4800,14 @@ public final class MainActivity extends Activity {
                 ProcessBuilder pb = new ProcessBuilder(OllamaForegroundService.ollamaBinary(this).getAbsolutePath(),
                     "create", modelName, "-f", modelfile.getAbsolutePath());
                 OllamaForegroundService.configureEnvironment(this, pb);
-                Process p = pb.start();registration=p;
+                LocalStreamCancellation.check(()->ggufImportCancelled);
+                Process p = pb.start();registration=p;ggufRegistration=p;
+                LocalStreamCancellation.check(()->ggufImportCancelled);
                 StringBuilder output = new StringBuilder();
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
                     String line;
                     while ((line = GpuOffloadEvidence.readDiagnosticLine(reader)) != null) {
-                        if(Thread.currentThread().isInterrupted())throw new InterruptedException("Import cancelled");
+                        if(ggufImportCancelled||Thread.currentThread().isInterrupted())throw new InterruptedException("Import cancelled");
                         output.append(line).append('\n');
                         if(output.length()>3500)output.delete(0,output.length()-3500);
                         String now = line;
@@ -4806,7 +4816,8 @@ public final class MainActivity extends Activity {
                 }
                 int exit = p.waitFor();
                 if (exit != 0) throw new Exception(getString(R.string.error_create_exit,exit,output.toString()));
-                importStatus = getString(R.string.gguf_register_done,modelName);
+                String installed=OllamaHttp.confirmInstalledTag(modelName,()->ggufImportCancelled);
+                importStatus = getString(R.string.gguf_register_done,installed);
                 // The created Ollama model has its own blob, so remove the temporary copy.
                 if (copied != null) copied.delete();
             } catch (Exception e) {
@@ -4814,8 +4825,10 @@ public final class MainActivity extends Activity {
                 importStatus = getString(R.string.gguf_import_error,UiText.error(this,e.getMessage()));
             } finally {
                 if(registration!=null&&registration.isAlive())registration.destroyForcibly();
+                ggufRegistration=null;
                 if (modelfile != null) modelfile.delete();
                 if (copied != null) copied.delete();
+                if(transfer!=null)transfer.close();
             }
             String finalResult = importStatus;
             ui.post(() -> {ggufImportBusy=false;if(!isFinishing()&&!isDestroyed()){progressStatus.setText(finalResult);refreshModels();}});

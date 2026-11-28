@@ -3,6 +3,24 @@ package com.ollamapocket.app;
 /** Conservative storage checks for local Ollama pulls; exact layer sizes may differ. */
 public final class ModelDownloadBudget {
     private ModelDownloadBudget(){}
+    private static final TransferGate TRANSFERS=new TransferGate();
+    static boolean transferBusy(){return TRANSFERS.busy();}
+    static TransferGate.Lease tryTransfer(){return TRANSFERS.acquire();}
+    /** Process-wide mutual exclusion for model mutations, retained through worker cleanup. */
+    public static final class TransferGate {
+        private Lease active;
+        public synchronized Lease acquire(){
+            if(active!=null)return null;
+            active=new Lease(this);return active;
+        }
+        public synchronized boolean busy(){return active!=null;}
+        private synchronized void release(Lease expected){if(active==expected)active=null;}
+        public static final class Lease implements AutoCloseable {
+            private final TransferGate gate;
+            private Lease(TransferGate gate){this.gate=gate;}
+            @Override public void close(){gate.release(this);}
+        }
+    }
     public static final long MIB=1024L*1024*1024/1024;
     private static final long RESERVE=512L*1024*1024;
     /** Returns zero for unknown model size: show a warning, do not fabricate a size. */

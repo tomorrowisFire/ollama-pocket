@@ -60,6 +60,11 @@ public final class HuggingFaceCatalog {
     private final ExecutorService io=Executors.newSingleThreadExecutor();
     private static final AtomicBoolean DOWNLOAD_LOCK=new AtomicBoolean(false);
     public static boolean isDownloading(){return DOWNLOAD_LOCK.get();}
+    private static volatile HuggingFaceCatalog activeDownload;
+    static void cancelFor(Activity owner){
+        HuggingFaceCatalog active=activeDownload;
+        if(active!=null&&active.activity==owner)active.cancel();
+    }
     private final AtomicBoolean stopped=new AtomicBoolean(false);
     private volatile HttpURLConnection downloading;
     private volatile Process registration;
@@ -155,6 +160,7 @@ public final class HuggingFaceCatalog {
             case "임시 폴더 생성 실패":return activity.getString(R.string.file_directory_failed);
             case "사용자가 다운로드를 중지했습니다.":case "취소되었습니다.":return activity.getString(R.string.download_stopped);
             case "받은 파일 크기가 목록과 다릅니다. 불완전한 파일 삭제.":return activity.getString(R.string.hf_size_mismatch);
+            case "MODEL_INSTALL_UNCONFIRMED":return activity.getString(R.string.model_install_unconfirmed);
             case "등록 취소됨":return activity.getString(R.string.hf_registration_cancelled);
             default:
                 String prefix="Ollama 모델 등록 실패: ";
@@ -489,7 +495,7 @@ public final class HuggingFaceCatalog {
             fail(activity.getString(R.string.hf_server_required));
             return;
         }
-        stopped.set(false);
+        stopped.set(false);activeDownload=this;
         LinearLayout panel=panel(activity);
         TextView status=label(activity,activity.getString(R.string.model_download_preparing));add(panel,status);
         ProgressBar progress=new ProgressBar(activity,null,android.R.attr.progressBarStyleHorizontal);
@@ -513,8 +519,11 @@ public final class HuggingFaceCatalog {
             ((MainActivity)activity).registerHfDownloadAd(adSlot);
         io.execute(()->{
             File gguf=null,modelfile=null;
+            ModelDownloadBudget.TransferGate.Lease transfer=null;
             try {
                 if(stopped.get())throw new java.io.InterruptedIOException("Download cancelled");
+                transfer=ModelDownloadBudget.tryTransfer();
+                if(transfer==null)throw new java.io.IOException(activity.getString(R.string.busy));
                 File folder=new File(activity.getFilesDir(),"imports");
                 if(!folder.isDirectory()&&!folder.mkdirs())throw new Exception("임시 폴더 생성 실패");
                 String slug=repo.id.replace('/','-').toLowerCase(Locale.ROOT)
@@ -528,6 +537,7 @@ public final class HuggingFaceCatalog {
                     "/resolve/main/"+encodePath(weight.path)+"?download=true";
                 HttpURLConnection conn=(HttpURLConnection)new URL(url).openConnection();
                 downloading=conn;conn.setConnectTimeout(15000);conn.setReadTimeout(60000);
+                if(stopped.get())throw new java.io.InterruptedIOException("Download cancelled");
                 conn.setRequestProperty("Accept-Encoding","identity");
                 int code=conn.getResponseCode();
                 if(code==401||code==403)throw new Exception("라이선스 동의·로그인 필요. 공개 GGUF만 지원합니다.");
@@ -538,7 +548,7 @@ public final class HuggingFaceCatalog {
                     byte[] buffer=new byte[1024*1024];int count;
                     long last=0;
                     while((count=input.read(buffer))!=-1) {
-                        if(stopped.get())throw new Exception("사용자가 다운로드를 중지했습니다.");
+                        if(stopped.get()||Thread.currentThread().isInterrupted())throw new Exception("사용자가 다운로드를 중지했습니다.");
                         if(count>weight.size-downloaded)throw new java.io.IOException(activity.getString(R.string.hf_size_mismatch));
                         output.write(buffer,0,count);downloaded+=count;
                         if(System.currentTimeMillis()-last>350){
@@ -581,22 +591,27 @@ public final class HuggingFaceCatalog {
                 registration=null;
                 if(stopped.get())throw new Exception("등록 취소됨");
                 if(exit!=0)throw new Exception("Ollama 모델 등록 실패: "+output);
+                String installed=OllamaHttp.confirmInstalledTag(modelName,stopped::get);
                 onUi(()->{
+                    if(stopped.get())return;
                     dialog.dismiss();
                     onInstalled.run();
                     new AlertDialog.Builder(activity)
-                        .setTitle(activity.getString(R.string.model_ready)).setMessage(activity.getString(R.string.hf_installed,modelName))
+                        .setTitle(activity.getString(R.string.model_ready)).setMessage(activity.getString(R.string.hf_installed,installed))
                         .setPositiveButton(activity.getString(R.string.ok),null).show();
                 });
             } catch(Exception e){
                 fail(activity.getString(R.string.hf_download_error,errorLabel(activity,e.getMessage())));
                 onUi(dialog::dismiss);
             } finally {
-                downloading=null;
+                HttpURLConnection pending=downloading;downloading=null;
+                if(pending!=null)try{pending.disconnect();}catch(RuntimeException ignored){}
                 Process remaining=registration;registration=null;
                 if(remaining!=null&&remaining.isAlive())remaining.destroyForcibly();
                 if(gguf!=null)gguf.delete();
                 if(modelfile!=null)modelfile.delete();
+                if(transfer!=null)transfer.close();
+                if(activeDownload==this)activeDownload=null;
                 DOWNLOAD_LOCK.set(false);
                 io.shutdown();
             }

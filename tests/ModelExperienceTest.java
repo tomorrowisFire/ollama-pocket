@@ -43,6 +43,13 @@ public final class ModelExperienceTest{
         ok(ModelDownloadBudget.registrationRequiredBytes(Long.MAX_VALUE)==Long.MAX_VALUE,"registration overflow saturates");
         ok(ModelDownloadBudget.importRequiredBytes(-1)==0,"unknown import size");
         ok(ModelDownloadBudget.layerPercent(101,100)==-1,"invalid progress is not falsely 100 percent");
-        System.out.println("PASS: ModelExperience (30 checks)");
+        ModelDownloadBudget.TransferGate gate=new ModelDownloadBudget.TransferGate();
+        var first=gate.acquire();
+        ok(first!=null&&gate.busy()&&gate.acquire()==null,"only one model mutation");
+        first.close();ok(!gate.busy(),"cleanup releases ownership");
+        var next=gate.acquire();first.close();
+        ok(next!=null&&gate.busy()&&gate.acquire()==null,"stale cleanup cannot release new worker");
+        next.close();next.close();ok(!gate.busy(),"idempotent release");
+        System.out.println("PASS: ModelExperience (34 checks)");
     }
 }

@@ -519,7 +519,9 @@ assert "WorkflowPolicy.resumeChoiceEnabled(idle,current.resumable()" in (src/"Au
 # F10A81: preserve the last valid installed snapshot and recheck download consent.
 assert "final long sequence=++installedModelRefreshSerial" in main
 assert "ModelTileCatalog.acceptSnapshot(sequence,installedModelRefreshSerial" in main
-assert "list==null||!ModelTileCatalog.validSnapshotCount(list.length())" in main
+assert "InstalledModelInventory.names(result)" in main
+inventory_source=(src/"InstalledModelInventory.java").read_text()
+assert "models==null||!ModelTileCatalog.validSnapshotCount(models.length())" in inventory_source
 assert "beginDownload(model,featuredBytes)" in main
 assert "ModelDownloadBudget.requiresReconfirmation(reviewedBytes,currentBytes)" in main
 assert main.index("if(!hasDownloadStorage(Math.max(reviewedBytes,currentBytes)))return;") < main.index("pullBusy = true; pullCancelled = false;")
@@ -536,3 +538,13 @@ hf_source=(src/"HuggingFaceCatalog.java").read_text()
 assert "NativeWeightPreflight.validGguf(gguf,weight.size)" in hf_source
 assert "ModelDownloadBudget.registrationRequiredBytes(weight.size)" in hf_source
 assert "if(count>weight.size-downloaded)" in hf_source
+
+# F10A83: completion readback and process-wide model transfer ownership.
+assert "confirmedTag=OllamaHttp.confirmInstalledTag(model,()->pullCancelled)" in main
+assert "OllamaHttp.confirmInstalledTag(modelName,()->ggufImportCancelled)" in main
+assert "OllamaHttp.confirmInstalledTag(modelName,stopped::get)" in hf_source
+assert main.count("transfer=ModelDownloadBudget.tryTransfer()")==2
+assert "transfer=ModelDownloadBudget.tryTransfer()" in hf_source
+assert "HuggingFaceCatalog.cancelFor(this)" in main
+assert "serial!=pullSerial" in main
+assert "||ModelDownloadBudget.transferBusy()" in main

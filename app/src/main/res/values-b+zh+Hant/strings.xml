@@ -328,6 +328,7 @@
     <string name="download_prepare_model">%1$s · 正在準備下載…</string>
     <string name="download_failed">下載失敗：%1$s</string>
     <string name="download_completed">模型已安裝：%1$s</string>
+    <string name="model_install_unconfirmed">引擎已結束操作，但無法確認安裝。請重新整理已安裝模型清單後再試。</string>
     <string name="download_ready_message">%1$s 已安裝，現在可在本機對話。</string>
     <string name="download_layer_percent">%1$s · 目前層 %2$d%%（非總進度）</string>
     <string name="tile_layer_percent">↓ 下載中 · 層 %1$d%%</string>

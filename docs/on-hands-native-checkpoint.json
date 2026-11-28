@@ -1,6 +1,6 @@
 {
-  "stage": "F10A82-eighth-focused-integration",
-  "revision": "F10A82",
-  "priorCandidate": "7168219527a7a56504cbf96d39a291bf78b4941c",
-  "reason": "Integrate terminal model pull and cancellation handling; exact installed tag before ready action; two-copy and registration storage checks; GGUF header and byte-size preflight for local/HF imports; bounded registration diagnostics and stale UI guards. Parent Java PASS, full pending. Exact FAST/FULL candidate; physical tests deferred."
+  "stage": "F10A83-ninth-focused-integration",
+  "revision": "F10A83",
+  "priorCandidate": "dff23a1e9b66442863150e8dbe2750c21f389599",
+  "reason": "Exact installed inventory readback with size and manifest digest, shared model-transfer worker lease across activity lifecycle, stale pull callback guards, owner cancellation and explicit missing model verification message. Wire previously omitted model regression fixtures into FAST CI. Full ARM64 checkpoint; final device acceptance deferred."
 }

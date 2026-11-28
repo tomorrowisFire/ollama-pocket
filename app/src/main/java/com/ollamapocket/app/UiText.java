@@ -58,6 +58,7 @@ final class UiText {
         if(depth>3)return value;
         if(value==null||value.isEmpty())return c.getString(R.string.coop_unknown_error);
         switch(value){
+            case "MODEL_INSTALL_UNCONFIRMED":return c.getString(R.string.model_install_unconfirmed);
             case "PULL_INCOMPLETE":return c.getString(R.string.chat_stream_incomplete);
             case "PULL_PROTOCOL":case "LOCAL_ENGINE_ERROR":return c.getString(R.string.error_connection);
             case "연결 오류":return c.getString(R.string.error_connection);

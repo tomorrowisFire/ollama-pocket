@@ -155,6 +155,8 @@ jobs:
           mkdir -p /tmp/search-batch-tests
           javac --release 17 -d /tmp/search-batch-tests app/src/main/java/com/ollamapocket/app/OllamaLibrarySearch.java app/src/main/java/com/ollamapocket/app/ModelVariantCatalog.java app/src/main/java/com/ollamapocket/app/ModelSearchCache.java tests/ModelSearchBatchTest.java
           java -cp /tmp/search-batch-tests com.ollamapocket.app.ModelSearchBatchTest
+          javac --release 17 -cp /tmp/search-batch-tests -d /tmp/search-batch-tests app/src/main/java/com/ollamapocket/app/ModelTileCatalog.java app/src/main/java/com/ollamapocket/app/ModelListFilter.java app/src/main/java/com/ollamapocket/app/ModelGroupings.java app/src/main/java/com/ollamapocket/app/ModelDownloadBudget.java app/src/main/java/com/ollamapocket/app/BenchmarkRecommendation.java tests/ModelTileCatalogTest.java tests/ModelListFilterTest.java tests/ModelVariantCatalogTest.java tests/ModelExperienceTest.java
+          for test in ModelTileCatalogTest ModelListFilterTest ModelVariantCatalogTest ModelExperienceTest; do java -cp /tmp/search-batch-tests "$test"; done
       - name: Test pinned fixture mirror and cache integrity without network
         run: python3 -m unittest discover -s tests -p test_pinned_test_jar.py
       - name: Test stage-scoped native build policy
@@ -356,6 +358,8 @@ jobs:
           mkdir -p /tmp/local-stream-tests
           javac -cp /tmp/cloud-stream-tests/json.jar -d /tmp/local-stream-tests app/src/main/java/com/ollamapocket/app/LocalChatTurns.java app/src/main/java/com/ollamapocket/app/LocalStreamCancellation.java app/src/main/java/com/ollamapocket/app/LocalInferenceStream.java tests/LocalStreamCancellationTest.java tests/LocalInferenceStreamTest.java
           java -cp /tmp/local-stream-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.LocalInferenceStreamTest
+          javac --release 17 -cp /tmp/search-batch-tests:/tmp/cloud-stream-tests/json.jar -d /tmp/local-stream-tests app/src/main/java/com/ollamapocket/app/InstalledModelInventory.java tests/InstalledModelInventoryTest.java
+          java -cp /tmp/local-stream-tests:/tmp/search-batch-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.InstalledModelInventoryTest
           java -cp /tmp/local-stream-tests com.ollamapocket.app.LocalStreamCancellationTest
           javac -d /tmp/local-stream-tests app/src/main/java/com/ollamapocket/app/StructuredInferenceTerminal.java tests/StructuredInferenceTerminalTest.java
           java -cp /tmp/local-stream-tests com.ollamapocket.app.StructuredInferenceTerminalTest

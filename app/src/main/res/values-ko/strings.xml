@@ -328,6 +328,7 @@
     <string name="download_prepare_model">%1$s 다운로드 준비 중…</string>
     <string name="download_failed">다운로드 실패: %1$s</string>
     <string name="download_completed">모델 설치 완료: %1$s</string>
+    <string name="model_install_unconfirmed">엔진 작업은 끝났지만 설치를 확인하지 못했습니다. 설치된 모델 목록을 새로고침한 후 다시 시도하세요.</string>
     <string name="download_ready_message">%1$s이 설치됐습니다. 이제 이 기기에서 질문할 수 있습니다.</string>
     <string name="download_layer_percent">%1$s · 현재 레이어 %2$d%% (전체 다운로드 아님)</string>
     <string name="tile_layer_percent">↓ 다운로드 중 · 레이어 %1$d%%</string>

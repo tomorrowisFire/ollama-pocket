@@ -328,6 +328,7 @@
     <string name="download_prepare_model">%1$s · Preparing download…</string>
     <string name="download_failed">Download failed: %1$s</string>
     <string name="download_completed">Model installed: %1$s</string>
+    <string name="model_install_unconfirmed">The engine finished, but installation could not be confirmed. Refresh installed models before retrying.</string>
     <string name="download_ready_message">%1$s is installed. You can now chat on this device.</string>
     <string name="download_layer_percent">%1$s · Current layer %2$d%% (not total progress)</string>
     <string name="tile_layer_percent">↓ Downloading · Layer %1$d%%</string>
