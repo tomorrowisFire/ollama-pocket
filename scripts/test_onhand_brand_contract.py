@@ -488,3 +488,10 @@ assert 'return BuildConfig.DEBUG && prefs.getBoolean("enabled", true)' in ad_sou
 assert "ads::setTestAdFree" in main and "billing.destroy()" in main
 assert "ads.register(downloadAdSlot,AdSupport.PLACEMENT_DOWNLOAD)" in main
 print("PASS: approved launcher SHA-256, both adaptive masks, light/dark dialog palettes and native UI wiring")
+
+# F10A78: the model picker stays discoverable and long workflow context is blocked before attempt reservation.
+assert "topPageSubtitle.setCompoundDrawablesRelative(null,null,local?OnHandGlyphs.drawable(this,OnHandGlyphs.Kind.CARET" in main
+assert "if(!cloudMode)label+=\" ▾\";" not in main
+workflow_source=(src/"LocalWorkflow.java").read_text()
+assert workflow_source.index("if(!DocumentBatchPolicy.fits(stepPrompt,WorkflowPolicy.MAX_TOKENS))") < workflow_source.index("c.attempts++;c.totalAttempts++")
+assert 'put("content",stepPrompt)' in workflow_source

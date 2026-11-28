@@ -30,6 +30,11 @@ public final class WorkflowRunJournalTest {
         ok(WorkflowRunJournal.failure(new java.net.SocketTimeoutException())==WorkflowRunJournal.Reason.TRANSPORT);
         ok(WorkflowRunJournal.failure(null)==WorkflowRunJournal.Reason.TRANSPORT);
         ok(WorkflowRunJournal.stopState(WorkflowRunJournal.Reason.INTERRUPTED)==WorkflowRunJournal.State.PAUSED);
+        ok(WorkflowRunJournal.stopState(WorkflowRunJournal.Reason.CONTEXT_LIMIT)==WorkflowRunJournal.State.BLOCKED);
+        WorkflowRunJournal contextBlocked=new WorkflowRunJournal();
+        contextBlocked.record(1,"QUEUED",none,0,0,0,2,1);
+        contextBlocked.record(2,"BLOCKED",WorkflowRunJournal.Reason.CONTEXT_LIMIT,0,0,0,2,1);
+        ok(WorkflowRunJournal.read(contextBlocked.json(),2,1).matchesLast("BLOCKED",WorkflowRunJournal.Reason.CONTEXT_LIMIT,0,0,0,2));
         WorkflowRunJournal j=new WorkflowRunJournal();
         ok(j.matchesLast("PAUSED",WorkflowRunJournal.Reason.UNKNOWN,0,0,0,0));
         j.record(1,"QUEUED",none,0,0,0,2,1);

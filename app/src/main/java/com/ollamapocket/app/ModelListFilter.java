@@ -18,25 +18,34 @@ public final class ModelListFilter {
         return raw==null||raw.trim().isEmpty()?"미확인":raw.trim().toUpperCase(Locale.ROOT);
     }
 
-    public static String family(String name,String metadata) {
-        String value=((name==null?"":name)+" "+(metadata==null?"":metadata)).toLowerCase(Locale.ROOT);
-        if(value.contains("qwen"))return "Qwen";
-        if(value.contains("llama"))return "Llama";
-        if(value.contains("gemma"))return "Gemma";
-        if(value.contains("deepseek"))return "DeepSeek";
-        if(value.contains("mistral")||value.contains("mixtral"))return "Mistral";
-        if(value.contains("phi-")||value.contains("phi3")||value.contains("phi4")
-                ||value.startsWith("phi:"))return "Phi";
-        if(value.contains("glm"))return "GLM";
-        if(value.contains("gpt-oss"))return "GPT-OSS";
-        return "기타";
+    private static final java.util.regex.Pattern FAMILY=java.util.regex.Pattern.compile(
+        "(?<![a-z0-9])(qwen|llama|gemma|deepseek|mistral|mixtral|phi(?=[-:0-9_./\\s]|$)|glm|gpt-oss)");
+    private static String knownFamily(String value){
+        java.util.regex.Matcher m=FAMILY.matcher(value==null?"":value.toLowerCase(Locale.ROOT));
+        if(!m.find())return null;
+        switch(m.group(1)){
+            case "qwen":return "Qwen";
+            case "llama":return "Llama";
+            case "gemma":return "Gemma";
+            case "deepseek":return "DeepSeek";
+            case "mistral":case "mixtral":return "Mistral";
+            case "phi":return "Phi";
+            case "glm":return "GLM";
+            case "gpt-oss":return "GPT-OSS";
+            default:return null;
+        }
     }
-
+    public static String family(String name,String metadata) {
+        // Provider "Ollama" is not a Llama family; explicit identifier wins over descriptive metadata.
+        String found=knownFamily(name);
+        if(found==null)found=knownFamily(metadata);
+        return found==null?"기타":found;
+    }
     public static String band(String raw) {
         String value=normalizeQuantization(raw);
-        for(String q:new String[]{"Q2","Q3","Q4","Q5","Q6","Q8"})
-            if(value.startsWith(q))return q;
-        if(value.contains("BF16")||value.contains("F16"))return "F16/BF16";
+        for(String q:new String[]{"IQ1","IQ2","IQ3","IQ4","Q2","Q3","Q4","Q5","Q6","Q8","MXFP4"})
+            if(value.equals(q)||value.startsWith(q+"_"))return q;
+        if("FP16".equals(value)||"BF16".equals(value)||"F16".equals(value))return "F16/BF16";
         return "미확인".equals(value)?"미확인":"기타";
     }
 
@@ -45,7 +54,7 @@ public final class ModelListFilter {
         String normalized=normalizeQuantization(quant);
         if(selected.endsWith(" 전체"))
             return selected.substring(0,selected.length()-3).equals(band(normalized));
-        return selected.equals(normalized);
+        return normalizeQuantization(selected).equals(normalized);
     }
 
     public static boolean matches(String name,String description,String quant,

@@ -21,7 +21,7 @@ import android.widget.TextView;
 final class OnHandGlyphs extends Drawable {
     enum Kind { MENU, PLUS, MORE, SEARCH, SEND, STOP, MIC, ATTACH, WRITE, PLAN, CODE, DOC,
         FLOW, CLOUD, PROJECT, KNOWLEDGE, EXPORT, CHIP, SETTINGS, DEVICE, LANGUAGE, THEME,
-        FONT, SHIELD, CHECK, CLOSE, BACK, DOWN, CHEVRON, COPY, REFRESH, PLAY, TRASH, BOOK, IMAGE, NEW_CHAT }
+        FONT, SHIELD, CHECK, CLOSE, BACK, DOWN, CARET, CHEVRON, COPY, REFRESH, PLAY, TRASH, BOOK, IMAGE, NEW_CHAT }
     private final Kind kind;
     private final Paint pen=new Paint(Paint.ANTI_ALIAS_FLAG);
     private final int size;
@@ -90,6 +90,7 @@ final class OnHandGlyphs extends Drawable {
             case CLOSE:line(c,6,6,18,18);line(c,18,6,6,18);break;
             case BACK:line(c,15,5,8,12,15,19);break;
             case DOWN:line(c,12,4,12,20);line(c,6,14,12,20,18,14);break;
+            case CARET:line(c,5,9,12,16,19,9);break;
             case CHEVRON:line(c,9,5,16,12,9,19);break;
             case COPY:box(c,8,8,20,21,2);line(c,15,5,15,3,3,3,3,16,5,16);break;
             case REFRESH:c.drawArc(new RectF(4,4,20,20),40,300,false,pen);line(c,20,4,20,10,14,10);break;

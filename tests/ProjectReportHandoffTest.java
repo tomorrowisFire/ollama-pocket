@@ -8,13 +8,13 @@ public final class ProjectReportHandoffTest {
     public static void main(String[] args)throws Exception{
         DocumentBatchPolicy.Plan plan=new DocumentBatchPolicy.Plan("Goal",List.of(
             new DocumentBatchPolicy.Source("source.txt","PRIVATE source",DocumentBatchPolicy.Kind.TEXT,false,0,0,0)));
-        // Count actual fixture generator invocations, including singleton group synthesis.
+        // Count actual generator invocations; a fitting singleton goes directly from note to final synthesis.
         java.util.concurrent.atomic.AtomicInteger requests=new java.util.concurrent.atomic.AtomicInteger();
         DocumentBatchPolicy.Result result=DocumentBatchPolicy.analyze(plan,(prompt,chars,tokens)->{
             requests.incrementAndGet();return "Note 😀 [D1-S1]";
         },()->false,x->{});
-        ok(result.status==DocumentBatchPolicy.Status.COMPLETED&&result.notes.size()==1&&result.groupsDone==1);
-        ok(requests.get()==3); // excerpt, singleton group, final synthesis
+        ok(result.status==DocumentBatchPolicy.Status.COMPLETED&&result.notes.size()==1&&result.groupsDone==0);
+        ok(requests.get()==2); // excerpt and final synthesis; no redundant group call
         reject(()->new DocumentBatchReport(plan,result,"model",null,requests.get()-1,10));
         reject(()->new DocumentBatchReport(plan,result,"model",null,requests.get()+1,10));
         DocumentBatchReport doc=new DocumentBatchReport(plan,result,"model",null,requests.get(),10);

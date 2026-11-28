@@ -42,19 +42,23 @@ final class LocalChatTurns {
     }
     static List<Message> request(List<Message> source,String prompt){
         if(!validPrompt(prompt))throw new IllegalArgumentException("Invalid prompt");
-        List<Message[]> pairs=new ArrayList<>();
-        // Only adjacent user+assistant pairs are eligible. Legacy orphaned/failed
-        // questions remain stored and visible but do not become context for a new turn.
-        for(int i=0;source!=null&&i+1<source.size();i++){
-            Message q=source.get(i),a=source.get(i+1);
-            if(q!=null&&a!=null&&q.user()&&a.assistant()){pairs.add(new Message[]{q,a});i++;}
-        }
-        List<Message> out=new ArrayList<>();int chars=prompt.length();
-        for(int i=pairs.size()-1;i>=0&&out.size()/2<MAX_CONTEXT_PAIRS;i--){
-            Message[] pair=pairs.get(i);
-            long next=(long)chars+pair[0].content.length()+pair[1].content.length();
-            if(next>MAX_CONTEXT_CHARS)break;
-            out.add(0,pair[1]);out.add(0,pair[0]);chars=(int)next;
+        List<Message> out=new ArrayList<>(2*MAX_CONTEXT_PAIRS+1);
+        int chars=prompt.length();
+        // Walk the stored suffix only. Adjacent user/assistant pairs cannot overlap.
+        // Preserve the old whole-pair budget and orphan handling exactly.
+        if(source!=null){
+            java.util.ListIterator<Message> cursor=source.listIterator(source.size());
+            Message following=null;
+            while(cursor.hasPrevious()&&out.size()/2<MAX_CONTEXT_PAIRS){
+                Message candidate=cursor.previous();
+                if(candidate!=null&&following!=null&&candidate.user()&&following.assistant()){
+                    long next=(long)chars+candidate.content.length()+following.content.length();
+                    if(next>MAX_CONTEXT_CHARS)break;
+                    out.add(following);out.add(candidate);chars=(int)next;
+                    following=null;
+                }else following=candidate;
+            }
+            Collections.reverse(out);
         }
         out.add(new Message("user",prompt));
         return Collections.unmodifiableList(out);

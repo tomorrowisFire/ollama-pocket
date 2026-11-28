@@ -23,6 +23,17 @@ public final class ModelListFilterTest {
         ok(ModelListFilter.retainChoice(options,"Gemma")==2&&options.size()==3,"no duplicate preserved option");
         ok(ModelListFilter.retainChoice(options,null)==0,"default for missing choice");
         ok(!ModelListFilter.matches("qwen:4b","","Q4_K_M","","Gemma","전체 양자화"),"absent selection shows zero results, not another family");
-        System.out.println("PASS: ModelListFilter (18 assertions)");
+        ok("Gemma".equals(ModelListFilter.family("gemma4:e2b","Ollama · Qwen example")),"model id wins over metadata");
+        ok("DeepSeek".equals(ModelListFilter.family("hf:org/DeepSeek-R1-Distill-Qwen-7B#file.gguf","Ollama")),"primary identifier before distillation base");
+        ok("기타".equals(ModelListFilter.family("unknown:latest","Ollama")),"provider is not a model family");
+        ok("Llama".equals(ModelListFilter.family("meta-llama/Llama-3.2","")),"Llama identifier");
+        ok("Phi".equals(ModelListFilter.family("org/Phi-4-mini","")),"Phi identifier");
+        ok("Gemma".equals(ModelListFilter.family("unknown","Ollama · Gemma 4")),"metadata fallback");
+        ok("IQ2".equals(ModelListFilter.band("iq2_xxs")),"IQ band");
+        ok("MXFP4".equals(ModelListFilter.band("mxfp4")),"MXFP4 band");
+        ok("기타".equals(ModelListFilter.band("Q40")),"invalid prefix");
+        ok(ModelListFilter.matchesQuantization("IQ4 전체","IQ4_XS"),"IQ filter");
+        ok(ModelListFilter.matchesQuantization("q4_k_m","Q4_K_M"),"normalized exact choice");
+        System.out.println("PASS: ModelListFilter (29 assertions)");
     }
 }

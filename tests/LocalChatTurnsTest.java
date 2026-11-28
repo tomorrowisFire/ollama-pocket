@@ -9,6 +9,21 @@ public final class LocalChatTurnsTest {
     private static LocalChatTurns.Message u(String s){return new LocalChatTurns.Message("user",s);}
     private static LocalChatTurns.Message a(String s){return new LocalChatTurns.Message("assistant",s);}
     private static void invalid(Runnable r,String label){try{r.run();}catch(IllegalArgumentException e){n++;return;}throw new AssertionError(label);}
+    private static List<LocalChatTurns.Message> reference(List<LocalChatTurns.Message> source,String prompt){
+        List<LocalChatTurns.Message[]> pairs=new ArrayList<>();
+        for(int i=0;i+1<source.size();i++){
+            LocalChatTurns.Message q=source.get(i),a=source.get(i+1);
+            if(q!=null&&a!=null&&q.user()&&a.assistant()){pairs.add(new LocalChatTurns.Message[]{q,a});i++;}
+        }
+        List<LocalChatTurns.Message> out=new ArrayList<>();int chars=prompt.length();
+        for(int i=pairs.size()-1;i>=0&&out.size()/2<LocalChatTurns.MAX_CONTEXT_PAIRS;i--){
+            LocalChatTurns.Message[] pair=pairs.get(i);
+            long next=(long)chars+pair[0].content.length()+pair[1].content.length();
+            if(next>LocalChatTurns.MAX_CONTEXT_CHARS)break;
+            out.add(0,pair[1]);out.add(0,pair[0]);chars=(int)next;
+        }
+        return out;
+    }
     public static void main(String[] args){
         List<LocalChatTurns.Message> h=new ArrayList<>(Arrays.asList(a("stray"),u("first"),a("answer"),u("failed"),u("latest"),a("last"),u("orphan")));
         List<LocalChatTurns.Message> req=LocalChatTurns.request(h,"new");
@@ -34,6 +49,20 @@ public final class LocalChatTurnsTest {
         req=LocalChatTurns.request(Arrays.asList(u("old"),null,a("invalid"),u("newer"),a("valid")),"new");
         ok(req.size()==3&&"newer".equals(req.get(0).content),"invalid entries do not pair");
         ok(LocalChatTurns.gpuTerminal("stop")&&LocalChatTurns.gpuTerminal("length")&&!LocalChatTurns.gpuTerminal("tool_calls")&&!LocalChatTurns.gpuTerminal(""),"terminal status");
+        java.util.Random random=new java.util.Random(77);
+        for(int trial=0;trial<800;trial++){
+            List<LocalChatTurns.Message> source=trial%2==0?new ArrayList<>():new java.util.LinkedList<>();
+            for(int i=0,count=random.nextInt(260);i<count;i++){
+                int type=random.nextInt(7);
+                source.add(type==0?null:type==1?u(" "):type==2?a(" "):type==3?u("long".repeat(15000)):
+                    type==4?a("answer "+i):type==5?u("question "+i):new LocalChatTurns.Message("system","legacy"));
+            }
+            List<LocalChatTurns.Message> expected=reference(source,"latest");
+            List<LocalChatTurns.Message> actual=LocalChatTurns.request(source,"latest");
+            ok(actual.size()==expected.size()+1,"suffix size");
+            for(int i=0;i<expected.size();i++)ok(actual.get(i)==expected.get(i),"exact legacy context equivalence");
+            ok(actual.get(actual.size()-1).content.equals("latest"),"preserve prompt");
+        }
         System.out.println("LocalChatTurnsTest PASS: "+n+" assertions");
     }
 }

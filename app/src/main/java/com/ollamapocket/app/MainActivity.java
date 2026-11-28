@@ -2298,7 +2298,7 @@ public final class MainActivity extends Activity {
         for(String family:priorities)if(foundFamilies.contains(family))families.add(family);
         List<String> quantOptions=new ArrayList<>();
         quantOptions.add("전체 양자화");
-        for(String band:new String[]{"Q2","Q3","Q4","Q5","Q6","Q8","F16/BF16","기타","미확인"}){
+        for(String band:new String[]{"Q2","Q3","Q4","Q5","Q6","Q8","IQ1","IQ2","IQ3","IQ4","MXFP4","F16/BF16","기타","미확인"}){
             boolean exists=false;
             for(String q:quantized)if(band.equals(quantizationBand(q)))exists=true;
             if(exists)quantOptions.add(band+" 전체");
@@ -3922,7 +3922,6 @@ public final class MainActivity extends Activity {
         String selected=cloudMode?(cloudPanel==null?"":cloudPanel.selectedModelName()):
             (currentModel!=null&&knownModels.contains(currentModel)?currentModel:"");
         String label=selected.isEmpty()?getString(cloudMode?R.string.coop_select_model:R.string.models):selected;
-        if(!cloudMode)label+=" ▾";
         if(!TextUtils.equals(topPageSubtitle.getText(),label))topPageSubtitle.setText(label);
         topPageSubtitle.setTooltipText(selected.isEmpty()?null:selected);
         refreshHeaderAccess();
@@ -3939,6 +3938,9 @@ public final class MainActivity extends Activity {
         refreshHeaderEnabled(isUiBusy());
         if(topPageSubtitle!=null){
             topPageSubtitle.setClickable(local);topPageSubtitle.setFocusable(local);
+            // Keep the picker indicator visible even when a long tag is ellipsized.
+            topPageSubtitle.setCompoundDrawablesRelative(null,null,local?OnHandGlyphs.drawable(this,OnHandGlyphs.Kind.CARET,topPageSubtitle.getCurrentTextColor(),12):null,null);
+            topPageSubtitle.setCompoundDrawablePadding(dp(4));
             String action=getString(knownModels.isEmpty()?R.string.install_model:R.string.model_picker);
             topPageSubtitle.setContentDescription(local?topPageSubtitle.getText()+" · "+action:null);
             topPageSubtitle.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);

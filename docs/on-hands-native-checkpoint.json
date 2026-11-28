@@ -1,6 +1,6 @@
 {
-  "stage": "F10A77-focused-third-integration",
-  "revision": "F10A77",
-  "priorCandidate": "d96a790d12ea9247cdd8a813f459149ea9668ac5",
-  "reason": "Third focused integration: benchmark recommendation resource gate and sensitive clipboard, consistent capacity advice for contradictory RAM, skip redundant singleton document reduction when final context fits, shared strict workflow text stream and token accounting. Exact FAST/FULL candidate; physical acceptance deferred."
+  "stage": "F10A78-fourth-integration-regression-repair",
+  "revision": "F10A78",
+  "priorCandidate": "9ec093f0cd1dd84273b986784d51e535a09ef712",
+  "reason": "Repair obsolete F10A77 singleton document handoff fixture while retaining exact report-count checks. Optimize local history suffix construction without changing admitted content; correct Ollama vs Llama classification and IQ/MXFP4 bands; visible model picker caret; fail-closed workflow context preflight before reservation using existing 2048 estimate. Exact CI and full ARM64 build; final device tests deferred."
 }

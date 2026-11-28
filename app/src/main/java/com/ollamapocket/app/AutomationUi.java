@@ -1552,6 +1552,7 @@ final class AutomationUi {
             case MEMORY:return s(R.string.bench_memory);
             case SERVER_OFF:return s(R.string.test_need_server);
             case COOP_ACTIVE:return s(R.string.guest_stop_first);
+            case CONTEXT_LIMIT:return s(R.string.conference_context)+" · "+s(R.string.attachment_context_limit);
             case OUTPUT_LIMIT:return s(R.string.auto_reason_output_limit);
             case INVALID_TOKENS:return s(R.string.auto_reason_invalid_tokens);
             case TRANSPORT:return s(R.string.auto_reason_transport);

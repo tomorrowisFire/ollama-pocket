@@ -168,13 +168,18 @@ final class LocalWorkflow {
                 int index=c.results.size();WorkflowPolicy.Step step=steps.get(index);
                 String previous=index==0?"":c.results.get(index-1);
                 boolean retry=c.attempts>0;
+                String stepPrompt=WorkflowPolicy.prompt(step,previous,retry);
+                // The shared CPU request uses a 2048-token context. Don't silently discard prior evidence.
+                if(!DocumentBatchPolicy.fits(stepPrompt,WorkflowPolicy.MAX_TOKENS)){
+                    stopped(c,WorkflowRunJournal.Reason.CONTEXT_LIMIT);break;
+                }
                 c.attempts++;c.totalAttempts++;c.unknownAttempts++;c.status="RUNNING";c.reason=WorkflowRunJournal.Reason.NONE;save(c);progress.accept(c);
                 StructuredTextStream response=new StructuredTextStream(WorkflowPolicy.MAX_OUTPUT,WorkflowPolicy.MAX_TOKENS);
                 String output;long tokens;boolean truncated;
                 HttpURLConnection request=null;
                 try{
                     watch.run();if(abort.get()!=null||cancelled||Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException();
-                    JSONArray messages=new JSONArray().put(new JSONObject().put("role","user").put("content",WorkflowPolicy.prompt(step,previous,retry)));
+                    JSONArray messages=new JSONArray().put(new JSONObject().put("role","user").put("content",stepPrompt));
                     JSONObject body=OllamaHttp.chatBody(c.model,messages);
                     body.getJSONObject("options").put("num_predict",WorkflowPolicy.MAX_TOKENS);
                     request=OllamaHttp.newChatConnection();request.setReadTimeout(60_000);connection=request;
