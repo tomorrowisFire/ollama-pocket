@@ -1,24 +1,11 @@
 {
-  "stage": "F11-3-through-6-r006-integration-candidate",
-  "revision": "F11-3-6-r006",
-  "priorCandidate": "71540609ad0f1519ea7fdcb93aaeea09b15a03c5",
+  "stage": "F11-7-integration-candidate",
+  "revision": "F11-7-r001",
+  "priorCandidate": "105cf97060a37021c0f329f2343e611425114647",
+  "scopeBaseline": "fe5be0a8037fa37d5c1cce77752c60946ec9216d",
   "isolated": [
-    {
-      "stage": "F11-3",
-      "sha": "558d802b2ea2d9ba7affd0e3d378916bc72056d7"
-    },
-    {
-      "stage": "F11-4",
-      "sha": "0f8e039b5d1cf818fc736000f529c1b3ef58125e"
-    },
-    {
-      "stage": "F11-5",
-      "sha": "1fb9d455ee97bd1223413af78114a98530e52b4d"
-    },
-    {
-      "stage": "F11-6",
-      "sha": "3c0020f96bbae7984239231206f5cf922d73a70a"
-    }
+    "220dc9e2319ab19f01a57459e3ecd954cc78b33a",
+    "537a4531ccfe700d0d8ae409f51d259b8d3084f7"
   ],
-  "reason": "Combine disjoint Whisper deadline, catalog read, workflow settlement, cloud stream deadline changes. Require exact predecessor and combined FAST/FULL gates before official integration; F11-7 regression acceptance and physical device/external review pending."
+  "reason": "Host composition regression, exact tracked-tree scope and strict CI receipt evidence. Final device, live services, ten independent evaluations, signing and release gates are NOT_RUN or pending."
 }
