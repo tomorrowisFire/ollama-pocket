@@ -135,6 +135,24 @@ public final class CloudStreamTest {
             rejects(p,delta);
             rejects(p,delta+event("{\"type\":\"response.incomplete\"}"));
         }
+        for(CloudApi.Provider p:new CloudApi.Provider[]{CloudApi.Provider.OPENAI,CloudApi.Provider.XAI}){
+            String items=event("{\"type\":\"response.output_item.added\",\"item\":{\"type\":\"reasoning\"}}")+
+                    event("{\"type\":\"response.output_item.done\",\"item\":{\"type\":\"reasoning\"}}")+
+                    event("{\"type\":\"response.output_item.added\",\"item\":{\"type\":\"message\"}}")+
+                    event("{\"type\":\"response.content_part.added\",\"part\":{\"type\":\"output_text\",\"text\":\"\"}}");
+            String finished=event("{\"type\":\"response.content_part.done\",\"part\":{\"type\":\"output_text\",\"text\":\"안녕\"}}")+
+                    event("{\"type\":\"response.output_item.done\",\"item\":{\"type\":\"message\"}}");
+            check(parse(p,items+delta+finished+end).text.equals("안녕"));
+            for(String bad:new String[]{
+                    "{\"type\":\"response.output_item.added\",\"item\":{\"type\":\"function_call\"}}",
+                    "{\"type\":\"response.output_item.done\",\"item\":{\"type\":\"web_search_call\"}}",
+                    "{\"type\":\"response.output_item.added\"}",
+                    "{\"type\":\"response.content_part.added\",\"part\":{\"type\":\"refusal\"}}",
+                    "{\"type\":\"response.content_part.done\",\"part\":{\"type\":\"output_text\",\"text\":123}}",
+                    "{\"type\":\"response.function_call_arguments.delta\",\"delta\":\"{}\"}",
+                    "{\"type\":false}"})
+                recovered(p,delta+event(bad)+end,"안녕");
+        }
         String start=event("{\"type\":\"message_start\",\"message\":{\"usage\":{\"input_tokens\":12}}}");
         String text=event("{\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":\"日本語\"}}");
         String stop=event("{\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":4}}");

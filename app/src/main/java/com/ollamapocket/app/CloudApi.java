@@ -259,6 +259,22 @@ final class CloudApi {
         if(!isEventStream(contentType))throw new java.io.IOException("Expected SSE");
         try(InputStream raw=c.getInputStream()){return parseStream(provider,raw,progress);}
     }
+    /** The text-only Responses route must reject non-text output items even if a later
+     * terminal event omits its output array. Reasoning metadata is not displayed. */
+    private static void validateResponsesEvent(JSONObject event,String type)throws StreamFailure{
+        if("response.output_item.added".equals(type)||"response.output_item.done".equals(type)){
+            JSONObject item=event.optJSONObject("item");
+            if(item==null)throw incomplete();
+            Object kind=item.opt("type");
+            if(!"message".equals(kind)&&!"reasoning".equals(kind))throw incomplete();
+        }
+        if("response.content_part.added".equals(type)||"response.content_part.done".equals(type)){
+            JSONObject part=event.optJSONObject("part");
+            if(part==null||!"output_text".equals(part.opt("type")))throw incomplete();
+            if(!part.isNull("text"))typedText(part,"text",false);
+        }
+        if(type.startsWith("response.function_call_arguments.")||type.startsWith("response.refusal."))throw incomplete();
+    }
     static Reply parseStream(Provider provider,InputStream raw,Progress progress)throws Exception{
         StringBuilder answer=new StringBuilder();long input=-1,output=-1,lastUi=0;
         final long deadline=System.nanoTime()+300000000000L;
@@ -288,13 +304,15 @@ final class CloudApi {
                 String data=event.toString();event.setLength(0);
                 if("[DONE]".equals(data.trim())){complete=provider.protocol==1&&finishedChoice;break;}
                 JSONObject j=parseWireObject(data,1_000_000);
-                String type=j.optString("type","");
+                Object rawType=j.opt("type");
+                if(rawType!=null&&rawType!=JSONObject.NULL&&!(rawType instanceof String))throw incomplete();
+                String type=rawType instanceof String?(String)rawType:"";
                 if(!j.isNull("error")||"error".equals(type)||"response.failed".equals(type)||"response.incomplete".equals(type))throw new StreamFailure("Provider stream failed",true);
                 JSONObject usage=j.optJSONObject("usage");
                 String part="";
                 if(provider.protocol==0){
+                    validateResponsesEvent(j,type);
                     if("response.output_text.delta".equals(type))part=typedText(j,"delta",false);
-                    if("response.refusal.delta".equals(type)||"response.refusal.done".equals(type))throw incomplete();
                     if("response.completed".equals(type)){
                         JSONObject response=j.optJSONObject("response");responseCompleted(response);
                         if(response.has("output")){
