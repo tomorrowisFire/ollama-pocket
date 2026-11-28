@@ -1,8 +1,8 @@
 {
   "stage": "F12-file-intake-integration-candidate",
-  "revision": "F12-file-intake-r003-batch20",
+  "revision": "F12-file-intake-r005-deep-chat",
   "scopeBaseline": "0152869a25bfa63e1e6e94c5ebb079ccc0facba8",
-  "priorCandidate": "0152869a25bfa63e1e6e94c5ebb079ccc0facba8",
+  "priorCandidate": "30f4aca69f52d356095a751e07f1c60da103cc18",
   "modules": [
     {
       "stage": "A-text",
@@ -31,7 +31,31 @@
     {
       "stage": "G-batch-integration",
       "sha": "5984af4fc1b2f27bcb23f3b6aa22cfe620d64af7"
+    },
+    {
+      "stage": "H-source-zip",
+      "sha": "2fb09dea874be1428c2e3377cdea36e976ff1c5f"
+    },
+    {
+      "stage": "I-report-export",
+      "sha": "bd6a5704b70cd90744da2ab8ee95a4c4b5962afb"
+    },
+    {
+      "stage": "J-deep-policy",
+      "sha": "f00839e87fa0d69c5bc68b5c37f6d00c462100be"
+    },
+    {
+      "stage": "K-reward-sdk",
+      "sha": "d803a931bd96059e8a9ba58b0962b0fac277f7ee"
+    },
+    {
+      "stage": "L-mode-ui",
+      "sha": "d6f0299e1007d61933ab13357de3cb264b7f7b92"
+    },
+    {
+      "stage": "M-locales",
+      "sha": "bc7406d8c8eff1fe9f02b18a3b26378b87ba2a30"
     }
   ],
-  "reason": "User approved up to 20 files and 2 GiB aggregate. Preserve prior file caps and F11 baseline; sequential actual byte accounting, bounded fair map/reduce, localized approval, exact evidence tests. FAST/FULL pending."
+  "reason": "User-approved Normal/Deep mode split with 30-minute explicit rewarded access, existing normal file caps, source ZIP and report file export additions. Existing production lock, native assets, verified test billing and data layout preserved. Exact FAST/FULL required."
 }

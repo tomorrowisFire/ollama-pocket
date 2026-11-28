@@ -85,6 +85,12 @@ ADDITIONS = frozenset([
 F12_STAGE = "F12-file-intake-integration-candidate"
 F12_BASELINE = "0152869a25bfa63e1e6e94c5ebb079ccc0facba8"
 F12_MODIFIABLE = frozenset([
+  ".github/workflows/java-compile.yml",
+  "scripts/test_onhand_brand_contract.py",
+  "app/src/main/java/com/ollamapocket/app/AdSupport.java",
+  "app/src/main/java/com/ollamapocket/app/AutomationUi.java",
+  "app/src/main/java/com/ollamapocket/app/ArtifactFileExport.java",
+  "tests/ArtifactFileExportTest.java",
   "app/src/main/java/com/ollamapocket/app/DocumentBatchPolicy.java",
   "app/src/main/java/com/ollamapocket/app/DocumentBatchSchedule.java",
   "app/src/main/java/com/ollamapocket/app/DocumentCitationCoverage.java",
@@ -122,6 +128,15 @@ F12_MODIFIABLE = frozenset([
   "tests/test_f11_scope.py"
 ])
 F12_ADDITIONS = frozenset([
+  "app/src/main/java/com/ollamapocket/app/DeepChatPolicy.java",
+  "tests/DeepChatPolicyTest.java",
+  "docs/on-hands-f12-source-zip.md",
+  "docs/on-hands-f12-large-report-export.md",
+  "docs/on-hands-f12-deep-chat-policy.md",
+  "docs/on-hands-f12-deep-chat-reward.md",
+  "docs/on-hands-f12-deep-chat-ui.md",
+  "docs/on-hands-f12-deep-chat-locales.md",
+  "docs/on-hands-f12-deep-chat-integration.md",
   "docs/on-hands-f12-batch-expansion-policy.md",
   "docs/on-hands-f12-batch-expansion-integration.md",
   "docs/on-hands-f12-file-import-text.md",

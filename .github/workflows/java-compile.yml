@@ -192,6 +192,11 @@ jobs:
           mkdir -p /tmp/billing-tests
           javac --release 17 -d /tmp/billing-tests app/src/main/java/com/ollamapocket/app/BillingEntitlementPolicy.java tests/BillingEntitlementPolicyTest.java
           java -cp /tmp/billing-tests com.ollamapocket.app.BillingEntitlementPolicyTest
+      - name: Test monotonic deep-chat reward and normal attachment policy
+        run: |
+          mkdir -p /tmp/deep-chat-tests
+          javac --release 17 -d /tmp/deep-chat-tests app/src/main/java/com/ollamapocket/app/DeepChatPolicy.java tests/DeepChatPolicyTest.java
+          java -cp /tmp/deep-chat-tests com.ollamapocket.app.DeepChatPolicyTest
       - name: Guard first-run advertisement and production lock
         run: |
           python3 - <<'PY'
@@ -209,7 +214,13 @@ jobs:
           assert 'return BuildConfig.DEBUG && prefs.getBoolean("enabled", true)' in ads
           assert 'PLACEMENT_ONBOARDING.equals(placement) ? LIVE_ONBOARDING_BANNER' in ads
           assert '!consent.canRequestAds()' in ads
-          print('PASS: first-run banner placement and unit preserved, production requests disabled')
+          assert 'DEMO_REWARDED = "ca-app-pub-3940256099942544/5224354917"' in ads
+          assert 'RewardedAd.load(activity,DEMO_REWARDED' in ads
+          assert 'ad.show(activity,item->' in ads
+          assert 'DEEP_ACCESS.earned(ticket,SystemClock.elapsedRealtime())' in ads
+          assert 'rewardBusy() || activity.isFinishing()' in ads
+          assert 'LIVE_REWARDED' not in ads
+          print('PASS: first-run banner placement and unit preserved, production requests disabled, reward test unit only')
           PY
       - name: Test cloud scope and authenticated encryption (pure Java)
         run: |
