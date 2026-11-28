@@ -721,7 +721,7 @@
     <string name="attachment_ocr_bad_page">文書範囲内の1〜10,000の PDF ページ番号を入力してください。</string>
     <string name="attachment_ocr_image_pick">PNG・JPEG・WEBP または PDF ページを選択</string>
     <string name="attachment_select_range">テキスト・Office・PDF テキスト</string>
-    <string name="attachment_segment">テキスト区間（1〜90000）／Office（1〜256）</string>
+    <string name="attachment_segment">テキスト・Office区間（1〜256）</string>
     <string name="attachment_pdf_first">PDF 開始ページ（1〜10,000）</string>
     <string name="attachment_range_help">約6,000 UTF-16文字のテキスト・コード・Office 区間または PDF 開始ページを指定します。該当形式の設定のみ適用します。Office 参照は区間で分割される場合があります。ファイル上限の拡大はモデルのコンテキスト拡大ではありません。抜粋ごとに分析します。 大容量ファイル：テキスト・コード・Office・PDF は1件最大500 MiB、画像は16 MiBです。展開量、XMLメモリ、空き容量、処理時間、モデルコンテキストには別の制限があり、全文分析を保証しません。</string>
     <string name="attachment_range_invalid">指定範囲が抽出可能な内容または対応上限を超えています。</string>
@@ -1427,4 +1427,22 @@
     <string name="batch_input_progress">読み込み中：%1$d / %2$d 件 · %3$d バイト</string>
     <string name="batch_total_limit">入力の合計が2 GiBを超えています。件数またはサイズを減らしてください。</string>
     <string name="batch_input_deadline">読み込み時間の制限に達しました。件数またはサイズを減らしてください。</string>
+    <string name="chat_mode_normal">通常チャット</string>
+    <string name="chat_mode_deep">詳細チャット</string>
+    <string name="deep_chat_intro">最大20件（各500 MiB、合計2 GiB）のファイルを選択できます。通常チャットの履歴とは別のローカル作業領域で確認済みの抜粋を分析します。広告報酬1回で30分利用でき、期限内に開始した前面分析は既存の安全・時間制限内で継続します。</string>
+    <string name="deep_reward_watch">広告を見る · 30分解放</string>
+    <string name="deep_reward_renew">広告を見る · 30分更新</string>
+    <string name="deep_chat_open">詳細分析を開始</string>
+    <string name="deep_locked">詳細利用権は未解放</string>
+    <string name="deep_remaining">残り時間：%1$d:%2$02d</string>
+    <string name="deep_unlimited">無制限（確認済みテスト購入）</string>
+    <string name="deep_reward_notice">報酬型広告を1回視聴して報酬を取得すると、詳細分析を30分利用できます。更新は30分にリセットされ、累積しません。キャンセルして通常チャットを続けられます。このビルドはテスト広告のみを使用します。</string>
+    <string name="deep_reward_earned">30分の詳細利用権を取得しました。</string>
+    <string name="deep_reward_closed">報酬を取得せず広告を終了しました。</string>
+    <string name="deep_reward_unavailable">報酬型広告を利用できません。通常チャットは利用できます。</string>
+    <string name="normal_attachment_formats">通常チャットはテキスト・コード1 MiB以下、またはOffice・PDF・画像8 MiB以下のファイル1件に対応します。大容量・複数ファイルやソースZIPは詳細チャットを使用します。PDFはAndroid 15以降が必要です。</string>
+    <string name="normal_range_help">テキスト・Office区間1〜256またはPDF開始ページを指定します。確認済みの抜粋のみ挿入します。</string>
+    <string name="normal_segment">テキスト・Office区間（1〜256）</string>
+    <string name="normal_one_attachment">下書きの添付は1件までです。添付を削除するか、下書きを消去または送信してください。</string>
+    <string name="deep_zip_notice">詳細分析では読み取り専用のソースZIPにも対応します。対応テキスト・コードの限定された抜粋のみ読み込み、バイナリ、入れ子の圧縮ファイル、一般的な機密パスは除外します。</string>
 </resources>
