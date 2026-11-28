@@ -122,6 +122,15 @@ final class ProjectLibrary {
         projects.add(new Project(id,title(title),text(instructions,MAX_INSTRUCTIONS),Collections.emptyList(),Collections.emptyList()));
         return next(s,projects);
     }
+    /** Create a project and its initial artifact in exactly one repository revision. */
+    static State createProjectWithArtifact(State s,String pid,String projectTitle,String aid,String artifactTitle,String value,long now){
+        newId(s,pid);newId(s,aid);time(now);
+        if(pid.equals(aid)||s.projects.size()>=MAX_PROJECTS)throw invalid("Project or ID limit");
+        Artifact initial=new Artifact(aid,title(artifactTitle),Collections.singletonList(new Version(1,now,text(value,MAX_TEXT))));
+        List<Project> projects=new ArrayList<>(s.projects);
+        projects.add(new Project(pid,title(projectTitle),"",Collections.singletonList(initial),Collections.emptyList()));
+        return next(s,projects);
+    }
     static State editProject(State s,String id,String title,String instructions){
         Project p=s.project(id);String name=title(title);text(instructions,MAX_INSTRUCTIONS);
         if(p.title.equals(name)&&p.instructions.equals(instructions))return s;

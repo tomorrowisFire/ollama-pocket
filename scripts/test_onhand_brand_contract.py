@@ -688,3 +688,18 @@ chart_view=(src/"ChartArtifactView.java").read_text()
 assert "ArtifactFileExport.Format.CHART_CSV,chart::csv" in chart_view
 assert "ArtifactFileExport.Format.CHART_HTML,chart::html" in chart_view
 print("PASS: F11-2E explicit artifact storage picker and immutable payload")
+
+# F11-2F: explicit terminal report and immutable project version exports; single-revision report creation.
+batch_ui=(src/"DocumentBatchUi.java").read_text()
+project_ui=(src/"ProjectWorkspaceUi.java").read_text()
+project_store=(src/"ProjectLibrary.java").read_text()
+assert "ArtifactFileExport.Format.REPORT_JSON:ArtifactFileExport.Format.REPORT_TEXT" in batch_ui
+assert "result==reviewed&&analyzed==plan&&eligible.getAsBoolean()" in batch_ui
+assert "ArtifactFileExport.Format.PROJECT_TEXT,v.text" in project_ui
+assert "snapshot==reviewed&&report==null&&!WORK.busy()" in project_ui
+assert "reviewed.createProject(st,pid,projectName,aid,artifactName" in project_ui
+assert "createProjectWithArtifact" in project_store
+assert "projectModal?ProjectWorkspaceUi.workBusy():ProjectWorkspaceUi.busy()" in main
+assert "artifactExportReview!=d||!canExportArtifact(projectModal,guard)" in main
+assert "workspace?R.string.workspace_file_export_notice" in main
+print("PASS: F11-2F reviewed report/version file exports and atomic project creation")

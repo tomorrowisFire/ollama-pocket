@@ -1,0 +1,6 @@
+# F11-2F — Report file and project workspace
+- Document batch terminal snapshot: JSON or displayed text via the existing explicitly approved Android document picker; no source excerpts added, no claims of factual verification.
+- Project workspace: exact selected persisted version as UTF-8 text. The source workspace is closed on picker launch under existing foreground-only privacy policy; warn before launch. No export of drafts or automatic upload.
+- Create a new project with the reviewed terminal report in a single repository revision; retain schema, caps, transaction checks and pre-existing artifacts.
+- Design review KPIs (single-assistant perspectives): document quality—exact UTF-8 and terminal status; workspace UX—new project directly from report and historical version selection; security—no new storage permissions, confirmation revalidation, no mutable payload or persisted URI.
+- Verification: existing artifact and handoff suites extended; brand contract covers integration. FAST/FULL must pass for exact candidate; actual device validation and external evaluation pending. Existing project JSON size cap remains 32,000 UTF-16 characters; larger reports may be exported as files under artifact size limits.

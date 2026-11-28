@@ -23,6 +23,9 @@ final class ProjectReportHandoff {
     static ProjectReportHandoff of(DocumentBatchReport report)throws Exception{
         return new ProjectReportHandoff(report.json(),report.result.status.name());
     }
+    ProjectLibrary.State createProject(ProjectLibrary.State st,String pid,String projectTitle,String aid,String artifactTitle,long now){
+        return ProjectLibrary.createProjectWithArtifact(st,pid,projectTitle,aid,artifactTitle,json,Math.max(1,now));
+    }
     ProjectLibrary.State create(ProjectLibrary.State st,String pid,String id,String title,long now){
         return ProjectLibrary.createArtifact(st,pid,id,title,json,Math.max(1,now));
     }

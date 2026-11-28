@@ -46,7 +46,7 @@ final class DocumentBatchUi {
     private TextView status,output;
     private EditText goal;
     private ProgressBar progress;
-    private Button preset,preview,copy,inspect,copyJson,saveProject,dictateGoal,readReport,viewReport;
+    private Button preset,preview,copy,inspect,copyJson,saveProject,dictateGoal,readReport,viewReport,saveJsonFile,saveTextFile;
     private ProjectWorkspaceUi reportWorkspace;
     static boolean busy(){return BUSY.busy();}
     DocumentBatchUi(Activity owner,String model,AttachmentText.Encoding encoding,BooleanSupplier eligible){
@@ -80,6 +80,8 @@ final class DocumentBatchUi {
         goal.setEnabled(idle);dictateGoal.setEnabled(idle);preset.setEnabled(idle);preview.setEnabled(idle&&sources!=null);copy.setEnabled(idle&&result!=null);
         inspect.setEnabled(idle&&result!=null&&!result.notes.isEmpty());copyJson.setEnabled(idle&&result!=null);
         saveProject.setEnabled(idle&&result!=null);
+        saveJsonFile.setEnabled(idle&&result!=null&&analyzed!=null&&owner instanceof MainActivity);
+        saveTextFile.setEnabled(idle&&result!=null&&analyzed!=null&&owner instanceof MainActivity);
         readReport.setEnabled(idle&&result!=null&&analyzed!=null);
         viewReport.setEnabled(idle&&result!=null&&analyzed!=null);
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(idle&&sources!=null);
@@ -179,6 +181,10 @@ final class DocumentBatchUi {
             try{copyReport(R.string.batch_copy_json,s(R.string.attachment_copy_notice)+"\n\n"+s(R.string.batch_json_notice),snapshot().json());}
             catch(Exception e){toast(R.string.batch_export_failed);}
         });
+        LinearLayout fileActions=new AdaptiveAnswerActions(owner);panel.addView(fileActions,WorkbenchStyle.row(owner));
+        saveJsonFile=button(fileActions,R.string.batch_save_json_file,()->exportReportFile(true));
+        saveTextFile=button(fileActions,R.string.batch_save_text_file,()->exportReportFile(false));
+        saveJsonFile.setEnabled(false);saveTextFile.setEnabled(false);
         saveProject=button(panel,R.string.project_report_save,()->{
             if(!visible()||busy()||ProjectWorkspaceUi.busy()||!eligible.getAsBoolean()||result==null||analyzed==null)return;
             final DocumentBatchPolicy.Result reviewed=result;
@@ -302,6 +308,18 @@ final class DocumentBatchUi {
     }
     private DocumentBatchReport snapshot(){
         return new DocumentBatchReport(analyzed,result,model,reportStopReason,reportRequests,reportElapsedMillis);
+    }
+    private void exportReportFile(boolean json){
+        if(!(owner instanceof MainActivity)||!visible()||busy()||confirmation!=null||!eligible.getAsBoolean()||result==null||analyzed==null)return;
+        final DocumentBatchPolicy.Result reviewed=result;
+        final DocumentBatchPolicy.Plan plan=analyzed;
+        try{
+            ArtifactFileExport payload=ArtifactFileExport.prepare(
+                json?ArtifactFileExport.Format.REPORT_JSON:ArtifactFileExport.Format.REPORT_TEXT,
+                json?snapshot().json():report(plan,reviewed));
+            ((MainActivity)owner).requestWorkspaceArtifactExport(payload,
+                ()->visible()&&!busy()&&confirmation==null&&result==reviewed&&analyzed==plan&&eligible.getAsBoolean(),false);
+        }catch(Exception e){toast(R.string.artifact_file_export_invalid);}
     }
     private void copyReport(int title,String notice,String value){
         final DocumentBatchPolicy.Result reviewed=result;

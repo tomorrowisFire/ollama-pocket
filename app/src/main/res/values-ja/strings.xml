@@ -1416,4 +1416,9 @@
     <string name="artifact_file_export_failed">保存できませんでした。不完全なファイルが残る場合があります。元の内容は変更されていません。</string>
     <string name="artifact_file_export_expired">保存要求が期限切れか保存先が無効です。再選択してください。</string>
     <string name="artifact_file_export_invalid">成果物が無効か、安全な保存上限を超えています。</string>
+    <string name="batch_save_json_file">JSON レポートをファイルに保存</string>
+    <string name="batch_save_text_file">テキストレポートを保存</string>
+    <string name="project_save_version_file">選択したバージョンをファイルに保存</string>
+    <string name="project_report_artifact_name">レポート成果物の名前</string>
+    <string name="workspace_file_export_notice">選択した内容のみを保存します：%1$s（%2$d バイト）。保存先の提供元がファイルを同期する場合があります。ファイル選択画面を開くと作業スペースが閉じます。重要な未保存レポートは先にプロジェクトに保存してください。</string>
 </resources>

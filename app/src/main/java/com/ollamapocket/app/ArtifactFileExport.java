@@ -14,7 +14,9 @@ final class ArtifactFileExport {
     enum Format {
         CODE("code","txt","text/plain"), MARKDOWN("table","md","text/markdown"),
         TABLE_CSV("table","csv","text/csv"), CHART_CSV("chart","csv","text/csv"),
-        CHART_HTML("chart","html","text/html");
+        CHART_HTML("chart","html","text/html"),
+        REPORT_JSON("report","json","application/json"), REPORT_TEXT("report","txt","text/plain"),
+        PROJECT_TEXT("project-version","txt","text/plain");
         final String stem,extension,mime;
         Format(String stem,String extension,String mime){this.stem=stem;this.extension=extension;this.mime=mime;}
     }

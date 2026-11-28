@@ -1416,4 +1416,9 @@
     <string name="artifact_file_export_failed">儲存失敗，可能留下不完整的檔案。原始內容未變更。</string>
     <string name="artifact_file_export_expired">儲存要求已過期或目的地無效，請重新選擇。</string>
     <string name="artifact_file_export_invalid">成果無效或超過安全匯出限制。</string>
+    <string name="batch_save_json_file">儲存 JSON 報告檔案</string>
+    <string name="batch_save_text_file">儲存文字報告檔案</string>
+    <string name="project_save_version_file">將選取的版本儲存為檔案</string>
+    <string name="project_report_artifact_name">報告成果名稱</string>
+    <string name="workspace_file_export_notice">僅儲存所選內容：%1$s（%2$d 位元組）。目的地提供者可能同步檔案。開啟檔案選擇器會關閉工作區；請先將重要的未儲存報告存入專案。</string>
 </resources>

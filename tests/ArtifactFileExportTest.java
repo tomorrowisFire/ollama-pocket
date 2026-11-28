@@ -23,6 +23,13 @@ public final class ArtifactFileExportTest {
         for(ArtifactFileExport.Format format:ArtifactFileExport.Format.values()){
             for(String input:new String[]{"","a\r\nb\n","한국어 日本語 中文 😀","<tag>\" & 'x'","  \t\n"})exact(format,input);
         }
+        ok(ArtifactFileExport.Format.REPORT_JSON.mime.equals("application/json"));
+        ok(ArtifactFileExport.Format.REPORT_JSON.extension.equals("json"));
+        ok(ArtifactFileExport.Format.REPORT_TEXT.mime.equals("text/plain"));
+        ok(ArtifactFileExport.Format.PROJECT_TEXT.stem.equals("project-version"));
+        exact(ArtifactFileExport.Format.REPORT_JSON,"{\"status\":\"STOPPED\",\"synthesis\":null}");
+        exact(ArtifactFileExport.Format.PROJECT_TEXT,"historical version\n  한글 😀\n");
+        exact(ArtifactFileExport.Format.REPORT_JSON,"한".repeat(120000));
         String safe="Name\tValue\tEmpty\n'=SUM(A1:A9)\t\"a,b\"\t\n한글😀\t-12.5\t001";
         ok(ArtifactFileExport.csvFromSafeTsv(safe).equals("\"Name\",\"Value\",\"Empty\"\r\n\"'=SUM(A1:A9)\",\"\"\"a,b\"\"\",\"\"\r\n\"한글😀\",\"-12.5\",\"001\"\r\n"));
         rejects(()->ArtifactFileExport.csvFromSafeTsv("a\tb\nc"));

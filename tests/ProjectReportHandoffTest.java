@@ -39,6 +39,19 @@ public final class ProjectReportHandoffTest {
         reject(()->ProjectReportHandoff.checkSize(String.valueOf((char)0xdc00)));
         ProjectLibrary.State empty=ProjectLibrary.empty();
         reject(()->h.create(empty,"p","a","Report",1));
+        ProjectLibrary.State atomic=h.createProject(empty,"new-p","New project","new-a","Report",0);
+        ok(atomic.revision==1&&empty.projects.isEmpty());
+        ok(atomic.project("new-p").artifact("new-a").current().text.equals(h.json));
+        ok(atomic.project("new-p").artifact("new-a").current().saved==1);
+        ok(ProjectLibrary.decode(ProjectLibrary.encode(atomic)).project("new-p").artifact("new-a").current().text.equals(h.json));
+        reject(()->h.createProject(empty,"same","Project","same","Report",1));
+        reject(()->h.createProject(empty,"p"," ","a","Report",1));
+        reject(()->h.createProject(atomic,"new-a","P","a","R",1));
+        reject(()->h.createProject(atomic,"p","P","new-p","R",1));
+        ProjectLibrary.State fullProjects=empty;
+        for(int i=0;i<ProjectLibrary.MAX_PROJECTS;i++)fullProjects=ProjectLibrary.createProject(fullProjects,"full"+i,"Project","");
+        final ProjectLibrary.State projectLimit=fullProjects;
+        reject(()->h.createProject(projectLimit,"extra","P","a","R",1));
         ProjectLibrary.State project=ProjectLibrary.createProject(empty,"p","P","");
         ProjectLibrary.State first=h.create(project,"p","a","Report",10);
         ok(first.project("p").artifact("a").current().text.equals(h.json));
@@ -74,6 +87,15 @@ public final class ProjectReportHandoffTest {
         try{tx.commit(saved,st->partial.append(st,"p","a",2));throw new AssertionError();}
         catch(ProjectTransactions.TransactionFailure e){ok(e.reason==ProjectTransactions.Failure.WRITE_UNCERTAIN);}
         ok(tx.read().value.project("p").artifact("a").current().text.equals(h.json));
+        fail[0]=false;
+        ProjectTransactions.Snapshot<ProjectLibrary.State> beforeAtomic=tx.read();
+        ProjectTransactions.Snapshot<ProjectLibrary.State> afterAtomic=tx.commit(beforeAtomic,st->partial.createProject(st,"p2","Second","a2","Partial",3));
+        ok(afterAtomic.revision==beforeAtomic.revision+1);
+        ok(afterAtomic.value.project("p2").artifact("a2").current().text.equals(partial.json));
+        ok(afterAtomic.value.project("p").artifact("a").current().text.equals(h.json));
+        try{tx.commit(afterAtomic,st->h.createProject(st,"p3","Third","a2","Report",4));throw new AssertionError();}
+        catch(ProjectTransactions.TransactionFailure e){ok(e.reason==ProjectTransactions.Failure.INVALID);}
+        ok(tx.read().revision==afterAtomic.revision&&tx.read().value.projects.size()==2);
         System.out.println("PASS: "+n+" exact terminal report handoff, bounds, version and transaction assertions");
     }
 }

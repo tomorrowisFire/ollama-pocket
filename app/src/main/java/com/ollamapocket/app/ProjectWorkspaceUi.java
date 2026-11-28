@@ -47,6 +47,7 @@ final class ProjectWorkspaceUi {
     private Consumer<ProjectLibrary.Link> linkOpener;
     ProjectWorkspaceUi(Activity owner,BooleanSupplier eligible){this.owner=owner;this.eligible=eligible;this.dictation=new WorkspaceDictation(owner);this.reading=new WorkspaceReadAloud(owner);this.viewer=new WorkspaceTextViewer(owner);}
     static boolean busy(){return MODAL.get()||WORK.busy();}
+    static boolean workBusy(){return WORK.busy();}
     private boolean valid(long token){return session.valid(token)&&eligible.getAsBoolean()&&!owner.isFinishing()&&!owner.isDestroyed();}
     private String s(int id,Object... args){return owner.getString(id,args);}
     private int dp(int n){return Math.round(n*owner.getResources().getDisplayMetrics().density);}
@@ -377,7 +378,7 @@ final class ProjectWorkspaceUi {
         if(reportSaved){button(R.string.close,this::pause);return;}
         label(s(R.string.project_report_notice),false);
         if(pid==null){
-            if(state.projects.isEmpty())label(s(R.string.project_report_no_projects),false);
+            button(s(R.string.project_new),state.projects.size()<ProjectLibrary.MAX_PROJECTS,this::newProjectForReport);
             for(ProjectLibrary.Project p:state.projects)button(p.title,true,()->{
                 selection=new ProjectWorkspacePolicy.Selection(p.id,null,0);render();
             });
@@ -390,6 +391,26 @@ final class ProjectWorkspaceUi {
             button(R.string.project_back,()->{selection=ProjectWorkspacePolicy.Selection.root();render();});
         }
         button(R.string.close,this::pause);
+    }
+    private void newProjectForReport(){
+        if(report==null||snapshot==null||snapshot.value.projects.size()>=ProjectLibrary.MAX_PROJECTS)return;
+        reset();
+        final ProjectReportHandoff reviewed=report;
+        final String pid=UUID.randomUUID().toString(),aid=UUID.randomUUID().toString();
+        label(s(R.string.project_report_notice),false);
+        label(reviewed.status,false);
+        oldTitle="";oldText=reportTitle==null?"":reportTitle;
+        titleField=field(R.string.project_title,oldTitle,ProjectLibrary.MAX_TITLE,false);
+        textField=field(R.string.project_report_artifact_name,oldText,ProjectLibrary.MAX_TITLE,false);
+        button(R.string.project_save,()->{
+            final String projectName=titleField.getText().toString(),artifactName=textField.getText().toString();
+            confirm(R.string.project_report_save,R.string.project_report_notice,()->{
+                if(report==reviewed)save(st->reviewed.createProject(st,pid,projectName,aid,artifactName,System.currentTimeMillis()),
+                    new ProjectWorkspacePolicy.Selection(pid,aid,0));
+            });
+        });
+        button(R.string.project_back,()->leave(this::render));
+        button(R.string.close,()->leave(this::pause));
     }
     private void reviewReport(ProjectLibrary.Project p,ProjectLibrary.Artifact a){
         reset();
@@ -461,6 +482,17 @@ final class ProjectWorkspaceUi {
     private void version(ProjectLibrary.Version v){
         label(s(R.string.project_version,v.ordinal)+" · "+DateFormat.getDateTimeInstance().format(new Date(v.saved)),false);
         readText(R.string.project_text,v.text);label(v.text,true);
+        final long token=session.token();
+        final TextView screen=notice;
+        final ProjectTransactions.Snapshot<ProjectLibrary.State> reviewed=snapshot;
+        button(s(R.string.project_save_version_file),owner instanceof MainActivity,()->{
+            if(!(owner instanceof MainActivity)||reviewed==null||snapshot!=reviewed||report!=null)return;
+            try{
+                ArtifactFileExport payload=ArtifactFileExport.prepare(ArtifactFileExport.Format.PROJECT_TEXT,v.text);
+                ((MainActivity)owner).requestWorkspaceArtifactExport(payload,
+                    ()->ownsModal&&valid(token)&&notice==screen&&snapshot==reviewed&&report==null&&!WORK.busy()&&confirmation==null&&dialog!=null&&dialog.isShowing(),true);
+            }catch(IllegalArgumentException e){status(R.string.artifact_file_export_invalid);}
+        });
     }
     private void readText(int title,String value){
         final long token=session.token();

@@ -167,6 +167,7 @@ public final class MainActivity extends Activity {
     // Explicit snapshot, deliberately not persisted in Activity state or preferences.
     private ArtifactFileExport artifactExportPending;
     private boolean artifactExportWriting;
+    private AlertDialog artifactExportReview;
     private LinearLayout localChatContent;
     private CloudChatPanel cloudPanel;
     private boolean cloudMode;
@@ -536,6 +537,7 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onPause() {
         foreground=false;closeWorkbench();
+        if(artifactExportReview!=null){artifactExportReview.dismiss();artifactExportReview=null;}
         VoiceModelsUi.cancel(this);
         if(billing!=null)billing.pause();
         if(ads!=null)ads.pause();
@@ -1638,8 +1640,10 @@ public final class MainActivity extends Activity {
         margin(text(getString(R.string.independent_client),12,MUTED,false),about,8,0);
     }
 
-    private boolean isUiBusy(){
-        return KnowledgeWorkspaceUi.busy()||ProjectWorkspaceUi.busy()||AutomationUi.busy()||DocumentBatchUi.busy()||attachmentReading||ggufImportBusy||chatBusy||pullBusy||diagnosticBusy||benchmarkBusy||ModelDownloadBudget.transferBusy()
+    private boolean isUiBusy(){return isUiBusy(false);}
+    // A reviewed project export may own the foreground modal, never the store's work lease.
+    private boolean isUiBusy(boolean projectModal){
+        return KnowledgeWorkspaceUi.busy()||(projectModal?ProjectWorkspaceUi.workBusy():ProjectWorkspaceUi.busy())||AutomationUi.busy()||DocumentBatchUi.busy()||attachmentReading||ggufImportBusy||chatBusy||pullBusy||diagnosticBusy||benchmarkBusy||ModelDownloadBudget.transferBusy()
                ||(cloudPanel!=null&&cloudPanel.isBusy())||HuggingFaceCatalog.isDownloading();
     }
 
@@ -4823,17 +4827,27 @@ public final class MainActivity extends Activity {
     }
     /** Export one explicitly chosen rendered artifact; never run its contents or request broad storage access. */
     private boolean canExportArtifact(){
-        return foreground&&!guestOnly&&!isFinishing()&&!isDestroyed()&&activeTab==0&&!isUiBusy()&&
-            artifactExportPending==null&&!artifactExportWriting&&exportScope.isEmpty();
+        return canExportArtifact(false,()->true);
+    }
+    private boolean canExportArtifact(boolean projectModal,java.util.function.BooleanSupplier guard){
+        return foreground&&!guestOnly&&!isFinishing()&&!isDestroyed()&&activeTab==0&&!isUiBusy(projectModal)&&
+            artifactExportPending==null&&!artifactExportWriting&&exportScope.isEmpty()&&guard.getAsBoolean();
     }
     void requestArtifactExport(ArtifactFileExport payload){
-        if(payload==null||!canExportArtifact()){toast(getString(R.string.busy));return;}
+        requestArtifactExport(payload,()->true,false,false);
+    }
+    void requestWorkspaceArtifactExport(ArtifactFileExport payload,java.util.function.BooleanSupplier guard,boolean projectModal){
+        if(cloudMode||guard==null){toast(getString(R.string.busy));return;}
+        requestArtifactExport(payload,()->!cloudMode&&guard.getAsBoolean(),projectModal,true);
+    }
+    private void requestArtifactExport(ArtifactFileExport payload,java.util.function.BooleanSupplier guard,boolean projectModal,boolean workspace){
+        if(payload==null||artifactExportReview!=null||!canExportArtifact(projectModal,guard)){toast(getString(R.string.busy));return;}
         final String filename=payload.filename(Math.max(0L,System.currentTimeMillis()));
         AlertDialog review=new AlertDialog.Builder(this).setTitle(R.string.artifact_file_export_title)
-            .setMessage(getString(R.string.artifact_file_export_notice,filename,payload.size()))
+            .setMessage(getString(workspace?R.string.workspace_file_export_notice:R.string.artifact_file_export_notice,filename,payload.size()))
             .setNegativeButton(R.string.cancel,null)
             .setPositiveButton(R.string.ok,(d,w)->{
-                if(!canExportArtifact()){toast(getString(R.string.busy));return;}
+                if(artifactExportReview!=d||!canExportArtifact(projectModal,guard)){toast(getString(R.string.busy));return;}
                 artifactExportPending=payload;
                 try{
                     Intent picker=new Intent(Intent.ACTION_CREATE_DOCUMENT);
@@ -4842,6 +4856,8 @@ public final class MainActivity extends Activity {
                     startActivityForResult(picker,EXPORT_ARTIFACT);
                 }catch(RuntimeException e){artifactExportPending=null;toast(getString(R.string.chat_export_unavailable));}
             }).create();
+        artifactExportReview=review;
+        review.setOnDismissListener(d->{if(artifactExportReview==d)artifactExportReview=null;});
         if(review.getWindow()!=null)review.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
         review.show();
         if(review.getWindow()!=null)review.getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);

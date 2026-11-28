@@ -1416,4 +1416,9 @@
     <string name="artifact_file_export_failed">Save failed. An incomplete destination file may remain. Original content is unchanged.</string>
     <string name="artifact_file_export_expired">Export request expired or destination is invalid. Select the artifact again.</string>
     <string name="artifact_file_export_invalid">Artifact is invalid or exceeds the safe export limit.</string>
+    <string name="batch_save_json_file">Save JSON report file</string>
+    <string name="batch_save_text_file">Save text report file</string>
+    <string name="project_save_version_file">Save selected version to file</string>
+    <string name="project_report_artifact_name">Report artifact name</string>
+    <string name="workspace_file_export_notice">Save only the selected content: %1$s (%2$d bytes). The destination provider may synchronize the file. Opening the file picker closes this workspace; save important unsaved reports to a project first.</string>
 </resources>

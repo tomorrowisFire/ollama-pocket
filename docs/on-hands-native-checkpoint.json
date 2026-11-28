@@ -1,6 +1,6 @@
 {
-  "stage": "F11-2E-artifact-file-export",
-  "revision": "F11-2E",
-  "priorCandidate": "4f043662cf365447b761afa4fadf5e2d930edb00",
-  "reason": "Explicit user-approved native document picker for selected rich artifacts; exact FAST/FULL required."
+  "stage": "F11-2F-report-file-project-workspace",
+  "revision": "F11-2F",
+  "priorCandidate": "08e4fcc942e1a7f67992d44c2b6d1ab21d8359f4",
+  "reason": "Exact terminal report JSON/text and saved version text export; atomic project/report creation; FAST/FULL and final device validation required."
 }
