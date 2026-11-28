@@ -1,8 +1,8 @@
 {
   "stage": "F12-file-intake-integration-candidate",
-  "revision": "F12-file-intake-r005-deep-chat",
+  "revision": "F12-file-intake-r006-deep-follow-up",
   "scopeBaseline": "0152869a25bfa63e1e6e94c5ebb079ccc0facba8",
-  "priorCandidate": "30f4aca69f52d356095a751e07f1c60da103cc18",
+  "priorCandidate": "1580cd41d2936ec9248c67274091b3b1491706eb",
   "modules": [
     {
       "stage": "A-text",
@@ -59,7 +59,27 @@
     {
       "stage": "N-integration-polish",
       "parent": "66aa9e3503e7757efa584f025a2f35f7a39c6a24"
+    },
+    {
+      "stage": "O-follow-policy",
+      "sha": "fa542b7d03d94b84d9ff15e1cf963db38b1991b9"
+    },
+    {
+      "stage": "P-follow-runner",
+      "sha": "984f7f9eab3e3c46c526d82182a3a86ab1c323e9"
+    },
+    {
+      "stage": "Q-follow-ui",
+      "sha": "ee6a1966e1e197ad836571e8a2b04a64edf71a9a"
+    },
+    {
+      "stage": "R-reward-recovery",
+      "sha": "5413e3c0d8018ab626d70d5650775fed532e1c25"
+    },
+    {
+      "stage": "S-locales-focus",
+      "sha": "a1a1bc5d8075e54f5f4ddf9908556303e0273e29"
     }
   ],
-  "reason": "User-approved Normal/Deep mode split with 30-minute explicit rewarded access, existing normal file caps, source ZIP and report file export additions. Existing production lock, native assets, verified test billing and data layout preserved. Exact FAST/FULL required."
+  "reason": "Source-grounded follow-up dialogue, exact request review, rolling retained turns, independent transcript export and stale reward recovery. F12 r005 exact CI passed. Test-only ads and existing local safety/persistence limits preserved. Candidate FAST/FULL required."
 }

@@ -137,6 +137,14 @@ assert "if(deepMode||normalAttachmentPresent())" in main
 deep_batch=(src/"DocumentBatchUi.java").read_text()
 assert deep_batch.count("if(!startAuthorized.getAsBoolean()){toast(R.string.deep_locked);return;}")==3
 assert "active.run(plan,done->" in deep_batch
+assert "if(!startAuthorized.getAsBoolean()){toast(R.string.deep_follow_expired);return;}" in deep_batch
+assert "active.runFollowUp(request)" in deep_batch
+assert "followSession!=session||!session.current(request)" in deep_batch
+assert "session.commit(request,answer)" in deep_batch
+assert "R.string.deep_follow_review_notice" in deep_batch and "request.prompt" in deep_batch
+assert "reviewed.count()==revision&&eligible.getAsBoolean()" in deep_batch
+assert "if(ads!=null)ads.onWindowFocus(focused)" in main
+assert "DEEP_ACCESS.suppressAppOpen(SystemClock.elapsedRealtime())" in (src/"AdSupport.java").read_text()
 assert "new AttachmentText.BoundedSource(input,DeepChatPolicy.NORMAL_STRUCTURED_BYTES)" in (src/"AutomationUi.java").read_text()
 vision=main.split("void pickVisionForAutomation()",1)[1].split("private void openPickedVision()",1)[0]
 assert "guestOnly||cloudMode||isUiBusy()||activeTab!=0" in vision and "visionPickerPending" in vision
