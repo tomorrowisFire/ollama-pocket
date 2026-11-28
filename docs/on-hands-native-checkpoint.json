@@ -1,6 +1,6 @@
 {
-  "stage": "F11-1A-selection-hierarchy",
-  "revision": "F11-1A",
-  "priorCandidate": "048ef121aadb192e9258026eaf9c73e3a25545ef",
-  "reason": "First scoped F11 UI update: explicit filter selection and settings summaries. Require exact FAST and FULL before further live activation."
+  "stage": "F11-1A-R1-brand-contract-repair",
+  "revision": "F11-1A-R1",
+  "priorCandidate": "a6b6e93b11fc8ad76d428212d5f2ebd107fbf583",
+  "reason": "Scoped repair of failed brand contract; retain paint-only guards and assert intentional settings text ownership. Exact FAST/FULL required."
 }

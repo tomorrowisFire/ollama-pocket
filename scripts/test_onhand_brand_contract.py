@@ -288,7 +288,7 @@ for required in ("WorkbenchStyle.composerSurface(this,chatComposer,chatInput.has
     assert required in composer_skin,required
 assert "chatInput.setOnFocusChangeListener((v,focused)->WorkbenchStyle.composerSurface(this,chatComposer,focused))" in main
 assert "styleLocalComposer(); // Restore stateful colors" in main
-composer_style=(src/"WorkbenchStyle.java").read_text().split("static void composerSurface(",1)[1].split("static void field(",1)[0]
+composer_style=(src/"WorkbenchStyle.java").read_text().split("static void composerSurface(",1)[1].split("static void settingValue(",1)[0]
 for required in ("input.setBackgroundColor(Color.TRANSPARENT)","p.composerActionFill(primary,false)",
     "p.composerActionInk(primary,true)","p.composerActionFocus(primary)","state_focused","state_enabled","OnHandGlyphs.refresh(button)"):
     assert required in composer_style,required
@@ -302,7 +302,7 @@ assert "card.setOnClickListener(v->action.run())" in tool_row
 flat_section=main.split("private LinearLayout brandSection(",1)[1].split("private void createUi()",1)[0]
 assert "section.setBackground(" not in flat_section
 assert "margin(sectionTitle(title,glyph),section,0,6)" in flat_section
-nav_style=(src/"WorkbenchStyle.java").read_text().split("static void navigationRow(",1)[1].split("static void field(",1)[0]
+nav_style=(src/"WorkbenchStyle.java").read_text().split("static void navigationRow(",1)[1].split("static void settingValue(",1)[0]
 for required in ("p.canvas","p.disabledText","p.focus","state_focused","state_enabled",
     "b.setSingleLine(false)","b.setEllipsize(null)","b.setMinimumHeight(Math.max(",
     "b.setMinimumWidth(Math.max(","OnHandGlyphs.refresh(b)"):
@@ -387,7 +387,7 @@ assert "p.choiceFill(true),p.focus,2" in style_source
 assert "p.choiceFill(false),p.choiceBorder(false),0" in style_source
 assert "private void showComputeChoiceDialog(){showComputeChoiceDialog(computeChoiceControl);}" in main
 assert "computeChoiceControl=compute;" in main
-assert "if(control!=null)control.setText(" in main
+assert "if(control!=null)WorkbenchStyle.settingValue(control,getString(R.string.compute),computeChoiceLabel())" in main
 assert "ACCENT=p.primary" in main
 assert "active?bubbleInk():WHITE" in main
 assert "user?bubbleInk():WHITE" in main
@@ -576,3 +576,13 @@ assert "WorkbenchStyle.settingValue(control,getString(R.string.compute),computeC
 assert "compact_filter_active" in (src/"OnHandGlyphs.java").read_text()
 assert "SelectionPresentation.settingDescription(label,value)" in (src/"WorkbenchStyle.java").read_text()
 print("PASS: F11-1A explicit filter selection and setting summaries")
+
+# Keep setting summaries narrowly scoped; paint-only composer and navigation helpers still cannot change text.
+setting_style=style_source.split("static void settingValue(",1)[1].split("static void field(",1)[0]
+for required in ("SelectionPresentation.settingText(label,value)","RelativeSizeSpan(0.86f)","StyleSpan(Typeface.BOLD)",
+    "button.setText(content)","button.setContentDescription(SelectionPresentation.settingDescription(label,value))",
+    "button.setSingleLine(false)","button.setEllipsize(null)","dp(button.getContext(),60)"):
+    assert required in setting_style,required
+for forbidden in ("setOnClickListener(","setEnabled(","setVisibility(","setSelected(","getPreferences(","setFilters("):
+    assert forbidden not in setting_style,forbidden
+print("PASS: settings text ownership is separate from protected paint-only helpers")

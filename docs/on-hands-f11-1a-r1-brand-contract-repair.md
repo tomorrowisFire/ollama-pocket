@@ -1,0 +1,5 @@
+# F11-1A-R1 — scoped brand contract repair
+
+Parent a6b6e93b11fc8ad76d428212d5f2ebd107fbf583: FAST 46139537017 failed at compile job 140962179482 in brand contract line 296. Voice and VLM host jobs passed. Parent FULL 46139537012 was still running during repair preparation. The newly introduced settingValue helper intentionally sets the title/value text, but the old broad source slice classified it as part of paint-only composer and navigation code. Compute choice refresh also moved to the setting helper.
+
+Keep all prior composer/navigation forbidden operations, end the slices at the new helper boundary, require the exact new compute update call, and independently verify settings title/value hierarchy, accessible summary, 60dp minimum height and absence of listener, selection, visibility, enablement, preference or filter mutation. The old failing predicate was reproduced from exact parent files; 24 new/revised static predicates passed. The full Python script and Android CI were not executed locally. No application source changes, no visual device claim or score uplift. F11-1B awaits the exact mandatory CI gates; preserve the source and release contracts.
