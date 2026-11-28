@@ -143,16 +143,37 @@ public final class ModelVariantCatalog {
         }
         public boolean complete(){return failedLookups==0;}
     }
+    static final int MAX_BATCH_VARIANTS=4096;
+    /** Exact provider/model/file identity; different quantized files must not be merged. */
+    private static List<String> variantIdentity(Variant value){
+        return Arrays.asList(value.source,value.model,value.file);
+    }
     static SearchBatch collect(List<? extends Future<List<Variant>>> futures)throws InterruptedException{
-        List<Variant> values=new ArrayList<>();int failures=0;
+        Map<List<String>,Variant> values=new LinkedHashMap<>();int failures=0;
         for(Future<List<Variant>> f:futures){
             if(Thread.currentThread().isInterrupted())throw new InterruptedException("Search cancelled");
             try{
                 List<Variant> found=f.get();
-                if(found==null)failures++;else values.addAll(found);
+                if(found==null){failures++;continue;}
+                boolean incomplete=false;
+                for(Variant value:found){
+                    if(Thread.currentThread().isInterrupted())throw new InterruptedException("Search cancelled");
+                    if(value==null||value.source==null||value.model==null||value.file==null){
+                        incomplete=true;continue;
+                    }
+                    List<String> key=variantIdentity(value);
+                    Variant previous=values.get(key);
+                    if(previous!=null){
+                        if(previous.bytes==0&&value.bytes>0)values.put(key,value);
+                        continue;
+                    }
+                    if(values.size()>=MAX_BATCH_VARIANTS){incomplete=true;continue;}
+                    values.put(key,value);
+                }
+                if(incomplete)failures++;
             }catch(ExecutionException|CancellationException failed){failures++;}
         }
-        return new SearchBatch(values,failures);
+        return new SearchBatch(new ArrayList<>(values.values()),failures);
     }
     /** Parallel bounded per-family requests. Timeouts do not discard other valid results. */
     public static SearchBatch fetchFamiliesDetailed(Collection<String> families)throws Exception{

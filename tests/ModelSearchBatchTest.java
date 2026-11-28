@@ -21,6 +21,20 @@ public final class ModelSearchBatchTest {
         ok(ModelVariantCatalog.collect(List.of(failed,cancelled)).failedLookups==2);
         ok(ModelVariantCatalog.collect(List.of()).values.isEmpty());
         ok(ModelVariantCatalog.collect(List.of(CompletableFuture.completedFuture(null))).failedLookups==1);
+        var unknown=new ModelVariantCatalog.Variant("Ollama","a:latest","",0);
+        var otherFile=new ModelVariantCatalog.Variant("Hugging Face","org/b","b2.gguf",20);
+        var otherCase=new ModelVariantCatalog.Variant("Hugging Face","org/B","b.gguf",30);
+        var duplicates=ModelVariantCatalog.collect(List.of(CompletableFuture.completedFuture(List.of(unknown,b)),
+                CompletableFuture.completedFuture(List.of(a,b,otherFile,otherCase,unknown))));
+        ok(duplicates.complete()&&duplicates.values.equals(List.of(a,b,otherFile,otherCase)));
+        var malformed=ModelVariantCatalog.collect(List.of(CompletableFuture.completedFuture(Arrays.asList(a,null,b))));
+        ok(!malformed.complete()&&malformed.failedLookups==1&&malformed.values.equals(List.of(a,b)));
+        List<ModelVariantCatalog.Variant> many=new ArrayList<>();
+        for(int i=0;i<=ModelVariantCatalog.MAX_BATCH_VARIANTS;i++)
+            many.add(new ModelVariantCatalog.Variant("Ollama","model"+i+":latest","",10));
+        var capped=ModelVariantCatalog.collect(List.of(CompletableFuture.completedFuture(many)));
+        ok(!capped.complete()&&capped.failedLookups==1&&capped.values.size()==ModelVariantCatalog.MAX_BATCH_VARIANTS);
+        ok(capped.values.get(0)==many.get(0)&&capped.values.get(capped.values.size()-1)==many.get(4095));
         try{partial.values.add(a);throw new AssertionError("Mutable batch");}catch(UnsupportedOperationException expected){checks++;}
         Thread.currentThread().interrupt();
         try{ModelVariantCatalog.collect(List.of(empty));throw new AssertionError("Cancelled query accepted");}
