@@ -56,6 +56,15 @@ final class WorkbenchStyle {
     private static ColorStateList colors(int enabled,int disabled){
         return new ColorStateList(new int[][]{new int[]{-android.R.attr.state_enabled},new int[]{}},new int[]{disabled,enabled});
     }
+    /** Preserve the entire option text; make title and metadata visually distinct. */
+    private static CharSequence choiceLabel(String label){
+        int detail=WorkbenchDialogPresentation.detailStart(label);
+        if(detail<0)return label;
+        android.text.SpannableString styled=new android.text.SpannableString(label);
+        styled.setSpan(new android.text.style.StyleSpan(Typeface.BOLD),0,detail-1,android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        styled.setSpan(new android.text.style.RelativeSizeSpan(0.86f),detail,label.length(),android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        return styled;
+    }
     /** Shared choice rows; native checked state and item callbacks remain authoritative. */
     static android.widget.CheckedTextView choiceRow(Context c,String label,boolean selected){
         WorkbenchVisualPolicy.Palette p=palette(c);
@@ -72,7 +81,7 @@ final class WorkbenchStyle {
         circle.setColor(Color.TRANSPARENT);circle.setStroke(dp(c,1),p.choiceMark(false));circle.setSize(dp(c,20),dp(c,20));
         mark.addState(new int[]{},circle);
         row.setCheckMarkTintList(null);row.setCheckMarkDrawable(mark);
-        row.setText(label);row.setSingleLine(false);row.setEllipsize(null);
+        row.setText(choiceLabel(label));row.setSingleLine(false);row.setEllipsize(null);
         row.setTextColor(new ColorStateList(new int[][]{new int[]{android.R.attr.state_checked},new int[]{}},
             new int[]{p.choiceInk(true),p.choiceInk(false)}));
         row.setTextSize(14*(c instanceof Activity?scale((Activity)c):1f));row.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);

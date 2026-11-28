@@ -166,13 +166,15 @@ final class DocumentBatchUi {
         dictateGoal=dictation.add(panel,goal,R.string.batch_goal,DocumentBatchPolicy.MAX_GOAL,true,
             ()->visible()&&!busy()&&confirmation==null&&eligible.getAsBoolean());
         preset=button(panel,R.string.batch_goal_templates,this::chooseGoal);
-        preview=button(panel,R.string.batch_preview,this::showSourcePreview);
-        inspect=button(panel,R.string.batch_inspect_excerpt,this::inspectCompleted);
-        copy=button(panel,R.string.batch_copy,()->{
+        LinearLayout inspectionActions=new AdaptiveAnswerActions(owner);panel.addView(inspectionActions,WorkbenchStyle.row(owner));
+        preview=button(inspectionActions,R.string.batch_preview,this::showSourcePreview);
+        inspect=button(inspectionActions,R.string.batch_inspect_excerpt,this::inspectCompleted);
+        LinearLayout copyActions=new AdaptiveAnswerActions(owner);panel.addView(copyActions,WorkbenchStyle.row(owner));
+        copy=button(copyActions,R.string.batch_copy,()->{
             if(result==null||analyzed==null||busy())return;
             copyReport(R.string.batch_copy,s(R.string.attachment_copy_notice),report(analyzed,result));
         });
-        copyJson=button(panel,R.string.batch_copy_json,()->{
+        copyJson=button(copyActions,R.string.batch_copy_json,()->{
             if(result==null||analyzed==null||busy())return;
             try{copyReport(R.string.batch_copy_json,s(R.string.attachment_copy_notice)+"\n\n"+s(R.string.batch_json_notice),snapshot().json());}
             catch(Exception e){toast(R.string.batch_export_failed);}

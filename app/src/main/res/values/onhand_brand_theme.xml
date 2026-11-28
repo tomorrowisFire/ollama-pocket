@@ -30,6 +30,7 @@
     <item type="id" name="onhand_glyph_spec"/>
     <item type="id" name="onhand_spinner_spec"/>
     <item type="id" name="onhand_primary_paint"/>
+    <item type="id" name="onhand_workbench_fit"/>
     <style name="OnHandTheme.Light" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans-serif</item>
         <item name="android:colorAccent">@color/onhand_accent_light</item>

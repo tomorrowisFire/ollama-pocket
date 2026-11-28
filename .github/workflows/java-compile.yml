@@ -226,6 +226,10 @@ jobs:
           java -cp /tmp/workspace-tests com.ollamapocket.app.ModelFilterLayoutTest
           javac -cp /tmp/workspace-tests -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/WorkbenchLayoutPolicy.java tests/WorkbenchLayoutPolicyTest.java
           java -cp /tmp/workspace-tests com.ollamapocket.app.WorkbenchLayoutPolicyTest
+          javac --release 17 -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/WorkbenchDialogPresentation.java tests/WorkbenchDialogPresentationTest.java
+          java -cp /tmp/workspace-tests com.ollamapocket.app.WorkbenchDialogPresentationTest
+          javac --release 17 -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/ActionFlowPolicy.java tests/ActionFlowPolicyTest.java
+          java -cp /tmp/workspace-tests com.ollamapocket.app.ActionFlowPolicyTest
           javac -cp /tmp/workspace-tests -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/WorkbenchVisualPolicy.java tests/WorkbenchVisualPolicyTest.java
           java -cp /tmp/workspace-tests com.ollamapocket.app.WorkbenchVisualPolicyTest
           javac --release 17 -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/ChartPlotPolicy.java tests/ChartPlotPolicyTest.java

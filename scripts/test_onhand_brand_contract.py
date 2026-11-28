@@ -608,3 +608,42 @@ assert "card.addView(name,new LinearLayout.LayoutParams(-1,0,1))" not in grid
 for locale in ("values","values-ko","values-ja","values-b+zh+Hans","values-b+zh+Hant"):
     assert ET.parse(res/locale/"strings.xml").getroot().find("string[@name='model_card_access']").text=="%1$s · %2$s · %3$s · %4$s"
 print("PASS: F11-1B action-aware and content-measured cards")
+
+# F11-1C: opted-in popup ownership, safe width and unchanged choice identity.
+popup=(src/"WorkbenchWindow.java").read_text()
+for required in ("if(previous instanceof FitBinding)((FitBinding)previous).close()",
+    "decor.setTag(R.id.onhand_workbench_fit,binding)", "ownerRoot.removeOnLayoutChangeListener(this)",
+    "decor.removeCallbacks(resize)", "decor.removeOnAttachStateChangeListener(this)",
+    "onViewDetachedFromWindow(View v){close();}", "WorkbenchDialogPresentation.usableWidth(",
+    "WorkbenchDialogPresentation.combinedScale(", 'getString("font_size","normal")',
+    "window.setLayout(target,window.getAttributes().height)"):
+    assert required in popup,required
+for forbidden in ("setOnDismissListener(", "setOnCancelListener(", "setFlags(", "clearFlags(", "dismiss()", "setContentView("):
+    assert forbidden not in popup,forbidden
+choice=style_source.split("private static CharSequence choiceLabel(",1)[1].split("static android.widget.ArrayAdapter<String> choiceRows(",1)[0]
+for required in ("WorkbenchDialogPresentation.detailStart(label)", "new android.text.SpannableString(label)",
+    "row.setText(choiceLabel(label))", "row.setChecked(selected)", "row.setSingleLine(false)"):
+    assert required in choice,required
+for forbidden in ("setOnClickListener(", "setOnItemSelectedListener(", "setSelection("):
+    assert forbidden not in choice,forbidden
+print("PASS: F11-1C popup sizing ownership and exact label styling")
+
+# F11-1D: flow layout, stable child ownership, and shared workspace tool groups.
+flow=(src/"AdaptiveAnswerActions.java").read_text()
+for required in ("ActionFlowPolicy.rows(available,gap,single,widths)", "ActionFlowPolicy.fittedWidth(available,widths[i])",
+    "WorkbenchDialogPresentation.combinedScale(", "child.layout(start,childTop,start+w,childTop+h)",
+    "getLayoutDirection()==LAYOUT_DIRECTION_RTL", "child.getVisibility()==GONE"):
+    assert required in flow,required
+for forbidden in ("setOnClickListener(", "setEnabled(", "setVisibility(", "removeAllViews(", "setText("):
+    assert forbidden not in flow,forbidden
+batch=(src/"DocumentBatchUi.java").read_text()
+assert "preview=button(inspectionActions,R.string.batch_preview" in batch
+assert "inspect=button(inspectionActions,R.string.batch_inspect_excerpt" in batch
+assert "copy=button(copyActions,R.string.batch_copy" in batch
+assert "copyJson=button(copyActions,R.string.batch_copy_json" in batch
+editor=(src/"AutomationUi.java").read_text()
+assert editor.count("controls[0]=button(navigationActions,R.string.auto_editor_previous")==2
+assert editor.count("controls[1]=button(navigationActions,R.string.auto_editor_next")==2
+assert "controls[4]=button(orderActions,R.string.auto_move_up" in editor
+assert "controls[5]=button(orderActions,R.string.auto_move_down" in editor
+print("PASS: F11-1D shared action flow and workspace button groups")

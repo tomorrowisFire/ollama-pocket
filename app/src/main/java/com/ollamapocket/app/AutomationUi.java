@@ -792,8 +792,9 @@ final class AutomationUi {
             if(controls[2]!=null)controls[2].setEnabled(draft.rows.size()<WorkflowBranchPlan.MAX_NODES);
             if(controls[3]!=null)controls[3].setEnabled(draft.rows.size()>1);
         };
-        controls[0]=button(l,R.string.auto_editor_previous,()->{capture.run();if(index[0]>0)index[0]--;render.run();});
-        controls[1]=button(l,R.string.auto_editor_next,()->{capture.run();if(index[0]+1<draft.rows.size())index[0]++;render.run();});
+        LinearLayout navigationActions=new AdaptiveAnswerActions(owner);l.addView(navigationActions,WorkbenchStyle.row(owner));
+        controls[0]=button(navigationActions,R.string.auto_editor_previous,()->{capture.run();if(index[0]>0)index[0]--;render.run();});
+        controls[1]=button(navigationActions,R.string.auto_editor_next,()->{capture.run();if(index[0]+1<draft.rows.size())index[0]++;render.run();});
         controls[2]=button(l,R.string.auto_editor_add,()->{capture.run();if(draft.rows.size()<WorkflowBranchPlan.MAX_NODES){draft.insertAfter(index[0]);index[0]++;render.run();}});
         controls[3]=button(l,R.string.auto_editor_remove,()->{
             capture.run();if(draft.rows.size()>1){draft.remove(index[0]);index[0]=Math.min(index[0],draft.rows.size()-1);render.run();}
@@ -1280,14 +1281,16 @@ final class AutomationUi {
             }
             public void onNothingSelected(AdapterView<?> parent){sampleResult.setText("");}
         });
-        controls[0]=button(l,R.string.auto_editor_previous,()->{capture.run();if(index[0]>0)index[0]--;render.run();});
-        controls[1]=button(l,R.string.auto_editor_next,()->{capture.run();if(index[0]+1<editor.size())index[0]++;render.run();});
+        LinearLayout navigationActions=new AdaptiveAnswerActions(owner);l.addView(navigationActions,WorkbenchStyle.row(owner));
+        controls[0]=button(navigationActions,R.string.auto_editor_previous,()->{capture.run();if(index[0]>0)index[0]--;render.run();});
+        controls[1]=button(navigationActions,R.string.auto_editor_next,()->{capture.run();if(index[0]+1<editor.size())index[0]++;render.run();});
         controls[2]=button(l,R.string.auto_editor_add,()->{capture.run();if(editor.size()<WorkflowPolicy.MAX_STEPS){editor.insertAfter(index[0]);index[0]++;render.run();}});
         controls[3]=button(l,R.string.auto_editor_remove,()->{
             capture.run();if(editor.size()>1){editor.remove(index[0]);index[0]=Math.min(index[0],editor.size()-1);render.run();}
         });
-        controls[4]=button(l,R.string.auto_move_up,()->{capture.run();index[0]=editor.move(index[0],-1);render.run();});
-        controls[5]=button(l,R.string.auto_move_down,()->{capture.run();index[0]=editor.move(index[0],1);render.run();});
+        LinearLayout orderActions=new AdaptiveAnswerActions(owner);l.addView(orderActions,WorkbenchStyle.row(owner));
+        controls[4]=button(orderActions,R.string.auto_move_up,()->{capture.run();index[0]=editor.move(index[0],-1);render.run();});
+        controls[5]=button(orderActions,R.string.auto_move_down,()->{capture.run();index[0]=editor.move(index[0],1);render.run();});
         render.run();
         ScrollView sc=new ScrollView(owner);sc.addView(l);
         AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.auto_visual_editor).setView(sc)

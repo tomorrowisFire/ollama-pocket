@@ -1,6 +1,6 @@
 {
-  "stage": "F11-1B-model-card-hierarchy",
-  "revision": "F11-1B",
-  "priorCandidate": "b0767d70aadad403bbf0bb81e9d01bf0b9ab82ea",
-  "reason": "Batch model card action semantics, metadata and adaptive height into both renderers; exact FAST/FULL required. Device tests deferred."
+  "stage": "F11-1CD-workspace-flow-batch",
+  "revision": "F11-1D",
+  "priorCandidate": "80c1e575156640e9a088593b685f6ff48da2505a",
+  "reason": "Combine isolated F11-1C popup and F11-1D action flow on accepted live predecessor; require exact FAST/FULL."
 }

@@ -12,11 +12,14 @@ import android.widget.LinearLayout;
 /** Shared local/cloud reply toolbar. Measure actual translated, font-scaled labels before laying out. */
 final class AdaptiveAnswerActions extends LinearLayout {
     private final int gap;
+    private final java.util.List<View> visible=new java.util.ArrayList<>();
+    private final java.util.List<Integer> rowHeights=new java.util.ArrayList<>();
+    private java.util.List<ActionFlowPolicy.Row> rows=java.util.Collections.emptyList();
     AdaptiveAnswerActions(Context context){
         super(context);
         gap=Math.round(ActionLayoutPolicy.GAP*getResources().getDisplayMetrics().density);
         setGravity(Gravity.START|Gravity.CENTER_VERTICAL);
-        setOrientation(HORIZONTAL);
+        setOrientation(HORIZONTAL);setBaselineAligned(false);
     }
     /** The foreground mask does not replace the existing background or theme palette. */
     static void feedback(View view,int radiusDp){
@@ -26,15 +29,12 @@ final class AdaptiveAnswerActions extends LinearLayout {
         view.setForeground(new RippleDrawable(ColorStateList.valueOf(0x33808080),null,mask));
     }
     @Override protected void onMeasure(int widthSpec,int heightSpec){
-        int count=0;
-        for(int i=0;i<getChildCount();i++)if(getChildAt(i).getVisibility()!=GONE)count++;
-        int[] widths=new int[count];
+        visible.clear();rowHeights.clear();
         int free=MeasureSpec.makeMeasureSpec(0,MeasureSpec.UNSPECIFIED);
-        int index=0;
         float density=getResources().getDisplayMetrics().density;
+        if(!Float.isFinite(density)||density<=0)density=1f;
         int target=Math.round(ActionLayoutPolicy.MIN_TARGET*density);
-        java.util.List<ActionLayoutPolicy.Action> measured=new java.util.ArrayList<>();
-        boolean policyEligible=count<=ActionLayoutPolicy.MAX_ACTIONS&&density>0;
+        long natural=0;
         for(int i=0;i<getChildCount();i++){
             View child=getChildAt(i);if(child.getVisibility()==GONE)continue;
             if(child instanceof android.widget.Button){
@@ -42,37 +42,50 @@ final class AdaptiveAnswerActions extends LinearLayout {
                 if(child.getMinimumHeight()<target)child.setMinimumHeight(target);
             }
             child.measure(free,free);
-            widths[index++]=child.getMeasuredWidth();
-            if(policyEligible){
-                int w=(int)Math.ceil(child.getMeasuredWidth()/density),h=(int)Math.ceil(child.getMeasuredHeight()/density);
-                if(w>2048||h>1024)policyEligible=false;
-                else measured.add(new ActionLayoutPolicy.Action(w,h));
+            natural+=(visible.isEmpty()?0L:gap)+child.getMeasuredWidth();
+            visible.add(child);
+        }
+        int horizontalPadding=getPaddingLeft()+getPaddingRight();
+        int mode=MeasureSpec.getMode(widthSpec);
+        int desired=(int)Math.min(0x3fffffffL,Math.max(getSuggestedMinimumWidth(),natural+horizontalPadding));
+        int width=resolveSize(desired,widthSpec);
+        int available=Math.max(0,width-horizontalPadding);
+        int[] widths=new int[visible.size()];
+        for(int i=0;i<widths.length;i++)widths[i]=visible.get(i).getMeasuredWidth();
+        float appScale=getContext() instanceof android.app.Activity?
+            WorkbenchVisualPolicy.textScale(((android.app.Activity)getContext()).getPreferences(android.app.Activity.MODE_PRIVATE).getString("font_size","normal")):1f;
+        float scale=WorkbenchDialogPresentation.combinedScale(getResources().getConfiguration().fontScale,appScale);
+        boolean single=mode!=MeasureSpec.UNSPECIFIED&&WorkbenchLayoutPolicy.largeText(scale)&&available/density<600;
+        rows=ActionFlowPolicy.rows(available,gap,single,widths);
+        long total=getPaddingTop()+getPaddingBottom();
+        for(ActionFlowPolicy.Row row:rows){
+            int height=0;
+            for(int i=row.first;i<row.end;i++){
+                View child=visible.get(i);
+                int fitted=ActionFlowPolicy.fittedWidth(available,widths[i]);
+                if(single&&child instanceof android.widget.Button)fitted=available;
+                if(fitted!=child.getMeasuredWidth())
+                    child.measure(MeasureSpec.makeMeasureSpec(fitted,MeasureSpec.EXACTLY),free);
+                height=Math.max(height,child.getMeasuredHeight());
             }
+            total+=(rowHeights.isEmpty()?0L:gap)+height;
+            rowHeights.add(height);
         }
-        int available=Math.max(0,MeasureSpec.getSize(widthSpec)-getPaddingLeft()-getPaddingRight());
-        boolean stacked=MeasureSpec.getMode(widthSpec)!=MeasureSpec.UNSPECIFIED&&
-            ChatWorkspacePolicy.stackAnswerActions(available,gap,widths);
-        if(policyEligible&&MeasureSpec.getMode(widthSpec)!=MeasureSpec.UNSPECIFIED){
-            int widthDp=(int)Math.floor(available/density);
-            float scale=getResources().getConfiguration().fontScale;
-            if(widthDp<=8192&&Float.isFinite(scale)&&scale>=.5f&&scale<=4f){
-                ActionLayoutPolicy.Layout fit=ActionLayoutPolicy.layout(widthDp,8192,scale,measured);
-                stacked|=fit.rows.size()>1||(!fit.rows.isEmpty()&&fit.rows.get(0).horizontalScroll);
+        setMeasuredDimension(width,resolveSize((int)Math.min(0x3fffffffL,Math.max(total,getSuggestedMinimumHeight())),heightSpec));
+    }
+    @Override protected void onLayout(boolean changed,int left,int top,int right,int bottom){
+        boolean rtl=getLayoutDirection()==LAYOUT_DIRECTION_RTL;
+        int y=getPaddingTop();
+        for(int r=0;r<rows.size();r++){
+            ActionFlowPolicy.Row row=rows.get(r);
+            int height=rowHeights.get(r),x=rtl?right-left-getPaddingRight():getPaddingLeft();
+            for(int i=row.first;i<row.end;i++){
+                View child=visible.get(i);int w=child.getMeasuredWidth(),h=child.getMeasuredHeight();
+                int start=rtl?x-w:x,childTop=y+(height-h)/2;
+                child.layout(start,childTop,start+w,childTop+h);
+                x+=rtl?-(w+gap):w+gap;
             }
+            y+=height+gap;
         }
-        int orientation=stacked?VERTICAL:HORIZONTAL;
-        if(getOrientation()!=orientation)setOrientation(orientation);
-        index=0;
-        for(int i=0;i<getChildCount();i++){
-            View child=getChildAt(i);
-            LayoutParams lp=(LayoutParams)child.getLayoutParams();
-            boolean visible=child.getVisibility()!=GONE;
-            boolean next=visible&&++index<count;
-            lp.width=stacked?LayoutParams.MATCH_PARENT:LayoutParams.WRAP_CONTENT;
-            lp.height=LayoutParams.WRAP_CONTENT;lp.weight=0;
-            lp.setMargins(0,0,0,stacked&&next?gap:0);
-            lp.setMarginStart(0);lp.setMarginEnd(!stacked&&next?gap:0);
-        }
-        super.onMeasure(widthSpec,heightSpec);
     }
 }
