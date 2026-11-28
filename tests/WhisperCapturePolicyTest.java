@@ -48,6 +48,16 @@ public final class WhisperCapturePolicyTest {
         catch (IllegalArgumentException expected) { checks++; }
         try { new WhisperCapturePolicy.Endpoint().accept(quiet, 0, 0); throw new AssertionError("empty"); }
         catch (IllegalArgumentException expected) { checks++; }
+        WhisperCapturePolicy.Endpoint continuous = new WhisperCapturePolicy.Endpoint(true);
+        int idleFrames=(int)(WhisperCapturePolicy.CONTINUOUS_IDLE_MS*WhisperCapturePolicy.SAMPLE_RATE/1000/WhisperCapturePolicy.FRAME_SAMPLES);
+        for(int i=0;i<idleFrames-1;i++){continuous.accept(quiet,0,320);require(!continuous.ended());}
+        continuous.accept(quiet,0,320);require(continuous.ended()&&continuous.idleExpired()&&!continuous.hasSpeech());
+        WhisperCapturePolicy.Endpoint lateSpeech = new WhisperCapturePolicy.Endpoint(true);
+        for(int i=0;i<idleFrames-10;i++)lateSpeech.accept(quiet,0,320);
+        for(int i=0;i<10;i++)lateSpeech.accept(loud,0,320);
+        require(lateSpeech.hasSpeech()&&!lateSpeech.idleExpired()&&!lateSpeech.ended());
+        for(int i=0;i<59;i++){lateSpeech.accept(quiet,0,320);require(!lateSpeech.ended());}
+        lateSpeech.accept(quiet,0,320);require(lateSpeech.ended()&&!lateSpeech.idleExpired());
         System.out.println("PASS: " + checks + " Whisper capture policy checks");
     }
 }

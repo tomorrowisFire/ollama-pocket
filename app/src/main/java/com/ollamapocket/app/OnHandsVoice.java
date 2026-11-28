@@ -195,12 +195,13 @@ final class OnHandsVoice {
         final VoiceInteractionPolicy.Capture turn=new VoiceInteractionPolicy.Capture();
         capture=turn;
         if(a.getPreferences(Activity.MODE_PRIVATE).getBoolean("use_whisper",true)&&voiceModels.ready(VoiceModelCatalog.WHISPER)){
-            whisper=new WhisperCapture(a,voiceModels,targetLocale(),new WhisperCapture.Callback(){
+            whisper=new WhisperCapture(a,voiceModels,targetLocale(),continuous,new WhisperCapture.Callback(){
                 private boolean current(){return !closed&&id==generation&&capture==turn;}
                 public void onReady(){if(current())turn.ready();}
                 public void onProcessing(){if(current()){turn.end();armTimeout(150000L);}}
                 public void onResult(String text){if(current())acceptTranscript(turn,text,cb);}
                 public void onError(){if(current()&&turn.consumeTerminal()){cancel();toast(R.string.voice_error);}}
+                public void onNoSpeech(){if(current()&&turn.consumeTerminal()){cancel();toast(R.string.voice_no_match);}}
             });
             armTimeout(180000L);
             if(!whisper.start()){cancel();toast(R.string.voice_unavailable);}

@@ -26,6 +26,7 @@ final class WhisperCapture {
         void onProcessing();
         void onResult(String text);
         void onError();
+        default void onNoSpeech() { onError(); }
     }
 
     // Reject overlapping work rather than accumulating captures or native model allocations.
@@ -38,6 +39,8 @@ final class WhisperCapture {
     private final Activity owner;
     private final VoiceModelStore models;
     private final String language;
+    private final boolean continuous;
+    private static final class NoSpeech extends IllegalStateException { }
     private final Callback callback;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final AtomicBoolean started = new AtomicBoolean();
@@ -45,7 +48,12 @@ final class WhisperCapture {
     private long nativeJob;
 
     WhisperCapture(Activity owner, VoiceModelStore models, Locale locale, Callback callback) {
+        this(owner,models,locale,false,callback);
+    }
+
+    WhisperCapture(Activity owner, VoiceModelStore models, Locale locale, boolean continuous, Callback callback) {
         this.owner = owner;
+        this.continuous = continuous;
         this.models = models;
         this.language = WhisperCapturePolicy.language(locale);
         this.callback = callback;
@@ -84,7 +92,7 @@ final class WhisperCapture {
     private void run() {
         short[] pcm = null;
         String result = null;
-        boolean failed = false;
+        boolean failed = false, noSpeech = false;
         VoiceNativeWork.Lease work = null;
         try (VoiceModelStore.Lease model = models.acquire(VoiceModelCatalog.WHISPER, () -> cancelled)) {
             if (cancelled) return;
@@ -111,6 +119,8 @@ final class WhisperCapture {
                         .onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(utf8)).toString();
             } finally { Arrays.fill(utf8, (byte) 0); }
             result = VoiceInteractionPolicy.finalTranscript(result, WhisperCapturePolicy.MAX_OUTPUT_CHARS);
+        } catch (NoSpeech empty) {
+            noSpeech = !cancelled;
         } catch (Exception | LinkageError | OutOfMemoryError error) {
             // Audio, model paths, and recognized text are never included in logs or errors.
             failed = !cancelled;
@@ -127,7 +137,8 @@ final class WhisperCapture {
             BUSY.set(false);
         }
         if (cancelled) return;
-        if (failed || result == null) post(callback::onError);
+        if (noSpeech) post(callback::onNoSpeech);
+        else if (failed || result == null) post(callback::onError);
         else {
             final String text = result;
             post(() -> callback.onResult(text));
@@ -142,7 +153,7 @@ final class WhisperCapture {
                 WhisperCapturePolicy.SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT, Math.max(minimum, 4096));
         int count = 0;
-        WhisperCapturePolicy.Endpoint endpoint = new WhisperCapturePolicy.Endpoint();
+        WhisperCapturePolicy.Endpoint endpoint = new WhisperCapturePolicy.Endpoint(continuous);
         try {
             if (recorder.getState() != AudioRecord.STATE_INITIALIZED || cancelled)
                 throw new IllegalStateException("Microphone unavailable");
@@ -150,9 +161,12 @@ final class WhisperCapture {
             if (recorder.getRecordingState() != AudioRecord.RECORDSTATE_RECORDING)
                 throw new IllegalStateException("Microphone unavailable");
             post(callback::onReady);
-            long deadline = SystemClock.elapsedRealtime() + 30000L;
+            final long startedAt = SystemClock.elapsedRealtime();
+            final long deadline = startedAt + 30000L;
             while (!cancelled && !finishRequested && count < pcm.length &&
                     SystemClock.elapsedRealtime() < deadline) {
+                if (continuous && !endpoint.hasSpeech() &&
+                        SystemClock.elapsedRealtime() - startedAt >= WhisperCapturePolicy.CONTINUOUS_IDLE_MS) break;
                 int wanted = Math.min(WhisperCapturePolicy.FRAME_SAMPLES, pcm.length - count);
                 int read = recorder.read(pcm, count, wanted, AudioRecord.READ_NON_BLOCKING);
                 if (read < 0) throw new IllegalStateException("Microphone read failed");
@@ -165,7 +179,7 @@ final class WhisperCapture {
             try { recorder.stop(); } catch (RuntimeException ignored) { }
             recorder.release();
         }
-        if (!cancelled && !endpoint.hasSpeech()) throw new IllegalStateException("No speech");
+        if (!cancelled && !endpoint.hasSpeech()) throw new NoSpeech();
         return count;
     }
 }
