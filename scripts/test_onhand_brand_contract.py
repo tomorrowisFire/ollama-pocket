@@ -322,6 +322,9 @@ assert [model_page.index(x) for x in order]==sorted(model_page.index(x) for x in
 assert "modelFilterStrip.addView(filterRow,new android.widget.HorizontalScrollView.LayoutParams(-2,-2))" in model_page
 assert "margin(modelFilterStrip,searchPanel,0,4);\n        modelRows=column();margin(modelRows,searchPanel,0,7)" in model_page
 assert "modelFilterStrip.setFillViewport(true)" in model_page
+assert "int maxChip=viewport>0?Math.min(dp(240),viewport):dp(240)" in main
+assert "modelFilterStrip.addOnLayoutChangeListener" in model_page
+assert "filter.getPaddingStart()+filter.getPaddingEnd()+dp(4),maxChip" in main
 assert "refreshModelFilterLabels();\n        if(modelRows==null)return;" in main
 assert "OnHandGlyphs.compactFilterSpinner(sourceFilter)" in model_page
 assert "OnHandGlyphs.compactFilterSpinner(quantizationFilter)" in model_page

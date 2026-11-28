@@ -10,6 +10,11 @@ public final class ModelFilterLayoutTest {
         ok(WorkspaceLayoutPolicy.filterChipWidthPx(Float.POSITIVE_INFINITY,48,24)==48);
         ok(WorkspaceLayoutPolicy.filterChipWidthPx(-1,-1,-1)==0);
         ok(WorkspaceLayoutPolicy.filterChipWidthPx(Float.MAX_VALUE,48,Integer.MAX_VALUE)==Integer.MAX_VALUE);
+        ok(WorkspaceLayoutPolicy.filterChipWidthPx(1000,48,24,240)==240);
+        ok(WorkspaceLayoutPolicy.filterChipWidthPx(20,48,24,240)==48);
+        ok(WorkspaceLayoutPolicy.filterChipWidthPx(1000,48,24,180)==180);
+        ok(WorkspaceLayoutPolicy.filterChipWidthPx(1000,48,24,0)==48);
+        ok(WorkspaceLayoutPolicy.filterChipWidthPx(Float.MAX_VALUE,48,Integer.MAX_VALUE,240)==240);
         for(int density=75;density<=500;density++){
             int minimum=Math.round(48*density/100f),chrome=Math.round(24*density/100f);
             int previous=0;

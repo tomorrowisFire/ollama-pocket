@@ -14,6 +14,18 @@ final class LocalInferenceStream {
     static String line(BufferedReader reader,int limit)throws IOException{
         return LocalStreamCancellation.line(reader,limit,null);
     }
+    private static String textOrEmpty(JSONObject object,String key)throws IOException{
+        Object value=object.opt(key);
+        if(value==null||value==JSONObject.NULL)return "";
+        if(!(value instanceof String))throw new IOException("LOCAL_ENGINE_PROTOCOL");
+        return (String)value;
+    }
+    private static JSONObject optionalObject(JSONObject object,String key)throws IOException{
+        Object value=object.opt(key);
+        if(value==null||value==JSONObject.NULL)return null;
+        if(!(value instanceof JSONObject))throw new IOException("LOCAL_ENGINE_PROTOCOL");
+        return (JSONObject)value;
+    }
     private static final class Budget {
         long chars;int lines;
         void add(String row)throws IOException{
@@ -31,6 +43,11 @@ final class LocalInferenceStream {
             if(row.trim().isEmpty())continue;
             JSONObject message=new JSONObject(row);
             if(message.has("error"))throw new IOException("LOCAL_ENGINE_ERROR");
+            if(requireDone){
+                if(message.has("done")&&!(message.opt("done") instanceof Boolean))throw new IOException("LOCAL_ENGINE_PROTOCOL");
+                JSONObject content=optionalObject(message,"message");
+                if(content!=null&&content.has("content"))content.put("content",textOrEmpty(content,"content"));
+            }
             LocalStreamCancellation.check(cancelled);
             listener.accept(message);
             LocalStreamCancellation.check(cancelled);
@@ -62,13 +79,19 @@ final class LocalInferenceStream {
             JSONObject message=new JSONObject(event);
             if(message.has("error"))throw new IOException("LOCAL_ENGINE_ERROR");
             JSONArray choices=message.optJSONArray("choices");
-            if(choices==null||choices.length()==0)continue;
-            JSONObject first=choices.getJSONObject(0);
-            String reason=first.isNull("finish_reason")?"":first.optString("finish_reason","");
+            if(choices==null){
+                if(requireTerminal&&!message.isNull("choices"))throw new IOException("LOCAL_ENGINE_PROTOCOL");
+                continue;
+            }
+            if(choices.length()==0)continue;
+            JSONObject first=choices.optJSONObject(0);
+            if(first==null)throw new IOException("LOCAL_ENGINE_PROTOCOL");
+            String reason=requireTerminal?textOrEmpty(first,"finish_reason"):first.isNull("finish_reason")?"":first.optString("finish_reason","");
             if(requireTerminal&&terminal)throw new IOException("CHAT_STREAM_INCOMPLETE");
-            JSONObject delta=first.optJSONObject("delta");
+            JSONObject delta=requireTerminal?optionalObject(first,"delta"):first.optJSONObject("delta");
+            String content=delta==null?"":requireTerminal?textOrEmpty(delta,"content"):delta.optString("content","");
             LocalStreamCancellation.check(cancelled);
-            if(delta!=null)listener.accept(new JSONObject().put("message",new JSONObject().put("content",delta.optString("content",""))));
+            if(delta!=null)listener.accept(new JSONObject().put("message",new JSONObject().put("content",content)));
             LocalStreamCancellation.check(cancelled);
             if(LocalChatTurns.gpuTerminal(reason)){
                 terminal=true;

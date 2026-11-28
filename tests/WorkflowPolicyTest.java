@@ -52,6 +52,18 @@ public final class WorkflowPolicyTest {
         ok(WorkflowPolicy.decide(values,"{}",false,3)==WorkflowPolicy.Decision.BLOCK);
         ok(WorkflowPolicy.decide(values,"{}",false,2)==WorkflowPolicy.Decision.RETRY);
         ok(WorkflowPolicy.decide(values,"{\"status\":\"OK\",\"count\":3,\"ready\":true}",false,0)==WorkflowPolicy.Decision.BLOCK);
+        for(WorkflowPolicy.Step invalid:new WorkflowPolicy.Step[]{
+            null,new WorkflowPolicy.Step("p","",WorkflowPolicy.Gate.CONTAINS),
+            new WorkflowPolicy.Step("p","0",WorkflowPolicy.Gate.MIN_CHARS),
+            new WorkflowPolicy.Step("p","not-number",WorkflowPolicy.Gate.MIN_CHARS),
+            new WorkflowPolicy.Step("p","x,x",WorkflowPolicy.Gate.JSON_KEYS),
+            new WorkflowPolicy.Step("p","x:unknown",WorkflowPolicy.Gate.JSON_FIELDS),
+            new WorkflowPolicy.Step("p","{}",WorkflowPolicy.Gate.JSON_VALUES)
+        }){
+            ok(WorkflowPolicy.sample(invalid,"OK",false)==WorkflowPolicy.Sample.INVALID_CONDITION);
+            ok(WorkflowPolicy.sample(invalid,"",true)==WorkflowPolicy.Sample.INVALID_CONDITION);
+            ok(WorkflowPolicy.decide(invalid,"OK",false,1)==WorkflowPolicy.Decision.BLOCK);
+        }
         StringBuilder ten=new StringBuilder();
         for(int i=1;i<=10;i++)ten.append("Step ").append(i).append(" | @jsonvalues:{\"step\":").append(i).append("}\n");
         java.util.List<WorkflowPolicy.Step> chain=WorkflowPolicy.parse(ten.toString());

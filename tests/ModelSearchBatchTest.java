@@ -32,6 +32,25 @@ public final class ModelSearchBatchTest {
         var complete=ModelVariantCatalog.collect(List.of(CompletableFuture.completedFuture(List.of(b))));
         if(complete.complete())cache.put("query",complete.values,1000);
         ok(cache.get("query",1000).equals(List.of(b)));
-        System.out.println("PASS: "+checks+" model search completeness, cancellation and cache admission checks");
+        var bounded=new ModelSearchCache(20,1000);
+        var oversized=Collections.nCopies(ModelSearchCache.MAX_ENTRY_VARIANTS+1,a);
+        bounded.put("old",List.of(a),1000);
+        bounded.put("old",oversized,1001);
+        ok(bounded.get("old",1001)==null);
+        var large=Collections.nCopies(ModelSearchCache.MAX_ENTRY_VARIANTS,a);
+        bounded.put("first",large,1000);bounded.put("second",large,1000);
+        ok(bounded.get("first",1000).size()==large.size()); // refresh LRU
+        bounded.put("third",large,1000);
+        ok(bounded.get("second",1000)==null);
+        ok(bounded.get("first",1000)!=null&&bounded.get("third",1000)!=null);
+        var longName=new ModelVariantCatalog.Variant("Ollama","x".repeat(4000),"",10);
+        bounded.put("huge-text",Collections.nCopies(150,longName),1000);
+        ok(bounded.get("huge-text",1000)==null);
+        bounded.put("null",Arrays.asList(a,null),1000);ok(bounded.get("null",1000)==null);
+        bounded.put("empty",List.of(),1000);ok(bounded.get("empty",1000).isEmpty());
+        ok(bounded.get("empty",2001)==null);
+        bounded.clear();ok(bounded.get("first",1000)==null);
+        bounded.put("after-clear",List.of(b),1000);ok(bounded.get("after-clear",1000).equals(List.of(b)));
+        System.out.println("PASS: "+checks+" model search completeness, cancellation and bounded cache checks");
     }
 }

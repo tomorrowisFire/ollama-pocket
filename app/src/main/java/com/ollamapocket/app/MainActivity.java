@@ -1311,6 +1311,8 @@ public final class MainActivity extends Activity {
         paint.setTypeface(Typeface.create(Typeface.DEFAULT,Typeface.BOLD));
         paint.setTextSize(android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP,
             11*uiTextScale,getResources().getDisplayMetrics()));
+        int viewport=modelFilterStrip==null?0:modelFilterStrip.getWidth();
+        int maxChip=viewport>0?Math.min(dp(240),viewport):dp(240);
         for(int i=0;i<filters.length;i++){
             Spinner filter=filters[i];
             if(filter==null)continue;
@@ -1321,7 +1323,7 @@ public final class MainActivity extends Activity {
             ViewGroup.LayoutParams params=filter.getLayoutParams();
             if(params!=null){
                 int width=WorkspaceLayoutPolicy.filterChipWidthPx(Math.max(paint.measureText(value),paint.measureText(getString(labels[i]))),dp(48),
-                    filter.getPaddingStart()+filter.getPaddingEnd()+dp(4));
+                    filter.getPaddingStart()+filter.getPaddingEnd()+dp(4),maxChip);
                 if(params.width!=width){params.width=width;filter.setLayoutParams(params);}
             }
         }
@@ -1401,6 +1403,9 @@ public final class MainActivity extends Activity {
         modelFilterStrip=new android.widget.HorizontalScrollView(this);
         modelFilterStrip.setFillViewport(true);modelFilterStrip.setHorizontalScrollBarEnabled(true);
         modelFilterStrip.setScrollbarFadingEnabled(false);
+        modelFilterStrip.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
+            if(r-l!=or-ol)refreshModelFilterLabels();
+        });
         LinearLayout filterRow=row();filterRow.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);
         addModelFilter(filterRow,sourceFilter,0);addModelFilter(filterRow,sortFilter,1);
         addModelFilter(filterRow,familyFilter,2);addModelFilter(filterRow,quantizationFilter,3);

@@ -147,11 +147,12 @@ public final class GpuRunner {
             stopLocked(); startup=generation;
         }
         java.util.function.BooleanSupplier abort=EngineTransitionPolicy.abortSignal(startup,()->generation,cancelled,()->!InferenceSafety.blocked(context));
-        boolean attemptedLaunch=false;
+        boolean attemptedTransition=false;
         try {
             if(abort.getAsBoolean())return false;
             DistributedRunner.stop();
             if(abort.getAsBoolean())return false;
+            attemptedTransition=true;
             OllamaHttp.releaseResidentModels(abort);
             if(abort.getAsBoolean())return false;
             File executable = new File(context.getApplicationInfo().nativeLibraryDir, "libllama-vulkan-server.so");
@@ -168,7 +169,6 @@ public final class GpuRunner {
             int myGeneration;
             synchronized (GpuRunner.class) {
                 if(abort.getAsBoolean())return false;
-                attemptedLaunch=true;
                 process = pb.start();
                 activeModel = model;activeWeightsKey=weightsKey;
                 offloadConfirmed = false;
@@ -211,14 +211,14 @@ public final class GpuRunner {
             else if (healthy()) reason.append("서버는 시작됐지만 GPU 레이어 오프로드는 확인되지 않았습니다");
             else reason.append("GPU 서버 시작 실패 또는 시간 초과");
             synchronized (GpuRunner.class) {
-                if(generation==startup){retryBudget.failed(retryKey,SystemClock.elapsedRealtime(),attemptedLaunch&&!abort.getAsBoolean());stopLocked();}
+                if(generation==startup){retryBudget.failed(retryKey,SystemClock.elapsedRealtime(),attemptedTransition&&!abort.getAsBoolean());stopLocked();}
             }
             return false;
         } catch (Exception e) {
             InferenceSafetyPolicy.restoreInterrupt(e);
             reason.append("GPU 실행 실패: ").append(e.getMessage());
             synchronized (GpuRunner.class) {
-                if(generation==startup){retryBudget.failed(retryKey,SystemClock.elapsedRealtime(),attemptedLaunch&&!abort.getAsBoolean());stopLocked();}
+                if(generation==startup){retryBudget.failed(retryKey,SystemClock.elapsedRealtime(),attemptedTransition&&!abort.getAsBoolean());stopLocked();}
             } return false;
         }
     }

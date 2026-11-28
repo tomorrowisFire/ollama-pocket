@@ -1,6 +1,6 @@
 {
-  "stage": "F10A75-P1B-P2-P3-P4-P5-independent-integration",
-  "revision": "F10A75",
-  "priorCandidate": "233318ee870b0c1d244ef3a4e4aaa8e56600edaf",
-  "reason": "Integrate independent improvements: bounded resident model handoff; finite resource-aware model ranking/advice; persistent intentional filters across partial provider results; resumable interruption journal; bounded streaming private cache scan. Preserve F10A74 retry budget, existing UI, data, billing and ads. Full ARM64 APK and exact CI gate; physical acceptance deferred."
+  "stage": "F10A76-P1C-P2B-P3B-P4B-P5B-integration",
+  "revision": "F10A76",
+  "priorCandidate": "5a235823e3cf2825156cc54feb64f0cecab3632c",
+  "reason": "Second focused integration: include actual GPU handoff failure in retry budget, bound model search cache total retention and align pull storage reserve, viewport cap for filter controls, block invalid workflow verifier, reject malformed interactive inference payloads before callbacks. Preserve all UI, data, ads, billing and transfer rules. Exact FULL ARM64 build, final device acceptance deferred."
 }

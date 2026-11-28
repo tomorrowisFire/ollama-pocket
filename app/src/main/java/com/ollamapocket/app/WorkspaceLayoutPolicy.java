@@ -70,6 +70,11 @@ final class WorkspaceLayoutPolicy {
         double text=Float.isFinite(textWidthPx)?Math.max(0d,textWidthPx):0d;
         return (int)Math.min(Integer.MAX_VALUE,Math.max(Math.max(0,minimumPx),Math.ceil(text)+Math.max(0,chromePx)));
     }
+    /** Single-line filter strip: each control fits the available viewport and exposes full text in its menu. */
+    static int filterChipWidthPx(float textWidthPx,int minimumPx,int chromePx,int maxPx){
+        int minimum=Math.max(0,minimumPx);
+        return Math.max(minimum,Math.min(Math.max(minimum,maxPx),filterChipWidthPx(textWidthPx,minimum,chromePx)));
+    }
     /** Clamp the drawer to the actual window, including narrow multi-window. */
     static int drawerWidthDp(String mode,int usableWidthDp){
         if(usableWidthDp<=0)return 0;

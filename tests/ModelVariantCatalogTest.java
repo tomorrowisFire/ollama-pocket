@@ -31,6 +31,9 @@ public class ModelVariantCatalogTest{
         ok(ModelVariantCatalog.tier(ModelVariantCatalog.GIB,false,false,true,false,8,9,20)==1,"inconsistent telemetry");
         ok(ModelVariantCatalog.tier(ModelVariantCatalog.GIB,false,false,true,false,Double.NaN,4,20)==4,"unknown total memory");
         ok(ModelVariantCatalog.tier(ModelVariantCatalog.GIB,false,false,true,false,8,4,Double.NaN)==4,"unknown download storage");
+        ok(ModelVariantCatalog.tier(2*ModelVariantCatalog.GIB,false,false,true,false,8,5,2.7)==4,"reserve covers actual Ollama pull margin");
+        ok(ModelVariantCatalog.tier(2*ModelVariantCatalog.GIB,false,false,true,false,8,5,3.0)==0,"enough storage for pull reserve");
+        ok(ModelVariantCatalog.tier(2*ModelVariantCatalog.GIB,false,true,true,false,8,5,0)==0,"installed ignores download reserve");
         ok(ModelVariantCatalog.tier(ModelVariantCatalog.GIB,false,true,true,false,8,4,Double.NaN)==0,"installed does not require download storage");
         ok(Double.isFinite(ModelVariantCatalog.score(1,null,false,false,true,false,Double.NaN,Double.NaN,Double.NaN,0)),"finite rank despite missing telemetry");
         ok(ModelVariantCatalog.quantPenalty("q4_k_m")==0&&ModelVariantCatalog.quantPenalty(null)==60,"safe quantization rank");

@@ -213,7 +213,7 @@ public final class ModelVariantCatalog {
         if(!arm64)return 4;
         if(bytes<=0)return 3;
         double weight=bytes/(double)GIB, need=weight*1.15+0.65;
-        if((!installed&&(!Double.isFinite(storage)||storage<(hf?2*weight+0.5:weight+0.5)))||
+        if((!installed&&(!Double.isFinite(storage)||storage<(hf?2*weight+0.5:1.2*weight+0.5)))||
             !Double.isFinite(total)||total<=0||total<need+0.9)return 4;
         if(low)return 2;
         if(!Double.isFinite(free)||free<=0||free>total)return 1;

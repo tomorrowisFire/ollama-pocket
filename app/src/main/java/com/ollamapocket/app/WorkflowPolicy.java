@@ -92,9 +92,27 @@ final class WorkflowPolicy {
             default:return output.contains(step.required);
         }
     }
+    private static boolean validCondition(Step step){
+        if(step==null||step.gate==null||step.required==null||step.required.trim().isEmpty()||step.required.length()>200)return false;
+        try{
+            switch(step.gate){
+                case MIN_CHARS:
+                    if(!step.required.matches("[0-9]{1,4}"))return false;
+                    int n=Integer.parseInt(step.required);return n>=1&&n<=MAX_OUTPUT;
+                case JSON_FIELDS:WorkflowJsonFields.fields(step.required);return true;
+                case JSON_VALUES:WorkflowJsonFields.validateValues(step.required);return true;
+                case JSON_KEYS:
+                    java.util.Set<String> keys=new java.util.HashSet<>();
+                    for(String key:step.required.split(",",-1))
+                        if(!key.matches("[A-Za-z0-9_.-]{1,64}")||!keys.add(key)||keys.size()>12)return false;
+                    return true;
+                default:return true;
+            }
+        }catch(IllegalArgumentException e){return false;}
+    }
     /** One predicate for the actual runner and the read-only sample lab. */
     static Sample sample(Step step,String output,boolean truncated){
-        if(step==null||step.gate==null||step.required==null)return Sample.INVALID_CONDITION;
+        if(!validCondition(step))return Sample.INVALID_CONDITION;
         if(truncated)return Sample.TRUNCATED;
         if(output==null)return Sample.EMPTY;
         if(output.length()>MAX_OUTPUT)return Sample.OVERSIZED;
@@ -105,7 +123,9 @@ final class WorkflowPolicy {
     /** Shared runner decision: never accept truncated, invalid or unbudgeted attempts. */
     static Decision decide(Step step,String output,boolean truncated,int attempts){
         if(attempts<1||attempts>MAX_ATTEMPTS)return Decision.BLOCK;
-        if(sample(step,output,truncated)==Sample.MATCH)return Decision.ADVANCE;
+        Sample result=sample(step,output,truncated);
+        if(result==Sample.MATCH)return Decision.ADVANCE;
+        if(result==Sample.INVALID_CONDITION)return Decision.BLOCK;
         return attempts<MAX_ATTEMPTS?Decision.RETRY:Decision.BLOCK;
     }
     /** Read-only allowance. Legacy counters can be incomplete; never invent missing history. */

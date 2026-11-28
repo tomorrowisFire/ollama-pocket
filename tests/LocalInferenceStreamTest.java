@@ -47,6 +47,17 @@ public final class LocalInferenceStreamTest {
         rejects(()->sse("data: {\"error\":\"private message\"}\n\n"));
         ok(sse("data: {\"choices\":[\n"+"data: {\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\n").equals("ok"));
         rejects(()->sse("data:"+("x".repeat(LocalInferenceStream.MAX_LINE+1))+"\n\n"));
+        ok(nd("{\"message\":{\"content\":null},\"done\":true}\n").isEmpty());
+        ok(sse("data: {\"choices\":[{\"delta\":{\"content\":null},\"finish_reason\":\"stop\"}]}\n\n").isEmpty());
+        for(String bad:new String[]{
+            "{\"done\":\"true\"}", "{\"done\":null}", "{\"message\":42,\"done\":true}",
+            "{\"message\":{\"content\":42},\"done\":true}", "{\"message\":{\"content\":{}},\"done\":true}"
+        })rejects(()->LocalInferenceStream.ndjson(reader(bad+"\n"),m->{throw new AssertionError("Malformed callback");},true));
+        for(String bad:new String[]{
+            "{\"choices\":{}}", "{\"choices\":[1]}", "{\"choices\":[{\"delta\":1,\"finish_reason\":\"stop\"}]}",
+            "{\"choices\":[{\"delta\":{\"content\":[]},\"finish_reason\":\"stop\"}]}",
+            "{\"choices\":[{\"delta\":{\"content\":\"x\"},\"finish_reason\":1}]}"
+        })rejects(()->LocalInferenceStream.sse(reader("data: "+bad+"\n\n"),m->{throw new AssertionError("Malformed callback");},true));
         AtomicBoolean stop=new AtomicBoolean();
         AtomicInteger callbacks=new AtomicInteger();
         cancelled(()->LocalInferenceStream.ndjson(reader("{\"done\":true}\n"),m->callbacks.incrementAndGet(),true,()->true));
