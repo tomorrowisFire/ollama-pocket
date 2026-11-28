@@ -169,7 +169,8 @@ final class LocalWorkflow {
                 String previous=index==0?"":c.results.get(index-1);
                 boolean retry=c.attempts>0;
                 c.attempts++;c.totalAttempts++;c.unknownAttempts++;c.status="RUNNING";c.reason=WorkflowRunJournal.Reason.NONE;save(c);progress.accept(c);
-                StringBuilder output=new StringBuilder();long[] tokens={-1};boolean[] truncated={false};
+                StructuredTextStream response=new StructuredTextStream(WorkflowPolicy.MAX_OUTPUT,WorkflowPolicy.MAX_TOKENS);
+                String output;long tokens;boolean truncated;
                 HttpURLConnection request=null;
                 try{
                     watch.run();if(abort.get()!=null||cancelled||Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException();
@@ -180,37 +181,27 @@ final class LocalWorkflow {
                     watch.run();if(abort.get()!=null||cancelled)throw new java.io.InterruptedIOException();
                     OllamaHttp.streamChat(request,body,item->{
                         if(abort.get()!=null||cancelled||Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException();
-                        JSONObject message=item.optJSONObject("message");
-                        if(message!=null){String part=message.optString("content","");
-                            if((long)output.length()+part.length()>WorkflowPolicy.MAX_OUTPUT)throw new IOException("WORKFLOW_OUTPUT_LIMIT");output.append(part);}
-                        if(Boolean.TRUE.equals(item.opt("done"))){
-                            Object raw=item.opt("eval_count");
-                            if(raw instanceof Number){
-                                double d=((Number)raw).doubleValue();
-                                if(!Double.isFinite(d)||d<0||d!=Math.floor(d)||d>WorkflowPolicy.MAX_TOKENS)throw new IOException("WORKFLOW_INVALID_TOKENS");
-                                tokens[0]=(long)d;
-                            }
-                            truncated[0]=StructuredInferenceTerminal.truncated(item.isNull("done_reason")?null:item.opt("done_reason"));
-                        }
+                        response.accept(item);
                     },()->abort.get()!=null||cancelled||paused);
+                    output=response.text();tokens=response.reportedTokens();truncated=response.truncated();
                 }catch(Exception e){
                     watch.run();WorkflowRunJournal.Reason reason=stopReason.get();
                     try{stopped(c,reason!=null?reason:WorkflowRunJournal.failure(e));}
                     finally{InferenceSafetyPolicy.restoreInterrupt(e);}
                     break; // preserve paused checkpoint; never blindly retry transport
                 }finally{connection=null;if(request!=null)request.disconnect();}
-                if(tokens[0]>=0){c.unknownAttempts--;c.reportedTokens+=tokens[0];}
+                if(tokens>=0){c.unknownAttempts--;c.reportedTokens+=tokens;}
                 watch.run();WorkflowRunJournal.Reason reason=stopReason.get();
                 if(reason!=null){stopped(c,reason);break;}
                 c.status="VERIFYING";c.reason=WorkflowRunJournal.Reason.NONE;save(c);progress.accept(c);
-                WorkflowPolicy.Decision decision=WorkflowPolicy.decide(step,output.toString(),truncated[0],c.attempts);
+                WorkflowPolicy.Decision decision=WorkflowPolicy.decide(step,output,truncated,c.attempts);
                 // Recheck safety/stop at the verification-to-checkpoint boundary.
                 watch.run();reason=stopReason.get();
                 if(reason!=null){stopped(c,reason);break;}
                 if(decision==WorkflowPolicy.Decision.ADVANCE){
-                    c.results.add(output.toString());c.attempts=0;c.status=c.complete()?"COMPLETED":"QUEUED";c.reason=WorkflowRunJournal.Reason.VERIFIED;save(c);progress.accept(c);
+                    c.results.add(output);c.attempts=0;c.status=c.complete()?"COMPLETED":"QUEUED";c.reason=WorkflowRunJournal.Reason.VERIFIED;save(c);progress.accept(c);
                 }else{
-                    c.status=decision==WorkflowPolicy.Decision.BLOCK?"BLOCKED":"RETRY_WAIT";c.reason=truncated[0]?WorkflowRunJournal.Reason.TRUNCATED:WorkflowRunJournal.Reason.VERIFY_FAILED;save(c);progress.accept(c);
+                    c.status=decision==WorkflowPolicy.Decision.BLOCK?"BLOCKED":"RETRY_WAIT";c.reason=truncated?WorkflowRunJournal.Reason.TRUNCATED:WorkflowRunJournal.Reason.VERIFY_FAILED;save(c);progress.accept(c);
                     if("BLOCKED".equals(c.status))break;
                 }
             }

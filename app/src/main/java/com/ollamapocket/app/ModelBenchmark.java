@@ -146,6 +146,9 @@ public final class ModelBenchmark {
                 Double.isFinite(ttftMs)&&ttftMs>=0&&Double.isFinite(decayPct)&&decayPct>=0&&decayPct<=100&&
                 thermalStart<3&&thermalEnd<3&&error.isEmpty();
         }
+        boolean recommendable(){
+            return valid()&&BenchmarkProfile.recommendableResources(minFreeMiB,thermalStart,thermalEnd,decayPct);
+        }
         String localizedSummary(Context c){
             String name=engineLabel(c,mode);
             if(!valid())return c.getString(R.string.bench_unmeasured,name,errorLabel(c,error));
@@ -221,7 +224,13 @@ public final class ModelBenchmark {
             for(int i=0;i<list.length();i++)r.results.add(EngineResult.fromStructured(list.getJSONObject(i),repeats));
             r.recommendedMode=o.isNull("recommended")?null:o.getString("recommended");
             if(r.recommendedMode!=null&&!Arrays.asList("cpu","gpu","cooperative").contains(r.recommendedMode))throw new IOException("Invalid recommendation");
-            r.interrupted=o.getBoolean("interrupted");return r;
+            r.interrupted=o.getBoolean("interrupted");
+            if(r.recommendedMode!=null){
+                boolean eligible=false;
+                for(EngineResult e:r.results)if(r.recommendedMode.equals(e.mode)&&e.recommendable())eligible=true;
+                if(!eligible||r.interrupted)r.recommendedMode=null;
+            }
+            return r;
         }
         public String text() {
             StringBuilder s = new StringBuilder();
@@ -515,7 +524,7 @@ public final class ModelBenchmark {
                 if(canceled||InferenceSafety.blocked(context))break;
                 EngineResult result=measureEngine(context,model,mode,progress);
                 report.results.add(result);
-                if(result.valid()) {
+                if(result.recommendable()) {
                     String best=BenchmarkStats.winner(report.recommendedMode,bestRate,
                             mode,result.decodeTps);
                     if(!mode.equals(best))continue;
@@ -569,7 +578,7 @@ public final class ModelBenchmark {
                 .setNeutralButton(activity.getString(R.string.copy_result),(d,w)->{
                     ClipboardManager clipboard=(ClipboardManager)activity.getSystemService(Context.CLIPBOARD_SERVICE);
                     if(clipboard!=null)clipboard.setPrimaryClip(
-                            ClipData.newPlainText(activity.getString(R.string.bench_title),content));
+                            SensitiveClipboard.text(activity.getString(R.string.bench_title),content));
                 });
         if(best!=null)builder.setPositiveButton(activity.getString(R.string.bench_apply),(d,w)->
                 activity.getPreferences(Context.MODE_PRIVATE).edit()

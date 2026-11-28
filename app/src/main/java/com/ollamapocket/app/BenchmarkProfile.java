@@ -20,7 +20,7 @@ final class BenchmarkProfile {
             this.thermalStart=thermalStart;this.thermalEnd=thermalEnd;
         }
         boolean stableCandidate(){
-            return thermalStart>=0&&thermalStart<3&&thermalEnd>=0&&thermalEnd<3&&decay<=20&&freeMiB>=256;
+            return recommendableResources(freeMiB,thermalStart,thermalEnd,decay);
         }
         JSONObject json()throws Exception{return new JSONObject().put("decode",decode).put("ttft",ttft).put("decay",decay)
             .put("freeMiB",freeMiB).put("thermalStart",thermalStart).put("thermalEnd",thermalEnd);}
@@ -28,6 +28,11 @@ final class BenchmarkProfile {
             return o==null?null:new Measurement(o.getDouble("decode"),o.getDouble("ttft"),o.getDouble("decay"),
                 o.getLong("freeMiB"),o.getInt("thermalStart"),o.getInt("thermalEnd"));
         }
+    }
+    /** A completed measurement may be shown even when it is not safe enough to recommend. */
+    static boolean recommendableResources(long freeMiB,int thermalStart,int thermalEnd,double decay){
+        return freeMiB>=256&&freeMiB<=1_048_576&&thermalStart>=0&&thermalStart<3&&thermalEnd>=0&&thermalEnd<3&&
+            Double.isFinite(decay)&&decay>=0&&decay<=20;
     }
     final String model,digest,runtime;
     final long measuredAt;

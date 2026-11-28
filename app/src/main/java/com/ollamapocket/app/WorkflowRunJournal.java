@@ -52,7 +52,7 @@ final class WorkflowRunJournal {
         if(error instanceof InterruptedException||error instanceof java.io.InterruptedIOException)return Reason.INTERRUPTED;
         String code=error==null?null:error.getMessage();
         if("WORKFLOW_OUTPUT_LIMIT".equals(code)||"CHAT_STREAM_LIMIT".equals(code))return Reason.OUTPUT_LIMIT;
-        if("WORKFLOW_INVALID_TOKENS".equals(code))return Reason.INVALID_TOKENS;
+        if("WORKFLOW_INVALID_TOKENS".equals(code)||"CHAT_STREAM_INVALID_TOKENS".equals(code))return Reason.INVALID_TOKENS;
         return Reason.TRANSPORT;
     }
     private static void validate(Event event,int steps,long started){

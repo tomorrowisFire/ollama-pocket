@@ -203,8 +203,15 @@ final class DocumentBatchPolicy {
                 if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"");
                 notes.add(new Note(u,text));progress.accept(notes.size());
             }
+            // A one-unit batch already has a source-bound note. If it fits the final
+            // synthesis, a separate summarization would consume an unnecessary model call.
+            if(notes.size()==1){
+                Note only=notes.get(0);
+                String direct="["+only.unit.id()+"]: "+only.text;
+                if(fits(finalPrompt(plan,Collections.singletonList(direct)),FINAL_TOKENS))groups.add(direct);
+            }
             // Largest fitting group first; carry a singleton intact rather than truncating it.
-            for(int start=0;start<notes.size();){
+            for(int start=groups.isEmpty()?0:notes.size();start<notes.size();){
                 if(stopped.getAsBoolean())return new Result(Status.STOPPED,notes,completedGroups,"");
                 int end=Math.min(start+GROUP_SIZE,notes.size());
                 while(end>start+1&&!fits(groupPrompt(plan,notes,start,end),NOTE_TOKENS))end--;

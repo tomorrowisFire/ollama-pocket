@@ -60,6 +60,27 @@ public final class DocumentBatchPolicyTest {
         ok(complete.status==DocumentBatchPolicy.Status.COMPLETED&&complete.notes.size()==12&&complete.groupsDone==3);
         ok(calls.get()==16&&progress.get()==16&&complete.synthesis.equals("note 16"));
         calls.set(0);progress.set(0);
+        DocumentBatchPolicy.Plan single=plan("small extracted document");
+        DocumentBatchPolicy.Result direct=DocumentBatchPolicy.analyze(single,(prompt,chars,tokens)->{
+            int call=calls.incrementAndGet();
+            if(call==1){ok(prompt.contains("BEGIN SOURCE"));return "fact";}
+            ok(call==2&&prompt.contains("final analysis")&&prompt.contains("[D1-S1]: fact"));
+            return "Summary [D1-S1]";
+        },()->false,progress::set);
+        ok(direct.status==DocumentBatchPolicy.Status.COMPLETED&&direct.notes.size()==1&&direct.groupsDone==0);
+        ok(calls.get()==2&&progress.get()==2&&direct.synthesis.equals("Summary [D1-S1]"));
+        ok(DocumentBatchPolicy.citations(direct.synthesis,direct.notes).valid.equals(List.of("D1-S1")));
+        // A long multilingual goal and note may require the original singleton reduction.
+        DocumentBatchPolicy.Plan singleCjk=new DocumentBatchPolicy.Plan("한".repeat(300),List.of(text("short","x",false)));
+        String longNote="한".repeat(420);
+        ok(!DocumentBatchPolicy.fits(DocumentBatchPolicy.finalPrompt(singleCjk,List.of("[D1-S1]: "+longNote)),DocumentBatchPolicy.FINAL_TOKENS));
+        ok(DocumentBatchPolicy.fits(DocumentBatchPolicy.groupPrompt(singleCjk,List.of(new DocumentBatchPolicy.Note(singleCjk.units.get(0),longNote)),0,1),DocumentBatchPolicy.NOTE_TOKENS));
+        calls.set(0);
+        DocumentBatchPolicy.Result reducedSingle=DocumentBatchPolicy.analyze(singleCjk,(prompt,chars,tokens)->{
+            int call=calls.incrementAndGet();return call==1?longNote:call==2?"brief [D1-S1]":"final [D1-S1]";
+        },()->false,x->{});
+        ok(reducedSingle.status==DocumentBatchPolicy.Status.COMPLETED&&reducedSingle.groupsDone==1&&calls.get()==3);
+        calls.set(0);progress.set(0);
         DocumentBatchPolicy.Result failed=DocumentBatchPolicy.analyze(max,(prompt,chars,tokens)->{
             if(calls.incrementAndGet()==4)throw new java.io.IOException("fixture");
             return "note";

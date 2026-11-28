@@ -32,7 +32,9 @@ public final class ModelResourceAdviceTest {
         check(edge.state==ModelResourceAdvice.State.FIT_ESTIMATE);
         check(at(4096,1879,500*M).state==ModelResourceAdvice.State.SHORTFALL);
         check(at(4096,4096,500*M+1).requiredMiB==1370);
-        check(at(4096,8192,500*M).budgetMiB==4096);
+        check(at(4096,8192,500*M).budgetMiB==0);
+        check(at(4096,8192,500*M).state==ModelResourceAdvice.State.UNKNOWN);
+        check(at(4096,4096,500*M).state==ModelResourceAdvice.State.FIT_ESTIMATE);
         check(at(0,4096,M).state==ModelResourceAdvice.State.UNKNOWN);
         check(at(4096,0,M).state==ModelResourceAdvice.State.UNKNOWN);
         check(at(4096,4096,0).state==ModelResourceAdvice.State.UNKNOWN);

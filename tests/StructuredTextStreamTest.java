@@ -17,18 +17,18 @@ public final class StructuredTextStreamTest {
         var valid=new StructuredTextStream(12,4);
         valid.accept(json("{\"message\":{\"content\":\"한글\"},\"done\":false}"));
         valid.accept(json("{\"message\":{\"content\":\" OK\",\"tool_calls\":[]},\"done\":true,\"done_reason\":\"stop\",\"eval_count\":4}"));
-        ok(valid.text().equals("한글 OK")&&!valid.truncated());
+        ok(valid.text().equals("한글 OK")&&!valid.truncated()&&valid.reportedTokens()==4);
         reject(()->valid.accept(json("{\"done\":true}")));
-        reject(valid::text);
+        reject(valid::text);reject(valid::reportedTokens);
         var old=new StructuredTextStream(12,4);
         old.accept(json("{\"message\":{\"content\":\"old\"},\"done\":true}"));
-        ok(old.text().equals("old")&&!old.truncated());
+        ok(old.text().equals("old")&&!old.truncated()&&old.reportedTokens()==-1);
         var partial=new StructuredTextStream(12,4);
         partial.accept(json("{\"message\":{\"content\":\"partial\"},\"done\":true,\"done_reason\":\"length\"}"));
         ok(partial.truncated()&&partial.text().equals("partial"));
         var incomplete=new StructuredTextStream(12,4);
         incomplete.accept(json("{\"message\":{\"content\":\"draft\"}}"));
-        reject(incomplete::text);reject(incomplete::truncated);
+        reject(incomplete::text);reject(incomplete::truncated);reject(incomplete::reportedTokens);
         for(String raw:new String[]{
             "{\"message\":{\"content\":123},\"done\":true}",
             "{\"message\":{\"content\":{}},\"done\":true}",
@@ -51,7 +51,10 @@ public final class StructuredTextStreamTest {
         reject(overflow::text);
         var exact=new StructuredTextStream(3,4);
         exact.accept(json("{\"message\":{\"content\":\"abc\"},\"done\":true,\"eval_count\":0}"));
-        ok(exact.text().equals("abc"));
+        ok(exact.text().equals("abc")&&exact.reportedTokens()==0);
+        var unknown=new StructuredTextStream(3,4);
+        unknown.accept(json("{\"done\":true,\"eval_count\":null}"));
+        ok(unknown.reportedTokens()==-1);
         System.out.println("PASS: "+checks+" structured text-only stream checks");
     }
 }

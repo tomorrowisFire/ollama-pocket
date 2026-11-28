@@ -28,7 +28,7 @@ final class ModelResourceAdvice {
     static Result assess(boolean arm64,InferenceSafetyPolicy.Reason risk,long total,long available,long bytes){
         long weight=bytes>0&&bytes<=MAX_MIB*MIB?1+(bytes-1)/MIB:0;
         long required=weight==0?0:weight+(weight+4)/5+768;
-        long budget=total>0&&total<=MAX_MIB&&available>0&&available<=MAX_MIB?Math.min(total,available):0;
+        long budget=total>0&&total<=MAX_MIB&&available>0&&available<=total?available:0;
         State state;
         if(!arm64)state=State.UNSUPPORTED;
         else if(risk==InferenceSafetyPolicy.Reason.THERMAL)state=State.THERMAL;

@@ -22,6 +22,8 @@ public final class WorkflowRunJournalTest {
         ok(WorkflowRunJournal.interruptedState("RUNNING")&&WorkflowRunJournal.interruptedState("VERIFYING")&&!WorkflowRunJournal.interruptedState("COMPLETED"));
         ok(WorkflowRunJournal.failure(new java.io.IOException("WORKFLOW_OUTPUT_LIMIT"))==WorkflowRunJournal.Reason.OUTPUT_LIMIT);
         ok(WorkflowRunJournal.failure(new java.io.IOException("WORKFLOW_INVALID_TOKENS"))==WorkflowRunJournal.Reason.INVALID_TOKENS);
+        ok(WorkflowRunJournal.failure(new java.io.IOException("CHAT_STREAM_INVALID_TOKENS"))==WorkflowRunJournal.Reason.INVALID_TOKENS);
+        ok(WorkflowRunJournal.failure(new java.io.IOException("CHAT_STREAM_LIMIT"))==WorkflowRunJournal.Reason.OUTPUT_LIMIT);
         ok(WorkflowRunJournal.failure(new java.io.IOException("private payload"))==WorkflowRunJournal.Reason.TRANSPORT);
         ok(WorkflowRunJournal.failure(new InterruptedException())==WorkflowRunJournal.Reason.INTERRUPTED);
         ok(WorkflowRunJournal.failure(new java.io.InterruptedIOException())==WorkflowRunJournal.Reason.INTERRUPTED);

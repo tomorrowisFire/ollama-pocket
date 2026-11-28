@@ -84,6 +84,13 @@ public final class DocumentBatchReportTest {
         JSONObject wj=new JSONObject(w.json());
         ok(wj.getJSONArray("notes").getJSONObject(0).getString("record_kind").equals("WHITESPACE_ONLY")&&wj.getJSONArray("notes").getJSONObject(0).isNull("note"));
         ok(w.citations.unknown.equals(List.of("D1-S1"))&&w.citations.valid.equals(List.of("D1-S2")));
+        DocumentBatchPolicy.Plan singleton=new DocumentBatchPolicy.Plan("extract",List.of(
+            new DocumentBatchPolicy.Source("short.txt","short evidence",DocumentBatchPolicy.Kind.TEXT,false,0,0,0)));
+        DocumentBatchPolicy.Result direct=DocumentBatchPolicy.analyze(singleton,(prompt,chars,tokens)->"note [D1-S1]",()->false,x->{});
+        ok(direct.status==DocumentBatchPolicy.Status.COMPLETED&&direct.groupsDone==0);
+        JSONObject sj=new JSONObject(new DocumentBatchReport(singleton,direct,"m",null,2,10).json());
+        ok(sj.getInt("local_chat_request_attempts")==2&&sj.getInt("completed_reduction_groups")==0);
+        rejects(()->new DocumentBatchReport(singleton,direct,"m",null,3,10));
         System.out.println("PASS: "+n+" document report snapshot, citation lookup and JSON assertions");
     }
 }

@@ -10,6 +10,7 @@ final class StructuredTextStream {
     private final StringBuilder text=new StringBuilder();
     private final int maxChars,maxTokens;
     private boolean done,truncated,invalid;
+    private long reportedTokens=-1;
     StructuredTextStream(int maxChars,int maxTokens){
         if(maxChars<=0||maxTokens<=0)throw new IllegalArgumentException("Structured output limits");
         this.maxChars=maxChars;this.maxTokens=maxTokens;
@@ -44,13 +45,18 @@ final class StructuredTextStream {
         if(Boolean.TRUE.equals(flag)){
             Object count=item.opt("eval_count");
             if(count!=null&&count!=JSONObject.NULL){
-                if(!(count instanceof Number))throw bad();
+                if(!(count instanceof Number))throw new IOException("CHAT_STREAM_INVALID_TOKENS");
                 double n=((Number)count).doubleValue();
-                if(!Double.isFinite(n)||n<0||n>maxTokens||n!=Math.floor(n))throw bad();
+                if(!Double.isFinite(n)||n<0||n>maxTokens||n!=Math.floor(n))throw new IOException("CHAT_STREAM_INVALID_TOKENS");
+                reportedTokens=(long)n;
             }
             truncated=StructuredInferenceTerminal.truncated(item.isNull("done_reason")?null:item.opt("done_reason"));
             done=true;
         }
+    }
+    long reportedTokens()throws IOException{
+        if(invalid||!done)throw bad();
+        return reportedTokens;
     }
     String text()throws IOException{
         if(invalid||!done)throw bad();

@@ -70,6 +70,14 @@ public final class BenchmarkProfileTest {
         ok(!BenchmarkProfile.adequateTokens(57,72));
         ok(!BenchmarkProfile.adequateTokens(73,72));
         ok(!BenchmarkProfile.adequateTokens(0,0));
+        ok(BenchmarkProfile.recommendableResources(256,0,2,20));
+        ok(!BenchmarkProfile.recommendableResources(255,0,2,20));
+        ok(!BenchmarkProfile.recommendableResources(1024,-1,2,1));
+        ok(!BenchmarkProfile.recommendableResources(1024,1,3,1));
+        ok(!BenchmarkProfile.recommendableResources(1024,1,1,20.001));
+        ok(!BenchmarkProfile.recommendableResources(1024,1,1,Double.NaN));
+        ok(!BenchmarkProfile.recommendableResources(1024,1,1,-1));
+        ok(!BenchmarkProfile.recommendableResources(Long.MAX_VALUE,1,1,0));
         ok(EngineLoadPolicy.gpuStartupMs(0)==35000);
         ok(EngineLoadPolicy.gpuStartupMs(1024L*1024*1024)==67000);
         ok(EngineLoadPolicy.gpuStartupMs(Long.MAX_VALUE)==180000);
