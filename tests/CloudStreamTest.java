@@ -66,8 +66,40 @@ public final class CloudStreamTest {
             if(mode==3)check(sink.opened==0);
         }
     }
+    private static void responseReadBudget()throws Exception{
+        byte[] exact="{\"value\":\"한국어 日本語 中文 😀\"}".getBytes(StandardCharsets.UTF_8);
+        check(CloudApi.readWireObject(new ByteArrayInputStream(exact),()->0L).getString("value").equals("한국어 日本語 中文 😀"));
+        java.util.concurrent.atomic.AtomicLong clock=new java.util.concurrent.atomic.AtomicLong();
+        java.util.concurrent.atomic.AtomicInteger reads=new java.util.concurrent.atomic.AtomicInteger();
+        java.io.InputStream slow=new java.io.InputStream(){
+            @Override public int read(){throw new AssertionError("Single-byte read");}
+            @Override public int read(byte[] bytes){
+                reads.incrementAndGet();System.arraycopy(exact,0,bytes,0,exact.length);
+                clock.set(CloudApi.JSON_READ_BUDGET_NS);return exact.length;
+            }
+        };
+        try{CloudApi.readWireObject(slow,clock::get);throw new AssertionError("Expired read accepted");}
+        catch(java.net.SocketTimeoutException expected){check(reads.get()==1);}
+        for(java.io.InputStream bad:new java.io.InputStream[]{
+            new ByteArrayInputStream(new byte[2_000_001]),
+            new java.io.InputStream(){
+                @Override public int read(){return 0;}
+                @Override public int read(byte[] bytes){return 0;}
+            },
+            new ByteArrayInputStream(new byte[]{(byte)0xff})
+        }){
+            try{CloudApi.readWireObject(bad,()->0L);throw new AssertionError("Invalid wire accepted");}
+            catch(java.io.IOException expected){check(true);}
+        }
+        Thread.currentThread().interrupt();
+        try{
+            try{CloudApi.readWireObject(slow,()->0L);throw new AssertionError("Cancelled read accepted");}
+            catch(java.io.InterruptedIOException expected){check(reads.get()==1);}
+        }finally{Thread.interrupted();}
+    }
     public static void main(String[] args)throws Exception{
         requestBufferOwnership();
+        responseReadBudget();
         for(String type:new String[]{"text/event-stream","Text/Event-Stream; charset=UTF-8"," text/event-stream ; charset=utf-8 "})
             check(CloudApi.isEventStream(type));
         for(String type:new String[]{null,"text/html; type=text/event-stream","application/text/event-stream","text/event-streaming",""})
