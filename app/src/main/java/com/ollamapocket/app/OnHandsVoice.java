@@ -46,6 +46,7 @@ final class OnHandsVoice {
         SpeechRecognizer current=recognizer;
         if(closed||current==null||capture==null||!capture.finish())return;
         clearRecognizerIdle();
+        if(!armRecognizerFinalization())return;
         try{current.stopListening();}catch(RuntimeException e){cancel();toast(R.string.voice_error);}
     }
     String partialTranscript(){return partialTranscript;}
@@ -109,6 +110,7 @@ final class OnHandsVoice {
     private long speechSequence;
     private final android.os.Handler handler=new android.os.Handler(android.os.Looper.getMainLooper());
     private Runnable timeout, resumeListening,recognizerIdle;
+    private long recognizerDeadline;
     private static final long PLAYBACK_TAIL_MS=350L;
     private void clearResume(){if(resumeListening!=null)handler.removeCallbacks(resumeListening);resumeListening=null;}
     private void resumeAfterPlayback(){
@@ -126,6 +128,11 @@ final class OnHandsVoice {
     }
     private void clearTimeout(){if(timeout!=null)handler.removeCallbacks(timeout);timeout=null;}
     private void armTimeout(long ms){clearTimeout();final int token=generation;timeout=()->{if(token==generation){cancel();toast(R.string.voice_error);}};handler.postDelayed(timeout,ms);}
+    private boolean armRecognizerFinalization(){
+        long left=VoiceInteractionPolicy.platformFinalizeBudget(recognizerDeadline-android.os.SystemClock.elapsedRealtime());
+        if(left==0){cancel();toast(R.string.voice_error);return false;}
+        armTimeout(left);return true;
+    }
     private void clearRecognizerIdle(){
         if(recognizerIdle!=null)handler.removeCallbacks(recognizerIdle);
         recognizerIdle=null;
@@ -232,7 +239,12 @@ final class OnHandsVoice {
                 public void onBeginningOfSpeech(){if(current()){turn.speechStarted();clearRecognizerIdle();}}
                 public void onRmsChanged(float r){}
                 public void onBufferReceived(byte[] b){}
-                public void onEndOfSpeech(){if(current()){turn.end();clearRecognizerIdle();}}
+                public void onEndOfSpeech(){
+                    if(!current())return;
+                    boolean first=turn.state()!=VoiceInteractionPolicy.Capture.State.FINALIZING&&turn.state()!=VoiceInteractionPolicy.Capture.State.TERMINAL;
+                    turn.end();clearRecognizerIdle();
+                    if(first)armRecognizerFinalization();
+                }
                 public void onPartialResults(Bundle b){
                     if(!current()||turn.state()==VoiceInteractionPolicy.Capture.State.TERMINAL)return;
                     ArrayList<String> rows=b==null?null:b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
@@ -255,7 +267,8 @@ final class OnHandsVoice {
                 .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS,true)
                 .putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE,true)
                 .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS,1);
-            armTimeout(45000);recognizer.startListening(intent);
+            recognizerDeadline=android.os.SystemClock.elapsedRealtime()+VoiceInteractionPolicy.PLATFORM_CAPTURE_MS;
+            armTimeout(VoiceInteractionPolicy.PLATFORM_CAPTURE_MS);recognizer.startListening(intent);
         }catch(RuntimeException e){cancel();toast(R.string.voice_unavailable);}
     }
     private void acceptTranscript(VoiceInteractionPolicy.Capture turn,String text,Result cb){
@@ -335,7 +348,7 @@ final class OnHandsVoice {
             catch(RuntimeException|LinkageError failure){android.util.Log.w("OnHandAI","Whisper stop failed");}
         try{closeNeural();}
         catch(RuntimeException|LinkageError failure){android.util.Log.w("OnHandAI","Neural playback stop failed");}
-        stopBarge();clearTimeout();clearResume();clearRecognizerIdle();pendingSpeech=null;continuous=false;bargeOptIn=false;continuation.clear();clearPlayback();
+        stopBarge();clearTimeout();clearResume();clearRecognizerIdle();recognizerDeadline=0;pendingSpeech=null;continuous=false;bargeOptIn=false;continuation.clear();clearPlayback();
         partialTranscript="";reviewPending=false;
         if(capture!=null)capture.cancel();capture=null;
         SpeechRecognizer old=recognizer;recognizer=null;

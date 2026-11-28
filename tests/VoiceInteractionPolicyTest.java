@@ -71,6 +71,12 @@ public final class VoiceInteractionPolicyTest {
         ok(audible!=null&&audible.text.contains("hello")&&sparsePlayback.completed()==32);
         ok(sparsePlayback.acknowledge(audible.id));
         ok(sparsePlayback.nextAudible()==null&&sparsePlayback.finished()&&sparsePlayback.percent()==100);
+        ok(VoiceInteractionPolicy.platformFinalizeBudget(45000)==12000);
+        ok(VoiceInteractionPolicy.platformFinalizeBudget(12000)==12000);
+        ok(VoiceInteractionPolicy.platformFinalizeBudget(11999)==11999);
+        ok(VoiceInteractionPolicy.platformFinalizeBudget(1)==1);
+        ok(VoiceInteractionPolicy.platformFinalizeBudget(0)==0);
+        ok(VoiceInteractionPolicy.platformFinalizeBudget(-1)==0);
         VoiceInteractionPolicy.Capture capture=new VoiceInteractionPolicy.Capture();
         ok(capture.state()==VoiceInteractionPolicy.Capture.State.PREPARING&&!capture.canFinish()&&!capture.finish());
         capture.ready();ok(capture.canFinish()&&capture.state()==VoiceInteractionPolicy.Capture.State.LISTENING);

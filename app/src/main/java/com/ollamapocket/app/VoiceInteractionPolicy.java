@@ -38,6 +38,10 @@ final class VoiceInteractionPolicy {
         return result.toString().trim();
     }
     /** One recognition request, on the main thread. Terminal callbacks can be consumed only once. */
+    static final long PLATFORM_CAPTURE_MS=45_000L, PLATFORM_FINALIZE_MS=12_000L;
+    static long platformFinalizeBudget(long remaining){
+        return Math.max(0L,Math.min(PLATFORM_FINALIZE_MS,remaining));
+    }
     static final class Capture {
         enum State { PREPARING, LISTENING, FINALIZING, TERMINAL }
         private State state=State.PREPARING;

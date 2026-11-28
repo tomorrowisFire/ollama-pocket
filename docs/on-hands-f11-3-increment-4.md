@@ -1,0 +1,3 @@
+# F11-3 r004 — bounded platform finalization
+
+After manual stop or the first platform end-of-speech event, wait at most 12 seconds for the on-device recognizer final result, without extending its original 45-second deadline. Repeated end callbacks do not restart the timer. Existing continuous idle and manual capture admission are preserved; Whisper retains its independent native inference deadline. KPI: finalization budget <=12s and <= remaining capture budget; pure boundary fixtures. Android callback timing and real speech latency are not yet verified. Design review perspectives: speech UX, lifecycle safety, bounded latency.
