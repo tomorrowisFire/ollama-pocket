@@ -56,6 +56,36 @@ final class WorkbenchStyle {
     private static ColorStateList colors(int enabled,int disabled){
         return new ColorStateList(new int[][]{new int[]{-android.R.attr.state_enabled},new int[]{}},new int[]{disabled,enabled});
     }
+    /** Shared choice rows; native checked state and item callbacks remain authoritative. */
+    static android.widget.CheckedTextView choiceRow(Context c,String label,boolean selected){
+        WorkbenchVisualPolicy.Palette p=palette(c);
+        android.widget.CheckedTextView row=new android.widget.CheckedTextView(c);
+        StateListDrawable surface=new StateListDrawable();
+        surface.addState(new int[]{android.R.attr.state_checked},shape(c,p.choiceFill(true),p.choiceBorder(true),2));
+        surface.addState(new int[]{android.R.attr.state_focused},shape(c,p.choiceFill(false),p.focus,2));
+        surface.addState(new int[]{},shape(c,p.choiceFill(false),p.choiceBorder(false),1));
+        row.setBackground(new RippleDrawable(ColorStateList.valueOf(p.dialogRipple()),surface,shape(c,Color.WHITE,Color.TRANSPARENT,0)));
+        StateListDrawable mark=new StateListDrawable();
+        mark.addState(new int[]{android.R.attr.state_checked},OnHandGlyphs.drawable(c,OnHandGlyphs.Kind.CHECK,p.choiceInk(true),20));
+        GradientDrawable circle=new GradientDrawable();circle.setShape(GradientDrawable.OVAL);
+        circle.setColor(Color.TRANSPARENT);circle.setStroke(dp(c,1),p.muted);circle.setSize(dp(c,20),dp(c,20));
+        mark.addState(new int[]{},circle);
+        row.setCheckMarkDrawable(mark);
+        row.setText(label);row.setSingleLine(false);row.setEllipsize(null);
+        row.setTextColor(new ColorStateList(new int[][]{new int[]{android.R.attr.state_checked},new int[]{}},
+            new int[]{p.choiceInk(true),p.choiceInk(false)}));
+        row.setTextSize(14*(c instanceof Activity?scale((Activity)c):1f));row.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);
+        row.setPaddingRelative(dp(c,14),dp(c,11),dp(c,14),dp(c,11));
+        row.setMinHeight(dp(c,52));row.setMinimumHeight(dp(c,52));row.setChecked(selected);
+        return row;
+    }
+    static android.widget.ArrayAdapter<String> choiceRows(Context c,String[] labels,int checked){
+        return new android.widget.ArrayAdapter<String>(c,android.R.layout.simple_list_item_single_choice,labels){
+            @Override public View getView(int position,View recycled,android.view.ViewGroup parent){
+                return choiceRow(c,getItem(position),position==checked);
+            }
+        };
+    }
     static void button(Activity a,Button b,WorkbenchVisualPolicy.Role role){
         WorkbenchVisualPolicy.Palette p=palette(a);
         StateListDrawable state=new StateListDrawable();

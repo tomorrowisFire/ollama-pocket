@@ -76,6 +76,10 @@ public final class WorkbenchVisualPolicyTest {
             contrast(p.bubbleMutedInk(),p.bubble,4.5);
             contrast(p.bubbleMutedInk(),p.accentSoft,4.5);
             contrast(p.primaryText,p.primaryFill,4.8);
+            check(p.choiceFill(true)!=p.choiceFill(false));
+            contrast(p.choiceInk(true),p.choiceFill(true),4.5);
+            contrast(p.choiceInk(false),p.choiceFill(false),4.5);
+            contrast(p.choiceBorder(true),p.choiceFill(true),3);
             // Warm brown, not a nearly achromatic black: visible red-blue separation.
             check(((p.primaryText>>>16)&255)-(p.primaryText&255)>=55);
             check(((p.bubbleInk()>>>16)&255)-(p.bubbleInk()&255)>=55);
@@ -92,6 +96,10 @@ public final class WorkbenchVisualPolicyTest {
             check(p.fill(WorkbenchVisualPolicy.Role.PRIMARY,true)!=p.fill(WorkbenchVisualPolicy.Role.SECONDARY,true));
             check(p.ink(WorkbenchVisualPolicy.Role.DESTRUCTIVE,true)!=p.ink(WorkbenchVisualPolicy.Role.SECONDARY,true));
         }
+        check(WorkbenchVisualPolicy.activeModel(true,"qwen:4b","qwen:4b"));
+        check(!WorkbenchVisualPolicy.activeModel(true,"qwen:4b","qwen:4b-q4_K_M"));
+        check(!WorkbenchVisualPolicy.activeModel(false,"qwen:4b","qwen:4b"));
+        check(!WorkbenchVisualPolicy.activeModel(true,null,"qwen:4b"));
         check(WorkbenchVisualPolicy.textScale("large")==1.13f);
         check(WorkbenchVisualPolicy.textScale("extra")==1.26f);
         check(WorkbenchVisualPolicy.textScale("normal")==1f);

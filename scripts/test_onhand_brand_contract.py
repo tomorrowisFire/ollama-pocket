@@ -364,6 +364,15 @@ assert "WorkbenchStyle.primaryButtonPaint(this,buttons[i],10)" in main
 assert "WorkbenchStyle.refreshPrimaryButtonPaint(this,v)" in main
 assert "primary?p.primaryOutline():p.border,primary?1:0,24" in style_source
 assert "badgeSurface.setStroke(dp(1),p.primaryOutline())" in main
+assert main.count("WorkbenchVisualPolicy.activeModel(item.installed,item.id,currentModel)")==2
+assert "OnHandGlyphs.label(badge,OnHandGlyphs.Kind.CHECK,false)" in main
+assert "WorkbenchStyle.choiceRows(this,options,checked)" in main
+assert "getListView().setItemChecked(checked,true)" in main
+assert "WorkbenchStyle.choiceRow(MainActivity.this,filterDisplay(getItem(pos)),pos==spinner.getSelectedItemPosition())" in main
+assert "TextView caption=text(getString(label),10,MUTED,false)" in main
+assert "row.setCheckMarkDrawable(mark)" in style_source
+assert "row.setChecked(selected)" in style_source
+assert "p.choiceFill(true),p.choiceBorder(true),2" in style_source
 assert "ACCENT=p.primary" in main
 assert "active?bubbleInk():WHITE" in main
 assert "user?bubbleInk():WHITE" in main
@@ -428,7 +437,7 @@ assert "ChatWorkspacePolicy.homeActionsVisible(activeTab==0&&!cloudMode" in main
 assert "installParams=lp(-2,-2)" in main and "installParams.gravity=Gravity.CENTER_HORIZONTAL" in main
 assert "WorkbenchStyle.primaryButtonPaint(this,install,8)" in main
 picker=main.split("private void openHeaderModelPicker()",1)[1].split("private void selectModel(",1)[0]
-for required in ("if(knownModels.isEmpty()){showTab(1);return;}",".setSingleChoiceItems(entries,checked",
+for required in ("if(knownModels.isEmpty()){showTab(1);return;}",".setSingleChoiceItems(WorkbenchStyle.choiceRows(this,entries,checked),checked",
     "!knownModels.contains(entries[index])","selectModel(entries[index])","if(voice!=null)voice.cancel()"):
     assert required in picker,required
 guide=main.split("private void showFirstRunGuide() {",1)[1].split("private void showHelp()",1)[0]

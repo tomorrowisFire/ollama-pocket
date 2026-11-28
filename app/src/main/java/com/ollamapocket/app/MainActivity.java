@@ -968,8 +968,9 @@ public final class MainActivity extends Activity {
     private void chooseWorkspaceMode(){
         final String[] modes={WorkspaceLayoutPolicy.AUTO,WorkspaceLayoutPolicy.PHONE,WorkspaceLayoutPolicy.TABLET};
         int selected=Math.max(0,java.util.Arrays.asList(modes).indexOf(workspaceMode));
+        String[] labels=new String[]{getString(R.string.workspace_auto),getString(R.string.workspace_phone),getString(R.string.workspace_tablet)};
         showCompactSettingsDialog(new AlertDialog.Builder(this).setTitle(R.string.workspace_mode)
-            .setSingleChoiceItems(new String[]{getString(R.string.workspace_auto),getString(R.string.workspace_phone),getString(R.string.workspace_tablet)},selected,(dialog,index)->{
+            .setSingleChoiceItems(WorkbenchStyle.choiceRows(this,labels,selected),selected,(dialog,index)->{
                 dialog.dismiss();
                 workspaceMode=modes[index];
                 getPreferences(MODE_PRIVATE).edit().putString("workspace_mode",workspaceMode).apply();
@@ -1318,7 +1319,7 @@ public final class MainActivity extends Activity {
             }
             ViewGroup.LayoutParams params=filter.getLayoutParams();
             if(params!=null){
-                int width=WorkspaceLayoutPolicy.filterChipWidthPx(paint.measureText(value),dp(48),
+                int width=WorkspaceLayoutPolicy.filterChipWidthPx(Math.max(paint.measureText(value),paint.measureText(getString(labels[i]))),dp(48),
                     filter.getPaddingStart()+filter.getPaddingEnd()+dp(4));
                 if(params.width!=width){params.width=width;filter.setLayoutParams(params);}
             }
@@ -1362,9 +1363,9 @@ public final class MainActivity extends Activity {
         });
         sourceFilter=new Spinner(this,Spinner.MODE_DROPDOWN);sourceFilter.setBackground(bg(FIELD,12));
         sourceFilter.setMinimumHeight(dp(48));
-        sourceFilter.setAdapter(makeFilterAdapter(java.util.Arrays.asList("전체에서 찾기","Ollama에서 찾기","Hugging Face에서 찾기")));
+        sourceFilter.setAdapter(makeFilterAdapter(sourceFilter,R.string.model_filter_source,java.util.Arrays.asList("전체에서 찾기","Ollama에서 찾기","Hugging Face에서 찾기")));
         sortFilter=new Spinner(this,Spinner.MODE_DROPDOWN);sortFilter.setBackground(bg(FIELD,12));sortFilter.setMinimumHeight(dp(48));
-        sortFilter.setAdapter(makeFilterAdapter(java.util.Arrays.asList("추천 순","용량 작은 순","용량 큰 순","이름 순")));
+        sortFilter.setAdapter(makeFilterAdapter(sortFilter,R.string.model_filter_sort,java.util.Arrays.asList("추천 순","용량 작은 순","용량 큰 순","이름 순")));
         OnHandGlyphs.compactFilterSpinner(sourceFilter);OnHandGlyphs.compactFilterSpinner(sortFilter);
         sourceFilter.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
             @Override public void onNothingSelected(AdapterView<?> p){}
@@ -1513,10 +1514,11 @@ public final class MainActivity extends Activity {
         Button theme=button(getString(R.string.theme)+"  ·  "+currentTheme,false);
         settingAction(theme,OnHandGlyphs.Kind.THEME);
         margin(theme,display,0,6);
+        String[] themes=new String[]{getString(R.string.theme_light_default),getString(R.string.theme_dark),getString(R.string.theme_auto_detail)};
+        int themeIndex="auto".equals(themeMode)?2:activeThemeDark?1:0;
         theme.setOnClickListener(v->showCompactSettingsDialog(new AlertDialog.Builder(this)
             .setTitle(getString(R.string.theme))
-            .setSingleChoiceItems(new String[]{getString(R.string.theme_light_default),getString(R.string.theme_dark),getString(R.string.theme_auto_detail)},
-                "auto".equals(themeMode)?2:activeThemeDark?1:0,
+            .setSingleChoiceItems(WorkbenchStyle.choiceRows(this,themes,themeIndex),themeIndex,
                 (dialog,which)->{
                     dialog.dismiss();
                     applySetting("ui_theme",which==2?"auto":which==1?"dark":"light");
@@ -1531,7 +1533,7 @@ public final class MainActivity extends Activity {
         cityChoice.setVisibility("auto".equals(themeMode)?View.VISIBLE:View.GONE);
         cityChoice.setOnClickListener(v->showCompactSettingsDialog(new AlertDialog.Builder(this)
             .setTitle(getString(R.string.theme_city_title))
-            .setSingleChoiceItems(UiText.cityLabels(this),SolarTheme.cityIndex(chosenCity),
+            .setSingleChoiceItems(WorkbenchStyle.choiceRows(this,UiText.cityLabels(this),SolarTheme.cityIndex(chosenCity)),SolarTheme.cityIndex(chosenCity),
                 (dialog,index)->{
                     dialog.dismiss();
                     applySetting("sunset_city",SolarTheme.CITY_CODES[index]);
@@ -1542,10 +1544,11 @@ public final class MainActivity extends Activity {
         Button typeSize=button(getString(R.string.font_size)+"  ·  "+sizeLabel,false);
         settingAction(typeSize,OnHandGlyphs.Kind.FONT);
         margin(typeSize,display,0,8);
+        String[] fontOptions=new String[]{getString(R.string.font_normal)+" (100%)",getString(R.string.font_large)+" (113%)",getString(R.string.font_extra)+" (126%)"};
+        int fontIndex="large".equals(f)?1:"extra".equals(f)?2:0;
         typeSize.setOnClickListener(v->showCompactSettingsDialog(new AlertDialog.Builder(this)
             .setTitle(getString(R.string.font_size))
-            .setSingleChoiceItems(new String[]{getString(R.string.font_normal)+" (100%)",getString(R.string.font_large)+" (113%)",getString(R.string.font_extra)+" (126%)"},
-                "large".equals(f)?1:"extra".equals(f)?2:0,
+            .setSingleChoiceItems(WorkbenchStyle.choiceRows(this,fontOptions,fontIndex),fontIndex,
                 (dialog,which)->{
                     dialog.dismiss();
                     applySetting("font_size",which==1?"large":which==2?"extra":"normal");
@@ -1569,10 +1572,10 @@ public final class MainActivity extends Activity {
         });
 
         LinearLayout inference=brandSection(content,R.string.local_inference,OnHandGlyphs.Kind.CHIP);
-        Button compute=button(getString(R.string.compute),false);
+        Button compute=button(getString(R.string.compute)+"  ·  "+computeChoiceLabel(),false);
         settingAction(compute,OnHandGlyphs.Kind.CHIP);
         margin(compute,inference,0,8);
-        compute.setOnClickListener(v->showComputeChoiceDialog());
+        compute.setOnClickListener(v->showComputeChoiceDialog(compute));
         serverStatus=text(getString(R.string.server_check),13,MUTED,true);
         margin(serverStatus,inference,0,8);
         LinearLayout controls=row();
@@ -1887,7 +1890,10 @@ public final class MainActivity extends Activity {
         return getPreferences(MODE_PRIVATE).getString("compute_preference", "auto");
     }
 
-    private void showComputeChoiceDialog() {
+    private String computeChoiceLabel(){
+        String pref=computePreference();return getString("cpu".equals(pref)?R.string.compute_cpu:"gpu".equals(pref)?R.string.compute_gpu_try:R.string.compute_auto);
+    }
+    private void showComputeChoiceDialog(Button control) {
         computeReport = ComputeProfiler.scan(this);
         String gpuInfo = !GpuRunner.packaged(this) ? getString(R.string.compute_gpu_missing) :
             (computeReport.gpuCompute ? getString(R.string.compute_gpu_try) : getString(R.string.compute_gpu_unavailable));
@@ -1895,26 +1901,26 @@ public final class MainActivity extends Activity {
             getString(R.string.compute_npu_candidate) :
             getString(R.string.compute_npu_unsupported);
         String[] options = {getString(R.string.compute_auto), getString(R.string.compute_cpu), gpuInfo, npuInfo};
-        new AlertDialog.Builder(this).setTitle(getString(R.string.compute_select))
-            .setMessage(R.string.compute_notice)
-            .setSingleChoiceItems(options,
-                "cpu".equals(computePreference()) ? 1 : "gpu".equals(computePreference()) ? 2 : 0,
+        int checked="cpu".equals(computePreference())?1:"gpu".equals(computePreference())?2:0;
+        showCompactSettingsDialog(new AlertDialog.Builder(this).setTitle(getString(R.string.compute_select))
+            .setSingleChoiceItems(WorkbenchStyle.choiceRows(this,options,checked),checked,
                 (dialog, which) -> {
-                    if (isUiBusy()) { toast(getString(R.string.model_wait)); return; }
+                    if (isUiBusy()) { ((AlertDialog)dialog).getListView().setItemChecked(checked,true);toast(getString(R.string.model_wait)); return; }
                     if (which == 3) {
-                        toast(getString(R.string.compute_npu_error)); return;
+                        ((AlertDialog)dialog).getListView().setItemChecked(checked,true);toast(getString(R.string.compute_npu_error)); return;
                     }
                     if (which == 2 && (!computeReport.gpuCompute || !GpuRunner.packaged(this))) {
-                        toast(getString(R.string.compute_gpu_error)); return;
+                        ((AlertDialog)dialog).getListView().setItemChecked(checked,true);toast(getString(R.string.compute_gpu_error)); return;
                     }
                     String pref = which == 1 ? "cpu" : which == 2 ? "gpu" : "auto";
                     getPreferences(MODE_PRIVATE).edit().putString("compute_preference", pref).apply();
                     if (which == 1) GpuRunner.stop();
                     if (activeEngineLabel != null)
                         activeEngineLabel.setText(getString(R.string.compute_selected,pref));
+                    control.setText(getString(R.string.compute)+"  ·  "+computeChoiceLabel());
                     toast(getString(R.string.compute_saved));
                     dialog.dismiss();
-                }).setNegativeButton(getString(R.string.cancel), null).show();
+                }).setNeutralButton(R.string.help,(d,w)->new AlertDialog.Builder(this).setMessage(R.string.compute_notice).setPositiveButton(R.string.ok,null).show()).setNegativeButton(getString(R.string.cancel), null));
     }
 
     private boolean animationsEnabled() {
@@ -2146,23 +2152,21 @@ public final class MainActivity extends Activity {
             default:return value.endsWith(" 전체")?getString(R.string.quant_band,value.substring(0,value.length()-3)):value;
         }
     }
-    private ArrayAdapter<String> makeFilterAdapter(List<String> options) {
-        ArrayAdapter<String> adapter=new ArrayAdapter<String>(this,
-                android.R.layout.simple_spinner_item,options){
+    private ArrayAdapter<String> makeFilterAdapter(Spinner spinner,int label,List<String> options) {
+        return new ArrayAdapter<String>(this,android.R.layout.simple_spinner_item,options){
             @Override public View getView(int pos,View recycled,ViewGroup parent){
-                TextView view=text(filterDisplay(getItem(pos)),11,WHITE,true);
-                view.setPadding(0,dp(6),0,dp(6));
-                view.setSingleLine(true);view.setEllipsize(TextUtils.TruncateAt.END);
-                return view;
+                LinearLayout item=column();item.setGravity(Gravity.CENTER_VERTICAL);
+                TextView caption=text(getString(label),10,MUTED,false);
+                caption.setSingleLine(true);caption.setEllipsize(TextUtils.TruncateAt.END);
+                TextView value=text(filterDisplay(getItem(pos)),11,WHITE,true);
+                value.setSingleLine(true);value.setEllipsize(TextUtils.TruncateAt.END);
+                item.addView(caption,lp(-1,-2));item.addView(value,lp(-1,-2));
+                return item;
             }
             @Override public View getDropDownView(int pos,View recycled,ViewGroup parent){
-                TextView view=text(filterDisplay(getItem(pos)),13,WHITE,false);
-                view.setPadding(dp(14),dp(12),dp(10),dp(12));
-                view.setBackground(bg(CARD,0));
-                return view;
+                return WorkbenchStyle.choiceRow(MainActivity.this,filterDisplay(getItem(pos)),pos==spinner.getSelectedItemPosition());
             }
         };
-        return adapter;
     }
 
     /** Max six locally admitted candidate tags, no unrelated installed or featured cards. */
@@ -2297,8 +2301,8 @@ public final class MainActivity extends Activity {
         if(familyIndex<0){selectedModelFamily="전체 모델";familyIndex=0;}
         if(quantIndex<0){selectedQuantization="전체 양자화";quantIndex=0;}
         ignoreSelection=true;
-        familyFilter.setAdapter(makeFilterAdapter(families));
-        quantizationFilter.setAdapter(makeFilterAdapter(quantOptions));
+        familyFilter.setAdapter(makeFilterAdapter(familyFilter,R.string.model_filter_family,families));
+        quantizationFilter.setAdapter(makeFilterAdapter(quantizationFilter,R.string.model_filter_quant,quantOptions));
         familyFilter.setSelection(familyIndex);
         quantizationFilter.setSelection(quantIndex);
         ignoreSelection=false;
@@ -2417,6 +2421,8 @@ public final class MainActivity extends Activity {
                 buttons[i].setBackground(bg(FIELD,10));buttons[i].setTextColor(WHITE);
                 AdaptiveAnswerActions.feedback(buttons[i],10);OnHandGlyphs.refresh(buttons[i]);
             }
+            buttons[i].setText((active[i]?"✓  ":"")+getString(i==0?R.string.list_view:R.string.grid_view));
+            buttons[i].setTypeface(Typeface.DEFAULT,active[i]?Typeface.BOLD:Typeface.NORMAL);
             buttons[i].setSelected(active[i]);
         }
         modelListViewButton.setContentDescription(getString(R.string.list_view)+(modelListView?" · "+getString(R.string.workspace_selected):""));
@@ -2465,20 +2471,23 @@ public final class MainActivity extends Activity {
             if(options.isEmpty())options.add(selected);
             Map<String,ModelVariantCatalog.Variant> best=bestQuantizations(options);
             options.sort(Comparator.comparingDouble(this::variantScore).thenComparing(v->v.label(),String.CASE_INSENSITIVE_ORDER));
-            String[] labels=new String[options.size()];
+            String[] labels=new String[options.size()];int activeIndex=-1;
             for(int i=0;i<labels.length;i++){
                 ModelVariantCatalog.Variant v=options.get(i);
-                labels[i]=v.label()+"\n"+filterDisplay(v.quant)+" · "+(v.bytes>0?installedSize(v.bytes):getString(R.string.storage_unknown))+
-                    (best.get(v.group())==v?" "+getString(R.string.model_recommend_mark):"")+(knownModels.contains(v.model)?" · "+getString(R.string.model_installed):"");
+                boolean installed=!v.hf()&&knownModels.contains(v.model);
+                boolean active=WorkbenchVisualPolicy.activeModel(installed,v.model,currentModel);
+                if(active)activeIndex=i;
+                labels[i]=v.label()+"\n"+getString(active?R.string.model_active:installed?R.string.model_installed:R.string.model_not_installed)+" · "+filterDisplay(v.quant)+" · "+(v.bytes>0?installedSize(v.bytes):getString(R.string.storage_unknown))+
+                    (best.get(v.group())==v?" · "+getString(R.string.model_recommend_mark):"");
             }
-            new AlertDialog.Builder(this).setTitle(getString(R.string.model_quant_title))
-                .setItems(labels,(d,i)->{
+            showCompactSettingsDialog(new AlertDialog.Builder(this).setTitle(getString(R.string.model_quant_title))
+                .setAdapter(WorkbenchStyle.choiceRows(this,labels,activeIndex),(d,i)->{
                     if(isUiBusy())return;
                     ModelVariantCatalog.Variant choice=options.get(i);
                     if(choice.hf())HuggingFaceCatalog.openVariant(this,choice,this::refreshModels);
                     else if(knownModels.contains(choice.model)){selectModel(choice.model);showTab(0);}
                     else{modelInput.setText(choice.model);pullModel();}
-                }).setNegativeButton(getString(R.string.close),null).show();
+                }).setNegativeButton(getString(R.string.close),null));
             return;
         }
         if(tile.installed){selectModel(tile.id);showTab(0);return;}
@@ -2524,7 +2533,8 @@ public final class MainActivity extends Activity {
         WorkbenchVisualPolicy.Palette p=WorkbenchStyle.palette(this);
         TextView badge=text(modelCardStatusLabel(status),compact?10:11,p.modelStatusInk(status),true);
         GradientDrawable badgeSurface=bg(p.modelStatusFill(status),10);
-        if(status==WorkbenchVisualPolicy.ModelStatus.ACTIVE)badgeSurface.setStroke(dp(1),p.primaryOutline());
+        if(status==WorkbenchVisualPolicy.ModelStatus.ACTIVE){badgeSurface.setStroke(dp(1),p.primaryOutline());
+            OnHandGlyphs.label(badge,OnHandGlyphs.Kind.CHECK,false);}
         badge.setBackground(badgeSurface);
         badge.setPadding(dp(compact?4:10),dp(compact?0:5),dp(compact?4:10),dp(compact?0:5));
         return badge;
@@ -2540,7 +2550,7 @@ public final class MainActivity extends Activity {
     }
     /** Square at normal widths; reserve extra height if the viewport is narrower than the text budget. */
     private LinearLayout buildModelTile(ModelTileCatalog.Tile item,int sideDp) {
-        boolean selected=item.installed&&OllamaQuantCatalog.belongsToModel(item.id,currentModel);
+        boolean selected=WorkbenchVisualPolicy.activeModel(item.installed,item.id,currentModel);
         WorkbenchVisualPolicy.ModelStatus cardStatus=modelCardStatus(item,selected);
         int ink=tileTextColor(selected), secondary=tileMutedColor(selected);
         LinearLayout card=column();
@@ -2549,6 +2559,7 @@ public final class MainActivity extends Activity {
         card.setClickable(true);
         card.setFocusable(true);
         card.setElevation(0);
+        card.setSelected(selected);
         card.setContentDescription(modelCardAccessibility(item,cardStatus));
         registerModelDownloadAccessibility(item,card);
         TypedValue ripple=new TypedValue();
@@ -2617,7 +2628,7 @@ public final class MainActivity extends Activity {
 
     /** Full-width accessible model row. Uses the same selection and progress state as square cards. */
     private LinearLayout buildModelListRow(ModelTileCatalog.Tile item){
-        boolean selected=item.installed&&OllamaQuantCatalog.belongsToModel(item.id,currentModel);
+        boolean selected=WorkbenchVisualPolicy.activeModel(item.installed,item.id,currentModel);
         WorkbenchVisualPolicy.ModelStatus cardStatus=modelCardStatus(item,selected);
         int ink=tileTextColor(selected),secondary=tileMutedColor(selected);
         LinearLayout card=column();
@@ -2627,6 +2638,7 @@ public final class MainActivity extends Activity {
         card.setClickable(true);
         card.setFocusable(true);
         card.setElevation(0);
+        card.setSelected(selected);
         card.setContentDescription(modelCardAccessibility(item,cardStatus));
         registerModelDownloadAccessibility(item,card);
         TypedValue ripple=new TypedValue();
@@ -3038,7 +3050,7 @@ public final class MainActivity extends Activity {
         int checked=java.util.Arrays.asList(entries).indexOf(currentModel);
         showCompactSettingsDialog(new AlertDialog.Builder(this)
             .setTitle(getString(R.string.model_picker))
-            .setSingleChoiceItems(entries,checked,(dialog,index)->{
+            .setSingleChoiceItems(WorkbenchStyle.choiceRows(this,entries,checked),checked,(dialog,index)->{
                 dialog.dismiss();
                 if(isUiBusy()||guestOnly||cloudMode||!foreground){
                     toast(getString(R.string.busy));return;
@@ -3055,6 +3067,7 @@ public final class MainActivity extends Activity {
             .setNegativeButton(getString(R.string.close),null));
     }
 
+    boolean isActiveLocalModel(String tag){return WorkbenchVisualPolicy.activeModel(knownModels.contains(tag),tag,currentModel);}
     private void selectModel(String name) {
         if(isUiBusy()||!knownModels.contains(name))return;
         saveLocalDraft();

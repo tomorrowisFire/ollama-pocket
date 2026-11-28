@@ -1,6 +1,6 @@
 {
-  "stage": "F10A71-visible-warm-brown-peach-foreground",
-  "revision": "F10A71",
-  "priorCandidate": "685764d1e9c9fdaea7479a0a46e9db1edebf6f96",
-  "reason": "Real-device feedback: F10A68 foreground appears black. F10A69 binary verified to contain the original warm tokens; strengthen chroma, split light/dark brown for contrast, cover selected card secondary text and peach table headers, synchronize palette and XML. Preserve F10A70 layout and peach fills. Require full ARM64 APK."
+  "stage": "F10A72-explicit-choice-state",
+  "revision": "F10A72",
+  "priorCandidate": "bc768acb36716ac7845b61238680e31409d52230",
+  "reason": "Device UX feedback: checked option rows, distinct model statuses, named filter values and checked dropdowns, exact active tag, and compute rejection rollback. Preserve existing layouts and native runtime. Full ARM64 build."
 }

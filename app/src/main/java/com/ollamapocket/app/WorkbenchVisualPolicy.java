@@ -34,6 +34,9 @@ final class WorkbenchVisualPolicy {
         // Pale peach surfaces have their own warm foreground, including dark-mode variants.
         int bubbleInk(){return darkFromPrimaryText(text)?0xfff2c9b4:0xff8a5039;}
         int bubbleMutedInk(){return darkFromPrimaryText(text)?0xffe7b69b:0xff895b47;}
+        int choiceFill(boolean checked){return checked?primaryFill:surface;}
+        int choiceInk(boolean checked){return checked?primaryText:text;}
+        int choiceBorder(boolean checked){return checked?primaryText:border;}
         // Use the readable accent as a boundary for the softer filled control.
         int primaryOutline(){return primary;}
         // Secondary composer actions blend into the single input surface.
@@ -58,6 +61,9 @@ final class WorkbenchVisualPolicy {
     private static final Palette DARK=new Palette(0xff191a19,0xff242523,0xff30312e,0xff3f3029,0xff48352c,
         0xfff3f2ed,0xffc1beb6,0xff4c4d48,0xffddbcaa,0xffe7c1ad,0xffd4a58e,0xff5f3121,
         0xff4b2933,0xffffb2be,0xff373835,0xffc4bfb5);
+    static boolean activeModel(boolean installed,String tag,String current){
+        return installed&&tag!=null&&current!=null&&!tag.isEmpty()&&tag.equals(current);
+    }
     private WorkbenchVisualPolicy(){}
     static Palette palette(boolean dark){return dark?DARK:LIGHT;}
     static float textScale(String preference){return "large".equals(preference)?1.13f:"extra".equals(preference)?1.26f:1f;}
