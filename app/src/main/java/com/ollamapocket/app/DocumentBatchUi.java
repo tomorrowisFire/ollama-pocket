@@ -208,7 +208,7 @@ final class DocumentBatchUi {
             }catch(ProjectReportHandoff.TooLarge e){
                 try{
                     ProjectReportHandoff compact=ProjectReportHandoff.compactOf(snapshot());
-                    confirm(R.string.batch_compact_project_title,R.string.batch_compact_project_notice,()->{
+                    confirm(R.string.batch_compact_project_title,s(R.string.batch_compact_project_notice),()->{
                         if(!visible()||busy()||ProjectWorkspaceUi.busy()||!eligible.getAsBoolean()||result!=reviewed)return;
                         reportWorkspace=new ProjectWorkspaceUi(owner,()->visible()&&!busy()&&result==reviewed);
                         reportWorkspace.openReport(compact,s(R.string.batch_compact_project_title)+" · "+batchState(reviewed.status));
@@ -250,7 +250,7 @@ final class DocumentBatchUi {
             sources=loaded;status.setText(R.string.batch_ready);output.setText(coverage(loaded));progress.setProgress(immutable.size());
         },error->{
             sources=null;status.setText(cancelRequested?R.string.batch_stopped:R.string.batch_extract_failed);
-            output.setText(error instanceof SourceFailure?((SourceFailure)error).display:"");
+            output.setText(cancelRequested?"":error instanceof SourceFailure?((SourceFailure)error).display:s(errorLabel(error)));
         });
     }
     private static final class SourceFailure extends IOException{
