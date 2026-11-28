@@ -618,7 +618,7 @@ final class AutomationUi {
                 if(branch){
                     BranchWorkflowRun.Definition value=BranchWorkflowRun.parse(current);
                     summary.setText(owner.getString(R.string.integration_form_branch_summary,value.model,value.graph.nodes().size())+
-                            "\n"+s(value.retainOutputs?R.string.integration_retained_notice:R.string.integration_metadata_only));
+                            "\n"+branchBudget(value)+"\n"+s(value.retainOutputs?R.string.integration_retained_notice:R.string.integration_metadata_only));
                 }else{
                     AgentProfile value=AgentProfile.decode(current);
                     summary.setText(owner.getString(R.string.integration_form_agent_summary,value.model,value.temperatureMilli,value.maxTokens));
@@ -933,10 +933,14 @@ final class AutomationUi {
             default:throw new IllegalArgumentException("Branch outcome");
         }
     }
+    private String branchBudget(BranchWorkflowRun.Definition value){
+        return owner.getString(R.string.integration_branch_budget,value.graph.maxPathNodes(),value.maxRequests(),value.maxOutputTokens());
+    }
     private String branchSummary(BranchWorkflowRun run,BranchWorkflowRun.Progress progress){
         WorkflowAttemptStore.Ledger value=progress.snapshot.value;
         StringBuilder text=new StringBuilder(s(R.string.integration_run_id)+": "+run.id+"\n"+
                 s(R.string.model_label)+": "+run.definition.model+"\n"+branchStatus(value.cursor.status)+"\n");
+        text.append(branchBudget(run.definition)).append('\n');
         if(value.pending())text.append(s(R.string.integration_pending)).append('\n');
         if(value.cursor.nextNode!=null)text.append(s(R.string.integration_next_node)).append(": ").append(value.cursor.nextNode).append('\n');
         text.append(run.definition.retainOutputs?s(R.string.integration_retained_notice):s(R.string.integration_metadata_only)).append('\n');
@@ -972,7 +976,7 @@ final class AutomationUi {
             work(()->run.execute(reviewed.snapshot,task->{
                 ReviewedCpuTask cpu=new ReviewedCpuTask(owner,()->!valid(token)||System.currentTimeMillis()<run.started||
                         System.currentTimeMillis()-run.started>=WorkflowAttemptStore.WINDOW_MS);
-                return cpu.generate(run.definition.model,run.definition.digest,null,task.request(),512,0);
+                return cpu.generate(run.definition.model,run.definition.digest,null,task.request(),BranchWorkflowRun.MAX_TASK_OUTPUT_TOKENS,0);
             },()->!valid(token),progress->owner.runOnUiThread(()->{
                 if(valid(token))status.setText(branchSummary(run,progress));
             })),result->display.accept(run,result),()->{
@@ -993,6 +997,7 @@ final class AutomationUi {
             if(busy())return;final String raw=spec.getText().toString();final BranchWorkflowRun.Definition reviewed;
             try{reviewed=BranchWorkflowRun.parse(raw);}catch(Exception invalid){toast(R.string.auto_invalid_plan);return;}
             confirm(s(R.string.integration_branch_new),s(R.string.integration_branch_notice)+"\n\n"+
+                    branchBudget(reviewed)+"\n\n"+
                     s(reviewed.retainOutputs?R.string.integration_retained_notice:R.string.integration_metadata_only)+"\n\n"+raw,()->{
                 if(busy()||!raw.equals(spec.getText().toString()))return;
                 editable.accept(false);status.setText(R.string.thinking);

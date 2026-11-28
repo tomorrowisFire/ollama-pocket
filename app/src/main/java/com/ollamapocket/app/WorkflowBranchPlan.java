@@ -79,6 +79,17 @@ final class WorkflowBranchPlan {
     }
 
     List<Node> nodes() { return nodes; }
+    /** Longest possible route, including its terminal-producing node; no execution or prediction. */
+    int maxPathNodes(){
+        Map<String,Integer> lengths=new HashMap<>();
+        for(int i=nodes.size()-1;i>=0;i--){
+            Node node=nodes.get(i);
+            int yes=terminal(node.onTrue)?0:lengths.get(node.onTrue);
+            int no=node.kind==Kind.TASK||terminal(node.onFalse)?0:lengths.get(node.onFalse);
+            lengths.put(node.id,1+Math.max(yes,no));
+        }
+        return lengths.get(nodes.get(0).id);
+    }
     Snapshot start() { return new Snapshot(sha256,nodes.get(0).id,Status.READY,Collections.emptyList()); }
 
     /** Caller must verify the actual outcome/evidence and persist with expected-checkpoint ownership. */
