@@ -20,6 +20,13 @@ public final class DocumentBatchPolicyTest {
         return new DocumentBatchPolicy.Plan("Compare the documents.",files);
     }
     public static void main(String[] args)throws Exception{
+        var replacementDone=new DocumentBatchPolicy.Result(DocumentBatchPolicy.Status.COMPLETED,List.of(),0,"summary");
+        var replacementStopped=new DocumentBatchPolicy.Result(DocumentBatchPolicy.Status.STOPPED,List.of(),0,"");
+        var replacementFailed=new DocumentBatchPolicy.Result(DocumentBatchPolicy.Status.FAILED,List.of(),0,"");
+        ok(!DocumentBatchPolicy.acceptReplacement(replacementDone,replacementStopped)&&!DocumentBatchPolicy.acceptReplacement(replacementDone,replacementFailed));
+        ok(!DocumentBatchPolicy.acceptReplacement(replacementStopped,replacementFailed)&&!DocumentBatchPolicy.acceptReplacement(replacementDone,null));
+        ok(DocumentBatchPolicy.acceptReplacement(null,replacementFailed)&&DocumentBatchPolicy.acceptReplacement(null,replacementStopped));
+        ok(DocumentBatchPolicy.acceptReplacement(replacementDone,replacementDone)&&DocumentBatchPolicy.acceptReplacement(replacementStopped,replacementDone));
         ok(DocumentBatchPolicy.prefixLimit(1)==33576);
         ok(DocumentBatchPolicy.prefixLimit(2)==16788);
         ok(DocumentBatchPolicy.prefixLimit(3)==11192);

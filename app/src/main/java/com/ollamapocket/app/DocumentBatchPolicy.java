@@ -226,6 +226,11 @@ final class DocumentBatchPolicy {
             this.groupsDone=groupsDone;this.synthesis=synthesis;this.contextLimited=contextLimited;
         }
     }
+    /** A failed replacement must not erase an existing terminal report or its dialogue.
+     * First attempts still publish partial terminal results for inspection. */
+    static boolean acceptReplacement(Result existing,Result candidate){
+        return candidate!=null&&(existing==null||candidate.status==Status.COMPLETED);
+    }
     interface Generator {String generate(String prompt,int maxChars,int maxTokens)throws Exception;}
     static String checked(String text,int limit){
         if(!AttachmentText.hasContent(text)||text.length()>limit)throw new IllegalArgumentException("Invalid analysis output");

@@ -654,33 +654,51 @@ final class DocumentBatchUi {
         final String reviewed=goal.getText().toString();
         confirm(R.string.batch_start,owner.getString(R.string.batch_run_notice,plan.units.size(),plan.maxTotal(),
                 DocumentBatchPolicy.runtimeLimit(plan.sources.size())/60000L)+
-                (followSession!=null&&followSession.count()>0?"\n\n"+s(R.string.deep_follow_reset_notice):"")+
+                (result!=null?"\n\n"+s(R.string.deep_follow_reset_notice):"")+
                 "\n\n"+coverage(sources)+"\n\n"+plannedCoverage(plan)+"\n\n"+s(R.string.batch_goal)+": "+reviewed,()->{
             if(busy()||!eligible.getAsBoolean()||!reviewed.equals(goal.getText().toString()))return;
             if(!startAuthorized.getAsBoolean()){toast(R.string.deep_locked);return;}
             if(!OllamaForegroundService.isRunning()){toast(R.string.test_need_server);return;}
             if(!"off".equals(CoopSession.get(owner).role())){toast(R.string.guest_stop_first);return;}
-            followSession=null;followTranscript.setText("");
-            result=null;analyzed=null;reportRequests=0;reportElapsedMillis=0;reportStopReason=null;reportStatus=R.string.thinking;output.setText(coverage(sources)+"\n\n"+plannedCoverage(plan));status.setText(R.string.thinking);progress.setMax(plan.maxTotal());progress.setProgress(0);
+            // Keep the current immutable report and dialogue until a replacement completes.
+            // Busy controls prevent export or follow-up against an in-flight replacement.
+            output.setText(coverage(sources)+"\n\n"+plannedCoverage(plan));status.setText(R.string.thinking);progress.setMax(plan.maxTotal());progress.setProgress(0);
             final DocumentBatchRunner active=new DocumentBatchRunner(owner,model);runner=active;
             boolean started=work((lease,screen,main)->active.run(plan,done->postProgress(lease,screen,main,()->{
                 progress.setProgress(done);status.setText(owner.getString(R.string.batch_progress,Integer.toString(done),"≤"+plan.maxTotal()));
             })),finished->{
-                runner=null;analyzed=plan;result=finished;
-                reportRequests=active.requests();reportElapsedMillis=active.elapsedMillis();
-                reportStopReason=finished.status==DocumentBatchPolicy.Status.STOPPED?
-                    (active.reason()==DocumentBatchRunner.Stop.NONE?"UNKNOWN":active.reason().name()):null;
-                reportStatus=finished.status==DocumentBatchPolicy.Status.COMPLETED?R.string.batch_completed:
+                runner=null;
+                int terminalStatus=finished.status==DocumentBatchPolicy.Status.COMPLETED?R.string.batch_completed:
                     finished.status==DocumentBatchPolicy.Status.STOPPED?stopLabel(active.reason()):
                     finished.contextLimited?R.string.batch_context_limit:R.string.batch_failed;
+                String terminalReason=finished.status==DocumentBatchPolicy.Status.STOPPED?
+                    (active.reason()==DocumentBatchRunner.Stop.NONE?"UNKNOWN":active.reason().name()):null;
+                if(result!=null&&(cancelRequested||!DocumentBatchPolicy.acceptReplacement(result,finished))){
+                    restorePreviousReport(cancelRequested?R.string.batch_stopped:terminalStatus);return;
+                }
+                // Validate the complete replacement snapshot before any existing state is discarded.
+                try{new DocumentBatchReport(plan,finished,model,terminalReason,active.requests(),active.elapsedMillis());}
+                catch(IllegalArgumentException invalid){restorePreviousReport(R.string.batch_failed);return;}
+                followSession=null;followTranscript.setText("");
+                analyzed=plan;result=finished;reportRequests=active.requests();reportElapsedMillis=active.elapsedMillis();
+                reportStopReason=terminalReason;reportStatus=terminalStatus;
                 status.setText(reportStatus);
                 if(finished.status==DocumentBatchPolicy.Status.COMPLETED)progress.setProgress(progress.getMax());
                 output.setText(report(plan,finished));
-            },error->{runner=null;status.setText(R.string.batch_failed);});
+            },error->{runner=null;restorePreviousReport(cancelRequested?R.string.batch_stopped:R.string.batch_failed);});
             if(!started&&runner==active){
-                runner=null;active.cancel();status.setText(R.string.batch_failed);enabled();
+                runner=null;active.cancel();restorePreviousReport(R.string.batch_failed);enabled();
             }
         });
+    }
+    private void restorePreviousReport(int terminalStatus){
+        progress.setProgress(0);
+        if(result==null||analyzed==null){status.setText(terminalStatus);return;}
+        status.setText(R.string.deep_previous_report_retained);
+        progress.setMax(analyzed.maxTotal());
+        progress.setProgress(result.status==DocumentBatchPolicy.Status.COMPLETED?progress.getMax():
+                result.notes.size()+result.groupsDone);
+        output.setText(report(analyzed,result));
     }
     private int stopLabel(DocumentBatchRunner.Stop stop){
         switch(stop){

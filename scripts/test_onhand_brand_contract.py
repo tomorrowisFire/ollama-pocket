@@ -137,6 +137,9 @@ assert "if(deepMode||normalAttachmentPresent())" in main
 deep_batch=(src/"DocumentBatchUi.java").read_text()
 assert deep_batch.count("if(!startAuthorized.getAsBoolean()){toast(R.string.deep_locked);return;}")==3
 assert "active.run(plan,done->" in deep_batch
+assert "DocumentBatchPolicy.acceptReplacement(result,finished)" in deep_batch
+assert "new DocumentBatchReport(plan,finished,model,terminalReason" in deep_batch
+assert "restorePreviousReport(" in deep_batch
 assert "if(!startAuthorized.getAsBoolean()){toast(R.string.deep_follow_expired);return;}" in deep_batch
 assert "active.runFollowUp(request)" in deep_batch
 # F12 r010: explicit local workspace renewal; no automatic new inference.

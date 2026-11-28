@@ -28,7 +28,17 @@ public final class DeepDialogueExportTest {
         var range=first.getJSONArray("supplied_ranges").getJSONObject(0);
         ok(range.getBoolean("cited_in_answer")&&range.getString("source_id").equals("D1"));
         ok(range.getInt("start_utf16_inclusive_1_based")>=1&&range.getInt("end_utf16_inclusive_1_based")<=source.text.length());
-        ok(obj.getJSONArray("sources").getJSONObject(0).getBoolean("extraction_partial"));
+        var sourceRow=obj.getJSONArray("sources").getJSONObject(0);
+        ok(sourceRow.getBoolean("extraction_partial"));
+        ok(sourceRow.getInt("planned_utf16")==plan.includedEnd(0));
+        byte[] digest=java.security.MessageDigest.getInstance("SHA-256")
+            .digest(session.report.json().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        String expected=java.util.HexFormat.of().formatHex(digest);
+        ok(obj.getString("original_report_sha256_utf8").equals(expected));
+        ok(obj.getString("original_report_digest_scope").equals("EXPORTED_REPORT_JSON_NOT_ORIGINAL_FILE"));
+        ok(DeepDialogueExport.reportDigest(session.report).equals(expected));
+        var another=new DocumentBatchReport(plan,result,"fixture",null,calls.get(),8);
+        ok(!DeepDialogueExport.reportDigest(another).equals(expected));
         ok(!json.contains("RAW_ONLY_SECRET_9999")&&!json.contains("generated note")&&!json.contains("exact extracted UTF-16"));
         var payload=DeepDialogueExport.prepare(session);var out=new ByteArrayOutputStream();payload.writeTo(out);
         ok(payload.format==ArtifactFileExport.Format.REPORT_JSON&&out.toString("UTF-8").equals(json));

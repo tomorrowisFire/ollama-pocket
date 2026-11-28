@@ -7,6 +7,14 @@ import org.json.JSONObject;
 /** Portable generated dialogue and exact source-range ledger; never exports raw source excerpts. */
 final class DeepDialogueExport {
     private DeepDialogueExport(){}
+    /** Link only the existing shareable report JSON, never hash raw original/extracted source text. */
+    static String reportDigest(DocumentBatchReport report)throws Exception{
+        byte[] hash=java.security.MessageDigest.getInstance("SHA-256")
+            .digest(report.json().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        StringBuilder hex=new StringBuilder(64);
+        for(byte b:hash){int n=b&255;hex.append(Character.forDigit(n>>>4,16)).append(Character.forDigit(n&15,16));}
+        return hex.toString();
+    }
     static String json(DeepFollowUpPolicy.Session session)throws Exception{
         if(session==null)throw new IllegalArgumentException("Missing dialogue");
         List<DeepFollowUpPolicy.Turn> turns=session.turns();
@@ -20,6 +28,7 @@ final class DeepDialogueExport {
             JSONObject row=new JSONObject().put("id","D"+(i+1)).put("name",s.name)
                 .put("kind",s.kind.name()).put("extraction_partial",s.partial)
                 .put("extracted_utf16",s.text.length())
+                .put("planned_utf16",report.plan.includedEnd(i))
                 .put("completed_utf16",report.result.completedEnd(i));
             if(s.inputBytes>=0)row.put("input_bytes",s.inputBytes);
             if(s.kind==DocumentBatchPolicy.Kind.PDF)row.put("pdf_pages",s.pages)
@@ -52,6 +61,8 @@ final class DeepDialogueExport {
             .put("raw_source_excerpts_included",false).put("resume_snapshot",false)
             .put("citation_check_scope","SUPPLIED_ID_EXISTENCE_ONLY")
             .put("model",report.model).put("original_analysis_status",report.result.status.name())
+            .put("original_report_sha256_utf8",reportDigest(report))
+            .put("original_report_digest_scope","EXPORTED_REPORT_JSON_NOT_ORIGINAL_FILE")
             .put("total_completed_turns",revision).put("retained_turns",turns.size())
             .put("omitted_earlier_turns",revision-turns.size()).put("sources",sources)
             .put("turns",history).toString();

@@ -1,8 +1,8 @@
 {
   "stage": "F12-file-intake-integration-candidate",
-  "revision": "F12-file-intake-r010-workspace-reward",
+  "revision": "F12-file-intake-r011-report-preservation",
   "scopeBaseline": "0152869a25bfa63e1e6e94c5ebb079ccc0facba8",
-  "priorCandidate": "4716160425b36330d02f6e72085100dda4e246c7",
+  "priorCandidate": "cfe05765e60b5f831cc9b0e2a963b3b45bdee5d9",
   "modules": [
     {
       "stage": "A-text",
@@ -111,7 +111,15 @@
     {
       "stage": "AA-workspace-reward-ui",
       "sha": "e0ca8b7f086d390b462fea7ea1d3bd60bc43a079"
+    },
+    {
+      "stage": "AB-transactional-report-replacement",
+      "sha": "f3a0e749dfc1da76c99f0e9a9932f71af85d8c69"
+    },
+    {
+      "stage": "AC-export-report-linkage",
+      "sha": "b2c801a8f77839963e6e169657bc43fb4abe1a08"
     }
   ],
-  "reason": "r008 exact FAST 46162716434/FULL 46162716437 and required jobs passed; fixed-signed APK step skipped, official branch promoted with expected SHA. r009 validation FAST 46168395064/FULL 46168395116 in progress. r010 independently prepared explicit in-workspace renewal, one bounded SDK pause and lifecycle host tests. No changes to native engines, dependencies, manifest, production ad lock or persistent schema. Detached until r009 validation passes."
+  "reason": "r009 exact FAST 46168395064 and FULL 46168395116 passed all required jobs, fixed-signed update skipped; official promotion confirmed, r010 linked to existing validation branch. r011 detached pending exact r010 CI; previous report and dialogue retained on unsuccessful reanalysis, exported dialogue linked to existing shareable report JSON digest. No raw source hashing, native/dependency/manifest/production lock or persistent schema changes. Device/independent review NOT_RUN."
 }
