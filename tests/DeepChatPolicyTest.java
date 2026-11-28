@@ -49,6 +49,24 @@ public final class DeepChatPolicyTest {
         ok(access.finish(shown,3_000_000L+DeepChatPolicy.REWARD_FLOW_MILLIS));
         ok(!access.expired(shown,Long.MAX_VALUE));
         ok(access.begin(-1)==null);
-        System.out.println("PASS: "+n+" deep-chat reward ownership and mode-limit assertions");
+        var workspace=new DeepChatPolicy.WorkspaceReward();
+        ok(!workspace.preservePause(true,0));
+        ok(workspace.begin(100)&&workspace.blocked()&&!workspace.begin(101));
+        ok(!workspace.preservePause(false,101));
+        ok(workspace.preservePause(true,102)&&workspace.blocked());
+        ok(!workspace.preservePause(true,103));
+        workspace.finish();ok(workspace.blocked());
+        ok(workspace.resume(104)&&!workspace.blocked());
+        ok(workspace.begin(200)&&workspace.preservePause(true,201));
+        ok(workspace.resume(202)&&workspace.blocked()); // resume may precede SDK completion
+        ok(!workspace.preservePause(true,203));
+        workspace.finish();ok(!workspace.blocked());
+        ok(workspace.begin(500)&&!workspace.preservePause(true,499));
+        ok(workspace.preservePause(true,501));
+        ok(workspace.expired(500+DeepChatPolicy.REWARD_FLOW_MILLIS));
+        ok(!workspace.resume(500+DeepChatPolicy.REWARD_FLOW_MILLIS));
+        var unavailable=new DeepChatPolicy.WorkspaceReward();
+        ok(unavailable.begin(0));unavailable.finish();ok(!unavailable.blocked());
+        System.out.println("PASS: "+n+" deep-chat reward ownership, workspace lifecycle and mode-limit assertions");
     }
 }

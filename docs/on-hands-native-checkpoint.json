@@ -1,8 +1,8 @@
 {
   "stage": "F12-file-intake-integration-candidate",
-  "revision": "F12-file-intake-r009-targeted-dialogue-project",
+  "revision": "F12-file-intake-r010-workspace-reward",
   "scopeBaseline": "0152869a25bfa63e1e6e94c5ebb079ccc0facba8",
-  "priorCandidate": "24f3f43b2aee4379a69357267337b764fd011783",
+  "priorCandidate": "4716160425b36330d02f6e72085100dda4e246c7",
   "modules": [
     {
       "stage": "A-text",
@@ -103,7 +103,15 @@
     {
       "stage": "Y-dialogue-project-handoff",
       "sha": "dc8640afaacdfb1abd1ffde04209f64eda4f85b0"
+    },
+    {
+      "stage": "Z-workspace-reward-lifecycle",
+      "sha": "cb6e43e91ff1a82fb84e594b33a5fe2e4710e789"
+    },
+    {
+      "stage": "AA-workspace-reward-ui",
+      "sha": "e0ca8b7f086d390b462fea7ea1d3bd60bc43a079"
     }
   ],
-  "reason": "r007 exact FAST 46158015267 and FULL 46158015138 passed, required steps checked and official branch advanced non-force; r008 linked to validation branch and exact FAST 46162716434/FULL 46162716437 active. r009 adds explicit citation-targeted retrieval and local project dialogue handoff with explicit compact fallback. No engine/dependency/manifest/persistent schema/production ads change. Detached until r008 passes."
+  "reason": "r008 exact FAST 46162716434/FULL 46162716437 and required jobs passed; fixed-signed APK step skipped, official branch promoted with expected SHA. r009 validation FAST 46168395064/FULL 46168395116 in progress. r010 independently prepared explicit in-workspace renewal, one bounded SDK pause and lifecycle host tests. No changes to native engines, dependencies, manifest, production ad lock or persistent schema. Detached until r009 validation passes."
 }

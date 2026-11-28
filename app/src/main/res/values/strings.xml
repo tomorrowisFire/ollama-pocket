@@ -1466,4 +1466,6 @@
     <string name="deep_follow_project">Save dialogue to project</string>
     <string name="deep_follow_project_compact">Save compact dialogue</string>
     <string name="deep_follow_project_compact_notice">The full dialogue exceeds the project size limit. Save a compact version? All retained questions, source ranges and citation IDs remain; some generated answers may be omitted. The complete retained dialogue can still be exported.</string>
+    <string name="deep_workspace_reward_notice">Your idle analysis and completed dialogue stay in this secure screen during the rewarded ad. No new analysis starts automatically.</string>
+    <string name="deep_workspace_reward_wait">Rewarded ad in progress…</string>
 </resources>

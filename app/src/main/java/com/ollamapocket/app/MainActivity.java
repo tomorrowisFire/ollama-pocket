@@ -538,6 +538,7 @@ public final class MainActivity extends Activity {
         if(guestOnly)return;
         if(billing!=null)billing.resume();
         if(ads!=null){ads.resume();if(getPreferences(MODE_PRIVATE).getBoolean("welcome_v2_seen",false))ads.prepareConsent();}
+        if(documentBatch!=null&&!documentBatch.resumeReward()){documentBatch.pause();documentBatch=null;}
         if(cloudMode&&cloudPanel!=null)cloudPanel.resume();
         ui.post(poll);
         ui.post(hudPoll);
@@ -560,7 +561,9 @@ public final class MainActivity extends Activity {
         VoiceModelsUi.cancel(this);
         if(billing!=null)billing.pause();
         if(ads!=null)ads.pause();
-        if(documentBatch!=null){documentBatch.pause();documentBatch=null;}
+        if(documentBatch!=null&&!documentBatch.suspendForReward(ads!=null&&ads.rewardDisplayed())){
+            documentBatch.pause();documentBatch=null;
+        }
         if(automationUi!=null)automationUi.pause();
         if(projectWorkspaceUi!=null){projectWorkspaceUi.pause();projectWorkspaceUi=null;}
         if(knowledgeWorkspaceUi!=null){knowledgeWorkspaceUi.pause();knowledgeWorkspaceUi=null;}
@@ -1334,6 +1337,22 @@ public final class MainActivity extends Activity {
         if(remaining==0&&!loading&&(ads==null||!ads.isEnabled()))
             deepRemainingView.setText(R.string.deep_reward_unavailable);
         deepAnalyzeButton.setEnabled(!busy&&remaining>0);
+        if(documentBatch!=null)documentBatch.refreshReward();
+    }
+    long workspaceRewardRemaining(){return ads==null?0:ads.deepRemaining();}
+    boolean workspaceRewardAvailable(){return ads!=null&&ads.workspaceRewardReady()&&rewardScopeEligible();}
+    /** Invoked only from the workspace's separate explicit confirmation. */
+    void requestBatchReward(DocumentBatchUi batch){
+        if(batch==null||batch!=documentBatch||!workspaceRewardAvailable()||workspaceRewardRemaining()==Long.MAX_VALUE||
+                !batch.beginReward()){
+            toast(getString(R.string.deep_reward_unavailable));return;
+        }
+        if(voice!=null)voice.cancel();
+        ads.requestDeepReward(()->documentBatch==batch&&rewardScopeEligible()&&batch.rewardRequestValid(),outcome->{
+            if(documentBatch==batch)batch.finishReward(outcome);
+            refreshDeepMode();
+        });
+        refreshDeepMode();
     }
     private boolean rewardScopeEligible(){
         return foreground&&!isFinishing()&&!isDestroyed()&&!guestOnly&&!cloudMode&&deepMode&&activeTab==0

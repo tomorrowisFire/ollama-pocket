@@ -1466,4 +1466,6 @@
     <string name="deep_follow_project">対話をプロジェクトに保存</string>
     <string name="deep_follow_project_compact">要約形式の対話を保存</string>
     <string name="deep_follow_project_compact_notice">対話全体がプロジェクトの容量制限を超えています。縮小版を保存しますか？保持された質問、出典範囲、引用IDはすべて残りますが、一部の生成回答は省略される場合があります。保持された対話全体は別途エクスポートできます。</string>
+    <string name="deep_workspace_reward_notice">リワード広告中は、この安全な画面に分析結果と完了済みの会話を保持します。新しい分析は自動開始されません。</string>
+    <string name="deep_workspace_reward_wait">リワード広告の処理中…</string>
 </resources>

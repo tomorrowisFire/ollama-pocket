@@ -134,6 +134,7 @@ F12_ADDITIONS = frozenset([
   "docs/on-hands-f12-compact-project-report.md",
   "docs/on-hands-f12-r008-integration.md",
   "docs/on-hands-f12-r009-integration.md",
+  "docs/on-hands-f12-r010-integration.md",
   "app/src/main/java/com/ollamapocket/app/DeepDialogueExport.java",
   "tests/DeepDialogueExportTest.java",
   "docs/on-hands-f12-dialogue-export.md",

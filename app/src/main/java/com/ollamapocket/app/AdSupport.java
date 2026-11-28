@@ -93,6 +93,12 @@ public final class AdSupport {
     long deepRemaining(){return DEEP_ACCESS.remaining(SystemClock.elapsedRealtime(),testAdFree);}
     boolean deepAuthorized(){return deepRemaining()>0;}
     boolean rewardBusy(){return rewardTicket!=null;}
+    boolean rewardDisplayed(){return rewardTicket!=null&&rewardShowing;}
+    /** No consent UI or app-open interruption may be initiated from a retained workspace. */
+    boolean workspaceRewardReady(){
+        return !disposed&&foreground&&isEnabled()&&adsInitialized&&consent.canRequestAds()&&
+                !consentFlowActive&&!privacyShowing&&!appOpenShowing&&!DEEP_ACCESS.busy()&&!rewardBusy();
+    }
     private void recoverExpiredReward(){
         // Never abandon a displayed ticket while another full-screen window still owns focus.
         // A missing SDK dismissal callback may be recovered only after the app is foreground/focused.

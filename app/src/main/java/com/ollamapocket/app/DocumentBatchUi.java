@@ -50,7 +50,13 @@ final class DocumentBatchUi {
     private ProjectWorkspaceUi reportWorkspace;
     private DeepFollowUpPolicy.Session followSession;
     private Button followAsk,followSave,followCopy,followSaveJson,followProject;
-    private TextView followTranscript;
+    private TextView followTranscript,rewardStatus;
+    private Button rewardRenew;
+    private final DeepChatPolicy.WorkspaceReward reward=new DeepChatPolicy.WorkspaceReward();
+    private final Handler rewardHandler=new Handler(Looper.getMainLooper());
+    private final Runnable rewardExpiry=()->{
+        if(reward.expired(android.os.SystemClock.elapsedRealtime()))pause();
+    };
     static boolean busy(){return BUSY.busy();}
     DocumentBatchUi(Activity owner,String model,AttachmentText.Encoding encoding,BooleanSupplier eligible,BooleanSupplier startAuthorized){
         this.owner=owner;this.model=model;this.encoding=encoding;this.eligible=eligible;this.startAuthorized=startAuthorized;this.dictation=new WorkspaceDictation(owner);this.reading=new WorkspaceReadAloud(owner);this.viewer=new WorkspaceTextViewer(owner);
@@ -67,7 +73,7 @@ final class DocumentBatchUi {
     }
     private Button button(LinearLayout panel,int resource,Runnable action){
         Button b=new Button(owner);b.setText(resource);WorkbenchStyle.button(owner,b,resource);
-        b.setOnClickListener(v->{if(visible()&&b.isAttachedToWindow()&&b.isEnabled()&&!busy()&&confirmation==null)action.run();});
+        b.setOnClickListener(v->{if(visible()&&b.isAttachedToWindow()&&b.isEnabled()&&!busy()&&!reward.blocked()&&confirmation==null)action.run();});
         panel.addView(b,WorkbenchStyle.row(owner));return b;
     }
     private void confirm(int title,String body,Runnable action){
@@ -79,7 +85,7 @@ final class DocumentBatchUi {
     }
     private void enabled(){
         if(!visible())return;
-        boolean idle=!busy();
+        boolean idle=!busy()&&!reward.blocked();
         goal.setEnabled(idle);dictateGoal.setEnabled(idle);preset.setEnabled(idle);preview.setEnabled(idle&&sources!=null);copy.setEnabled(idle&&result!=null);
         inspect.setEnabled(idle&&result!=null&&!result.notes.isEmpty());copyJson.setEnabled(idle&&result!=null);
         saveProject.setEnabled(idle&&result!=null);
@@ -97,7 +103,8 @@ final class DocumentBatchUi {
         followSaveJson.setEnabled(hasDialogue&&owner instanceof MainActivity);
         followProject.setEnabled(hasDialogue);
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(idle&&sources!=null);
-        dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setEnabled(!idle&&!cancelRequested);
+        dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setEnabled(busy()&&!cancelRequested&&!reward.blocked());
+        refreshReward();
     }
     private interface Work<T>{
         T run(ProjectWorkGate.Lease lease,AlertDialog screen,Handler main)throws Exception;
@@ -141,7 +148,57 @@ final class DocumentBatchUi {
             // Progress is advisory; only terminal delivery controls ownership.
         }
     }
+    void refreshReward(){
+        if(!visible()||rewardStatus==null||rewardRenew==null||!(owner instanceof MainActivity))return;
+        MainActivity activity=(MainActivity)owner;
+        long remaining=activity.workspaceRewardRemaining();
+        long seconds=remaining==Long.MAX_VALUE?0:(remaining+999)/1000;
+        String message=reward.blocked()?s(R.string.deep_workspace_reward_wait):
+                remaining==Long.MAX_VALUE?s(R.string.deep_unlimited):
+                remaining==0?s(R.string.deep_locked):owner.getString(R.string.deep_remaining,seconds/60,seconds%60);
+        if(!message.contentEquals(rewardStatus.getText()))rewardStatus.setText(message);
+        rewardRenew.setVisibility(remaining==Long.MAX_VALUE?View.GONE:View.VISIBLE);
+        rewardRenew.setEnabled(!reward.blocked()&&!busy()&&sources!=null&&activity.workspaceRewardAvailable());
+    }
+    private void renewReward(){
+        if(!(owner instanceof MainActivity)||!visible()||busy()||reward.blocked()||confirmation!=null||
+                sources==null||!eligible.getAsBoolean())return;
+        confirm(R.string.deep_reward_watch,s(R.string.deep_reward_notice)+"\n\n"+s(R.string.deep_workspace_reward_notice),
+                ()->((MainActivity)owner).requestBatchReward(this));
+    }
+    boolean beginReward(){
+        if(!visible()||busy()||sources==null||!eligible.getAsBoolean()||!reward.begin(android.os.SystemClock.elapsedRealtime()))
+            return false;
+        viewer.cancel();reading.cancel();dictation.cancel();
+        rewardHandler.removeCallbacks(rewardExpiry);
+        rewardHandler.postDelayed(rewardExpiry,DeepChatPolicy.REWARD_FLOW_MILLIS);
+        enabled();return true;
+    }
+    boolean rewardRequestValid(){
+        return visible()&&!busy()&&sources!=null&&reward.blocked()&&!reward.expired(android.os.SystemClock.elapsedRealtime());
+    }
+    void finishReward(AdSupport.RewardOutcome outcome){
+        if(closed)return;
+        reward.finish();
+        if(!reward.blocked())rewardHandler.removeCallbacks(rewardExpiry);
+        if(visible()){
+            toast(outcome==AdSupport.RewardOutcome.EARNED?R.string.deep_reward_earned:
+                    outcome==AdSupport.RewardOutcome.CLOSED?R.string.deep_reward_closed:R.string.deep_reward_unavailable);
+            enabled();
+        }
+    }
+    boolean suspendForReward(boolean sdkShowing){
+        if(!visible()||busy()||!reward.preservePause(sdkShowing,android.os.SystemClock.elapsedRealtime()))return false;
+        viewer.cancel();reading.cancel();dictation.cancel();
+        return true;
+    }
+    boolean resumeReward(){
+        if(closed||!visible()||!reward.resume(android.os.SystemClock.elapsedRealtime()))return false;
+        if(!reward.blocked())rewardHandler.removeCallbacks(rewardExpiry);
+        enabled();return true;
+    }
     void pause(){
+        rewardHandler.removeCallbacks(rewardExpiry);
         viewer.cancel();reading.cancel();dictation.cancel();
         if(closed)return;closed=true;stop();
         if(reportWorkspace!=null){reportWorkspace.pause();reportWorkspace=null;}
@@ -170,6 +227,9 @@ final class DocumentBatchUi {
         LinearLayout panel=column();
         label(panel,s(R.string.batch_notice),false);
         label(panel,s(R.string.model_label)+": "+model,false);
+        rewardStatus=label(panel,"",false);
+        rewardRenew=button(panel,R.string.deep_reward_renew,this::renewReward);
+        rewardRenew.setEnabled(false);
         status=label(panel,s(R.string.attachment_reading),false);
         status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         progress=new ProgressBar(owner,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(selected.size());
@@ -246,7 +306,7 @@ final class DocumentBatchUi {
         d.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v->{
             if(visible()&&dialog==d&&v.isEnabled()&&busy()&&!cancelRequested){stop();status.setText(R.string.auto_pause_requested);enabled();}
         });
-        d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{if(visible()&&dialog==d&&v.isEnabled()&&confirmation==null)start();});
+        d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{if(visible()&&dialog==d&&v.isEnabled()&&!reward.blocked()&&confirmation==null)start();});
         final List<Uri> immutable=new ArrayList<>(selected);
         work((lease,screen,main)->load(immutable,lease,screen,main),loaded->{
             sources=loaded;status.setText(R.string.batch_ready);output.setText(coverage(loaded));progress.setProgress(immutable.size());

@@ -1466,4 +1466,6 @@
     <string name="deep_follow_project">将对话保存到项目</string>
     <string name="deep_follow_project_compact">保存精简对话</string>
     <string name="deep_follow_project_compact_notice">完整对话超出项目大小限制。是否保存精简版本？保留的所有问题、来源范围和引用 ID 均会保留，但部分生成的回答可能省略。仍可单独导出完整的保留对话。</string>
+    <string name="deep_workspace_reward_notice">观看激励广告时，当前分析与已完成的对话将保留在此安全界面中。不会自动开始新分析。</string>
+    <string name="deep_workspace_reward_wait">激励广告处理中…</string>
 </resources>
