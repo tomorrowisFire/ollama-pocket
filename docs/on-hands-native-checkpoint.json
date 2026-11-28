@@ -1,6 +1,6 @@
 {
-  "stage": "F10A72R1-explicit-choice-state-cross-screens",
-  "revision": "F10A72R1",
-  "priorCandidate": "46683c28631e5eb78f33fd2bd751aada53e6ff5c",
-  "reason": "Extend F10A72 shared selection treatment to language, cloud providers and conversations, and Ollama family/quantization pickers. Keep exact active model labels, state guards, existing palette and layouts. Full ARM64 device-test build."
+  "stage": "F10A73-quiet-peach-choice-states",
+  "revision": "F10A73",
+  "priorCandidate": "dd60d3a21616dd0c76e17e674166f4f9d77cdff9",
+  "reason": "User requested softer choice tone: separate pale selection palette from CTA, thin selected borders, plain unselected rows, readable check marks, separate strong keyboard focus. Extend to model badges and list/grid selection. Repair F10A72R1 compile failure by restoring no-argument compute dialog entry and synchronizing current control. Full ARM64 build."
 }

@@ -1573,6 +1573,7 @@ public final class MainActivity extends Activity {
 
         LinearLayout inference=brandSection(content,R.string.local_inference,OnHandGlyphs.Kind.CHIP);
         Button compute=button(getString(R.string.compute)+"  ·  "+computeChoiceLabel(),false);
+        computeChoiceControl=compute;
         settingAction(compute,OnHandGlyphs.Kind.CHIP);
         margin(compute,inference,0,8);
         compute.setOnClickListener(v->showComputeChoiceDialog(compute));
@@ -1893,6 +1894,8 @@ public final class MainActivity extends Activity {
     private String computeChoiceLabel(){
         String pref=computePreference();return getString("cpu".equals(pref)?R.string.compute_cpu:"gpu".equals(pref)?R.string.compute_gpu_try:R.string.compute_auto);
     }
+    private Button computeChoiceControl;
+    private void showComputeChoiceDialog(){showComputeChoiceDialog(computeChoiceControl);}
     private void showComputeChoiceDialog(Button control) {
         computeReport = ComputeProfiler.scan(this);
         String gpuInfo = !GpuRunner.packaged(this) ? getString(R.string.compute_gpu_missing) :
@@ -1917,7 +1920,7 @@ public final class MainActivity extends Activity {
                     if (which == 1) GpuRunner.stop();
                     if (activeEngineLabel != null)
                         activeEngineLabel.setText(getString(R.string.compute_selected,pref));
-                    control.setText(getString(R.string.compute)+"  ·  "+computeChoiceLabel());
+                    if(control!=null)control.setText(getString(R.string.compute)+"  ·  "+computeChoiceLabel());
                     toast(getString(R.string.compute_saved));
                     dialog.dismiss();
                 }).setNeutralButton(R.string.help,(d,w)->new AlertDialog.Builder(this).setMessage(R.string.compute_notice).setPositiveButton(R.string.ok,null).show()).setNegativeButton(getString(R.string.cancel), null));
@@ -2415,12 +2418,7 @@ public final class MainActivity extends Activity {
         Button[] buttons={modelListViewButton,modelGridViewButton};
         boolean[] active={modelListView,!modelListView};
         for(int i=0;i<buttons.length;i++){
-            if(active[i])WorkbenchStyle.primaryButtonPaint(this,buttons[i],10);
-            else{
-                buttons[i].setTag(R.id.onhand_primary_paint,null);
-                buttons[i].setBackground(bg(FIELD,10));buttons[i].setTextColor(WHITE);
-                AdaptiveAnswerActions.feedback(buttons[i],10);OnHandGlyphs.refresh(buttons[i]);
-            }
+            WorkbenchStyle.choiceButton(this,buttons[i],active[i]);
             buttons[i].setText((active[i]?"✓  ":"")+getString(i==0?R.string.list_view:R.string.grid_view));
             buttons[i].setTypeface(Typeface.DEFAULT,active[i]?Typeface.BOLD:Typeface.NORMAL);
             buttons[i].setSelected(active[i]);
@@ -2438,7 +2436,7 @@ public final class MainActivity extends Activity {
     private GradientDrawable tileBackground(boolean selected){
         GradientDrawable shape=bg(tileBackgroundColor(selected),18);
         // Readable companion ink outlines selection; the status label remains authoritative.
-        shape.setStroke(dp(selected?2:1),selected?ACCENT:borderTone());
+        shape.setStroke(dp(1),selected?WorkbenchVisualPolicy.palette(activeThemeDark).choiceBorder(true):borderTone());
         return shape;
     }
 
@@ -2533,7 +2531,7 @@ public final class MainActivity extends Activity {
         WorkbenchVisualPolicy.Palette p=WorkbenchStyle.palette(this);
         TextView badge=text(modelCardStatusLabel(status),compact?10:11,p.modelStatusInk(status),true);
         GradientDrawable badgeSurface=bg(p.modelStatusFill(status),10);
-        if(status==WorkbenchVisualPolicy.ModelStatus.ACTIVE){badgeSurface.setStroke(dp(1),p.primaryOutline());
+        if(status==WorkbenchVisualPolicy.ModelStatus.ACTIVE){badgeSurface.setStroke(dp(1),p.choiceBorder(true));
             OnHandGlyphs.label(badge,OnHandGlyphs.Kind.CHECK,false);}
         badge.setBackground(badgeSurface);
         badge.setPadding(dp(compact?4:10),dp(compact?0:5),dp(compact?4:10),dp(compact?0:5));

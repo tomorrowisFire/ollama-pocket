@@ -345,10 +345,13 @@ for mode in ("light","dark"):
     assert colors["onhand_primary_ink_"+mode]==("#6E3B28" if mode=="light" else "#5F3121")
     assert colors["onhand_bubble_ink_"+mode]==("#8A5039" if mode=="light" else "#F2C9B4")
     assert colors["onhand_bubble_muted_ink_"+mode]==("#895B47" if mode=="light" else "#E7B69B")
-    for token in ("primary_fill","primary_ink","bubble_ink","bubble_muted_ink"):
+    assert colors["onhand_choice_fill_"+mode]==("#F4E3D9" if mode=="light" else "#4B3930")
+    assert colors["onhand_choice_ink_"+mode]==("#79503E" if mode=="light" else "#F2C9B4")
+    assert colors["onhand_choice_border_"+mode]==("#C9A48F" if mode=="light" else "#8C6A59")
+    for token in ("primary_fill","primary_ink","bubble_ink","bubble_muted_ink","choice_fill","choice_ink","choice_border"):
         assert "0xff"+colors["onhand_"+token+"_"+mode][1:].lower() in policy
 assert "this.primaryFill=primaryFill" in policy
-assert "role==Role.PRIMARY?primaryFill" in policy and "status==ModelStatus.ACTIVE?primaryFill" in policy
+assert "role==Role.PRIMARY?primaryFill" in policy and "status==ModelStatus.ACTIVE?choiceFill(true)" in policy
 assert "return primaryAction?(enabled?primaryFill:disabled):surface" in policy
 assert "positive?primary:muted" in policy
 style_source=(src/"WorkbenchStyle.java").read_text()
@@ -360,10 +363,10 @@ for required in ("p.primaryFill,p.primaryOutline(),1,radius","p.primaryFill,p.pr
 for forbidden in ("setOnClickListener(","setText(","setEnabled(","setVisibility("):
     assert forbidden not in primary_paint,forbidden
 assert "WorkbenchStyle.primaryButtonPaint(this,b,14)" in main
-assert "WorkbenchStyle.primaryButtonPaint(this,buttons[i],10)" in main
+assert "WorkbenchStyle.choiceButton(this,buttons[i],active[i])" in main
 assert "WorkbenchStyle.refreshPrimaryButtonPaint(this,v)" in main
 assert "primary?p.primaryOutline():p.border,primary?1:0,24" in style_source
-assert "badgeSurface.setStroke(dp(1),p.primaryOutline())" in main
+assert "badgeSurface.setStroke(dp(1),p.choiceBorder(true))" in main
 assert main.count("WorkbenchVisualPolicy.activeModel(item.installed,item.id,currentModel)")==2
 assert "OnHandGlyphs.label(badge,OnHandGlyphs.Kind.CHECK,false)" in main
 assert "WorkbenchStyle.choiceRows(this,options,checked)" in main
@@ -376,7 +379,12 @@ assert "WorkbenchStyle.choiceRows(activity,labels,checked)" in (src/"OllamaFamil
 assert "WorkbenchStyle.choiceRows(activity,labels,checked)" in (src/"OllamaQuantPicker.java").read_text()
 assert "WorkbenchStyle.choiceRows(a,labels,current)" in (src/"OnHandsLocale.java").read_text()
 assert "WorkbenchStyle.spinnerChoices(pick,names)" in (src/"CloudChatPanel.java").read_text()
-assert "p.choiceFill(true),p.choiceBorder(true),2" in style_source
+assert "p.choiceFill(true),p.choiceBorder(true),1" in style_source
+assert "p.choiceFill(true),p.focus,2" in style_source
+assert "p.choiceFill(false),p.choiceBorder(false),0" in style_source
+assert "private void showComputeChoiceDialog(){showComputeChoiceDialog(computeChoiceControl);}" in main
+assert "computeChoiceControl=compute;" in main
+assert "if(control!=null)control.setText(" in main
 assert "ACCENT=p.primary" in main
 assert "active?bubbleInk():WHITE" in main
 assert "user?bubbleInk():WHITE" in main

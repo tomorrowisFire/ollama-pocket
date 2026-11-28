@@ -61,14 +61,15 @@ final class WorkbenchStyle {
         WorkbenchVisualPolicy.Palette p=palette(c);
         android.widget.CheckedTextView row=new android.widget.CheckedTextView(c);
         StateListDrawable surface=new StateListDrawable();
-        surface.addState(new int[]{android.R.attr.state_checked},shape(c,p.choiceFill(true),p.choiceBorder(true),2));
+        surface.addState(new int[]{android.R.attr.state_checked,android.R.attr.state_focused},shape(c,p.choiceFill(true),p.focus,2));
+        surface.addState(new int[]{android.R.attr.state_checked},shape(c,p.choiceFill(true),p.choiceBorder(true),1));
         surface.addState(new int[]{android.R.attr.state_focused},shape(c,p.choiceFill(false),p.focus,2));
-        surface.addState(new int[]{},shape(c,p.choiceFill(false),p.choiceBorder(false),1));
+        surface.addState(new int[]{},shape(c,p.choiceFill(false),p.choiceBorder(false),0));
         row.setBackground(new RippleDrawable(ColorStateList.valueOf(p.dialogRipple()),surface,shape(c,Color.WHITE,Color.TRANSPARENT,0)));
         StateListDrawable mark=new StateListDrawable();
-        mark.addState(new int[]{android.R.attr.state_checked},OnHandGlyphs.drawable(c,OnHandGlyphs.Kind.CHECK,p.choiceInk(true),20));
+        mark.addState(new int[]{android.R.attr.state_checked},OnHandGlyphs.drawable(c,OnHandGlyphs.Kind.CHECK,p.choiceMark(true),20));
         GradientDrawable circle=new GradientDrawable();circle.setShape(GradientDrawable.OVAL);
-        circle.setColor(Color.TRANSPARENT);circle.setStroke(dp(c,1),p.muted);circle.setSize(dp(c,20),dp(c,20));
+        circle.setColor(Color.TRANSPARENT);circle.setStroke(dp(c,1),p.choiceMark(false));circle.setSize(dp(c,20),dp(c,20));
         mark.addState(new int[]{},circle);
         row.setCheckMarkTintList(null);row.setCheckMarkDrawable(mark);
         row.setText(label);row.setSingleLine(false);row.setEllipsize(null);
@@ -98,6 +99,19 @@ final class WorkbenchStyle {
                 return choiceRow(c,getItem(position),position==spinner.getSelectedItemPosition());
             }
         };
+    }
+    /** List/grid mode is a choice, not a primary action. Keep a quiet fill and explicit check label. */
+    static void choiceButton(Activity a,Button b,boolean selected){
+        WorkbenchVisualPolicy.Palette p=palette(a);
+        StateListDrawable state=new StateListDrawable();
+        state.addState(new int[]{-android.R.attr.state_enabled},shape(a,p.disabled,p.border,0));
+        state.addState(new int[]{android.R.attr.state_focused},shape(a,p.choiceFill(selected),p.focus,2));
+        state.addState(new int[]{},shape(a,p.choiceFill(selected),p.choiceBorder(selected),1));
+        int start=b.getPaddingStart(),top=b.getPaddingTop(),end=b.getPaddingEnd(),bottom=b.getPaddingBottom();
+        b.setTag(R.id.onhand_primary_paint,null);b.setBackgroundTintList(null);b.setForeground(null);
+        b.setBackground(new RippleDrawable(ColorStateList.valueOf(p.dialogRipple()),state,shape(a,Color.WHITE,Color.TRANSPARENT,0)));
+        b.setPaddingRelative(start,top,end,bottom);
+        b.setTextColor(colors(p.choiceInk(selected),p.disabledText));b.setSelected(selected);
     }
     static void button(Activity a,Button b,WorkbenchVisualPolicy.Role role){
         WorkbenchVisualPolicy.Palette p=palette(a);

@@ -10,6 +10,9 @@
     <color name="onhand_primary_ink_light">#6E3B28</color>
     <color name="onhand_bubble_ink_light">#8A5039</color>
     <color name="onhand_bubble_muted_ink_light">#895B47</color>
+    <color name="onhand_choice_fill_light">#F4E3D9</color>
+    <color name="onhand_choice_ink_light">#79503E</color>
+    <color name="onhand_choice_border_light">#C9A48F</color>
     <color name="onhand_focus_light">#79503E</color>
     <color name="onhand_canvas_dark">#191A19</color>
     <color name="onhand_surface_dark">#242523</color>
@@ -20,6 +23,9 @@
     <color name="onhand_primary_ink_dark">#5F3121</color>
     <color name="onhand_bubble_ink_dark">#F2C9B4</color>
     <color name="onhand_bubble_muted_ink_dark">#E7B69B</color>
+    <color name="onhand_choice_fill_dark">#4B3930</color>
+    <color name="onhand_choice_ink_dark">#F2C9B4</color>
+    <color name="onhand_choice_border_dark">#8C6A59</color>
     <color name="onhand_focus_dark">#DDBCAA</color>
     <item type="id" name="onhand_glyph_spec"/>
     <item type="id" name="onhand_spinner_spec"/>

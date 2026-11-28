@@ -25,7 +25,7 @@ public final class WorkbenchVisualPolicyTest {
             java.util.Set<Integer> statusFills=new java.util.HashSet<>();
             for(WorkbenchVisualPolicy.ModelStatus status:WorkbenchVisualPolicy.ModelStatus.values())statusFills.add(p.modelStatusFill(status));
             check(statusFills.size()==4);
-            check(p.modelStatusInk(WorkbenchVisualPolicy.ModelStatus.ACTIVE)==p.primaryText);
+            check(p.modelStatusInk(WorkbenchVisualPolicy.ModelStatus.ACTIVE)==p.choiceInk(true));
             for(boolean positive:new boolean[]{false,true})for(boolean enabled:new boolean[]{false,true}){
                 contrast(p.dialogInk(positive,enabled),p.dialogFill(enabled),4.5);
                 check(p.dialogFill(enabled)==(enabled?p.surface:p.disabled));
@@ -65,7 +65,7 @@ public final class WorkbenchVisualPolicyTest {
             check(p.primaryFill==(dark?0xffd4a58e:0xffe5bba6));
             check(p.primaryText==(dark?0xff5f3121:0xff6e3b28)&&p.primaryFill!=p.primary);
             check(p.fill(WorkbenchVisualPolicy.Role.PRIMARY,true)==p.primaryFill);
-            check(p.modelStatusFill(WorkbenchVisualPolicy.ModelStatus.ACTIVE)==p.primaryFill);
+            check(p.modelStatusFill(WorkbenchVisualPolicy.ModelStatus.ACTIVE)==p.choiceFill(true));
             check(p.composerActionFill(true,true)==p.primaryFill);
             contrast(p.primaryText,p.primaryFill,4.5);
             check(p.bubbleInk()==(dark?0xfff2c9b4:0xff8a5039));
@@ -79,7 +79,14 @@ public final class WorkbenchVisualPolicyTest {
             check(p.choiceFill(true)!=p.choiceFill(false));
             contrast(p.choiceInk(true),p.choiceFill(true),4.5);
             contrast(p.choiceInk(false),p.choiceFill(false),4.5);
-            contrast(p.choiceBorder(true),p.choiceFill(true),3);
+            check(p.choiceFill(true)!=p.primaryFill);
+            check(p.choiceBorder(true)!=p.primaryText);
+            check(p.choiceFill(true)==(dark?0xff4b3930:0xfff4e3d9));
+            contrast(p.choiceMark(true),p.choiceFill(true),4.5);
+            contrast(p.choiceMark(false),p.choiceFill(false),4.5);
+            contrast(p.focus,p.choiceFill(true),3);
+            check(WorkbenchVisualPolicy.contrast(p.choiceBorder(true),p.choiceFill(true))>1.1);
+            check(WorkbenchVisualPolicy.contrast(p.choiceBorder(true),p.choiceFill(true))<3);
             // Warm brown, not a nearly achromatic black: visible red-blue separation.
             check(((p.primaryText>>>16)&255)-(p.primaryText&255)>=55);
             check(((p.bubbleInk()>>>16)&255)-(p.bubbleInk()&255)>=55);

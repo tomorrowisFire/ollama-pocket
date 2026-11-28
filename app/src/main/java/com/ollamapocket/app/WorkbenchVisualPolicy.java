@@ -26,17 +26,19 @@ final class WorkbenchVisualPolicy {
             return role==Role.PRIMARY?primaryText:role==Role.DESTRUCTIVE?dangerText:text;
         }
         int modelStatusFill(ModelStatus status){
-            return status==ModelStatus.ACTIVE?primaryFill:status==ModelStatus.DOWNLOADING?accentSoft:status==ModelStatus.INSTALLED?bubble:field;
+            return status==ModelStatus.ACTIVE?choiceFill(true):status==ModelStatus.DOWNLOADING?accentSoft:status==ModelStatus.INSTALLED?bubble:field;
         }
         int modelStatusInk(ModelStatus status){
-            return status==ModelStatus.ACTIVE?primaryText:status==ModelStatus.AVAILABLE?muted:bubbleInk();
+            return status==ModelStatus.ACTIVE?choiceInk(true):status==ModelStatus.AVAILABLE?muted:bubbleInk();
         }
         // Pale peach surfaces have their own warm foreground, including dark-mode variants.
         int bubbleInk(){return darkFromPrimaryText(text)?0xfff2c9b4:0xff8a5039;}
         int bubbleMutedInk(){return darkFromPrimaryText(text)?0xffe7b69b:0xff895b47;}
-        int choiceFill(boolean checked){return checked?primaryFill:surface;}
-        int choiceInk(boolean checked){return checked?primaryText:text;}
-        int choiceBorder(boolean checked){return checked?primaryText:border;}
+        // Quiet selection is separate from filled primary actions. Check and readable ink carry state.
+        int choiceFill(boolean checked){return checked?(darkFromPrimaryText(text)?0xff4b3930:0xfff4e3d9):surface;}
+        int choiceInk(boolean checked){return checked?(darkFromPrimaryText(text)?0xfff2c9b4:0xff79503e):text;}
+        int choiceBorder(boolean checked){return checked?(darkFromPrimaryText(text)?0xff8c6a59:0xffc9a48f):border;}
+        int choiceMark(boolean checked){return checked?choiceInk(true):muted;}
         // Use the readable accent as a boundary for the softer filled control.
         int primaryOutline(){return primary;}
         // Secondary composer actions blend into the single input surface.
