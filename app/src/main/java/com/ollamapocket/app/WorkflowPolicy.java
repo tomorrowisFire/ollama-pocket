@@ -145,6 +145,9 @@ final class WorkflowPolicy {
         return new Budget(remainingStep,remainingTotal,MAX_MILLIS-elapsed,
             remainingStep>0?BudgetState.READY:BudgetState.ATTEMPTS);
     }
+    static boolean resumeChoiceEnabled(boolean idle,boolean resumable,String plan,String draft,String model,String selected){
+        return idle&&resumable&&plan!=null&&plan.equals(draft)&&model!=null&&!model.isEmpty()&&model.equals(selected);
+    }
     /** Compare the reviewed snapshot to a freshly decoded durable checkpoint and exact draft/model. */
     static boolean reviewedResume(String reviewed,String current,String plan,String draft,String model,String selected){
         return reviewed!=null&&!reviewed.isEmpty()&&reviewed.equals(current)&&

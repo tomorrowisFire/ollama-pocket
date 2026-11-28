@@ -51,6 +51,11 @@ public final class ModelSearchBatchTest {
         ok(bounded.get("empty",2001)==null);
         bounded.clear();ok(bounded.get("first",1000)==null);
         bounded.put("after-clear",List.of(b),1000);ok(bounded.get("after-clear",1000).equals(List.of(b)));
+        var expiring=new ModelSearchCache(2,1000);
+        expiring.put("expired",List.of(a),1000);expiring.put("recent",List.of(b),1900);
+        ok(expiring.get("expired",1900)!=null); // expired entry is most recently used
+        expiring.put("new",List.of(a),2001);
+        ok(expiring.get("expired",2001)==null&&expiring.get("recent",2001)!=null&&expiring.get("new",2001)!=null);
         System.out.println("PASS: "+checks+" model search completeness, cancellation and bounded cache checks");
     }
 }

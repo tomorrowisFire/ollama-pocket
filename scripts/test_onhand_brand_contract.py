@@ -504,3 +504,14 @@ assert "refreshHeaderAccess(); // repaint trailing model caret" in main
 for engine in ("GpuRunner.java","DistributedRunner.java","OllamaForegroundService.java"):
     assert "GpuOffloadEvidence.readDiagnosticLine(" in (src/engine).read_text()
 assert "WorkflowRunJournal.resumableReason(reason)&&budget(" in (src/"LocalWorkflow.java").read_text()
+
+# F10A80: completed-stream-only cooldown reset and exact installed metadata.
+gpu_source=(src/"GpuRunner.java").read_text()
+assert gpu_source.count("retryBudget.succeeded(")==1
+assert "finishSuccessfulStream(Context context" in gpu_source
+assert "boolean retired=GpuRunner.stopFailedStream(" in main and "if(!retired)throw gpuError" in main
+assert "GpuRunner.finishSuccessfulStream(getApplicationContext(),modelAtStart,streamGeneration" in main
+assert "ModelTileCatalog.displayBytes(variantInstalled(v)" in main
+assert "ModelTileCatalog.displayQuant(variantInstalled(v)" in main
+assert "return !v.hf()&&knownModels.contains(v.model)" in main
+assert "WorkflowPolicy.resumeChoiceEnabled(idle,current.resumable()" in (src/"AutomationUi.java").read_text()

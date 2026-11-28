@@ -1,6 +1,6 @@
 {
-  "stage": "F10A79-fifth-focused-integration",
-  "revision": "F10A79",
-  "priorCandidate": "a805ace7faf5b2a168bdb25633acebf3d6a51ce7",
-  "reason": "Fifth independent integration: early GPU stream failure scoped to resident generation and retry cooldown; bounded native diagnostic drain and logs; low-memory search cache trim; normalized multi-term local model lookup; header caret live theme repaint; stop unchanged context-blocked workflow replay. Preserve F10A78 corrected report fixture and all approved feature/production gates. FULL ARM64 checkpoint; final device acceptance deferred."
+  "stage": "F10A80-sixth-focused-integration",
+  "revision": "F10A80",
+  "priorCandidate": "43657639b13f4725957a8c0cf598cb2bc8f584e2",
+  "reason": "Sixth integration: GPU retry history clears only on complete validated inference/full benchmark; reject stale generation CPU fallback; local installed metadata authoritative for selection and ranking; expire cache on insertion; disable resume when exact draft/model/budget mismatch. Preserve prior features, ads, billing, data and release gates. Exact FULL ARM64 checkpoint; final device validation deferred."
 }

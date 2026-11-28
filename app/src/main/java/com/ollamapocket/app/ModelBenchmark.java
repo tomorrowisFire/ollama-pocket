@@ -412,6 +412,7 @@ public final class ModelBenchmark {
         result.batteryStartC=before.batteryC;
         result.thermalStart=before.thermal;
         result.minFreeMiB=before.freeMiB;
+        Integer gpuGeneration=null;
         try {
             progress.update(locale.getString(R.string.bench_preparing,displayEngine));
             check(context);
@@ -426,6 +427,8 @@ public final class ModelBenchmark {
                 StringBuilder reason=new StringBuilder();
                 if(!GpuRunner.ensure(context,model,reason,()->canceled))
                     throw new IOException("GPU 오프로드 불가: "+reason);
+                gpuGeneration=GpuRunner.streamGeneration(model);
+                if(gpuGeneration==null)throw new IOException("GPU generation changed");
             } else {
                 GpuRunner.stop();
                 CoopSession session=CoopSession.get(context);
@@ -462,6 +465,8 @@ public final class ModelBenchmark {
             result.prefillTps=Double.isFinite(prefill)?prefill:0; // unavailable if any prefill measurement is absent
             result.ttftMs=first;
             result.decayPct=decay;
+            if("gpu".equals(mode)&&!GpuRunner.finishSuccessfulStream(context,model,gpuGeneration,()->canceled))
+                throw new IOException("GPU generation changed or inference stopped");
         } catch (Exception e) {
             result.error=e.getMessage()==null?e.getClass().getSimpleName():e.getMessage();
         } finally {

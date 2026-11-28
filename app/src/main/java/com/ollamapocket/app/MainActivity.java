@@ -2206,8 +2206,17 @@ public final class MainActivity extends Activity {
             knownModels,modelBytes,modelQuantization,6);
     }
 
+    private boolean variantInstalled(ModelVariantCatalog.Variant v){
+        return !v.hf()&&knownModels.contains(v.model);
+    }
+    private long variantBytes(ModelVariantCatalog.Variant v){
+        return ModelTileCatalog.displayBytes(variantInstalled(v),v.bytes,modelBytes.getOrDefault(v.model,0L));
+    }
+    private String variantQuant(ModelVariantCatalog.Variant v){
+        return ModelTileCatalog.displayQuant(variantInstalled(v),v.quant,modelQuantization.get(v.model));
+    }
     private double variantScore(ModelVariantCatalog.Variant v){
-        return modelScore(v.id(),v.bytes,v.quant,v.hf(),knownModels.contains(v.model));
+        return modelScore(v.id(),variantBytes(v),variantQuant(v),v.hf(),variantInstalled(v));
     }
     private double modelScore(String id,long bytes,String quant,boolean hf,boolean installed){
         double score=ModelVariantCatalog.score(bytes,quant,hf,installed,deviceProfile.arm64,
@@ -2220,8 +2229,8 @@ public final class MainActivity extends Activity {
         return score;
     }
     private boolean recommendedFit(ModelVariantCatalog.Variant v){
-        return v.bytes>0&&!"미확인".equals(v.quant)&&
-            ModelVariantCatalog.tier(v.bytes,v.hf(),knownModels.contains(v.model),
+        return variantBytes(v)>0&&!"미확인".equals(variantQuant(v))&&
+            ModelVariantCatalog.tier(variantBytes(v),v.hf(),variantInstalled(v),
                 deviceProfile.arm64,deviceProfile.lowMemory,
                 deviceProfile.ramGb,deviceProfile.availableRamGb,deviceProfile.freeStorageGb)==0;
     }
@@ -2282,7 +2291,7 @@ public final class MainActivity extends Activity {
                 continue;
             }
             visibleVariants.put(best.id(),best);
-            result.add(new ModelTileCatalog.Tile(best.id(),base.title,base.description,best.quant,best.bytes,knownModels.contains(best.model),true));
+            result.add(new ModelTileCatalog.Tile(best.id(),base.title,base.description,variantQuant(best),variantBytes(best),variantInstalled(best),true));
         }
         return result;
     }
@@ -2484,10 +2493,10 @@ public final class MainActivity extends Activity {
             String[] labels=new String[options.size()];int activeIndex=-1;
             for(int i=0;i<labels.length;i++){
                 ModelVariantCatalog.Variant v=options.get(i);
-                boolean installed=!v.hf()&&knownModels.contains(v.model);
+                boolean installed=variantInstalled(v);
                 boolean active=WorkbenchVisualPolicy.activeModel(installed,v.model,currentModel);
                 if(active)activeIndex=i;
-                labels[i]=v.label()+"\n"+getString(active?R.string.model_active:installed?R.string.model_installed:R.string.model_not_installed)+" · "+filterDisplay(v.quant)+" · "+(v.bytes>0?installedSize(v.bytes):getString(R.string.storage_unknown))+
+                labels[i]=v.label()+"\n"+getString(active?R.string.model_active:installed?R.string.model_installed:R.string.model_not_installed)+" · "+filterDisplay(variantQuant(v))+" · "+(variantBytes(v)>0?installedSize(variantBytes(v)):getString(R.string.storage_unknown))+
                     (best.get(v.group())==v?" · "+getString(R.string.model_recommend_mark):"");
             }
             showCompactSettingsDialog(new AlertDialog.Builder(this).setTitle(getString(R.string.model_quant_title))
@@ -2833,7 +2842,7 @@ public final class MainActivity extends Activity {
             if(!seen.add(v.id().toLowerCase(Locale.ROOT)))continue;
             visibleVariants.put(v.id(),v);
             tiles.add(new ModelTileCatalog.Tile(v.id(),v.hf()?v.model:ModelTileCatalog.familyName(v.model),
-                v.source+" · "+v.label(),v.quant,v.bytes,!v.hf()&&knownModels.contains(v.model),best.get(v.group())==v));
+                v.source+" · "+v.label(),variantQuant(v),variantBytes(v),variantInstalled(v),best.get(v.group())==v));
         }
         for(String name:knownModels){
             String meta=modelMetadata.getOrDefault(name,"로컬 모델");
@@ -3100,9 +3109,9 @@ public final class MainActivity extends Activity {
             toast(getString(R.string.busy));return;
         }
         long featuredBytes=modelBytes.getOrDefault(model,0L);
-        for(ModelVariantCatalog.Variant v:onlineVariants)if(v.model.equals(model)){featuredBytes=v.bytes;break;}
-        if(featuredBytes==0)for(ModelVariantCatalog.Variant v:recommendedVariants)
-            if(v.model.equals(model)){featuredBytes=v.bytes;break;}
+        if(featuredBytes<=0)for(ModelVariantCatalog.Variant v:onlineVariants)if(!v.hf()&&v.model.equals(model)){featuredBytes=v.bytes;break;}
+        if(featuredBytes<=0)for(ModelVariantCatalog.Variant v:recommendedVariants)
+            if(!v.hf()&&v.model.equals(model)){featuredBytes=v.bytes;break;}
         long availableBytes;
         try{availableBytes=new StatFs(getFilesDir().getAbsolutePath()).getAvailableBytes();}
         catch(Exception e){availableBytes=-1;}
@@ -4226,12 +4235,15 @@ public final class MainActivity extends Activity {
                         HttpURLConnection connection = OllamaHttp.newGpuChatConnection();
                         publishChatConnection(connection);
                         OllamaHttp.streamGpuChat(connection, OllamaHttp.gpuChatBody(modelAtStart, requestHistory),
-                            item -> appendAnswer(item, answer, assistant), () -> chatCancelled);
+                            item -> appendAnswer(item, answer, assistant),
+                            () -> chatCancelled||!GpuRunner.ownsStream(modelAtStart,streamGeneration));
+                        if(!LocalChatTurns.validReply(answer.toString()))throw new java.io.IOException("CHAT_EMPTY_ANSWER");
+                        if(!GpuRunner.finishSuccessfulStream(getApplicationContext(),modelAtStart,streamGeneration,()->chatCancelled))
+                            throw new java.io.IOException("GPU generation changed or inference stopped");
                     } catch (Exception gpuError) {
                         InferenceSafetyPolicy.restoreInterrupt(gpuError);
-                        if(!InferenceSafetyPolicy.mayFallback(chatCancelled,Thread.currentThread().isInterrupted(),answer.length(),
-                            InferenceSafetyPolicy.retainRisk(chatSafetyReason,InferenceSafety.check(getApplicationContext()))))throw gpuError;
-                        GpuRunner.stopFailedStream(getApplicationContext(),modelAtStart,streamGeneration,()->chatCancelled);
+                        boolean retired=GpuRunner.stopFailedStream(getApplicationContext(),modelAtStart,streamGeneration,()->chatCancelled);
+                        if(!retired)throw gpuError;
                         if(!InferenceSafetyPolicy.mayFallback(chatCancelled,Thread.currentThread().isInterrupted(),answer.length(),
                             InferenceSafetyPolicy.retainRisk(chatSafetyReason,InferenceSafety.check(getApplicationContext()))))throw gpuError;
                         ui.post(() -> activeEngineLabel.setText(getString(R.string.engine_cpu_fallback)));

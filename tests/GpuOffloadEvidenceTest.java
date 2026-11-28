@@ -48,6 +48,11 @@ public final class GpuOffloadEvidenceTest {
         ok(GpuOffloadEvidence.boundedDiagnostic(null).isEmpty());
         String max="x".repeat(GpuOffloadEvidence.MAX_DIAGNOSTIC_LINE);
         ok(GpuOffloadEvidence.boundedDiagnostic(max).equals(max));
+        for(Integer expected:new Integer[]{null,0,1,2,Integer.MIN_VALUE,Integer.MAX_VALUE})
+            for(boolean present:new boolean[]{false,true})
+                for(String model:new String[]{null,"","model","other"})
+                    ok(GpuOffloadEvidence.matchesStream(expected,1,present,model,"model")==
+                        (expected!=null&&expected==1&&present&&"model".equals(model)));
         System.out.println("PASS: "+checks+" GPU offload evidence, bounded logs and readiness assertions");
     }
 }

@@ -1080,6 +1080,9 @@ final class AutomationUi {
         ProgressBar progress=new ProgressBar(owner,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(10);l.addView(progress,new LinearLayout.LayoutParams(-1,dp(12)));
         if(saved!=null){display(status,saved);progress.setMax(saved.steps().size());progress.setProgress(saved.results.size());}
         Runnable enabled=()->{boolean idle=!busy();plan.setEnabled(idle);for(Button b:buttons)if(b!=null)b.setEnabled(idle);
+            LocalWorkflow.Checkpoint current=checkpoint[0];
+            if(buttons[1]!=null)buttons[1].setEnabled(current!=null&&WorkflowPolicy.resumeChoiceEnabled(idle,current.resumable(),current.plan,plan.getText().toString(),current.model,model));
+            if(buttons[7]!=null)buttons[7].setEnabled(idle&&current!=null);
             if(buttons[11]!=null)buttons[11].setEnabled(idle&&checkpoint[0]!=null);
             if(buttons[12]!=null)buttons[12].setEnabled(idle&&checkpoint[0]!=null);};
         buttons[10]=button(l,R.string.auto_goal_planner,()->{if(!busy())showGoalPlanner(model,plan,enabled);});
@@ -1137,7 +1140,7 @@ final class AutomationUi {
             confirm(s(R.string.auto_cancel_run),s(R.string.auto_cancel_notice),()->{
                 if(planner!=null&&busy()){toast(R.string.busy);return;}
                 if(busy()){runner.cancel();status.setText(R.string.auto_cancel_notice);}
-                else try{runner.cancelSaved(checkpoint[0]);display(status,checkpoint[0]);}catch(Exception e){toast(R.string.auto_checkpoint_error);}
+                else try{runner.cancelSaved(checkpoint[0]);display(status,checkpoint[0]);enabled.run();}catch(Exception e){toast(R.string.auto_checkpoint_error);}
             });
         });
         buttons[7]=button(l,R.string.auto_journal,()->{
@@ -1157,6 +1160,12 @@ final class AutomationUi {
         buttons[11]=reading.add(l,R.string.auto_workflow,()->status.getText().toString(),
             ()->valid(readToken)&&!busy()&&checkpoint[0]!=null&&confirmation==null&&dialog!=null&&dialog.isShowing());
         buttons[11].setEnabled(checkpoint[0]!=null&&!busy());
+        plan.addTextChangedListener(new android.text.TextWatcher(){
+            public void beforeTextChanged(CharSequence text,int start,int count,int after){}
+            public void onTextChanged(CharSequence text,int start,int before,int count){}
+            public void afterTextChanged(android.text.Editable text){enabled.run();}
+        });
+        enabled.run();
         show(s(R.string.auto_workflow),l);
     }
     private String gateLabel(WorkflowPolicy.Gate gate){

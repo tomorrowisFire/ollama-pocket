@@ -76,6 +76,13 @@ public final class WorkflowReadinessTest {
         ok(!WorkflowPolicy.reviewedResume("snapshot","snapshot","p","p","m","other"));
         ok(!WorkflowPolicy.reviewedResume(null,null,"p","p","m","m"));
         ok(!WorkflowPolicy.reviewedResume("","","p","p","m","m"));
+        ok(WorkflowPolicy.resumeChoiceEnabled(true,true,"plan","plan","m","m"));
+        ok(!WorkflowPolicy.resumeChoiceEnabled(false,true,"plan","plan","m","m"));
+        ok(!WorkflowPolicy.resumeChoiceEnabled(true,false,"plan","plan","m","m"));
+        ok(!WorkflowPolicy.resumeChoiceEnabled(true,true,"plan","changed","m","m"));
+        ok(!WorkflowPolicy.resumeChoiceEnabled(true,true,"plan","plan","m","other"));
+        ok(!WorkflowPolicy.resumeChoiceEnabled(true,true,null,null,"m","m"));
+        ok(!WorkflowPolicy.resumeChoiceEnabled(true,true,"plan","plan","",""));
         System.out.println("PASS: "+n+" workflow sample equivalence, budget and reviewed resume assertions");
     }
 }

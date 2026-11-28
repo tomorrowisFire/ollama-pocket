@@ -24,6 +24,15 @@ public final class ModelTileCatalog {
         }
     }
 
+    /** Installed size/quantization is a local observation; never substitute a registry estimate. */
+    public static long displayBytes(boolean installed,long advertised,long actual){
+        return Math.max(0L,installed?actual:advertised);
+    }
+    public static String displayQuant(boolean installed,String advertised,String actual){
+        String value=installed?actual:advertised;
+        return value==null||value.trim().isEmpty()?"미확인":value.trim().toUpperCase(Locale.ROOT);
+    }
+
     public static String familyName(String id) {
         String base=id==null?"":id.split(":",2)[0].toLowerCase(Locale.ROOT);
         switch(base){

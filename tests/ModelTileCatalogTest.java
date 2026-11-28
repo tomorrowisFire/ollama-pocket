@@ -26,6 +26,13 @@ public final class ModelTileCatalogTest {
         ok("미설치".equals(ModelTileCatalog.status(empty.get(0),"")),
             "accurate absent state");
         ok(empty.stream().noneMatch(t->t.installed),"no assumed installations");
-        System.out.println("PASS: ModelTileCatalog (12 assertions)");
+        ok(ModelTileCatalog.displayBytes(true,1000,700)==700,"local observed size");
+        ok(ModelTileCatalog.displayBytes(true,1000,0)==0,"unknown local size is not advertised size");
+        ok(ModelTileCatalog.displayBytes(false,1000,700)==1000,"registry size for absent model");
+        ok(ModelTileCatalog.displayBytes(true,1000,-1)==0,"invalid size");
+        ok("Q8_0".equals(ModelTileCatalog.displayQuant(true,"Q4_K_M","q8_0")),"local observed quant");
+        ok("미확인".equals(ModelTileCatalog.displayQuant(true,"Q4_K_M",null)),"unknown local quant");
+        ok("Q4_K_M".equals(ModelTileCatalog.displayQuant(false,"q4_k_m","Q8_0")),"advertised quant for absent model");
+        System.out.println("PASS: ModelTileCatalog (19 assertions)");
     }
 }

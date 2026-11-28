@@ -43,6 +43,9 @@ final class GpuOffloadEvidence {
         return offloaded<=total&&total<=MAX_LAYERS;
     }
 
+    static boolean matchesStream(Integer expected,int generation,boolean present,String model,String active){
+        return expected!=null&&expected==generation&&present&&model!=null&&!model.isEmpty()&&model.equals(active);
+    }
     static boolean ready(boolean sameProcessGeneration,boolean alive,boolean completed,
                          boolean healthy,boolean cancelled,boolean interrupted,boolean safe){
         return sameProcessGeneration&&alive&&completed&&healthy&&!cancelled&&!interrupted&&safe;

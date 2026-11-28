@@ -25,6 +25,15 @@ public final class ModelSearchCache {
         Entry old=entries.remove(key);
         if(old!=null){variants-=old.values.size();textChars-=old.chars;}
     }
+    private void pruneExpired(long now){
+        Iterator<Map.Entry<String,Entry>> it=entries.entrySet().iterator();
+        while(it.hasNext()){
+            Entry e=it.next().getValue();
+            if(now<e.stamped||now-e.stamped>ttlMillis){
+                variants-=e.values.size();textChars-=e.chars;it.remove();
+            }
+        }
+    }
     public synchronized List<ModelVariantCatalog.Variant> get(String key,long now) {
         Entry entry=entries.get(key);
         if(entry==null)return null;
@@ -35,6 +44,7 @@ public final class ModelSearchCache {
     }
     public synchronized void put(String key,List<ModelVariantCatalog.Variant> values,long now) {
         if(key==null||key.isEmpty()||key.length()>MAX_KEY_CHARS||now<0)return;
+        pruneExpired(now);
         // A replacement which cannot be cached invalidates the older complete result.
         remove(key);
         if(values==null||values.size()>MAX_ENTRY_VARIANTS)return;

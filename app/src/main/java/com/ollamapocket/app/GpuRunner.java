@@ -137,10 +137,7 @@ public final class GpuRunner {
             resident=activeModel.equals(model)&&activeWeightsKey.equals(weightsKey)?process:null;
             residentGeneration=generation;
         }
-        if(ready(context,resident,residentGeneration,cancelled)){
-            synchronized(GpuRunner.class){if(generation==residentGeneration&&process==resident)retryBudget.succeeded(retryKey);}
-            return true;
-        }
+        if(ready(context,resident,residentGeneration,cancelled))return true;
         final int startup;
         synchronized (GpuRunner.class) {
             if(residentGeneration!=generation||cancelled.getAsBoolean()||Thread.currentThread().isInterrupted()||InferenceSafety.blocked(context))return false;
@@ -198,10 +195,7 @@ public final class GpuRunner {
             while (SystemClock.elapsedRealtime() < end) {
                 if (process != current || !current.isAlive()||cancelled.getAsBoolean()||Thread.currentThread().isInterrupted()) break;
                 if(InferenceSafety.blocked(context)){reason.append("Unsafe inference resources");synchronized(GpuRunner.class){if(process==current)stopLocked();}return false;}
-                if(ready(context,current,myGeneration,cancelled)){
-                    synchronized(GpuRunner.class){if(generation==myGeneration&&process==current)retryBudget.succeeded(retryKey);}
-                    return true;
-                }
+                if(ready(context,current,myGeneration,cancelled))return true;
                 Thread.sleep(500);
             }
             if(abort.getAsBoolean()){
@@ -226,14 +220,26 @@ public final class GpuRunner {
 
     /** Identify the exact resident generation used by the current chat. */
     static synchronized Integer streamGeneration(String model){
-        return process!=null&&activeModel.equals(model)?generation:null;
+        return ownsStream(model,generation)?generation:null;
     }
-    /** Never penalize or stop a replacement process, a cancelled turn or unsafe resources. */
-    static synchronized void stopFailedStream(Context context,String model,Integer expected,java.util.function.BooleanSupplier cancelled){
-        if(expected==null||generation!=expected||process==null||!activeModel.equals(model))return;
-        boolean eligible=InferenceSafetyPolicy.mayFallback(cancelled.getAsBoolean(),Thread.currentThread().isInterrupted(),0,InferenceSafety.check(context));
-        retryBudget.failed(activeModel+"|"+activeWeightsKey,SystemClock.elapsedRealtime(),eligible);
+    static synchronized boolean ownsStream(String model,Integer expected){
+        return GpuOffloadEvidence.matchesStream(expected,generation,process!=null,model,activeModel)
+            &&process.isAlive()&&offloadConfirmed;
+    }
+    /** Clear backoff only after the caller has validated a complete real response or full benchmark. */
+    static synchronized boolean finishSuccessfulStream(Context context,String model,Integer expected,java.util.function.BooleanSupplier cancelled){
+        if(!ownsStream(model,expected)||!InferenceSafetyPolicy.mayStart(cancelled.getAsBoolean(),Thread.currentThread().isInterrupted(),InferenceSafety.check(context)))return false;
+        retryBudget.succeeded(activeModel+"|"+activeWeightsKey);
+        return true;
+    }
+    /** Stop only the failed generation; a stale owner must not initiate a competing CPU fallback. */
+    static synchronized boolean stopFailedStream(Context context,String model,Integer expected,java.util.function.BooleanSupplier cancelled){
+        if(!GpuOffloadEvidence.matchesStream(expected,generation,process!=null,model,activeModel))return false;
+        boolean eligible=InferenceSafetyPolicy.mayStart(cancelled.getAsBoolean(),Thread.currentThread().isInterrupted(),InferenceSafety.check(context));
+        if(!eligible)return false;
+        retryBudget.failed(activeModel+"|"+activeWeightsKey,SystemClock.elapsedRealtime(),true);
         stopLocked();
+        return true;
     }
     public static synchronized void stop() { stopLocked(); }
     private static void stopLocked() {
