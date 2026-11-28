@@ -539,7 +539,7 @@
     <string name="advisor_reason_memory">当前内存容量或低内存状态增加终止风险。</string>
     <string name="advisor_reason_range">根据本机其他模型实测值及权重大小估算的宽范围，实际速度可能不同。</string>
     <string name="advisor_reason_unmeasured">仅凭设备规格无法可靠预测速度，请运行模型基准测试。</string>
-    <string name="model_card_access">%1$s · %2$s · %3$s · %4$s。选择量化版本。</string>
+    <string name="model_card_access">%1$s · %2$s · %3$s · %4$s</string>
     <string name="model_measured_badge">实测 %1$s tok/s · %2$s</string>
     <string name="model_group_count">%1$d 个量化版本</string>
     <string name="model_result_header">找到 %1$d 个版本 · %2$s</string>

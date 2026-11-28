@@ -2482,11 +2482,16 @@ public final class MainActivity extends Activity {
     private int bubbleInk(){return WorkbenchVisualPolicy.palette(activeThemeDark).bubbleInk();}
     private int tileTextColor(boolean selected){return selected?bubbleInk():WHITE;}
     private int tileMutedColor(boolean selected){return selected?WorkbenchVisualPolicy.palette(activeThemeDark).bubbleMutedInk():MUTED;}
-    private GradientDrawable tileBackground(boolean selected){
-        GradientDrawable shape=bg(tileBackgroundColor(selected),18);
-        // Readable companion ink outlines selection; the status label remains authoritative.
-        shape.setStroke(dp(1),selected?WorkbenchVisualPolicy.palette(activeThemeDark).choiceBorder(true):borderTone());
-        return shape;
+    private android.graphics.drawable.Drawable tileBackground(boolean selected){
+        WorkbenchVisualPolicy.Palette palette=WorkbenchVisualPolicy.palette(activeThemeDark);
+        GradientDrawable normal=bg(tileBackgroundColor(selected),18);
+        normal.setStroke(dp(selected?2:1),selected?palette.focus:borderTone());
+        GradientDrawable focused=bg(tileBackgroundColor(selected),18);
+        focused.setStroke(dp(2),palette.focus);
+        android.graphics.drawable.StateListDrawable states=new android.graphics.drawable.StateListDrawable();
+        states.addState(new int[]{android.R.attr.state_focused},focused);
+        states.addState(new int[]{},normal);
+        return states;
     }
 
     private void tilePressEffect(View view){
@@ -2506,9 +2511,15 @@ public final class MainActivity extends Activity {
         });
     }
 
+    private ModelCardPresentation.Action modelCardAction(ModelTileCatalog.Tile item){
+        return ModelCardPresentation.action(item.id.equals(downloadingCardId)&&pullBusy,
+            visibleVariants.containsKey(item.id),item.installed&&knownModels.contains(item.id));
+    }
     private void activateTile(ModelTileCatalog.Tile tile){
-        if(tile.id.equals(downloadingCardId)&&pullBusy){toast(getString(R.string.model_downloading));return;}
+        ModelCardPresentation.Action action=modelCardAction(tile);
+        if(action==ModelCardPresentation.Action.WAIT){toast(getString(R.string.model_downloading));return;}
         if(isUiBusy()){toast(getString(R.string.busy));return;}
+        if(action==ModelCardPresentation.Action.OPEN_CHAT){selectModel(tile.id);showTab(0);return;}
         ModelVariantCatalog.Variant selected=visibleVariants.get(tile.id);
         if(selected!=null){
             List<ModelVariantCatalog.Variant> options=new ArrayList<>();
@@ -2537,7 +2548,6 @@ public final class MainActivity extends Activity {
                 }).setNegativeButton(getString(R.string.close),null));
             return;
         }
-        if(tile.installed&&knownModels.contains(tile.id)){selectModel(tile.id);showTab(0);return;}
         OllamaQuantPicker.show(this,tile.id,new ArrayList<>(knownModels),(tag,installed)->{
             if(isUiBusy())return;
             if(installed&&knownModels.contains(tag)){selectModel(tag);showTab(0);}
@@ -2586,9 +2596,51 @@ public final class MainActivity extends Activity {
         badge.setPadding(dp(compact?4:10),dp(compact?0:5),dp(compact?4:10),dp(compact?0:5));
         return badge;
     }
+    private String modelCardQuant(ModelTileCatalog.Tile item){
+        String quant=filterDisplay(item.quantization);
+        return quant.isEmpty()?getString(R.string.unknown):quant;
+    }
+    private String modelCardSize(ModelTileCatalog.Tile item){
+        return item.bytes>0?installedSize(item.bytes):getString(R.string.storage_unknown);
+    }
+    private String modelCardProvider(ModelTileCatalog.Tile item){
+        ModelVariantCatalog.Variant remote=visibleVariants.get(item.id);
+        return ModelCardPresentation.provider(item.installed,remote==null?null:remote.source,getString(R.string.own_device),"Ollama");
+    }
+    private String modelCardActionLabel(ModelTileCatalog.Tile item){
+        switch(modelCardAction(item)){
+            case OPEN_CHAT:return getString(R.string.start_chat);
+            case CHOOSE_VARIANT:return getString(R.string.model_quant_select);
+            default:return "";
+        }
+    }
     private String modelCardAccessibility(ModelTileCatalog.Tile item,WorkbenchVisualPolicy.ModelStatus status){
+        String metadata=ModelCardPresentation.summary(modelCardQuant(item),modelCardSize(item),modelCardProvider(item),benchmarkLabel(item.id));
+        String action=modelCardActionLabel(item);
         return getString(R.string.model_card_access,item.title,item.id,modelCardStatusLabel(status),
-            filterDisplay(item.quantization)+(item.featured?" · "+getString(R.string.model_recommend_mark):""))+" · "+UiText.modelDescription(this,item.description);
+            metadata+(item.featured?" · "+getString(R.string.model_recommend_mark):""))+" · "+UiText.modelDescription(this,item.description)+
+            (action.isEmpty()?"":" · "+action);
+    }
+    /** The whole card is one actionable accessibility node; its summary contains all visual metadata. */
+    private void finishModelCardAccessibility(ModelTileCatalog.Tile item,LinearLayout card){
+        card.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
+        card.setTooltipText(item.id);
+        if(Build.VERSION.SDK_INT>=28)card.setScreenReaderFocusable(true);
+        card.setAccessibilityDelegate(new View.AccessibilityDelegate(){
+            @Override public void onInitializeAccessibilityNodeInfo(View host,android.view.accessibility.AccessibilityNodeInfo info){
+                super.onInitializeAccessibilityNodeInfo(host,info);
+                info.setClassName(Button.class.getName());
+            }
+        });
+        for(int i=0;i<card.getChildCount();i++)
+            card.getChildAt(i).setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+    }
+    private TextView modelCardActionHint(ModelTileCatalog.Tile item,boolean selected){
+        String label=modelCardActionLabel(item);
+        TextView hint=text(label,12,selected?bubbleInk():WorkbenchVisualPolicy.palette(activeThemeDark).primary,true);
+        hint.setSingleLine(false);hint.setEllipsize(null);
+        hint.setVisibility(label.isEmpty()?View.GONE:View.VISIBLE);
+        return hint;
     }
 
     private int modelCardMinimumPx(){
@@ -2615,43 +2667,36 @@ public final class MainActivity extends Activity {
             card.setForeground(getDrawable(ripple.resourceId));
         tilePressEffect(card);
 
-        TextView statusText=modelStatusBadge(cardStatus,true);
-        statusText.setSingleLine(true);
-        statusText.setEllipsize(TextUtils.TruncateAt.END);
-        statusText.setGravity(Gravity.CENTER_VERTICAL|Gravity.START);
-        LinearLayout statusRow=row();
-        rowItem(statusRow,statusText,1,3);
-        if(item.featured){
-            TextView recommendation=text(getString(R.string.model_recommend_mark),10,secondary,true);
-            recommendation.setGravity(Gravity.CENTER_VERTICAL|Gravity.END);
-            recommendation.setSingleLine(true);
-            rowItem(statusRow,recommendation,0,0);
-        }
-        margin(statusRow,card,0,2);
-        tileStatusLabels.put(item.id,statusText);
-
         TextView name=text(item.title,sideDp<168?16:18,ink,true);
-        name.setGravity(Gravity.CENTER);
+        name.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);
         name.setMaxLines(2);
         name.setEllipsize(TextUtils.TruncateAt.END);
-        card.addView(name,new LinearLayout.LayoutParams(-1,0,1));
+        margin(name,card,0,4);
 
         ModelVariantCatalog.Variant remote=visibleVariants.get(item.id);
         String exact=remote==null?item.id:remote.label();
         TextView variant=text(exact,11,secondary,false);
-        variant.setGravity(Gravity.CENTER);
+        variant.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);
         variant.setSingleLine(true);
         variant.setEllipsize(TextUtils.TruncateAt.MIDDLE);
-        margin(variant,card,0,1);
+        margin(variant,card,0,6);
 
-        String suffix=item.bytes>0?installedSize(item.bytes):getString(R.string.storage_unknown);
-        String provider=remote!=null?remote.source:item.installed?getString(R.string.own_device):"Ollama";
-        TextView details=text(filterDisplay(item.quantization)+" · "+suffix+"\n"+
-            provider+benchmarkLabel(item.id),11,secondary,false);
-        details.setGravity(Gravity.CENTER);
-        details.setMaxLines(2);
-        details.setEllipsize(TextUtils.TruncateAt.END);
-        margin(details,card,1,2);
+        TextView statusText=modelStatusBadge(cardStatus,true);
+        statusText.setSingleLine(false);statusText.setEllipsize(null);
+        statusText.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);
+        margin(statusText,card,0,4);tileStatusLabels.put(item.id,statusText);
+        if(item.featured){
+            TextView recommendation=text(getString(R.string.model_recommend_mark),10,secondary,true);
+            recommendation.setSingleLine(false);recommendation.setEllipsize(null);
+            margin(recommendation,card,0,4);
+        }
+
+        TextView details=text(modelCardQuant(item)+" · "+modelCardSize(item),12,ink,true);
+        details.setSingleLine(false);details.setEllipsize(null);
+        margin(details,card,0,2);
+        TextView provenance=text(modelCardProvider(item)+benchmarkLabel(item.id),11,secondary,false);
+        provenance.setSingleLine(false);provenance.setEllipsize(null);
+        margin(provenance,card,0,4);
 
         ProgressBar progress=new ProgressBar(this,null,
             android.R.attr.progressBarStyleHorizontal);
@@ -2665,10 +2710,8 @@ public final class MainActivity extends Activity {
         margin(progress,card,0,2);
         tileDownloadBars.put(item.id,progress);
 
-        TextView hint=text(getString(R.string.model_quant_select),11,secondary,false);
-        hint.setGravity(Gravity.CENTER);
-        hint.setSingleLine(true);
-        margin(hint,card,1,0);
+        margin(modelCardActionHint(item,selected),card,3,0);
+        finishModelCardAccessibility(item,card);
         card.setOnClickListener(v->activateTile(item));
         return card;
     }
@@ -2706,20 +2749,19 @@ public final class MainActivity extends Activity {
         identifier.setSingleLine(true);
         identifier.setEllipsize(TextUtils.TruncateAt.MIDDLE);
         margin(identifier,body,0,4);
-        String provider=remote!=null?remote.source:item.installed?getString(R.string.own_device):"Ollama";
-        TextView details=text(filterDisplay(item.quantization)+"  ·  "+
-            (item.bytes>0?installedSize(item.bytes):getString(R.string.storage_unknown))+"  ·  "+provider+
-            benchmarkLabel(item.id),12,secondary,false);
-        details.setMaxLines(2);
-        details.setEllipsize(TextUtils.TruncateAt.END);
-        margin(details,body,0,0);
+        TextView details=text(modelCardQuant(item)+" · "+modelCardSize(item),12,ink,true);
+        details.setSingleLine(false);details.setEllipsize(null);
+        margin(details,body,0,2);
+        TextView provenance=text(modelCardProvider(item)+benchmarkLabel(item.id),11,secondary,false);
+        provenance.setSingleLine(false);provenance.setEllipsize(null);
+        margin(provenance,body,0,0);
         rowItem(line,body,1,8);
 
         TextView chevron=OnHandGlyphs.tile(this,OnHandGlyphs.Kind.CHEVRON);
         rowItem(line,chevron,0,0);margin(line,card,0,6);
         AdaptiveAnswerActions badges=new AdaptiveAnswerActions(this);
         TextView status=modelStatusBadge(cardStatus,false);
-        status.setMaxLines(2);
+        status.setSingleLine(false);status.setEllipsize(null);
         badges.addView(status,lp(-2,-2));
         if(item.featured){
             TextView recommended=text(getString(R.string.model_recommend_mark),11,bubbleInk(),true);
@@ -2739,6 +2781,8 @@ public final class MainActivity extends Activity {
         }
         margin(progress,card,7,0);
         tileDownloadBars.put(item.id,progress);
+        margin(modelCardActionHint(item,selected),card,4,0);
+        finishModelCardAccessibility(item,card);
         card.setOnClickListener(v->activateTile(item));
         return card;
     }
@@ -2965,7 +3009,8 @@ public final class MainActivity extends Activity {
                     groupRow.setGravity(Gravity.START|Gravity.TOP);
                     for(int c=0;c<columns&&pos+c<items.size();c++){
                         LinearLayout card=buildModelTile(items.get(pos+c),sideDp);
-                        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(sidePx,WorkspaceLayoutPolicy.modelCardHeightPx(sidePx,minCard));
+                        card.setMinimumHeight(WorkspaceLayoutPolicy.modelCardHeightPx(sidePx,minCard));
+                        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(sidePx,ViewGroup.LayoutParams.WRAP_CONTENT);
                         if(c>0)p.leftMargin=gap;
                         groupRow.addView(card,p);
                     }
@@ -3055,7 +3100,8 @@ public final class MainActivity extends Activity {
                 if(pos+col>=shown.size())break;
                 ModelTileCatalog.Tile item=shown.get(pos+col);
                 LinearLayout tile=buildModelTile(item,sideDp);
-                LinearLayout.LayoutParams tileParams=new LinearLayout.LayoutParams(sidePx,WorkspaceLayoutPolicy.modelCardHeightPx(sidePx,minCard));
+                tile.setMinimumHeight(WorkspaceLayoutPolicy.modelCardHeightPx(sidePx,minCard));
+                LinearLayout.LayoutParams tileParams=new LinearLayout.LayoutParams(sidePx,ViewGroup.LayoutParams.WRAP_CONTENT);
                 if(col>0)tileParams.leftMargin=gap;
                 group.addView(tile,tileParams);
                 if(reveal&&pos+col<6){

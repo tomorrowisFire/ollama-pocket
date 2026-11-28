@@ -539,7 +539,7 @@
     <string name="advisor_reason_memory">現在の RAM 容量やメモリ不足状態では終了リスクが高まります。</string>
     <string name="advisor_reason_range">同じ端末の他モデルの実測値と重み容量に基づく広い推定範囲であり、実速度は異なる場合があります。</string>
     <string name="advisor_reason_unmeasured">仕様だけでは速度を信頼性高く予測できません。モデルベンチマークを実行してください。</string>
-    <string name="model_card_access">%1$s · %2$s · %3$s · %4$s。量子化を選択。</string>
+    <string name="model_card_access">%1$s · %2$s · %3$s · %4$s</string>
     <string name="model_measured_badge">実測 %1$s tok/s · %2$s</string>
     <string name="model_group_count">量子化 %1$d 件</string>
     <string name="model_result_header">検索結果 %1$d 件 · %2$s</string>

@@ -1,6 +1,6 @@
 {
-  "stage": "F11-1A-R1-brand-contract-repair",
-  "revision": "F11-1A-R1",
-  "priorCandidate": "a6b6e93b11fc8ad76d428212d5f2ebd107fbf583",
-  "reason": "Scoped repair of failed brand contract; retain paint-only guards and assert intentional settings text ownership. Exact FAST/FULL required."
+  "stage": "F11-1B-model-card-hierarchy",
+  "revision": "F11-1B",
+  "priorCandidate": "b0767d70aadad403bbf0bb81e9d01bf0b9ab82ea",
+  "reason": "Batch model card action semantics, metadata and adaptive height into both renderers; exact FAST/FULL required. Device tests deferred."
 }

@@ -539,7 +539,7 @@
     <string name="advisor_reason_memory">Current RAM or low-memory state increases the risk of termination.</string>
     <string name="advisor_reason_range">Wide range estimated using another model’s measurement on this device and weight sizes. Actual speed may differ.</string>
     <string name="advisor_reason_unmeasured">Specs alone cannot reliably predict speed. Run a model benchmark for measured values.</string>
-    <string name="model_card_access">%1$s · %2$s · %3$s · %4$s. Select quantization.</string>
+    <string name="model_card_access">%1$s · %2$s · %3$s · %4$s</string>
     <string name="model_measured_badge">Measured %1$s tok/s · %2$s</string>
     <string name="model_group_count">%1$d quantizations</string>
     <string name="model_result_header">%1$d versions found · %2$s</string>

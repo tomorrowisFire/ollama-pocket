@@ -539,7 +539,7 @@
     <string name="advisor_reason_memory">目前 RAM 容量或低記憶體狀態增加終止風險。</string>
     <string name="advisor_reason_range">依本機其他模型實測值及權重大小估算的寬範圍，實際速度可能不同。</string>
     <string name="advisor_reason_unmeasured">僅憑裝置規格無法可靠預測速度，請執行模型效能測試。</string>
-    <string name="model_card_access">%1$s · %2$s · %3$s · %4$s。選擇量化版本。</string>
+    <string name="model_card_access">%1$s · %2$s · %3$s · %4$s</string>
     <string name="model_measured_badge">實測 %1$s tok/s · %2$s</string>
     <string name="model_group_count">%1$d 個量化版本</string>
     <string name="model_result_header">找到 %1$d 個版本 · %2$s</string>

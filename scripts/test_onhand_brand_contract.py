@@ -158,7 +158,7 @@ assert main.count("WorkspaceLayoutPolicy.modelCardHeightPx(sidePx,minCard)")==2
 assert "Math.max(dp(110),(space-gap*(columns-1))/columns)" not in main
 assert "TextView variant=text(exact,11,secondary,false)" in grid
 assert "variant.setEllipsize(TextUtils.TruncateAt.MIDDLE)" in grid
-assert "title.setMaxLines(2)" in listing and "details.setMaxLines(2)" in listing
+assert "title.setMaxLines(2)" in listing and "details.setSingleLine(false);details.setEllipsize(null)" in listing
 # F10A53: isolated popup, cloud form and spinner integration; no new transmission path.
 window=(src/"WorkbenchWindow.java").read_text()
 assert "fit(owner,dialog,false)" in window and "fit(owner,dialog,true)" in window
@@ -586,3 +586,25 @@ for required in ("SelectionPresentation.settingText(label,value)","RelativeSizeS
 for forbidden in ("setOnClickListener(","setEnabled(","setVisibility(","setSelected(","getPreferences(","setFilters("):
     assert forbidden not in setting_style,forbidden
 print("PASS: settings text ownership is separate from protected paint-only helpers")
+
+# F11-1B: matching card actions and growing content, retaining all actual state/transfer guards.
+for block in (grid,listing):
+    assert "modelCardQuant(item)" in block and "modelCardSize(item)" in block
+    assert "modelCardProvider(item)+benchmarkLabel(item.id)" in block
+    assert "margin(modelCardActionHint(item,selected),card" in block
+    assert "finishModelCardAccessibility(item,card)" in block
+    assert "details.setSingleLine(false);details.setEllipsize(null)" in block
+    assert "provenance.setSingleLine(false);provenance.setEllipsize(null)" in block
+assert "ModelCardPresentation.Action action=modelCardAction(tile)" in main
+assert "if(action==ModelCardPresentation.Action.OPEN_CHAT){selectModel(tile.id);showTab(0);return;}" in main
+assert "case OPEN_CHAT:return getString(R.string.start_chat);" in main
+assert "case CHOOSE_VARIANT:return getString(R.string.model_quant_select);" in main
+assert "ModelCardPresentation.summary(modelCardQuant(item),modelCardSize(item),modelCardProvider(item),benchmarkLabel(item.id))" in status
+assert "View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS" in status
+assert "card.setTooltipText(item.id)" in status
+assert main.count("setMinimumHeight(WorkspaceLayoutPolicy.modelCardHeightPx(sidePx,minCard))")==2
+assert main.count("new LinearLayout.LayoutParams(sidePx,ViewGroup.LayoutParams.WRAP_CONTENT)")==2
+assert "card.addView(name,new LinearLayout.LayoutParams(-1,0,1))" not in grid
+for locale in ("values","values-ko","values-ja","values-b+zh+Hans","values-b+zh+Hant"):
+    assert ET.parse(res/locale/"strings.xml").getroot().find("string[@name='model_card_access']").text=="%1$s · %2$s · %3$s · %4$s"
+print("PASS: F11-1B action-aware and content-measured cards")

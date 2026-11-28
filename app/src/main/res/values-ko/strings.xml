@@ -539,7 +539,7 @@
     <string name="advisor_reason_memory">현재 RAM 용량 또는 저메모리 상태에서는 종료 위험이 큽니다.</string>
     <string name="advisor_reason_range">같은 기기의 다른 모델 실측값과 가중치 크기로 추정한 넓은 범위이며 실제 속도는 다를 수 있습니다.</string>
     <string name="advisor_reason_unmeasured">기기 스펙만으로 속도를 신뢰성 있게 예측할 수 없습니다. 모델 벤치마크를 실행하세요.</string>
-    <string name="model_card_access">%1$s · %2$s · %3$s · %4$s. 터치하여 양자화 버전 선택</string>
+    <string name="model_card_access">%1$s · %2$s · %3$s · %4$s</string>
     <string name="model_measured_badge">실측 %1$s tok/s · %2$s</string>
     <string name="model_group_count">%1$d개 양자화</string>
     <string name="model_result_header">검색 결과 %1$d개 버전 · %2$s</string>
