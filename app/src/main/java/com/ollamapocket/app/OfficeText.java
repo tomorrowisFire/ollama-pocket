@@ -9,10 +9,11 @@ import javax.xml.parsers.SAXParserFactory;
 import org.xml.sax.*;
 import org.xml.sax.helpers.DefaultHandler;
 
-/** Read-only OOXML excerpt reader. No file extraction, relationship fetching or formula execution. */
+/** Read-only packaged office text reader. No file extraction, external relationships or execution. */
 final class OfficeText {
-    static final int MAX_BYTES=8*1024*1024, MAX_EXPANDED=16*1024*1024,
-        MAX_PART=4*1024*1024, MAX_ENTRIES=512, MAX_SHEETS=12;
+    static final int MAX_BYTES=32*1024*1024, MAX_EXPANDED=64*1024*1024,
+        MAX_PART=8*1024*1024, MAX_RETAINED=24*1024*1024, MAX_ENTRIES=2048,
+        MAX_SHEETS=32,MAX_SLIDES=256,MAX_SECTIONS=256;
     private static final String W="http://schemas.openxmlformats.org/wordprocessingml/2006/main",
         WS="http://purl.oclc.org/ooxml/wordprocessingml/main",
         S="http://schemas.openxmlformats.org/spreadsheetml/2006/main",
@@ -24,29 +25,42 @@ final class OfficeText {
     private static AttachmentText.Failure bad(AttachmentText.Problem p){return new AttachmentText.Failure(p);}
     private static AttachmentText.Failure invalid(){return bad(AttachmentText.Problem.INVALID);}
     private static AttachmentText.Failure large(){return bad(AttachmentText.Problem.TOO_LARGE);}
-    static boolean supports(String name){
-        if(name==null)return false;
-        String lower=name.toLowerCase(Locale.ROOT);
-        return lower.endsWith(".docx")||lower.endsWith(".xlsx");
+    private enum Kind { WORD,SHEET,PRESENTATION,HWPX,ODT,ODS,ODP }
+    private static Kind kind(String name){
+        if(name==null)return null;
+        String n=name.toLowerCase(Locale.ROOT);int dot=n.lastIndexOf('.');
+        if(dot<0||n.indexOf('/')>=0||n.indexOf('\\')>=0)return null;
+        switch(n.substring(dot+1)){
+            case "docx":case "docm":case "dotx":case "dotm":return Kind.WORD;
+            case "xlsx":case "xlsm":case "xltx":case "xltm":return Kind.SHEET;
+            case "pptx":case "pptm":case "ppsx":case "ppsm":case "potx":case "potm":return Kind.PRESENTATION;
+            case "hwpx":return Kind.HWPX;
+            case "odt":case "ott":return Kind.ODT;
+            case "ods":case "ots":return Kind.ODS;
+            case "odp":case "otp":return Kind.ODP;
+            default:return null;
+        }
     }
+    static boolean supports(String name){return kind(name)!=null;}
     static AttachmentText.Result read(String name,InputStream source)throws IOException{return read(name,source,1);}
     static AttachmentText.Result read(String name,InputStream source,int segment)throws IOException{
-        if(!DocumentWindow.validSegment(segment))throw bad(AttachmentText.Problem.RANGE);
+        if(segment<1||segment>DocumentWindow.MAX_OFFICE_SEGMENTS)throw bad(AttachmentText.Problem.RANGE);
         AttachmentText.Prefix prefix=extract(name,source,DocumentWindow.prefixLimit(segment));
         return AttachmentText.Result.window(name,DocumentWindow.select(prefix.text,segment,prefix.partial),true);
     }
     static AttachmentText.Prefix extract(String name,InputStream source,int limit)throws IOException{
-        if(limit<1||limit>DocumentWindow.prefixLimit(DocumentWindow.MAX_SEGMENTS))throw bad(AttachmentText.Problem.RANGE);
-        if(!supports(name))throw bad(AttachmentText.Problem.UNSUPPORTED);
+        if(limit<1||limit>DocumentWindow.prefixLimit(DocumentWindow.MAX_OFFICE_SEGMENTS))throw bad(AttachmentText.Problem.RANGE);
+        Kind type=kind(name);
+        if(type==null)throw bad(AttachmentText.Problem.UNSUPPORTED);
         if(source==null)throw invalid();
         try{
-            Map<String,byte[]> parts=archive(bounded(source,MAX_BYTES));
+            Map<String,byte[]> parts=archive(source,type);
             Excerpt out=new Excerpt(limit);
-            if(name.toLowerCase(Locale.ROOT).endsWith(".docx")){
+            if(type==Kind.WORD){
                 byte[] document=parts.get("word/document.xml");
                 if(document==null)throw invalid();
                 parse(document,new Word(out));
-            }else{
+            }else if(type==Kind.SHEET){
                 byte[] book=parts.get("xl/workbook.xml"),rels=parts.get("xl/_rels/workbook.xml.rels");
                 if(book==null||rels==null)throw invalid();
                 Workbook workbook=new Workbook();Relations relations=new Relations();
@@ -61,6 +75,19 @@ final class OfficeText {
                     if(path==null||!parts.containsKey(path)){out.partial=true;continue;}
                     parse(parts.get(path),new Cells(out,sheet.name,shared.values));
                 }
+            }else if(type==Kind.PRESENTATION){
+                readPresentation(parts,out);
+            }else if(type==Kind.HWPX){
+                readHwpx(parts,out);
+            }else{
+                byte[] content=parts.get("content.xml"),mime=parts.get("mimetype");
+                if(content==null||mime==null)throw invalid();
+                String actual=new String(mime,StandardCharsets.US_ASCII);
+                String expected=type==Kind.ODT?"text":type==Kind.ODS?"spreadsheet":"presentation";
+                if(!actual.equals("application/vnd.oasis.opendocument."+expected)&&
+                        !actual.equals("application/vnd.oasis.opendocument."+expected+"-template"))throw invalid();
+                parse(content,new Odf(out,type));
+                out.partial=true; // style, layout and repeated cell expansion are deliberately omitted.
             }
             if(!out.hasData)throw bad(AttachmentText.Problem.EMPTY);
             return new AttachmentText.Prefix(out.text.toString(),out.partial);
@@ -71,45 +98,53 @@ final class OfficeText {
             throw invalid();
         }
     }
-    private static byte[] bounded(InputStream source,int limit)throws IOException{
-        ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] buf=new byte[8192];int n;
-        while((n=source.read(buf))!=-1){
-            if(Thread.currentThread().isInterrupted())throw new InterruptedIOException();
-            if(n==0)continue;
-            if((long)out.size()+n>limit)throw large();
-            out.write(buf,0,n);
-        }
-        return out.toByteArray();
-    }
-    private static boolean wanted(String path){
-        return path.equals("word/document.xml")||path.equals("xl/workbook.xml")||
+    private static boolean wanted(String path,Kind type){
+        if(type==Kind.WORD)return path.equals("word/document.xml");
+        if(type==Kind.SHEET)return path.equals("xl/workbook.xml")||
             path.equals("xl/_rels/workbook.xml.rels")||path.equals("xl/sharedStrings.xml")||
             path.matches("xl/worksheets/[A-Za-z0-9_.-]{1,128}\\.xml");
+        if(type==Kind.PRESENTATION)return path.equals("ppt/presentation.xml")||
+            path.equals("ppt/_rels/presentation.xml.rels")||path.matches("ppt/slides/slide[0-9]{1,9}\\.xml");
+        if(type==Kind.HWPX)return path.matches("Contents/section[0-9]{1,9}\\.xml");
+        return path.equals("content.xml")||path.equals("mimetype");
     }
-    private static Map<String,byte[]> archive(byte[] data)throws IOException{
-        if(data.length<4||data[0]!='P'||data[1]!='K'||data[2]!=3||data[3]!=4)throw invalid();
+    private static Map<String,byte[]> archive(InputStream source,Kind type)throws IOException{
+        AttachmentText.BoundedSource raw=new AttachmentText.BoundedSource(source,MAX_BYTES);
+        PushbackInputStream input=new PushbackInputStream(raw,4);
+        byte[] magic=new byte[4];int got=0;
+        while(got<4){int n=input.read(magic,got,4-got);if(n<0)break;got+=n;}
+        if(got!=4||magic[0]!='P'||magic[1]!='K'||magic[2]!=3||magic[3]!=4){
+            raw.drain();throw invalid();
+        }
+        input.unread(magic);
         Map<String,byte[]> parts=new HashMap<>();Set<String> names=new HashSet<>();
-        long total=0;int entries=0;
-        try(ZipInputStream zip=new ZipInputStream(new ByteArrayInputStream(data))){
+        long total=0,retained=0;int entries=0;
+        // The caller owns the original stream. Closing the ZIP releases only its inflater.
+        try(ZipInputStream zip=new ZipInputStream(new FilterInputStream(input){
+            @Override public void close(){}
+        })){
             ZipEntry entry;byte[] buf=new byte[8192];
             while((entry=zip.getNextEntry())!=null){
+                if(Thread.currentThread().isInterrupted())throw new InterruptedIOException();
                 if(++entries>MAX_ENTRIES)throw large();
                 String name=entry.getName();
                 if(name.length()>512||name.startsWith("/")||name.indexOf('\\')>=0||
                     Arrays.asList(name.split("/")).contains("..")||!names.add(name))throw invalid();
-                boolean keep=!entry.isDirectory()&&wanted(name);
+                boolean keep=!entry.isDirectory()&&wanted(name,type);
                 ByteArrayOutputStream part=keep?new ByteArrayOutputStream():null;
                 int count=0,n;
                 while((n=zip.read(buf))!=-1){
                     if(Thread.currentThread().isInterrupted())throw new InterruptedIOException();
-                    if(n==0)continue;
+                    if(n==0)throw invalid();
                     total+=n;count+=n;
-                    if(total>MAX_EXPANDED||(keep&&count>MAX_PART))throw large();
+                    if(total>MAX_EXPANDED||(keep&&(count>MAX_PART||retained+count>MAX_RETAINED)))throw large();
                     if(keep)part.write(buf,0,n);
                 }
-                if(keep)parts.put(name,part.toByteArray());
+                if(keep){retained+=count;parts.put(name,part.toByteArray());}
                 zip.closeEntry();
             }
+            // Include central directory and trailing physical bytes in the compressed-file cap.
+            raw.drain();
         }
         return parts;
     }
@@ -296,4 +331,160 @@ final class OfficeText {
             }
         }
     }
+    private static final String PPT="http://schemas.openxmlformats.org/presentationml/2006/main",
+        PPT_STRICT="http://purl.oclc.org/ooxml/presentationml/main",
+        DRAW="http://schemas.openxmlformats.org/drawingml/2006/main",
+        DRAW_STRICT="http://purl.oclc.org/ooxml/drawingml/main",
+        HS="http://www.hancom.co.kr/hwpml/2011/section",
+        HP="http://www.hancom.co.kr/hwpml/2011/paragraph",
+        O="urn:oasis:names:tc:opendocument:xmlns:office:1.0",
+        T="urn:oasis:names:tc:opendocument:xmlns:text:1.0",
+        TB="urn:oasis:names:tc:opendocument:xmlns:table:1.0",
+        D="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0";
+    private static boolean ppt(String ns){return PPT.equals(ns)||PPT_STRICT.equals(ns);}
+    private static boolean drawing(String ns){return DRAW.equals(ns)||DRAW_STRICT.equals(ns);}
+    private static void readPresentation(Map<String,byte[]> parts,Excerpt out)throws Exception{
+        byte[] presentation=parts.get("ppt/presentation.xml"),rels=parts.get("ppt/_rels/presentation.xml.rels");
+        if(presentation==null||rels==null)throw invalid();
+        SlideOrder order=new SlideOrder();SlideRelations relations=new SlideRelations();
+        parse(presentation,order);parse(rels,relations);
+        if(order.ids.isEmpty())throw invalid();
+        int index=0;
+        for(String id:order.ids){
+            if(++index>MAX_SLIDES||out.sealed){out.partial=true;break;}
+            String path=relations.paths.get(id);
+            if(path==null||!parts.containsKey(path)){out.partial=true;continue;}
+            parse(parts.get(path),new ParagraphParts(out,"[Slide "+index+"] ",false));
+        }
+        out.partial=true; // speaker notes, images, diagrams, layout and other parts not included.
+    }
+    private static final class SlideOrder extends Handler{
+        final List<String> ids=new ArrayList<>();int list;
+        boolean root(String ns,String tag){return ppt(ns)&&tag.equals("presentation");}
+        @Override void start(String ns,String tag,Attributes a)throws SAXException{
+            if(!ppt(ns))return;
+            if(tag.equals("sldIdLst"))list=depth;
+            if(list>0&&tag.equals("sldId")){
+                String id=a.getValue(R,"id");if(id==null)id=a.getValue(RS,"id");
+                if(id==null||ids.size()>=2048||ids.contains(id))throw new SAXException("Slide identity");
+                ids.add(id);
+            }
+        }
+        @Override void end(String ns,String tag){if(depth==list)list=0;}
+    }
+    private static final class SlideRelations extends Handler{
+        final Map<String,String> paths=new HashMap<>();
+        boolean root(String ns,String tag){return P.equals(ns)&&tag.equals("Relationships");}
+        @Override void start(String ns,String tag,Attributes a)throws SAXException{
+            if(!P.equals(ns)||!tag.equals("Relationship"))return;
+            String type=a.getValue("Type"),mode=a.getValue("TargetMode"),target=a.getValue("Target"),id=a.getValue("Id");
+            if(!( (R+"/slide").equals(type)||(RS+"/slide").equals(type))||
+                mode!=null&&!mode.equals("Internal")||target==null||id==null)return;
+            String path=target.startsWith("/")?target.substring(1):"ppt/"+target;
+            if(!path.matches("ppt/slides/slide[0-9]{1,9}\\.xml"))return;
+            if(paths.put(id,path)!=null)throw new SAXException("Duplicate slide relationship");
+        }
+    }
+    private static void readHwpx(Map<String,byte[]> parts,Excerpt out)throws Exception{
+        TreeMap<Integer,byte[]> sections=new TreeMap<>();
+        for(Map.Entry<String,byte[]> item:parts.entrySet()){
+            String name=item.getKey();
+            if(!name.matches("Contents/section[0-9]{1,9}\\.xml"))continue;
+            int n=Integer.parseInt(name.substring("Contents/section".length(),name.length()-4));
+            if(sections.put(n,item.getValue())!=null)throw invalid();
+        }
+        if(sections.isEmpty())throw invalid();
+        int count=0;
+        for(Map.Entry<Integer,byte[]> item:sections.entrySet()){
+            if(++count>MAX_SECTIONS||out.sealed){out.partial=true;break;}
+            parse(item.getValue(),new ParagraphParts(out,"[Section "+(item.getKey()+1)+"] ",true));
+        }
+        out.partial=true; // HWPX main section text only; no binary HWP or visual rendering.
+    }
+    private static final class ParagraphParts extends Handler{
+        final Excerpt out;final String label;final boolean hwp;
+        int paragraph,capture;StringBuilder text;
+        ParagraphParts(Excerpt out,String label,boolean hwp){this.out=out;this.label=label;this.hwp=hwp;}
+        boolean root(String ns,String tag){return hwp?HS.equals(ns)&&"sec".equals(tag):ppt(ns)&&"sld".equals(tag);}
+        boolean matching(String ns){return hwp?HP.equals(ns):drawing(ns);}
+        @Override void start(String ns,String tag,Attributes a){
+            if(!matching(ns))return;
+            if(tag.equals("p")){
+                if(paragraph==0){paragraph=depth;text=new StringBuilder();}
+                else append("\n");
+            }
+            if(paragraph>0&&tag.equals("t"))capture=depth;
+            if(paragraph>0&&(tag.equals("br")||tag.equals("lineBreak")))append("\n");
+            if(paragraph>0&&tag.equals("tab"))append("\t");
+        }
+        void append(String value){
+            if(text==null)return;
+            int room=out.limit-text.length(),end=Math.min(Math.max(0,room),value.length());
+            if(end<value.length()){out.partial=true;if(end>0&&Character.isHighSurrogate(value.charAt(end-1)))end--;}
+            if(end>0)text.append(value,0,end);
+        }
+        @Override void chars(char[] c,int start,int len){if(capture>0)append(new String(c,start,len));}
+        @Override void end(String ns,String tag){
+            if(depth==capture)capture=0;
+            if(depth==paragraph){out.record(label,text.toString());text=null;paragraph=0;}
+        }
+    }
+    private static final class Odf extends Handler{
+        final Excerpt out;final Kind type;
+        int body,paragraph,cell;String label="",cached="",formula="";
+        StringBuilder text,cellText;
+        Odf(Excerpt out,Kind type){this.out=out;this.type=type;}
+        boolean root(String ns,String tag){return O.equals(ns)&&"document-content".equals(tag);}
+        String boundedAttr(Attributes a,String ns,String key)throws SAXException{
+            String value=a.getValue(ns,key);
+            if(value==null)return "";
+            if(value.length()>8192)throw new SAXException("ODF attribute limit");
+            return value;
+        }
+        @Override void start(String ns,String tag,Attributes a)throws SAXException{
+            if(O.equals(ns)&&tag.equals("body"))body=depth;
+            if(body==0)return;
+            if(type==Kind.ODS&&TB.equals(ns)&&tag.equals("table"))label="[Sheet "+boundedAttr(a,TB,"name")+"] ";
+            if(type==Kind.ODP&&D.equals(ns)&&tag.equals("page"))label="[Slide "+boundedAttr(a,D,"name")+"] ";
+            if(type==Kind.ODS&&TB.equals(ns)&&tag.equals("table-cell")&&cell==0){
+                cell=depth;cellText=new StringBuilder();cached="";formula=boundedAttr(a,TB,"formula");
+                for(String key:new String[]{"string-value","value","date-value","time-value","boolean-value"}){
+                    cached=boundedAttr(a,O,key);if(!cached.isEmpty())break;
+                }
+            }
+            if(T.equals(ns)&&(tag.equals("p")||tag.equals("h"))&&paragraph==0){
+                paragraph=depth;text=new StringBuilder();
+            }
+            if(paragraph>0&&T.equals(ns)){
+                if(tag.equals("tab"))append(text,"\t");
+                if(tag.equals("line-break"))append(text,"\n");
+                if(tag.equals("s")){
+                    String raw=boundedAttr(a,T,"c");int n=1;
+                    if(!raw.isEmpty())try{n=Integer.parseInt(raw);}catch(NumberFormatException e){throw new SAXException("ODF space count");}
+                    if(n<1||n>10000)throw new SAXException("ODF space count");
+                    append(text," ".repeat(n));
+                }
+            }
+        }
+        void append(StringBuilder b,String value){
+            int end=Math.min(value.length(),Math.max(0,out.limit-b.length()));
+            if(end<value.length()){out.partial=true;if(end>0&&Character.isHighSurrogate(value.charAt(end-1)))end--;}
+            if(end>0)b.append(value,0,end);
+        }
+        @Override void chars(char[] c,int start,int len){if(paragraph>0)append(text,new String(c,start,len));}
+        @Override void end(String ns,String tag){
+            if(depth==paragraph){
+                if(cell>0){if(cellText.length()>0)append(cellText,"\n");append(cellText,text.toString());}
+                else out.record(label,text.toString());
+                paragraph=0;text=null;
+            }
+            if(depth==cell){
+                String value=cellText.length()>0?cellText.toString():cached;
+                if(!formula.isEmpty())value="[formula: "+formula+"] [stored text/value: "+value+"]";
+                out.record(label+"[Cell record] ",value);cell=0;cellText=null;
+            }
+            if(depth==body)body=0;
+        }
+    }
+
 }

@@ -119,7 +119,7 @@ final class AttachmentText {
     }
     /** Read one bounded extracted prefix per selected file. Existing single-window path is unchanged. */
     static Prefix readPrefix(String name,InputStream source,Encoding encoding,int limit)throws IOException{
-        if(encoding==null||limit<1||limit>DocumentWindow.prefixLimit(DocumentWindow.MAX_SEGMENTS)-1)
+        if(encoding==null||limit<1||limit>DocumentWindow.prefixLimit(DocumentWindow.MAX_OFFICE_SEGMENTS)-1)
             throw new Failure(Problem.RANGE);
         if(OfficeText.supports(name))return OfficeText.extract(name,source,limit+1).bounded(limit);
         Scan scan=scanPlain(name,source,encoding,0,limit+1);

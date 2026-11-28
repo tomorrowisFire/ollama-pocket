@@ -54,7 +54,40 @@ public final class OfficeTextTest {
             "xl/_rels/workbook.xml.rels",rels("<Relationship Id=\"r1\" Type=\""+R+"/worksheet\" TargetMode=\"External\" Target=\"https://invalid.example/sheet.xml\"/>"));
         bad("a.xlsx",external,AttachmentText.Problem.EMPTY);
         bad("a.xlsx",zip("xl/workbook.xml",wb),AttachmentText.Problem.INVALID);
+        String pp="http://schemas.openxmlformats.org/presentationml/2006/main",draw="http://schemas.openxmlformats.org/drawingml/2006/main";
+        String pres="<p:presentation xmlns:p=\""+pp+"\" xmlns:r=\""+R+"\"><p:sldIdLst><p:sldId r:id=\"s2\"/><p:sldId r:id=\"s1\"/></p:sldIdLst></p:presentation>";
+        String pr=rels("<Relationship Id=\"s1\" Type=\""+R+"/slide\" Target=\"slides/slide1.xml\"/><Relationship Id=\"s2\" Type=\""+R+"/slide\" Target=\"slides/slide2.xml\"/>");
+        String slide="<p:sld xmlns:p=\""+pp+"\" xmlns:a=\""+draw+"\"><a:p><a:r><a:t>VALUE</a:t></a:r></a:p></p:sld>";
+        byte[] ppt=zip("ppt/presentation.xml",pres,"ppt/_rels/presentation.xml.rels",pr,
+                "ppt/slides/slide1.xml",slide.replace("VALUE","Second"),"ppt/slides/slide2.xml",slide.replace("VALUE","한국어 😀"));
+        for(String name:new String[]{"test.pptx","test.pptm","test.ppsx","test.potx"}){
+            var result=read(name,ppt);
+            ok(result.partial&&result.text.contains("[Slide 1] 한국어 😀")&&result.text.indexOf("한국어")<result.text.indexOf("Second"),"Slide order "+name);
+        }
+        bad("bad.pptx",zip("ppt/presentation.xml",pres),AttachmentText.Problem.INVALID);
+        bad("bad.pptx",zip("ppt/presentation.xml",pres,"ppt/_rels/presentation.xml.rels",pr,
+                "ppt/slides/slide2.xml","<!DOCTYPE x>"+slide),AttachmentText.Problem.INVALID);
+        String hw="<hs:sec xmlns:hs=\"http://www.hancom.co.kr/hwpml/2011/section\" xmlns:hp=\"http://www.hancom.co.kr/hwpml/2011/paragraph\"><hp:p><hp:run><hp:t>VALUE</hp:t></hp:run></hp:p></hs:sec>";
+        var hwp=read("한글.HWPX",zip("Contents/section1.xml",hw.replace("VALUE","둘째"),"Contents/section0.xml",hw.replace("VALUE","첫째 😀")));
+        ok(hwp.office&&hwp.partial&&hwp.text.contains("[Section 1] 첫째 😀")&&hwp.text.indexOf("첫째")<hwp.text.indexOf("둘째"),"HWPX section order");
+        bad("bad.hwpx",zip("Contents/section0.xml","<x/>"),AttachmentText.Problem.INVALID);
+        String odf="<office:document-content xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\" xmlns:table=\"urn:oasis:names:tc:opendocument:xmlns:table:1.0\" xmlns:draw=\"urn:oasis:names:tc:opendocument:xmlns:drawing:1.0\"><office:body>VALUE</office:body></office:document-content>";
+        String odt=odf.replace("VALUE","<office:text><text:p>안녕<text:s text:c=\"2\"/>世界</text:p></office:text>");
+        ok(read("test.odt",zip("mimetype","application/vnd.oasis.opendocument.text","content.xml",odt)).text.contains("안녕  世界"),"ODT spaces");
+        String ods=odf.replace("VALUE","<office:spreadsheet><table:table table:name=\"Sales\"><table:table-row><table:table-cell office:value=\"42\" table:formula=\"of:=SUM(A1:A2)\"/><table:table-cell><text:p>中文</text:p></table:table-cell></table:table-row></table:table></office:spreadsheet>");
+        String odsc=read("test.ods",zip("mimetype","application/vnd.oasis.opendocument.spreadsheet","content.xml",ods)).text;
+        ok(odsc.contains("[formula: of:=SUM(A1:A2)] [stored text/value: 42]")&&odsc.contains("中文"),"ODS stored values");
+        String odp=odf.replace("VALUE","<office:presentation><draw:page draw:name=\"One\"><text:p>日本語</text:p></draw:page></office:presentation>");
+        ok(read("test.odp",zip("mimetype","application/vnd.oasis.opendocument.presentation","content.xml",odp)).text.contains("[Slide One] 日本語"),"ODP slide text");
+        bad("test.odt",zip("mimetype","application/vnd.oasis.opendocument.spreadsheet","content.xml",odt),AttachmentText.Problem.INVALID);
+        ok(read("test.docm",zip("word/document.xml",doc(para("macro text")),"word/vbaProject.bin","NOT EXECUTED")).text.contains("macro text"),"Macro package text only");
+        ok(read("test.xlsm",excel).text.equals(data),"XLSM stored values only");
         ok(AttachmentText.maxBytes("a.xlsx")==OfficeText.MAX_BYTES&&AttachmentText.maxBytes("a.txt")==AttachmentText.MAX_BYTES,"separate size limits");
+        ok(OfficeText.MAX_BYTES==32*1024*1024,"32 MiB compressed cap");
+        byte[] heavy=zip("word/document.xml",doc(para("large package")),"word/media/large.bin","x".repeat(10*1024*1024));
+        ok(read("big.docx",heavy).text.contains("large package"),"Stream unretained large media");
+        try{AttachmentText.read("a.docx",new ByteArrayInputStream(heavy),DocumentWindow.MAX_OFFICE_SEGMENTS+1);throw new AssertionError("Office range");}
+        catch(AttachmentText.Failure e){ok(e.problem==AttachmentText.Problem.RANGE,"Office range cap");}
         bad("a.docx",new byte[OfficeText.MAX_BYTES+1],AttachmentText.Problem.TOO_LARGE);
         System.out.println("OfficeTextTest PASS: "+n+" assertions");
     }
