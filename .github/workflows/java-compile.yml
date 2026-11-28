@@ -477,6 +477,14 @@ jobs:
           java -cp /tmp/reviewed-execution-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.ReviewedExecutionIntegrationTest
           java -cp /tmp/reviewed-execution-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.BranchRetainedOutputTest
           java -cp /tmp/reviewed-execution-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.AutomationDraftFormsTest
+      - name: Test F11 cross-module host regression
+        run: |
+          mkdir -p /tmp/f11-integration-tests
+          cp="/tmp/search-batch-tests:/tmp/voice-tests:/tmp/chat-block-tests:/tmp/local-stream-tests:/tmp/reviewed-execution-tests:/tmp/cloud-stream-tests:/tmp/cloud-stream-tests/json.jar"
+          javac --release 17 -cp "$cp" -d /tmp/f11-integration-tests app/src/main/java/com/ollamapocket/app/CloudUsageLedger.java app/src/main/java/com/ollamapocket/app/CloudRequestAdvice.java tests/F11IntegratedPolicyTest.java
+          java -cp "/tmp/f11-integration-tests:$cp" com.ollamapocket.app.F11IntegratedPolicyTest
+      - name: Test F11 exact source scope rules
+        run: python3 -m unittest discover -s tests -p test_f11_scope.py
       - name: Test bounded local workflow policy
         run: |
           mkdir -p /tmp/workflow-tests

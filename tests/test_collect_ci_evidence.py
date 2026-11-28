@@ -18,7 +18,9 @@ def receipt(jobs,artifacts=()):
 class CiReceiptTests(unittest.TestCase):
     def setUp(self):
         self.commit="a"*40
-        self.java=receipt([job("compile",c.JAVA_STEPS)])
+        self.java=receipt([job("compile",c.JAVA_STEPS),
+                           job("embedded-voice-host",c.VOICE_STEPS),
+                           job("vision-inference-host",c.VISION_STEPS)])
         self.native=receipt([job("secure-relay-unit-test",["Test AES-GCM loopback tunnel"]),
                              job("cooperative-apk",[*c.NATIVE_STEPS,c.BUNDLE_STEP,c.AUDIT_STEP])],
                             [artifact("AI-in-Pocket-Cooperative-RPC-APK"),artifact("OnHand-QA-UNSIGNED-NOT-FOR-PLAY"),artifact("OnHand-Release-Compatibility-Audit")])
@@ -47,6 +49,14 @@ class CiReceiptTests(unittest.TestCase):
 
     def test_missing_step(self):
         self.java["jobs"][0]["steps"].pop()
+        self.assertEqual(c.ci_status(self.java,None)["java_regression"],"BLOCKED")
+
+    def test_host_evidence_required(self):
+        for name in ("embedded-voice-host", "vision-inference-host"):
+            with self.subTest(name=name):
+                missing=receipt([j for j in self.java["jobs"] if j["name"] != name])
+                self.assertEqual(c.ci_status(missing,None)["java_regression"],"BLOCKED")
+        self.java["jobs"][1]["steps"][0]["conclusion"]="skipped"
         self.assertEqual(c.ci_status(self.java,None)["java_regression"],"BLOCKED")
 
     def test_expired_artifact(self):

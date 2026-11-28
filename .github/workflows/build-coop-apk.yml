@@ -108,6 +108,8 @@ jobs:
         env:
           BEFORE_SHA: ${{ github.event.before }}
         run: python3 scripts/native_build_scope.py
+      - name: Verify exact F11 tracked-tree scope
+        run: python3 scripts/test_f11_scope.py
 
   secure-relay-unit-test:
     runs-on: ubuntu-24.04

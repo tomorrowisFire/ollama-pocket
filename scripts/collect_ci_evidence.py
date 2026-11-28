@@ -27,11 +27,19 @@ JAVA_STEPS = (
     "Test bounded local inference protocol",
     "Test benchmark identity and engine routing policy",
     "Test bounded local workflow policy",
+    "Test integrated reviewed local profile and durable branch execution",
+    "Test F11 cross-module host regression",
+    "Test F11 exact source scope rules",
     "Verify OnHand AI brand and locale resource parity",
     "Test release artifact audit",
     "Verify final evidence-gate rules",
     "Compile Java without native Ollama/Vulkan compilation",
 )
+VOICE_STEPS = (
+    "Test actual Whisper model and native cancellation on host",
+    "Test actual Korean English Japanese neural TTS and JNI on host",
+)
+VISION_STEPS = ("Verify pinned VLM archive and actual synthetic JPEG inference",)
 NATIVE_STEPS = (
     "Compile app with cooperative session and RPC tunnel",
     "Verify that host, worker and prior inference binaries are packaged",
@@ -119,6 +127,8 @@ def ci_status(java, native):
     if java:
         out["java_regression"] = (
             "PASS" if success(java) and job_pass(java["jobs"], "compile", JAVA_STEPS)
+                and job_pass(java["jobs"], "embedded-voice-host", VOICE_STEPS)
+                and job_pass(java["jobs"], "vision-inference-host", VISION_STEPS)
             else "BLOCKED" if success(java) else unavailable(java)
         )
     if native:
