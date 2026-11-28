@@ -40,6 +40,12 @@ public final class OllamaQuantCatalog {
             base.substring(0,sep).matches("[A-Za-z0-9][A-Za-z0-9._-]{0,65}") &&
             base.substring(sep+1).matches("[A-Za-z0-9][A-Za-z0-9._-]{0,60}");
     }
+    /** Cloud-only tags must not be offered by the local download pickers. */
+    private static boolean localTag(String tag){
+        if(!validBaseTag(tag))return false;
+        String version=tag.substring(tag.indexOf(':')+1).toLowerCase(Locale.ROOT);
+        return !version.equals("cloud")&&!version.startsWith("cloud-")&&!version.contains("-cloud");
+    }
     public static String repoName(String baseTag) {
         if(!validBaseTag(baseTag))throw new IllegalArgumentException("잘못된 모델명");
         return baseTag.substring(0,baseTag.indexOf(':'));
@@ -68,23 +74,23 @@ public final class OllamaQuantCatalog {
     }
 
     public static List<Variant> parse(String baseTag,String html,List<String> installed){
-        if(!validBaseTag(baseTag))throw new IllegalArgumentException("잘못된 모델명");
+        if(!localTag(baseTag))throw new IllegalArgumentException("잘못된 모델명");
         if(html==null)html="";
         Set<String> known=new LinkedHashSet<>();
         if(installed!=null)for(String name:installed)
-            if(belongsToModel(baseTag,name))known.add(name);
+            if(localTag(name)&&belongsToModel(baseTag,name))known.add(name);
         // The official /library/{model}/tags HTML includes exact tag names,
         // as link targets and as visible text. Restrict matches to this model.
         String normalized=html.replace("%3A",":").replace("%3a",":")
             .replace("\\u003a",":");
         Pattern pattern=Pattern.compile(
-            "(?i)(?<![A-Za-z0-9._/-])"+
-            Pattern.quote(baseTag)+"(?:-[A-Za-z0-9._-]{1,68})?");
+            "(?i)(?<![A-Za-z0-9._:/-])"+
+            Pattern.quote(baseTag)+"(?:-[A-Za-z0-9._-]{1,68})?(?![A-Za-z0-9._:/-])");
         Matcher matcher=pattern.matcher(normalized);
         int count=0;
         while(matcher.find()&&count++<1200){
             String found=matcher.group();
-            if(quantization(baseTag,found)!=null)known.add(found);
+            if(localTag(found)&&quantization(baseTag,found)!=null)known.add(found);
         }
         // Preserve the card's original official library tag as an option;
         // it may be the default quantization without an explicit suffix.
@@ -118,7 +124,7 @@ public final class OllamaQuantCatalog {
         Set<String> tags=new LinkedHashSet<>();
         if(installed!=null)for(String name:installed){
             if(name!=null && name.toLowerCase(Locale.ROOT).startsWith(
-                family.toLowerCase(Locale.ROOT)+":") && validBaseTag(name))
+                family.toLowerCase(Locale.ROOT)+":") && localTag(name))
                 tags.add(name);
         }
         Pattern links=Pattern.compile(
@@ -129,7 +135,7 @@ public final class OllamaQuantCatalog {
         while(link.find()&&scans++<1800&&tags.size()<250){
             String name=family+":"+link.group(1);
             // Cloud-only variants cannot run in the Android on-device engine.
-            if(validBaseTag(name)&&!name.toLowerCase(Locale.ROOT).contains("-cloud"))
+            if(localTag(name))
                 tags.add(name);
         }
         List<Variant> out=new ArrayList<>();

@@ -9,6 +9,7 @@ import org.json.JSONTokener;
 /** Bounded, deterministic text validators; none establishes factual or artistic quality. */
 final class WorkflowPolicy {
     static final int MAX_STEPS=10, MAX_ATTEMPTS=3, MAX_STEP_CHARS=2000, MAX_OUTPUT=4000, MAX_TOKENS=512;
+    static final int MAX_REQUIRED_CHARS=200, MAX_DIRECTIVE_CHARS=12;
     static final int MAX_TOTAL_ATTEMPTS=MAX_STEPS*MAX_ATTEMPTS;
     static final long MAX_MILLIS=30L*60*1000;
     enum Gate { CONTAINS, EXACT, MIN_CHARS, JSON_KEYS, JSON_FIELDS, JSON_VALUES }
@@ -38,7 +39,8 @@ final class WorkflowPolicy {
             int sep=line.lastIndexOf('|');
             if(sep<=0)throw new IllegalArgumentException("Missing verifier");
             String prompt=line.substring(0,sep).trim(),required=line.substring(sep+1).trim();
-            if(prompt.isEmpty()||prompt.length()>MAX_STEP_CHARS||required.isEmpty()||required.length()>200||result.size()>=MAX_STEPS)
+            int requiredLimit=MAX_REQUIRED_CHARS+(format==2&&required.startsWith("@")?MAX_DIRECTIVE_CHARS:0);
+            if(prompt.isEmpty()||prompt.length()>MAX_STEP_CHARS||required.isEmpty()||required.length()>requiredLimit||result.size()>=MAX_STEPS)
                 throw new IllegalArgumentException("Invalid step");
             Gate gate=Gate.CONTAINS;
             if(format==2&&required.startsWith("@")){
@@ -54,7 +56,7 @@ final class WorkflowPolicy {
                     case "jsonvalues": gate=Gate.JSON_VALUES;break;
                     default:throw new IllegalArgumentException("Unknown verifier");
                 }
-                if(required.isEmpty())throw new IllegalArgumentException("Empty verifier");
+                if(required.isEmpty()||required.length()>MAX_REQUIRED_CHARS)throw new IllegalArgumentException("Verifier length");
                 if(gate==Gate.MIN_CHARS){
                     if(!required.matches("[0-9]{1,4}"))throw new IllegalArgumentException("Invalid length");
                     int n=Integer.parseInt(required);if(n<1||n>MAX_OUTPUT)throw new IllegalArgumentException("Invalid length");
@@ -93,7 +95,7 @@ final class WorkflowPolicy {
         }
     }
     private static boolean validCondition(Step step){
-        if(step==null||step.gate==null||step.required==null||step.required.trim().isEmpty()||step.required.length()>200)return false;
+        if(step==null||step.gate==null||step.required==null||step.required.trim().isEmpty()||step.required.length()>MAX_REQUIRED_CHARS)return false;
         try{
             switch(step.gate){
                 case MIN_CHARS:

@@ -40,6 +40,17 @@ public final class OllamaQuantCatalogTest {
         ok(family.stream().noneMatch(x->x.tag.contains("-cloud")),"no cloud-only on Android");
         ok(OllamaQuantCatalog.parseFamily("qwen3","",Collections.emptyList()).isEmpty(),
            "offline no invented versions");
-        System.out.println("PASS: OllamaQuantCatalog (20 assertions)");
+        List<OllamaQuantCatalog.Variant> localOnly=OllamaQuantCatalog.parse("qwen3:1.7b",
+            "qwen3:1.7b-cloud-q4_K_M qwen3:1.7b-q8_0/path qwen3:1.7b-q6_K:extra",
+            Arrays.asList("qwen3:1.7b-cloud-q8_0", "qwen3:1.7b-q5_K_M"));
+        ok(localOnly.size()==2,"local-only exact version tokens");
+        ok(localOnly.get(0).installed&&localOnly.get(0).tag.equals("qwen3:1.7b-q5_K_M"),"installed local variant preserved");
+        ok(OllamaQuantCatalog.parseFamily("qwen3","<a href='/library/qwen3:cloud'>cloud</a>",
+            Arrays.asList("qwen3:235b-CLOUD", "qwen3:cloud", "qwen3:4b")).size()==1,"cloud tags excluded from installed and registry sources");
+        boolean cloudRejected=false;
+        try{OllamaQuantCatalog.parse("qwen3:235b-cloud","",Collections.emptyList());}
+        catch(IllegalArgumentException expected){cloudRejected=true;}
+        ok(cloudRejected,"cloud base cannot become a local pull candidate");
+        System.out.println("PASS: OllamaQuantCatalog (24 assertions)");
     }
 }

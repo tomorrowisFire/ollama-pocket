@@ -63,6 +63,22 @@ public final class WorkflowPlanEditorTest {
         ok(scalar.encode().equals("verify | @jsonvalues:{\"status\":\"OK\",\"count\":3}"));
         ok(WorkflowPolicy.verified(WorkflowPolicy.parse(scalar.encode()).get(0),"{\"count\":3,\"status\":\"OK\"}"));
         scalar.row(0).required="{\"x\":null}";ok(scalar.firstInvalid()==0);
+        String maxRequired="가".repeat(200);
+        for(WorkflowPolicy.Gate gate:new WorkflowPolicy.Gate[]{WorkflowPolicy.Gate.EXACT,WorkflowPolicy.Gate.CONTAINS}){
+            String line=WorkflowPlanEditor.line("task",gate,maxRequired);
+            WorkflowPolicy.Step step=WorkflowPolicy.parse(line).get(0);
+            ok(step.required.equals(maxRequired)&&step.gate==gate);
+            ok(WorkflowPolicy.verified(step,maxRequired));
+            rejects(()->WorkflowPlanEditor.line("task",gate,maxRequired+"가"));
+        }
+        String maxJson="{\"x\":\""+"a".repeat(192)+"\"}";
+        ok(maxJson.length()==200);
+        String scalarLine=WorkflowPlanEditor.line("task",WorkflowPolicy.Gate.JSON_VALUES,maxJson);
+        ok(WorkflowPolicy.parse(scalarLine).get(0).required.equals(maxJson));
+        ok(WorkflowPolicy.verified(WorkflowPolicy.parse(scalarLine).get(0),maxJson));
+        rejects(()->WorkflowPlanEditor.line("task",WorkflowPolicy.Gate.JSON_VALUES,maxJson.replace("\"}","a\"}")));
+        ok(WorkflowPolicy.parse("task | "+maxRequired,1).get(0).required.equals(maxRequired));
+        rejects(()->WorkflowPolicy.parse("task | "+maxRequired+"가",1));
         System.out.println("PASS: "+n+" strict workflow fields and editor assertions");
     }
 }

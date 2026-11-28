@@ -1,0 +1,7 @@
+# F10A93 — local picker admission and workflow verifier bounds
+
+Parent F10A92 5dcd7884e1e103a02cced851cb49dac064bd171a: FAST 46132310356 and FULL 46132310322 both passed.
+
+Local picker: reject explicitly cloud-marked version tags from both registry and installed candidates and reject cloud-only base tags; require complete tag-token boundaries instead of extracting a prefix from a path/qualified suffix. Preserve valid local variants, existing sort and offline fallback for valid local base. This is a local picker admission rule, not a general capability attestation or a restriction on the separate cloud route. Java 17 regression reproduced on exact parent source and original test blobs; candidate passed 24 assertions, including four added checks. Expected candidate source/test blob SHA-1 a2e3fc7918353206bb9b5cc4892635e0aeca2a14 and 61585e9c1d20db2cf7f9296be7e4100d1cc626a1. Register the quant-picker regression in FAST CI.
+
+Workflow: separate the 200-character verifier payload budget from the bounded format-2 directive prefix, preserving format-1 literal limits, existing gate semantics, stored result validation and plan limits. Add exact/contains/JSON-values editor round-trip boundaries and legacy limit checks. Workflow tests require the CI JSON fixture dependency; not locally executed. No ads, billing, permissions, user data, model runtime or release policy changes. Exact integrated FAST/FULL and physical testing remain required. No quality score claim.

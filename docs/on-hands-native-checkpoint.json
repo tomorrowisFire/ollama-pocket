@@ -1,6 +1,6 @@
 {
-  "stage": "F10A92-transfer-readiness-integration",
-  "revision": "F10A92",
-  "priorCandidate": "2766996bca29ce08ab2739bf02e0946ff5c02b4e",
-  "reason": "Batch F10A91 cold-start repair with direct GGUF readiness/cancellation and deadline checks. Require exact FAST/FULL native gates; physical download and release deferred."
+  "stage": "F10A93-local-catalog-workflow-bounds",
+  "revision": "F10A93",
+  "priorCandidate": "5dcd7884e1e103a02cced851cb49dac064bd171a",
+  "reason": "Integrate local-only complete model tag admission and verifier payload limit alignment; exact FAST/FULL required. Device/release deferred."
 }

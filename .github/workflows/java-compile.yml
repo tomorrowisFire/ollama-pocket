@@ -157,6 +157,8 @@ jobs:
           java -cp /tmp/search-batch-tests com.ollamapocket.app.ModelSearchBatchTest
           javac --release 17 -cp /tmp/search-batch-tests -d /tmp/search-batch-tests app/src/main/java/com/ollamapocket/app/ModelTileCatalog.java app/src/main/java/com/ollamapocket/app/ModelListFilter.java app/src/main/java/com/ollamapocket/app/ModelGroupings.java app/src/main/java/com/ollamapocket/app/ModelDownloadBudget.java app/src/main/java/com/ollamapocket/app/BenchmarkRecommendation.java tests/ModelTileCatalogTest.java tests/ModelListFilterTest.java tests/ModelVariantCatalogTest.java tests/ModelExperienceTest.java
           for test in ModelTileCatalogTest ModelListFilterTest ModelVariantCatalogTest ModelExperienceTest; do java -cp /tmp/search-batch-tests "$test"; done
+          javac --release 17 -d /tmp/search-batch-tests app/src/main/java/com/ollamapocket/app/OllamaQuantCatalog.java tests/OllamaQuantCatalogTest.java
+          java -cp /tmp/search-batch-tests OllamaQuantCatalogTest
       - name: Test model-family ownership, Unicode draft and exact layer progress
         run: |
           mkdir -p /tmp/focused-independent-tests
