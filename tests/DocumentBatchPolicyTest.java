@@ -44,6 +44,37 @@ public final class DocumentBatchPolicyTest {
         try{elapsed.wrap(new ByteArrayInputStream(new byte[1])).read();throw new AssertionError("Input deadline");}
         catch(java.net.SocketTimeoutException expected){n++;}
         ok(elapsed.consumed()==0);
+        // A caught limit exception must not permit another stream or an EOF to complete the batch.
+        try{budget.check();throw new AssertionError("Aggregate failure cleared");}
+        catch(DocumentBatchPolicy.InputLimit expected){n++;}
+        try{budget.wrap(new ByteArrayInputStream(new byte[0])).read();throw new AssertionError("Aggregate retry");}
+        catch(DocumentBatchPolicy.InputLimit expected){n++;}
+        clock.set(0L);
+        try{elapsed.check();throw new AssertionError("Deadline rollback");}
+        catch(java.net.SocketTimeoutException expected){n++;}
+        var metadataClock=new java.util.concurrent.atomic.AtomicLong(0);
+        var metadataBudget=new DocumentBatchPolicy.InputBudget(8,metadataClock::get);
+        metadataBudget.check();
+        metadataClock.set(DocumentBatchPolicy.INPUT_READ_BUDGET_NS-1);
+        metadataBudget.check();
+        metadataClock.incrementAndGet();
+        try{metadataBudget.check();throw new AssertionError("Non-stream deadline");}
+        catch(java.net.SocketTimeoutException expected){n++;}
+        var invalidBudget=new DocumentBatchPolicy.InputBudget(8,()->0L);
+        java.io.InputStream malformed=new java.io.InputStream(){
+            public int read(){return 256;}
+        };
+        try{invalidBudget.wrap(malformed).read();throw new AssertionError("Invalid provider");}
+        catch(java.io.IOException expected){n++;}
+        try{invalidBudget.check();throw new AssertionError("Invalid provider retry");}
+        catch(java.io.IOException expected){n++;}
+        var cancelledBudget=new DocumentBatchPolicy.InputBudget(8,()->0L);
+        Thread.currentThread().interrupt();
+        try{cancelledBudget.check();throw new AssertionError("Cancelled budget");}
+        catch(java.io.InterruptedIOException expected){n++;}
+        finally{Thread.interrupted();}
+        try{cancelledBudget.check();throw new AssertionError("Cancellation cleared");}
+        catch(java.io.InterruptedIOException expected){n++;}
         String source="a".repeat(1399)+"😀"+"b".repeat(1397)+"한국어";
         DocumentBatchPolicy.Plan split=plan(source);
         StringBuilder reconstructed=new StringBuilder();int next=0;

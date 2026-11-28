@@ -59,19 +59,28 @@ final class DocumentBatchPolicy {
         private final long cap,started;
         private final java.util.function.LongSupplier clock;
         private long consumed;
+        private java.io.IOException terminal;
         InputBudget(){this(MAX_INPUT_BYTES,System::nanoTime);}
         InputBudget(long cap,java.util.function.LongSupplier clock){
             if(cap<1||cap>MAX_INPUT_BYTES||clock==null)throw new IllegalArgumentException("Input budget");
             this.cap=cap;this.clock=clock;started=clock.getAsLong();
         }
         long consumed(){return consumed;}
-        private void check()throws java.io.IOException{
-            if(Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("Batch input cancelled");
+        /** Also checked between provider metadata, parser and terminal delivery boundaries.
+         * Once a budget is violated it cannot be reopened by a parser retry or clock change. */
+        void check()throws java.io.IOException{
+            if(terminal!=null)throw terminal;
+            if(Thread.currentThread().isInterrupted())throw fail(new java.io.InterruptedIOException("Batch input cancelled"));
             long elapsed=clock.getAsLong()-started;
-            if(elapsed<0||elapsed>=INPUT_READ_BUDGET_NS)throw new java.net.SocketTimeoutException("Batch input deadline");
+            if(elapsed<0||elapsed>=INPUT_READ_BUDGET_NS)
+                throw fail(new java.net.SocketTimeoutException("Batch input deadline"));
+        }
+        private java.io.IOException fail(java.io.IOException error){
+            if(terminal==null)terminal=error;
+            return terminal;
         }
         private void account(int n)throws java.io.IOException{
-            if(n>cap-consumed)throw new InputLimit();
+            if(n>cap-consumed)throw fail(new InputLimit());
             consumed+=n;
         }
         java.io.InputStream wrap(java.io.InputStream source){
@@ -79,7 +88,7 @@ final class DocumentBatchPolicy {
             return new java.io.FilterInputStream(source){
                 @Override public int read()throws java.io.IOException{
                     check();int value=in.read();check();
-                    if(value < -1||value>255)throw new java.io.IOException("Invalid source read");
+                    if(value < -1||value>255)throw fail(new java.io.IOException("Invalid source read"));
                     if(value>=0)account(1);
                     return value;
                 }
@@ -89,7 +98,7 @@ final class DocumentBatchPolicy {
                     check();if(len==0)return 0;
                     int requested=(int)Math.min((long)len,cap-consumed+1);
                     int n=in.read(bytes,off,requested);check();
-                    if(n==0||n < -1||n>requested)throw new java.io.IOException("Invalid source read");
+                    if(n==0||n < -1||n>requested)throw fail(new java.io.IOException("Invalid source read"));
                     if(n>0)account(n);
                     return n;
                 }
