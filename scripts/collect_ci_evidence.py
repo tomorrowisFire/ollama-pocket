@@ -40,6 +40,7 @@ VOICE_STEPS = (
     "Test actual Korean English Japanese neural TTS and JNI on host",
 )
 VISION_STEPS = ("Verify pinned VLM archive and actual synthetic JPEG inference",)
+NATIVE_SCOPE_STEPS = ("Classify exact native packaging scope", "Verify exact F11 tracked-tree scope")
 NATIVE_STEPS = (
     "Compile app with cooperative session and RPC tunnel",
     "Verify that host, worker and prior inference binaries are packaged",
@@ -137,7 +138,9 @@ def ci_status(java, native):
                 out[k] = unavailable(native)
             return out
         jobs, artifacts = native["jobs"], native["artifacts"]
-        base = job_pass(jobs,"secure-relay-unit-test",("Test AES-GCM loopback tunnel",)) and job_pass(jobs,"cooperative-apk",NATIVE_STEPS)
+        base = (job_pass(jobs,"native-build-scope",NATIVE_SCOPE_STEPS)
+                and job_pass(jobs,"secure-relay-unit-test",("Test AES-GCM loopback tunnel",))
+                and job_pass(jobs,"cooperative-apk",NATIVE_STEPS))
         out["native_apk"] = "PASS" if base and artifact_valid(artifacts,"AI-in-Pocket-Cooperative-RPC-APK") else "BLOCKED"
         out["aab_build"] = "PASS" if base and job_pass(jobs,"cooperative-apk",(BUNDLE_STEP,)) and artifact_valid(artifacts,"OnHand-QA-UNSIGNED-NOT-FOR-PLAY") else "BLOCKED"
         # A positive workflow receipt alone is not the actual ELF/alignment report.

@@ -1,9 +1,11 @@
+import importlib.util
 import pathlib
-import sys
 import unittest
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "scripts"))
-import test_f11_scope as gate
+script = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "test_f11_scope.py"
+spec = importlib.util.spec_from_file_location("f11_scope_gate", script)
+gate = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(gate)
 
 class ScopeTests(unittest.TestCase):
     def setUp(self):
