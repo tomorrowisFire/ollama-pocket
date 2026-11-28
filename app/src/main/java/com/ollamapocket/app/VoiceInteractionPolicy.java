@@ -41,8 +41,14 @@ final class VoiceInteractionPolicy {
     static final class Capture {
         enum State { PREPARING, LISTENING, FINALIZING, TERMINAL }
         private State state=State.PREPARING;
+        private boolean heardSpeech;
         State state(){return state;}
         void ready(){if(state==State.PREPARING)state=State.LISTENING;}
+        void speechStarted(){
+            ready();
+            if(state==State.LISTENING)heardSpeech=true;
+        }
+        boolean waitingForSpeech(){return state==State.LISTENING&&!heardSpeech;}
         void end(){if(state==State.PREPARING||state==State.LISTENING)state=State.FINALIZING;}
         boolean canFinish(){return state==State.LISTENING;}
         boolean finish(){if(!canFinish())return false;state=State.FINALIZING;return true;}

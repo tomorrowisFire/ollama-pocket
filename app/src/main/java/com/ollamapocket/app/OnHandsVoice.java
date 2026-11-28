@@ -45,6 +45,7 @@ final class OnHandsVoice {
         }
         SpeechRecognizer current=recognizer;
         if(closed||current==null||capture==null||!capture.finish())return;
+        clearRecognizerIdle();
         try{current.stopListening();}catch(RuntimeException e){cancel();toast(R.string.voice_error);}
     }
     String partialTranscript(){return partialTranscript;}
@@ -107,7 +108,7 @@ final class OnHandsVoice {
     }
     private long speechSequence;
     private final android.os.Handler handler=new android.os.Handler(android.os.Looper.getMainLooper());
-    private Runnable timeout, resumeListening;
+    private Runnable timeout, resumeListening,recognizerIdle;
     private static final long PLAYBACK_TAIL_MS=350L;
     private void clearResume(){if(resumeListening!=null)handler.removeCallbacks(resumeListening);resumeListening=null;}
     private void resumeAfterPlayback(){
@@ -125,6 +126,20 @@ final class OnHandsVoice {
     }
     private void clearTimeout(){if(timeout!=null)handler.removeCallbacks(timeout);timeout=null;}
     private void armTimeout(long ms){clearTimeout();final int token=generation;timeout=()->{if(token==generation){cancel();toast(R.string.voice_error);}};handler.postDelayed(timeout,ms);}
+    private void clearRecognizerIdle(){
+        if(recognizerIdle!=null)handler.removeCallbacks(recognizerIdle);
+        recognizerIdle=null;
+    }
+    private void armRecognizerIdle(int token,VoiceInteractionPolicy.Capture turn){
+        if(!continuous||recognizerIdle!=null||!turn.waitingForSpeech())return;
+        recognizerIdle=()->{
+            recognizerIdle=null;
+            if(!closed&&token==generation&&recognizer!=null&&capture==turn&&turn.waitingForSpeech()){
+                cancel();toast(R.string.voice_no_match);
+            }
+        };
+        handler.postDelayed(recognizerIdle,WhisperCapturePolicy.CONTINUOUS_IDLE_MS);
+    }
     boolean continuous(){return continuous;}
     int sessionToken(){return generation;}
     void beginContinuous(){continuous=true;}
@@ -213,15 +228,18 @@ final class OnHandsVoice {
             recognizer=SpeechRecognizer.createOnDeviceSpeechRecognizer(a);
             recognizer.setRecognitionListener(new RecognitionListener(){
                 private boolean current(){return !closed&&id==generation&&capture==turn;}
-                public void onReadyForSpeech(Bundle b){if(current())turn.ready();}
-                public void onBeginningOfSpeech(){if(current())turn.ready();}
+                public void onReadyForSpeech(Bundle b){if(current()){turn.ready();armRecognizerIdle(id,turn);}}
+                public void onBeginningOfSpeech(){if(current()){turn.speechStarted();clearRecognizerIdle();}}
                 public void onRmsChanged(float r){}
                 public void onBufferReceived(byte[] b){}
-                public void onEndOfSpeech(){if(current())turn.end();}
+                public void onEndOfSpeech(){if(current()){turn.end();clearRecognizerIdle();}}
                 public void onPartialResults(Bundle b){
                     if(!current()||turn.state()==VoiceInteractionPolicy.Capture.State.TERMINAL)return;
                     ArrayList<String> rows=b==null?null:b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-                    if(rows!=null&&!rows.isEmpty())partialTranscript=VoiceInteractionPolicy.partial(rows.get(0));
+                    if(rows!=null&&!rows.isEmpty()){
+                        partialTranscript=VoiceInteractionPolicy.partial(rows.get(0));
+                        if(!partialTranscript.isEmpty()){turn.speechStarted();clearRecognizerIdle();}
+                    }
                 }
                 public void onEvent(int type,Bundle b){}
                 public void onError(int error){if(current()&&turn.consumeTerminal()){cancel();toast(error==SpeechRecognizer.ERROR_NO_MATCH||error==SpeechRecognizer.ERROR_SPEECH_TIMEOUT?R.string.voice_no_match:error==SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS?R.string.voice_permission:R.string.voice_error);}}
@@ -317,7 +335,7 @@ final class OnHandsVoice {
             catch(RuntimeException|LinkageError failure){android.util.Log.w("OnHandAI","Whisper stop failed");}
         try{closeNeural();}
         catch(RuntimeException|LinkageError failure){android.util.Log.w("OnHandAI","Neural playback stop failed");}
-        stopBarge();clearTimeout();clearResume();pendingSpeech=null;continuous=false;bargeOptIn=false;continuation.clear();clearPlayback();
+        stopBarge();clearTimeout();clearResume();clearRecognizerIdle();pendingSpeech=null;continuous=false;bargeOptIn=false;continuation.clear();clearPlayback();
         partialTranscript="";reviewPending=false;
         if(capture!=null)capture.cancel();capture=null;
         SpeechRecognizer old=recognizer;recognizer=null;

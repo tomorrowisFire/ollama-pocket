@@ -81,6 +81,16 @@ public final class VoiceInteractionPolicyTest {
         VoiceInteractionPolicy.Capture autoEnd=new VoiceInteractionPolicy.Capture();
         autoEnd.end();autoEnd.ready();ok(autoEnd.state()==VoiceInteractionPolicy.Capture.State.FINALIZING&&!autoEnd.finish());
         autoEnd.cancel();ok(!autoEnd.consumeTerminal()&&!autoEnd.canFinish());
+        VoiceInteractionPolicy.Capture idle=new VoiceInteractionPolicy.Capture();
+        ok(!idle.waitingForSpeech());idle.ready();ok(idle.waitingForSpeech());
+        idle.speechStarted();ok(!idle.waitingForSpeech()&&idle.canFinish());
+        idle.ready();ok(!idle.waitingForSpeech());idle.end();ok(!idle.waitingForSpeech());
+        idle.speechStarted();ok(idle.state()==VoiceInteractionPolicy.Capture.State.FINALIZING&&!idle.waitingForSpeech());
+        VoiceInteractionPolicy.Capture earlySpeech=new VoiceInteractionPolicy.Capture();
+        earlySpeech.speechStarted();earlySpeech.ready();ok(earlySpeech.canFinish()&&!earlySpeech.waitingForSpeech());
+        VoiceInteractionPolicy.Capture cancelledIdle=new VoiceInteractionPolicy.Capture();
+        cancelledIdle.ready();cancelledIdle.cancel();cancelledIdle.speechStarted();
+        ok(cancelledIdle.state()==VoiceInteractionPolicy.Capture.State.TERMINAL&&!cancelledIdle.waitingForSpeech());
         VoiceInteractionPolicy.Capture early=new VoiceInteractionPolicy.Capture();
         ok(early.consumeTerminal());early.ready();ok(!early.canFinish());
         ok(VoiceInteractionPolicy.finalTranscript("  한글 日本語 中文 😀  ",40).equals("한글 日本語 中文 😀"));
