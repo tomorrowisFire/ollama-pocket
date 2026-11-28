@@ -1,6 +1,6 @@
 {
-  "stage": "F11-1CD-workspace-flow-batch",
-  "revision": "F11-1D",
-  "priorCandidate": "80c1e575156640e9a088593b685f6ff48da2505a",
-  "reason": "Combine isolated F11-1C popup and F11-1D action flow on accepted live predecessor; require exact FAST/FULL."
+  "stage": "F11-2B-document-scheduling-batch",
+  "revision": "F11-2B",
+  "priorCandidate": "3479e8fbf01d8056fd327097d4a81ba420b29f38",
+  "reason": "Integrate F11-1E and F11-2A with source-fair bounded document processing. Exact FAST/FULL required; actual device tests deferred."
 }

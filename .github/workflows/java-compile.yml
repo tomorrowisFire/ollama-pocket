@@ -182,8 +182,9 @@ jobs:
       - name: Test bounded rich answer blocks and simple formula rendering
         run: |
           mkdir -p /tmp/chat-block-tests
-          javac -d /tmp/chat-block-tests app/src/main/java/com/ollamapocket/app/ChatBlocks.java app/src/main/java/com/ollamapocket/app/SimpleFormula.java tests/ChatBlocksTest.java
+          javac -d /tmp/chat-block-tests app/src/main/java/com/ollamapocket/app/MarkdownTableCells.java app/src/main/java/com/ollamapocket/app/ChatBlocks.java app/src/main/java/com/ollamapocket/app/SimpleFormula.java tests/ChatBlocksTest.java tests/MarkdownTableCellsTest.java
           java -cp /tmp/chat-block-tests com.ollamapocket.app.ChatBlocksTest
+          java -cp /tmp/chat-block-tests com.ollamapocket.app.MarkdownTableCellsTest
       - name: Test fail-closed billing policy (pure Java, synthetic keys only)
         run: |
           mkdir -p /tmp/billing-tests
@@ -230,6 +231,8 @@ jobs:
           java -cp /tmp/workspace-tests com.ollamapocket.app.WorkbenchDialogPresentationTest
           javac --release 17 -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/ActionFlowPolicy.java tests/ActionFlowPolicyTest.java
           java -cp /tmp/workspace-tests com.ollamapocket.app.ActionFlowPolicyTest
+          javac --release 17 -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/WorkspaceChromePolicy.java tests/WorkspaceChromePolicyTest.java
+          java -cp /tmp/workspace-tests com.ollamapocket.app.WorkspaceChromePolicyTest
           javac -cp /tmp/workspace-tests -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/WorkbenchVisualPolicy.java tests/WorkbenchVisualPolicyTest.java
           java -cp /tmp/workspace-tests com.ollamapocket.app.WorkbenchVisualPolicyTest
           javac --release 17 -d /tmp/workspace-tests app/src/main/java/com/ollamapocket/app/ChartPlotPolicy.java tests/ChartPlotPolicyTest.java
@@ -274,12 +277,13 @@ jobs:
       - name: Test bounded local attachment text extraction
         run: |
           mkdir -p /tmp/attachment-tests
-          javac -d /tmp/attachment-tests app/src/main/java/com/ollamapocket/app/LocalChatTurns.java app/src/main/java/com/ollamapocket/app/AttachmentText.java app/src/main/java/com/ollamapocket/app/OfficeText.java app/src/main/java/com/ollamapocket/app/PdfExcerpt.java app/src/main/java/com/ollamapocket/app/OcrPolicy.java app/src/main/java/com/ollamapocket/app/DocumentWindow.java app/src/main/java/com/ollamapocket/app/DocumentBatchPolicy.java tests/DocumentBatchPolicyTest.java tests/AttachmentTextTest.java tests/OfficeTextTest.java tests/PdfExcerptTest.java tests/OcrPolicyTest.java tests/DocumentWindowTest.java
+          javac -d /tmp/attachment-tests app/src/main/java/com/ollamapocket/app/LocalChatTurns.java app/src/main/java/com/ollamapocket/app/AttachmentText.java app/src/main/java/com/ollamapocket/app/OfficeText.java app/src/main/java/com/ollamapocket/app/PdfExcerpt.java app/src/main/java/com/ollamapocket/app/OcrPolicy.java app/src/main/java/com/ollamapocket/app/DocumentWindow.java app/src/main/java/com/ollamapocket/app/DocumentBatchSchedule.java app/src/main/java/com/ollamapocket/app/DocumentBatchPolicy.java tests/DocumentBatchScheduleTest.java tests/DocumentBatchPolicyTest.java tests/AttachmentTextTest.java tests/OfficeTextTest.java tests/PdfExcerptTest.java tests/OcrPolicyTest.java tests/DocumentWindowTest.java
           java -cp /tmp/attachment-tests com.ollamapocket.app.AttachmentTextTest
           java -cp /tmp/attachment-tests com.ollamapocket.app.OfficeTextTest
           java -cp /tmp/attachment-tests com.ollamapocket.app.PdfExcerptTest
           java -cp /tmp/attachment-tests com.ollamapocket.app.OcrPolicyTest
           java -cp /tmp/attachment-tests com.ollamapocket.app.DocumentWindowTest
+          java -cp /tmp/attachment-tests com.ollamapocket.app.DocumentBatchScheduleTest
           java -cp /tmp/attachment-tests com.ollamapocket.app.DocumentBatchPolicyTest
           javac -d /tmp/attachment-tests app/src/main/java/com/ollamapocket/app/DocumentRequestControl.java tests/DocumentRequestControlTest.java
           java -cp /tmp/attachment-tests com.ollamapocket.app.DocumentRequestControlTest

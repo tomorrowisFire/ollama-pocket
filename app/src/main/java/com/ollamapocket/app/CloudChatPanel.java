@@ -221,7 +221,7 @@ final class CloudChatPanel extends LinearLayout {
             Math.max(1f,getResources().getConfiguration().fontScale);
         int full=(int)(getWidth()/density);
         int max=dp(owner instanceof MainActivity?((MainActivity)owner).workspaceReadingColumnDp(full):WorkbenchLayoutPolicy.cloudContentDp(full));
-        int side=dp(6)+Math.max(0,(getWidth()-max)/2);
+        int side=WorkspaceChromePolicy.centeredInsetPx(getWidth(),max,dp(6));
         if(getPaddingLeft()!=side||getPaddingRight()!=side)setPadding(side,dp(4),side,dp(6));
         int width=(int)(Math.max(0,getWidth()-side*2)/density),height=(int)(getHeight()/density);
         boolean hs=WorkbenchLayoutPolicy.cloudHeaderStacked(width,scale,headerNaturalDp(back,density),headerNaturalDp(settings,density));

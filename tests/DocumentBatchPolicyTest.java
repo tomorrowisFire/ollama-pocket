@@ -36,7 +36,16 @@ public final class DocumentBatchPolicyTest {
         ok(reconstructed.toString().equals(source)&&next==source.length());
         DocumentBatchPolicy.Plan max=plan("A".repeat(5596),"B".repeat(5596),"C".repeat(5596));
         ok(max.units.size()==12&&max.total()==16);
-        ok(max.units.get(4).id().equals("D2-S1")&&max.units.get(8).id().equals("D3-S1"));
+        ok(max.units.get(0).id().equals("D1-S1")&&max.units.get(1).id().equals("D2-S1")&&max.units.get(2).id().equals("D3-S1"));
+        ok(max.units.get(3).id().equals("D1-S2")&&max.units.get(4).id().equals("D2-S2")&&max.units.get(8).id().equals("D3-S3"));
+        for(int src=0;src<3;src++){
+            StringBuilder restored=new StringBuilder();int offset=0,index=0;
+            for(DocumentBatchPolicy.Unit unit:max.units)if(unit.source==src){
+                ok(unit.index==index++&&unit.start==offset&&unit.end-unit.start==unit.text.length());
+                restored.append(unit.text);offset=unit.end;
+            }
+            ok(restored.toString().equals(max.sources.get(src).text)&&offset==max.includedEnd(src));
+        }
         ok(max.units.get(11).end==5596);
         ok(DocumentBatchPolicy.unitPrompt(max,max.units.get(0)).contains("PARTIAL"));
         ok(DocumentBatchPolicy.unitPrompt(max,max.units.get(0)).contains("UNTRUSTED DATA"));
@@ -145,7 +154,12 @@ public final class DocumentBatchPolicyTest {
             new DocumentBatchPolicy.Unit(0,0,0,2,"  "),"[Whitespace-only extracted range]");
         ok(DocumentBatchPolicy.citations("[D1-S1]",List.of(whitespace)).unknown.equals(List.of("D1-S1")));
         ok(extended.completedEnd(0)==11192&&extended.completedEnd(2)==11192);
-        ok(failed.completedEnd(0)==4200&&failed.completedEnd(1)==0&&failed.completedEnd(2)==0);
+        ok(failed.completedEnd(0)==1400&&failed.completedEnd(1)==1400&&failed.completedEnd(2)==1400);
+        for(int i=0;i<failed.notes.size();i++)ok(failed.notes.get(i).unit==max.units.get(i));
+        DocumentBatchPolicy.Plan uneven=plan("short","b".repeat(4200),"c".repeat(2800));
+        ok(uneven.units.size()==6&&uneven.units.get(0).id().equals("D1-S1")&&
+            uneven.units.get(1).id().equals("D2-S1")&&uneven.units.get(2).id().equals("D3-S1")&&
+            uneven.units.get(3).id().equals("D2-S2")&&uneven.units.get(4).id().equals("D3-S2")&&uneven.units.get(5).id().equals("D2-S3"));
         ok(stopped.completedEnd(0)==1400&&stopped.completedEnd(1)==0);
         String scopePrompt=DocumentBatchPolicy.finalPrompt(multilingual,List.of("note"));
         ok(scopePrompt.contains("Scope (extracted text only")&&scopePrompt.contains(

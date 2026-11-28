@@ -14,14 +14,23 @@ for locale in locales:
     assert entries["app_name"] == "OnHand AI", locale
     assert keys is None or keys == set(entries), locale
     keys=set(entries)
-    for key in ("models","settings","devices"):
-        assert 'drawerNavigationItem(getString(R.string.'+key+'))' in src, key
+    for destination,key,glyph in ((1,"models","CHIP"),(2,"settings","SETTINGS"),(3,"devices","DEVICE")):
+        assert 'drawerNavigationItem('+str(destination)+',getString(R.string.'+key+'),OnHandGlyphs.Kind.'+glyph+')' in src, key
         assert key in keys, locale
-assert 'drawerNavigationItem(String title)' in src
-drawer_fn=src.split('private TextView drawerNavigationItem(String title)',1)[1].split('private void showNavigationDrawer()',1)[0]
+assert 'drawerNavigationItem(int destination,String title,OnHandGlyphs.Kind glyph)' in src
+drawer_fn=src.split('private TextView drawerNavigationItem(int destination,String title,OnHandGlyphs.Kind glyph)',1)[1].split('private void showNavigationDrawer()',1)[0]
 assert 'TextView item=text(title,14,active?bubbleInk():WHITE,active)' in drawer_fn
 assert 'text(mark+' not in drawer_fn
-assert 'item.setBackground(bg(active?BUBBLE:BG,14))' in drawer_fn
+paint_fn=src.split('private void paintDrawerDestination(',1)[1].split('private TextView drawerNavigationItem(',1)[0]
+assert 'GradientDrawable normal=bg(active?BUBBLE:BG,14)' in paint_fn
+assert 'states.addState(new int[]{android.R.attr.state_focused},focused)' in paint_fn
+assert 'item.setSelected(active)' in paint_fn
+assert 'WorkspaceChromePolicy.selectedDestination(activeTab,destination)' in drawer_fn
+assert 'paintDrawerDestination(item,active)' in drawer_fn
+assert 'paintDrawerDestination(dockedDestinations[i],WorkspaceChromePolicy.selectedDestination(activeTab,i+1))' in src
+assert 'item.setSingleLine(false);item.setEllipsize(null)' in drawer_fn
+assert 'markDrawerAction(item)' in drawer_fn
+assert 'info.setClassName(Button.class.getName())' in src.split('private void markDrawerAction(',1)[1].split('private void paintDrawerDestination(',1)[0]
 assert 'OnHandGlyphs.accentLabel(item' in drawer_fn
 assert 'if(radius>0&&(color==CARD||color==FIELD))' not in src
 assert 'BUBBLE=p.bubble' in src

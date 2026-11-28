@@ -1,0 +1,7 @@
+# F11-2A — robust Markdown table cells for document and coding output
+
+Live predecessor F11-1CD 3479e8fbf01d8056fd327097d4a81ba420b29f38: FAST 46141730613 success, FULL 46141730676 in progress at initial check. Preserve F11-1E isolated tree b146fb1e92cd66d4876ed51505f83cb2974f10d6 in the combined candidate. No live activation before exact predecessor gates pass.
+
+Scope: bounded table cell parsing for rich document/coding replies. The old splitter toggled code mode at every single backtick, so a multi-backtick span containing a pipe could split a valid cell. Match exact-width inline delimiters, treat unmatched runs as literal, respect odd/even protecting backslashes, retain empty cells, immutable output, existing line/column limits and raw response. Existing formula-neutralized derived spreadsheet export unchanged. This is a bounded presentation subset, not full CommonMark/GFM conformance. No execution of code or change to engine, user data, permissions, ads or billing.
+
+Actual independent javac --release 17 execution of MarkdownTableCellsTest in the local container: 9,024 assertions passed, including 3,000 seeded multilingual span and escape fixtures (three checks each). Verified local source/test blob SHA-1 93053b27039a452cffc6d998be94e7df2352c70d and 0c432f3480d92979e3cafc31476385c2c8ec6a00. ChatBlocks integration and five regression assertions prepared for exact CI; full ChatBlocks suite and actual device rich rendering were not run locally. No quality score uplift, major-stage completion or release claim.

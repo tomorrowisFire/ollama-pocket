@@ -39,6 +39,15 @@ public final class ChatBlocksTest {
         blocks=ChatBlocks.parse("| A | B |\n| --- | :---: |\n| x\\|y | \u0060a|b\u0060 |\n");
         ok(blocks.get(0).kind==ChatBlocks.Kind.TABLE&&blocks.get(0).rows.size()==2,"native table data");
         ok("x|y".equals(blocks.get(0).rows.get(1).get(0))&&"\u0060a|b\u0060".equals(blocks.get(0).rows.get(1).get(1)),"escaped and inline pipes");
+        String wideInline="| Code | Note |\n| --- | --- |\n| \u0060\u0060a\u0060|b\u0060\u0060 | 한글😀 |";
+        ChatBlocks.Block wideTable=ChatBlocks.parse(wideInline).get(0);
+        ok(wideTable.kind==ChatBlocks.Kind.TABLE&&wideTable.rows.get(1).equals(List.of("\u0060\u0060a\u0060|b\u0060\u0060","한글😀")),"Exact-width inline code delimiters");
+        ok(wideTable.raw.equals(wideInline),"Raw table remains exact");
+        ok(ChatBlocks.spreadsheetTsv(wideTable).equals("Code\tNote\n\u0060\u0060a\u0060|b\u0060\u0060\t한글😀"),"Correct derived TSV columns");
+        String unmatched="| Code | Note |\n| --- | --- |\n| \u0060literal | text |";
+        ChatBlocks.Block literalTable=ChatBlocks.parse(unmatched).get(0);
+        ok(literalTable.kind==ChatBlocks.Kind.TABLE&&literalTable.rows.get(1).equals(List.of("\u0060literal","text")),"Unclosed inline backtick stays literal");
+        ok(literalTable.raw.equals(unmatched),"Literal source preserved");
         ok(!ChatBlocks.hasSpecial(ChatBlocks.parse("| A | B |\n| --- |\n| 1 | 2 |")),"bad table");
         ok(!ChatBlocks.hasSpecial(ChatBlocks.parse("| A | B |\n| --- | --- |\n| 1 |")),"bad row");
         ok(!ChatBlocks.hasSpecial(ChatBlocks.parse("x".repeat(4001))),"long line limit");

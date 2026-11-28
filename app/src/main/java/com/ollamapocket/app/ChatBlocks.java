@@ -99,20 +99,7 @@ final class ChatBlocks {
         return true;
     }
     private static List<String> splitCells(String input){
-        String s=input.trim();List<String> out=new ArrayList<>();
-        if(s.startsWith("|"))s=s.substring(1);
-        if(s.endsWith("|")&&!s.endsWith("\\|"))s=s.substring(0,s.length()-1);
-        StringBuilder cell=new StringBuilder();boolean code=false;
-        for(int i=0;i<s.length();i++){
-            char c=s.charAt(i);
-            if(c=='\\'&&i+1<s.length()&&s.charAt(i+1)=='|'){cell.append('|');i++;continue;}
-            if(c=='\u0060')code=!code;
-            if(c=='|'&&!code){
-                out.add(cell.toString().trim());cell.setLength(0);
-                if(out.size()>MAX_COLUMNS)return Collections.emptyList();
-            }else cell.append(c);
-        }
-        out.add(cell.toString().trim());return Collections.unmodifiableList(out);
+        return MarkdownTableCells.split(input,MAX_LINE,MAX_COLUMNS);
     }
     /** Explicit derived paste format, not raw Markdown or a typed spreadsheet.
      * Escape control separators and neutralize formula-like/quote-led text conservatively.

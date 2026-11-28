@@ -70,6 +70,7 @@ final class DocumentBatchPolicy {
                 throw new IllegalArgumentException("Batch plan");
             this.goal=goal.trim();this.sources=Collections.unmodifiableList(new ArrayList<>(sources));
             List<Unit> all=new ArrayList<>();included=new int[sources.size()];
+            int[] counts=new int[sources.size()];
             int quota=MAX_UNITS/sources.size();
             for(int i=0;i<sources.size();i++){
                 Source s=sources.get(i);
@@ -92,9 +93,14 @@ final class DocumentBatchPolicy {
                     if(end<=start)throw new IllegalArgumentException("Prompt budget");
                     all.add(u);part++;start=end;included[i]=end;
                 }
+                counts[i]=part;
             }
             if(all.isEmpty()||all.size()>MAX_UNITS)throw new IllegalArgumentException("Unit count");
-            units=Collections.unmodifiableList(all);
+            // Complete the first available unit of every source before the second round.
+            // Exact per-source positions and canonical citation IDs remain unchanged.
+            List<Unit> ordered=new ArrayList<>(all.size());
+            for(int index:DocumentBatchSchedule.order(counts))ordered.add(all.get(index));
+            units=Collections.unmodifiableList(ordered);
         }
         int includedEnd(int source){return included[source];}
         int groupCount(){

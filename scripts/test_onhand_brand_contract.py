@@ -647,3 +647,11 @@ assert editor.count("controls[1]=button(navigationActions,R.string.auto_editor_n
 assert "controls[4]=button(orderActions,R.string.auto_move_up" in editor
 assert "controls[5]=button(orderActions,R.string.auto_move_down" in editor
 print("PASS: F11-1D shared action flow and workspace button groups")
+
+# F11-1E: exact route identity, shared drawer focus treatment and viewport-bounded reading measure.
+assert "WorkspaceChromePolicy.selectedDestination(activeTab,destination)" in main
+assert "WorkspaceChromePolicy.selectionDescription(item.getText().toString(),active,getString(R.string.workspace_selected))" in main
+assert "WorkspaceChromePolicy.centeredInsetPx(width,dp(workspaceReadingColumnDp((int)(width/density))),0)" in main
+assert "WorkspaceChromePolicy.bubbleWidthPx(width,padding,dp(640),dp(80))" in main
+assert "WorkspaceChromePolicy.centeredInsetPx(getWidth(),max,dp(6))" in (src/"CloudChatPanel.java").read_text()
+print("PASS: F11-1E route-based drawer and bounded viewport")

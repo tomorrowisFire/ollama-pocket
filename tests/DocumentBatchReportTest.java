@@ -52,6 +52,15 @@ public final class DocumentBatchReportTest {
         ok(partial.lookup("D1-S2")==null&&partial.lookup("D2-S1")==null&&partial.lookup("D1-S1")==first);
         ok(pj.getJSONArray("sources").getJSONObject(0).getInt("completed_utf16")==1400&&pj.getJSONArray("sources").getJSONObject(1).getInt("completed_utf16")==0);
         ok(pj.getJSONArray("known_citation_ids").length()==0&&pj.getJSONArray("unknown_citation_ids").length()==0);
+        // After a complete first round, both sources have a genuine completed prefix.
+        DocumentBatchPolicy.Result twoSources=new DocumentBatchPolicy.Result(DocumentBatchPolicy.Status.STOPPED,
+            full.notes.subList(0,2),0,"");
+        DocumentBatchReport round=new DocumentBatchReport(plan,twoSources,"model:test","USER",2,100);
+        ok(round.lookup("D1-S1")==first&&round.lookup("D2-S1")!=null&&round.lookup("D1-S2")==null);
+        JSONObject roundJson=new JSONObject(round.json());
+        ok(roundJson.getJSONArray("sources").getJSONObject(0).getInt("completed_utf16")==1400);
+        ok(roundJson.getJSONArray("sources").getJSONObject(1).getInt("completed_utf16")==pdf.text.length());
+        ok(round.extracted(round.lookup("D2-S1")).equals(pdf.text));
         DocumentBatchPolicy.Result failed=new DocumentBatchPolicy.Result(DocumentBatchPolicy.Status.FAILED,full.notes,1,"",true);
         rejects(()->new DocumentBatchReport(plan,failed,"m",null,3,200));
         JSONObject fj=new JSONObject(new DocumentBatchReport(plan,failed,"m",null,5,200).json());

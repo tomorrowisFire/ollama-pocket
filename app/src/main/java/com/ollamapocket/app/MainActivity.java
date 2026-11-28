@@ -1022,13 +1022,7 @@ public final class MainActivity extends Activity {
     private void updateDockedDestinations(){
         if(dockedDestinations==null)return;
         for(int i=0;i<dockedDestinations.length;i++){
-            TextView item=dockedDestinations[i];boolean selected=activeTab==i+1;
-            item.setTextColor(selected?bubbleInk():WHITE);
-            item.setTypeface(Typeface.DEFAULT,selected?Typeface.BOLD:Typeface.NORMAL);
-            item.setBackground(bg(selected?BUBBLE:BG,14));
-            item.setSelected(selected);
-            item.setContentDescription(item.getText()+(selected?" · "+getString(R.string.workspace_selected):""));
-            OnHandGlyphs.refresh(item);
+            paintDrawerDestination(dockedDestinations[i],WorkspaceChromePolicy.selectedDestination(activeTab,i+1));
         }
     }
     private void removeDockedSidebar(){
@@ -1072,7 +1066,7 @@ public final class MainActivity extends Activity {
         if(width<=0)return;
         float density=getResources().getDisplayMetrics().density;
         if(!Float.isFinite(density)||density<=0)return;
-        int side=Math.max(0,(width-dp(workspaceReadingColumnDp((int)(width/density))))/2);
+        int side=WorkspaceChromePolicy.centeredInsetPx(width,dp(workspaceReadingColumnDp((int)(width/density))),0);
         if(localChatContent.getPaddingLeft()!=side||localChatContent.getPaddingRight()!=side)
             localChatContent.setPadding(side,0,side,0);
         applyChatLayout();refreshBubbleWidths();
@@ -1115,7 +1109,7 @@ public final class MainActivity extends Activity {
             width=dp(workspaceReadingColumnDp((int)(available/getResources().getDisplayMetrics().density)));
         }
         int padding=messages==null?dp(8):messages.getPaddingLeft()+messages.getPaddingRight();
-        return Math.max(dp(80),Math.min(dp(640),(int)(Math.max(0,width-padding)*0.86f)));
+        return WorkspaceChromePolicy.bubbleWidthPx(width,padding,dp(640),dp(80));
     }
     private void refreshBubbleWidths(){
         if(messages==null)return;
@@ -3542,8 +3536,9 @@ public final class MainActivity extends Activity {
             }
             item.setContentDescription(getString(R.string.workspace_chat_model,entry.title,entry.model)+
                 (entry.pinned?" · "+getString(R.string.chat_pinned):"")+
-                (entry.excerpt.isEmpty()?"":". "+entry.excerpt));
-            item.setSelected(active);item.setFocusable(true);item.setClickable(true);item.setMinHeight(dp(48));
+                (entry.excerpt.isEmpty()?"":". "+entry.excerpt)+
+                (active?" · "+getString(R.string.workspace_selected):""));
+            item.setSelected(active);markDrawerAction(item);
             LinearLayout line=row();
             rowItem(line,item,1,3);
             Button manage=button("⋯",false);manage.setTextSize(19);
@@ -3608,30 +3603,46 @@ public final class MainActivity extends Activity {
         }).setNegativeButton(R.string.cancel,null).show();
     }
 
-    private TextView drawerNavigationItem(String title){
-        // Preserve the three compact destinations; pictograms aid scanning without subtitles.
-        boolean active=(getString(R.string.models).equals(title)&&activeTab==1)
-            ||(getString(R.string.settings).equals(title)&&activeTab==2)
-            ||(getString(R.string.devices).equals(title)&&activeTab==3);
-        TextView item=text(title,14,active?bubbleInk():WHITE,active);
-        item.setSingleLine(true);
-        item.setEllipsize(TextUtils.TruncateAt.END);
-        item.setMinHeight(dp(48));
-        item.setPadding(dp(12),dp(8),dp(12),dp(8));
-        item.setBackground(bg(active?BUBBLE:BG,14));
-        OnHandGlyphs.accentLabel(item,getString(R.string.models).equals(title)?OnHandGlyphs.Kind.CHIP:
-            getString(R.string.settings).equals(title)?OnHandGlyphs.Kind.SETTINGS:OnHandGlyphs.Kind.DEVICE);
+    private void markDrawerAction(TextView item){
+        item.setMinHeight(dp(48));item.setFocusable(true);item.setClickable(true);
+        item.setAccessibilityDelegate(new View.AccessibilityDelegate(){
+            @Override public void onInitializeAccessibilityNodeInfo(View host,android.view.accessibility.AccessibilityNodeInfo info){
+                super.onInitializeAccessibilityNodeInfo(host,info);
+                info.setClassName(Button.class.getName());
+            }
+        });
+    }
+    private void paintDrawerDestination(TextView item,boolean active){
+        WorkbenchVisualPolicy.Palette p=WorkbenchVisualPolicy.palette(activeThemeDark);
+        item.setTextColor(active?bubbleInk():WHITE);
+        item.setTypeface(Typeface.DEFAULT,active?Typeface.BOLD:Typeface.NORMAL);
+        GradientDrawable normal=bg(active?BUBBLE:BG,14);
+        if(active)normal.setStroke(dp(1),p.choiceBorder(true));
+        GradientDrawable focused=bg(active?BUBBLE:BG,14);
+        focused.setStroke(dp(2),p.focus);
+        android.graphics.drawable.StateListDrawable states=new android.graphics.drawable.StateListDrawable();
+        states.addState(new int[]{android.R.attr.state_focused},focused);
+        states.addState(new int[]{},normal);
+        item.setBackground(states);AdaptiveAnswerActions.feedback(item,14);
         item.setSelected(active);
-        item.setContentDescription(title+(active?" · "+getString(R.string.workspace_selected):""));
-        item.setFocusable(true);
-        item.setClickable(true);
+        item.setContentDescription(WorkspaceChromePolicy.selectionDescription(item.getText().toString(),active,getString(R.string.workspace_selected)));
+        OnHandGlyphs.refresh(item);
+    }
+    private TextView drawerNavigationItem(int destination,String title,OnHandGlyphs.Kind glyph){
+        boolean active=WorkspaceChromePolicy.selectedDestination(activeTab,destination);
+        TextView item=text(title,14,active?bubbleInk():WHITE,active);
+        item.setSingleLine(false);item.setEllipsize(null);
+        item.setPadding(dp(12),dp(8),dp(12),dp(8));
+        OnHandGlyphs.accentLabel(item,glyph);
+        paintDrawerDestination(item,active);
+        markDrawerAction(item);
         return item;
     }
 
     private TextView drawerHelpItem(){
         TextView item=text(getString(R.string.help),14,WHITE,false);
         item.setMinHeight(dp(48));item.setPadding(dp(12),dp(8),dp(12),dp(8));
-        item.setBackground(bg(BG,14));item.setFocusable(true);item.setClickable(true);
+        item.setBackground(bg(BG,14));markDrawerAction(item);
         AdaptiveAnswerActions.feedback(item,14);return item;
     }
 
@@ -3709,7 +3720,7 @@ public final class MainActivity extends Activity {
         // No duplicate app title: the new-chat and close actions share the first row.
         LinearLayout heading=row();
         TextView newChatItem=drawerRow(getString(R.string.new_chat),"",false);
-        newChatItem.setMinHeight(dp(48));newChatItem.setFocusable(true);
+        newChatItem.setMinHeight(dp(48));markDrawerAction(newChatItem);
         OnHandGlyphs.accentLabel(newChatItem,OnHandGlyphs.Kind.PLUS);
         rowItem(heading,newChatItem,1,4);
         Button close=button("×",false);
@@ -3755,9 +3766,9 @@ public final class MainActivity extends Activity {
         separatorParams.bottomMargin=dp(6);
         shell.addView(separator,separatorParams);
 
-        TextView models=drawerNavigationItem(getString(R.string.models));
-        TextView settings=drawerNavigationItem(getString(R.string.settings));
-        TextView diagnostics=drawerNavigationItem(getString(R.string.devices));
+        TextView models=drawerNavigationItem(1,getString(R.string.models),OnHandGlyphs.Kind.CHIP);
+        TextView settings=drawerNavigationItem(2,getString(R.string.settings),OnHandGlyphs.Kind.SETTINGS);
+        TextView diagnostics=drawerNavigationItem(3,getString(R.string.devices),OnHandGlyphs.Kind.DEVICE);
         margin(models,shell,0,3);
         margin(settings,shell,0,3);
         margin(diagnostics,shell,0,7);
