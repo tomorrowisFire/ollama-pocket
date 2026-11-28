@@ -67,6 +67,38 @@ public final class ProjectReportHandoffTest {
         JSONObject compactStopped=new JSONObject(ProjectReportHandoff.compactOf(stopped).json);
         ok(compactStopped.getString("status").equals("STOPPED")&&compactStopped.isNull("synthesis"));
         ok(compactStopped.getInt("generated_notes_total")==0);
+        var dialogue=new DeepFollowUpPolicy.Session(doc);
+        try{ProjectReportHandoff.ofDialogue(dialogue);throw new AssertionError("Empty dialogue accepted");}
+        catch(IllegalArgumentException expected){n++;}
+        dialogue.commit(dialogue.prepare("question",0),"answer [D1-S1]");
+        var exactDialogue=ProjectReportHandoff.ofDialogue(dialogue);
+        ok(exactDialogue.json.equals(DeepDialogueExport.json(dialogue)));
+        ok(!exactDialogue.json.contains("PRIVATE source"));
+        for(int i=0;i<29;i++)
+            dialogue.commit(dialogue.prepare("question "+i,0),"x".repeat(1750)+" [D1-S1] [D99-S1]");
+        try{ProjectReportHandoff.ofDialogue(dialogue);throw new AssertionError("Large dialogue accepted");}
+        catch(ProjectReportHandoff.TooLarge expected){n++;}
+        var packedDialogue=ProjectReportHandoff.compactDialogue(dialogue);
+        JSONObject packed=new JSONObject(packedDialogue.json), fullDialogue=new JSONObject(DeepDialogueExport.json(dialogue));
+        ok(packedDialogue.json.length()<=ProjectLibrary.MAX_TEXT);
+        ok(packed.getString("kind").equals("ONHAND_COMPACT_DEEP_DIALOGUE")&&!packed.getBoolean("complete_dialogue_export"));
+        ok(packed.getString("full_dialogue_sha256_utf8").matches("[0-9a-f]{64}"));
+        ok(packed.getInt("omitted_earlier_turns")==6&&packed.getInt("retained_turns")==24);
+        ok(packed.getJSONArray("sources").toString().equals(fullDialogue.getJSONArray("sources").toString()));
+        ok(!packed.getBoolean("factual_verification")&&!packed.getBoolean("resume_snapshot")&&!packedDialogue.json.contains("PRIVATE source"));
+        int retainedAnswers=0;
+        for(int i=0;i<24;i++){
+            JSONObject row=packed.getJSONArray("turns").getJSONObject(i),prior=fullDialogue.getJSONArray("turns").getJSONObject(i);
+            for(String key:List.of("number","question","source_filter","supplied_ranges","known_citation_ids","unknown_citation_ids"))
+                ok(row.get(key).toString().equals(prior.get(key).toString()));
+            if(row.getBoolean("generated_answer_included")){
+                ok(row.getString("generated_answer").equals(prior.getString("generated_answer")));retainedAnswers++;
+            }else ok(row.isNull("generated_answer"));
+        }
+        ok(retainedAnswers>0&&retainedAnswers<24&&packed.getInt("generated_answers_included")==retainedAnswers);
+        ok(packed.getInt("generated_answers_omitted")==24-retainedAnswers);
+        ok(packed.getJSONArray("turns").getJSONObject(23).getBoolean("generated_answer_included"));
+        ok(ProjectReportHandoff.compactDialogue(dialogue).json.equals(packedDialogue.json));
         ConferencePolicy.Request req=new ConferencePolicy.Request("goal","model","en",WorkflowPolicy.Gate.CONTAINS,"OK");
         ConferencePolicy.Result bad=ConferencePolicy.run(req,call->new ConferencePolicy.Reply("not JSON",false),()->false,x->{});
         ConferenceReport failed=new ConferenceReport(req,bad,null,20);

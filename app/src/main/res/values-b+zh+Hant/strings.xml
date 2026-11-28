@@ -1463,4 +1463,7 @@
     <string name="deep_follow_reset_notice">開始新分析會清除目前暫時後續對話。如需保留，請先儲存。</string>
     <string name="batch_compact_project_title">將精簡報告儲存至專案</string>
     <string name="batch_compact_project_notice">完整報告超出專案容量限制。是否儲存精簡報告？保留來源涵蓋範圍、摘錄位置、引用資訊及最終綜合結論，可能省略部分生成筆記。仍可匯出完整 JSON 與文字。</string>
+    <string name="deep_follow_project">將對話儲存至專案</string>
+    <string name="deep_follow_project_compact">儲存精簡對話</string>
+    <string name="deep_follow_project_compact_notice">完整對話超出專案大小限制。是否儲存精簡版本？保留的所有問題、來源範圍與引用 ID 均會保留，但部分生成回答可能省略。仍可另行匯出完整的保留對話。</string>
 </resources>

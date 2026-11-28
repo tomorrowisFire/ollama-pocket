@@ -30,6 +30,13 @@ public final class DeepFollowUpPolicyTest {
             ok(e.text.equals(report.plan.sources.get(u.source).text.substring(e.start,e.end)));
             ok(e.start>=u.start&&e.end<=u.end);
         }
+        var explicit=session.prepare("Compare [D20-S1] and [D1-S1]",-1);
+        ok(explicit.evidence.size()==2&&explicit.evidence.get(0).id.equals("D20-S1")&&explicit.evidence.get(1).id.equals("D1-S1"));
+        ok(DocumentBatchPolicy.fits(explicit.prompt,DeepFollowUpPolicy.TOKENS));
+        reject(()->session.prepare("Compare [D99-S1]",-1));
+        reject(()->session.prepare("Compare [D20-S1]",0));
+        reject(()->session.prepare("[D1-S1] [D2-S1] [D3-S1] [D4-S1] [D5-S1]",-1));
+        ok(session.prepare("［D20-S1］",19).evidence.get(0).id.equals("D20-S1"));
         var stale=session.prepare("Other question",0);
         var t=session.commit(first,"42톤 [D20-S1], unavailable [D99-S1]");
         ok(t.citations.valid.equals(List.of("D20-S1"))&&t.citations.unknown.equals(List.of("D99-S1")));
@@ -55,6 +62,7 @@ public final class DeepFollowUpPolicyTest {
         var partialReport=new DocumentBatchReport(report.plan,partial,"fixture","USER",1,1);
         var limited=new DeepFollowUpPolicy.Session(partialReport);
         reject(()->limited.prepare("query",19));ok(limited.prepare("query",-1).evidence.get(0).id.equals("D1-S1"));
+        reject(()->limited.prepare("Explain [D20-S1]",-1));
         // The referenced fact lives far past the first 360 characters of a unit.
         var longSource=new DocumentBatchPolicy.Source("late.txt","a ".repeat(500)+" latefact 987654 "+"b ".repeat(40),
                 DocumentBatchPolicy.Kind.TEXT,false,0,0,0);
@@ -67,6 +75,8 @@ public final class DeepFollowUpPolicyTest {
         var late=longSession.prepare("latefact",0);
         ok(late.evidence.get(0).text.contains("987654")&&late.evidence.get(0).start>500);
         longSession.commit(late,"987654 [D1-S1]");
+        var targeted=longSession.prepare("Explain [D1-S1]",0);
+        ok(targeted.evidence.size()==1&&targeted.evidence.get(0).start==late.evidence.get(0).start);
         var pronoun=longSession.prepare("What?",0);
         ok(pronoun.evidence.get(0).text.contains("987654")&&pronoun.evidence.get(0).start==late.evidence.get(0).start);
         var empty=new DocumentBatchPolicy.Result(DocumentBatchPolicy.Status.STOPPED,List.of(),0,"");

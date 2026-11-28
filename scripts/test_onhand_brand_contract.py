@@ -144,6 +144,10 @@ assert "session.commit(request,answer)" in deep_batch
 assert "R.string.deep_follow_review_notice" in deep_batch and "request.prompt" in deep_batch
 assert "DeepDialogueExport.prepare(reviewed)" in deep_batch
 assert "ProjectReportHandoff.compactOf(snapshot())" in deep_batch
+assert "ProjectReportHandoff.ofDialogue(reviewed)" in deep_batch
+assert "ProjectReportHandoff.compactDialogue(reviewed)" in deep_batch
+assert "R.string.deep_follow_project_compact_notice" in deep_batch
+assert "requested.valid.size()>MAX_EVIDENCE" in (src/"DeepFollowUpPolicy.java").read_text()
 assert "R.string.batch_compact_project_notice" in deep_batch
 assert deep_batch.index("DocumentBatchPolicy.InputBudget budget=new") < deep_batch.index("// Reject known oversized selections")
 assert "check();budget.check();return out;" in deep_batch

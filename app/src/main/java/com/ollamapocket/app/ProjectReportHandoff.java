@@ -66,6 +66,42 @@ final class ProjectReportHandoff {
         root.put("generated_notes_included",included).put("generated_notes_omitted",total-included);
         return new ProjectReportHandoff(root.toString(),report.result.status.name());
     }
+    /** Preserve the portable retained-turn ledger exactly whenever it fits. */
+    static ProjectReportHandoff ofDialogue(DeepFollowUpPolicy.Session session)throws Exception{
+        return new ProjectReportHandoff(DeepDialogueExport.json(session),"COMPLETED");
+    }
+    /** Explicit compact alternative: keep every retained question, source and supplied
+     * range, and every citation ID. Include whole generated answers newest-first. */
+    static ProjectReportHandoff compactDialogue(DeepFollowUpPolicy.Session session)throws Exception{
+        String full=DeepDialogueExport.json(session);
+        org.json.JSONObject root=new org.json.JSONObject(full);
+        org.json.JSONArray turns=root.getJSONArray("turns");
+        java.util.List<String> answers=new java.util.ArrayList<>();
+        for(int i=0;i<turns.length();i++){
+            org.json.JSONObject row=turns.getJSONObject(i);
+            answers.add(row.getString("generated_answer"));
+            row.put("generated_answer",org.json.JSONObject.NULL).put("generated_answer_included",false);
+        }
+        byte[] digest=java.security.MessageDigest.getInstance("SHA-256")
+            .digest(full.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        StringBuilder hex=new StringBuilder(64);
+        for(byte b:digest){int n=b&255;hex.append(Character.forDigit(n>>>4,16)).append(Character.forDigit(n&15,16));}
+        root.put("kind","ONHAND_COMPACT_DEEP_DIALOGUE").put("complete_dialogue_export",false)
+            .put("full_dialogue_sha256_utf8",hex.toString()).put("generated_answers_included",0)
+            .put("generated_answers_omitted",turns.length());
+        int length=root.toString().length(),included=0;
+        if(length>ProjectLibrary.MAX_TEXT)throw new TooLarge();
+        for(int i=turns.length()-1;i>=0;i--){
+            org.json.JSONObject row=turns.getJSONObject(i);
+            int before=row.toString().length();
+            row.put("generated_answer",answers.get(i)).put("generated_answer_included",true);
+            int delta=row.toString().length()-before;
+            if((long)length+delta+16<=ProjectLibrary.MAX_TEXT){length+=delta;included++;}
+            else row.put("generated_answer",org.json.JSONObject.NULL).put("generated_answer_included",false);
+        }
+        root.put("generated_answers_included",included).put("generated_answers_omitted",turns.length()-included);
+        return new ProjectReportHandoff(root.toString(),"COMPLETED");
+    }
     ProjectLibrary.State createProject(ProjectLibrary.State st,String pid,String projectTitle,String aid,String artifactTitle,long now){
         return ProjectLibrary.createProjectWithArtifact(st,pid,projectTitle,aid,artifactTitle,json,Math.max(1,now));
     }

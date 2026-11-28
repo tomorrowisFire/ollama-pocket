@@ -49,7 +49,7 @@ final class DocumentBatchUi {
     private Button preset,preview,copy,inspect,copyJson,saveProject,dictateGoal,readReport,viewReport,saveJsonFile,saveTextFile;
     private ProjectWorkspaceUi reportWorkspace;
     private DeepFollowUpPolicy.Session followSession;
-    private Button followAsk,followSave,followCopy,followSaveJson;
+    private Button followAsk,followSave,followCopy,followSaveJson,followProject;
     private TextView followTranscript;
     static boolean busy(){return BUSY.busy();}
     DocumentBatchUi(Activity owner,String model,AttachmentText.Encoding encoding,BooleanSupplier eligible,BooleanSupplier startAuthorized){
@@ -95,6 +95,7 @@ final class DocumentBatchUi {
         followCopy.setEnabled(hasDialogue);
         followSave.setEnabled(hasDialogue&&owner instanceof MainActivity);
         followSaveJson.setEnabled(hasDialogue&&owner instanceof MainActivity);
+        followProject.setEnabled(hasDialogue);
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(idle&&sources!=null);
         dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setEnabled(!idle&&!cancelRequested);
     }
@@ -235,8 +236,9 @@ final class DocumentBatchUi {
         });
         followSave=button(followActions,R.string.deep_follow_save,()->exportFollowUp(false));
         followSaveJson=button(followActions,R.string.deep_follow_save_json,()->exportFollowUp(true));
+        followProject=button(panel,R.string.deep_follow_project,this::saveFollowUpProject);
         followTranscript=label(panel,"",true);
-        followAsk.setEnabled(false);followCopy.setEnabled(false);followSave.setEnabled(false);followSaveJson.setEnabled(false);
+        followAsk.setEnabled(false);followCopy.setEnabled(false);followSave.setEnabled(false);followSaveJson.setEnabled(false);followProject.setEnabled(false);
         ScrollView scroll=new ScrollView(owner);scroll.addView(panel);
         AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.batch_title).setView(scroll)
             .setNegativeButton(R.string.close,null).setNeutralButton(R.string.stop,null).setPositiveButton(R.string.batch_start,null).create();
@@ -549,6 +551,28 @@ final class DocumentBatchUi {
             runner=null;status.setText(cancelRequested?R.string.batch_stopped:R.string.deep_follow_failed);
         });
         if(!started&&runner==active){runner=null;active.cancel();status.setText(R.string.deep_follow_failed);enabled();}
+    }
+    private void saveFollowUpProject(){
+        if(!visible()||busy()||confirmation!=null||ProjectWorkspaceUi.busy()||!eligible.getAsBoolean()||
+                followSession==null||followSession.count()==0)return;
+        final DeepFollowUpPolicy.Session reviewed=followSession;
+        final long revision=reviewed.count();
+        BooleanSupplier stillReviewed=()->visible()&&!busy()&&followSession==reviewed&&reviewed.count()==revision;
+        try{
+            ProjectReportHandoff exact=ProjectReportHandoff.ofDialogue(reviewed);
+            reportWorkspace=new ProjectWorkspaceUi(owner,stillReviewed);
+            reportWorkspace.openReport(exact,s(R.string.deep_follow_title));
+        }catch(ProjectReportHandoff.TooLarge tooLarge){
+            try{
+                ProjectReportHandoff compact=ProjectReportHandoff.compactDialogue(reviewed);
+                confirm(R.string.deep_follow_project_compact,s(R.string.deep_follow_project_compact_notice),()->{
+                    if(!stillReviewed.getAsBoolean()||ProjectWorkspaceUi.busy()||!eligible.getAsBoolean())return;
+                    reportWorkspace=new ProjectWorkspaceUi(owner,stillReviewed);
+                    reportWorkspace.openReport(compact,s(R.string.deep_follow_project_compact));
+                });
+            }catch(ProjectReportHandoff.TooLarge tooBig){toast(R.string.project_report_too_large);}
+            catch(Exception invalid){toast(R.string.batch_export_failed);}
+        }catch(Exception invalid){toast(R.string.batch_export_failed);}
     }
     private void exportFollowUp(boolean json){
         if(!(owner instanceof MainActivity)||!visible()||busy()||confirmation!=null||!eligible.getAsBoolean()||

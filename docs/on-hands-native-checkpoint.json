@@ -1,8 +1,8 @@
 {
   "stage": "F12-file-intake-integration-candidate",
-  "revision": "F12-file-intake-r008-input-project",
+  "revision": "F12-file-intake-r009-targeted-dialogue-project",
   "scopeBaseline": "0152869a25bfa63e1e6e94c5ebb079ccc0facba8",
-  "priorCandidate": "172770bd0a1a8f8bbcb59cdcde1276784374b26c",
+  "priorCandidate": "24f3f43b2aee4379a69357267337b764fd011783",
   "modules": [
     {
       "stage": "A-text",
@@ -95,7 +95,15 @@
     {
       "stage": "W-compact-project-report",
       "sha": "2e691b135e0d67dc0975bc40450662fd3b1970aa"
+    },
+    {
+      "stage": "X-targeted-follow-up",
+      "sha": "edc692f26d91a33c2ae2c8aa53a6ff8d522deab4"
+    },
+    {
+      "stage": "Y-dialogue-project-handoff",
+      "sha": "dc8640afaacdfb1abd1ffde04209f64eda4f85b0"
     }
   ],
-  "reason": "r008 sticky aggregate input failure and metadata/parser boundary checks; explicit compact project alternative preserves complete source and citation ledger. r006 exact FAST/FULL passed and officially promoted; r007 validation active. r008 detached pending predecessor and exact CI. No native, manifest, dependency, production ads or data schema change."
+  "reason": "r007 exact FAST 46158015267 and FULL 46158015138 passed, required steps checked and official branch advanced non-force; r008 linked to validation branch and exact FAST 46162716434/FULL 46162716437 active. r009 adds explicit citation-targeted retrieval and local project dialogue handoff with explicit compact fallback. No engine/dependency/manifest/persistent schema/production ads change. Detached until r008 passes."
 }

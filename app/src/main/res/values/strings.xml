@@ -1463,4 +1463,7 @@
     <string name="deep_follow_reset_notice">Starting a new analysis clears the current temporary follow-up dialogue. Save it first if needed.</string>
     <string name="batch_compact_project_title">Save compact project report</string>
     <string name="batch_compact_project_notice">The full report exceeds the project size limit. Save a compact report instead? Source coverage, excerpt ranges, citations and any final synthesis are retained; some generated notes may be omitted. Full JSON and text exports remain available.</string>
+    <string name="deep_follow_project">Save dialogue to project</string>
+    <string name="deep_follow_project_compact">Save compact dialogue</string>
+    <string name="deep_follow_project_compact_notice">The full dialogue exceeds the project size limit. Save a compact version? All retained questions, source ranges and citation IDs remain; some generated answers may be omitted. The complete retained dialogue can still be exported.</string>
 </resources>
