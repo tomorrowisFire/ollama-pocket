@@ -254,6 +254,18 @@ final class BranchWorkflowRun {
                 Math.max(0L,WorkflowAttemptStore.WINDOW_MS-Math.max(0L,wall-started))*1_000_000L,
                 observer,System::currentTimeMillis,Thread::sleep);
     }
+    /** Retry waits are cancellable without reserving or dispatching another attempt. */
+    private static boolean waitForRetry(long delay,BooleanSupplier stop,Sleep sleep){
+        long remaining=delay;
+        while(remaining>0){
+            if(stop.getAsBoolean()||Thread.currentThread().isInterrupted())return false;
+            long slice=Math.min(100L,remaining);
+            try{sleep.waitMillis(slice);}
+            catch(InterruptedException cancelled){Thread.currentThread().interrupt();return false;}
+            remaining-=slice;
+        }
+        return !stop.getAsBoolean()&&!Thread.currentThread().isInterrupted();
+    }
     private boolean withinWindow(long now,long reserved){
         return now>=reserved&&now>=started&&now-started<WorkflowAttemptStore.WINDOW_MS;
     }
@@ -271,8 +283,7 @@ final class BranchWorkflowRun {
             if(now<current.value.notBefore){
                 long wait=current.value.notBefore-now;
                 if(wait>4000L)break;
-                sleep.waitMillis(wait);
-                if(stop.getAsBoolean()||Thread.currentThread().isInterrupted())break;
+                if(!waitForRetry(wait,stop,sleep))break;
                 now=clock.getAsLong();
                 if(now<current.value.notBefore||now<started||now-started>=WorkflowAttemptStore.WINDOW_MS)break;
             }

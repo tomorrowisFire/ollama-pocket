@@ -53,20 +53,22 @@ public final class ModelSearchWorkersTest {
         for(boolean reverse:new boolean[]{false,true}){
             ModelSearchWorkers isolated=new ModelSearchWorkers();
             CountDownLatch hung=new CountDownLatch(1),unblock=new CountDownLatch(1),otherReady=new CountDownLatch(1);
+            AtomicInteger blockedLaneDispatched=new AtomicInteger();
             AtomicInteger obsolete=new AtomicInteger();
             try{
                 Runnable hold=()->stubborn(hung,unblock);
                 isolated.replace(reverse?null:hold,reverse?hold:null);
                 ok(waitFor(hung),"one provider is blocked");
                 for(int i=0;i<100;i++)isolated.replace(reverse?null:obsolete::incrementAndGet,reverse?obsolete::incrementAndGet:null);
-                isolated.replace(reverse?otherReady::countDown:latest::countDown,reverse?latest::countDown:otherReady::countDown);
+                isolated.replace(reverse?otherReady::countDown:blockedLaneDispatched::incrementAndGet,
+                        reverse?blockedLaneDispatched::incrementAndGet:otherReady::countDown);
                 ok(waitFor(otherReady),"other provider completes without blocked provider");
                 ok(isolated.queued()==1&&obsolete.get()==0,"only latest blocked-lane request retained");
                 isolated.cancel();
                 ok(isolated.queued()==0,"cancel clears isolated queues");
             }finally{unblock.countDown();isolated.close();}
             ok(isolated.awaitTermination(5000),"isolated lanes terminate");
-            ok(obsolete.get()==0,"superseded provider jobs never dispatched");
+            ok(obsolete.get()==0&&blockedLaneDispatched.get()==0,"superseded and cancelled provider jobs never dispatched");
         }
         System.out.println("PASS: "+checks+" bounded search worker assertions");
     }

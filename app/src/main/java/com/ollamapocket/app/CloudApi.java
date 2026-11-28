@@ -370,19 +370,45 @@ final class CloudApi {
             try{progress.update(accepted.toString());}catch(RuntimeException ignored){}
         }
     }
-    private static JSONObject readJson(java.net.HttpURLConnection c)throws Exception{
-        try(InputStream stream=c.getInputStream();ByteArrayOutputStream buffer=new ByteArrayOutputStream()){
-            byte[] b=new byte[8192];int n;
-            while((n=stream.read(b))!=-1){
-                checkCancelled();
-                if(buffer.size()+n>2_000_000)throw new java.io.IOException("Response limit");
-                buffer.write(b,0,n);
-            }
-            String decoded=StandardCharsets.UTF_8.newDecoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+    static final long JSON_READ_BUDGET_NS=300_000_000_000L;
+    private static final int JSON_WIRE_BYTES=2_000_000;
+    private static void checkReadBudget(java.util.function.LongSupplier clock,long started)throws java.io.IOException{
+        checkCancelled();
+        long elapsed=clock.getAsLong()-started;
+        if(elapsed<0||elapsed>=JSON_READ_BUDGET_NS)throw new java.net.SocketTimeoutException("Response deadline");
+    }
+    /** Wipe the owned temporary read buffers; parsed strings and transport copies may remain. */
+    private static final class ResponseBuffer extends ByteArrayOutputStream {
+        @Override public void close(){java.util.Arrays.fill(buf,(byte)0);reset();}
+        String decode()throws java.io.IOException{
+            return StandardCharsets.UTF_8.newDecoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
                 .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
-                .decode(java.nio.ByteBuffer.wrap(buffer.toByteArray())).toString();
-            checkCancelled();
-            return parseWireObject(decoded,2_000_000);
+                .decode(java.nio.ByteBuffer.wrap(buf,0,count)).toString();
+        }
+    }
+    static JSONObject readWireObject(InputStream stream,java.util.function.LongSupplier clock)throws Exception{
+        long started=clock.getAsLong();
+        byte[] chunk=new byte[8192];
+        try(ResponseBuffer buffer=new ResponseBuffer()){
+            for(;;){
+                checkReadBudget(clock,started);
+                int n=stream.read(chunk);
+                checkReadBudget(clock,started);
+                if(n==-1)break;
+                if(n<=0||n>chunk.length||n>JSON_WIRE_BYTES-buffer.size())throw new java.io.IOException("Response limit or invalid read");
+                buffer.write(chunk,0,n);
+            }
+            String decoded=buffer.decode();
+            checkReadBudget(clock,started);
+            JSONObject parsed=parseWireObject(decoded,JSON_WIRE_BYTES);
+            checkReadBudget(clock,started);
+            return parsed;
+        }finally{java.util.Arrays.fill(chunk,(byte)0);}
+    }
+    private static JSONObject readJson(java.net.HttpURLConnection c)throws Exception{
+        checkCancelled();
+        try(InputStream stream=c.getInputStream()){
+            return readWireObject(stream,System::nanoTime);
         }
     }
 }

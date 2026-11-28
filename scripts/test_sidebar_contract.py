@@ -103,9 +103,17 @@ cache_src=Path("app/src/main/java/com/ollamapocket/app/ModelSearchCache.java").r
 assert "if(expected==writeEpoch)put(key,values,now);" in cache_src
 assert "entries.clear();variants=0;textChars=0;writeEpoch=new Object();" in cache_src
 workers_src=Path("app/src/main/java/com/ollamapocket/app/ModelSearchWorkers.java").read_text()
-assert "new ThreadPoolExecutor(2,2," in workers_src
-assert "new ArrayBlockingQueue<>(2)" in workers_src
-assert "pool.purge();" in workers_src and "pool.shutdownNow();" in workers_src
+# Two isolated single-worker lanes: total workers and queued requests remain bounded by two.
+assert "new ThreadPoolExecutor(1,1,0L,TimeUnit.MILLISECONDS,new ArrayBlockingQueue<>(1))" in workers_src
+assert "ollamaLane=lane(),hfLane=lane()" in workers_src
+assert workers_src.count("new ThreadPoolExecutor(")==1
+assert workers_src.count("=lane()")==2
+assert "ollama=ollamaLane.submit(nextOllama)" in workers_src
+assert "hf=hfLane.submit(nextHf)" in workers_src
+assert "ollama.cancel(true)" in workers_src and "hf.cancel(true)" in workers_src
+assert "ollamaLane.purge();hfLane.purge();" in workers_src
+assert "ollamaLane.shutdownNow();hfLane.shutdownNow();" in workers_src
+assert "ollamaLane.getQueue().size()+hfLane.getQueue().size()" in workers_src
 assert 'onModelSearchChanged(s.toString())' in src
 assert 'downloadingCardId' in src
 assert '이 기기에 추천하는 모델' not in src

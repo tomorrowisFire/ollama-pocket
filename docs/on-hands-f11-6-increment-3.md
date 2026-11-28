@@ -1,0 +1,3 @@
+# F11-6 r003 — bounded non-stream response reads
+
+Apply the existing five-minute stream time budget to non-stream JSON body reads, checking cancellation/deadline before and after each read and parse. Keep the two-million-byte wire cap and strict UTF-8/JSON admission. Reject zero-progress reads. Wipe owned response buffers on exit without an extra byte-array copy; parsed strings, reallocated buffers, and transport copies are outside this best-effort protection. Socket read timeout remains independently configured; this cannot interrupt a blocked read by itself. Synthetic fixtures cover exact multilingual bytes, expired and cancelled reads, oversized and invalid input. Live provider and device tests pending.

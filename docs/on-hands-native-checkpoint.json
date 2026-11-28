@@ -1,24 +1,26 @@
 {
-  "stage": "F11-3-through-6-increment-2-integration-candidate",
-  "revision": "F11-3-6-r002",
-  "priorCandidate": "5a56334661fef43d484f08d6ab82ef0a2d912b18",
+  "stage": "F11-3-through-6-r003-corrected-integration-candidate",
+  "revision": "F11-3-6-r003",
+  "priorCandidate": "49d6c05d5fe3b72c42f47e650b45d0bec3ff460c",
+  "supersedesFailedCandidate": "49d6c05d5fe3b72c42f47e650b45d0bec3ff460c",
+  "knownFailureRun": 46146091734,
   "isolated": [
     {
       "stage": "F11-3",
-      "sha": "69de9e12ee935a7f2370c66da93a7b50273936d5"
+      "sha": "8dea9707f37a7c5622f0fe13826f20c2930da818"
     },
     {
       "stage": "F11-4",
-      "sha": "2613dad76e7bc18cd3f0e8f5378df7eb7a659d06"
+      "sha": "4cd8c4b6d981eee313111273bf4ef108ae42ab5b"
     },
     {
       "stage": "F11-5",
-      "sha": "85efd54f8fe581f21dae9d4aed5e84b3281969ec"
+      "sha": "6c85d9e4e5f16d038a1d72ef9443cb4ceb24b037"
     },
     {
       "stage": "F11-6",
-      "sha": "10819f7c81130ca665af416aff97de9d0ed8072f"
+      "sha": "1d3e906d5f7bc818fa7cc652c8803cec72953276"
     }
   ],
-  "reason": "Independent candidate modules combined without overlapping paths. Predecessor and exact combined FAST/FULL gates required before official integration; actual device and external expert evaluation pending."
+  "reason": "Fix obsolete shared pool structural assertion while maintaining bounded isolated provider lane guarantees. Combined candidate also includes continuous recognition parity, cancellable retry backoff and bounded response reads. Require exact corrected FAST/FULL plus previously required verified baseline before advancing official integration. No claim of r002 PASS."
 }

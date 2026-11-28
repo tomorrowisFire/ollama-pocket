@@ -73,6 +73,30 @@ public final class ReviewedExecutionIntegrationTest {
         ok(result.snapshot.value.attempts.size()==3&&result.snapshot.value.attempts.get(0).outcome==WorkflowAttemptStore.Outcome.RETRY_SAFE);
         ok(result.snapshot.value.attempts.get(1).reserved>=3000&&result.snapshot.value.cursor.visits.size()==2);
         ok(result.snapshot.value.cursor.visits.get(1).node.equals("yes"));
+        // A pause during retry delay must not create a second reservation.
+        BranchWorkflowRun paused=BranchWorkflowRun.create(root.toFile(),plan,now.get());
+        AtomicBoolean pause=new AtomicBoolean();AtomicInteger pausedCalls=new AtomicInteger();
+        AtomicLong waited=new AtomicLong();
+        var pauseResult=paused.execute(paused.ledger.read(),task->{
+            pausedCalls.incrementAndGet();return new ReviewedLocalPolicy.Result("not a boolean",false);
+        },pause::get,null,now::get,ms->{waited.addAndGet(ms);now.addAndGet(ms);pause.set(true);});
+        ok(waited.get()==100L&&pausedCalls.get()==1);
+        ok(pauseResult.snapshot.value.attempts.size()==1&&!pauseResult.snapshot.value.pending());
+        ok(pauseResult.snapshot.value.cursor.status==WorkflowBranchPlan.Status.READY&&
+                pauseResult.snapshot.value.last().outcome==WorkflowAttemptStore.Outcome.RETRY_SAFE);
+        pause.set(false);
+        var resumed=paused.execute(paused.ledger.read(),task->{
+            pausedCalls.incrementAndGet();return new ReviewedLocalPolicy.Result(task.condition?"true":"verified",false);
+        },pause::get,null,now::get,ms->now.addAndGet(ms));
+        ok(resumed.snapshot.value.cursor.status==WorkflowBranchPlan.Status.COMPLETED&&pausedCalls.get()==3);
+        BranchWorkflowRun interruptedRun=BranchWorkflowRun.create(root.toFile(),plan,now.get());
+        try{
+            var interruptedResult=interruptedRun.execute(interruptedRun.ledger.read(),
+                    task->new ReviewedLocalPolicy.Result("not a boolean",false),()->false,null,now::get,
+                    ms->{throw new InterruptedException("retry cancelled");});
+            ok(Thread.currentThread().isInterrupted()&&interruptedResult.snapshot.value.attempts.size()==1);
+            ok(!interruptedResult.snapshot.value.pending());
+        }finally{Thread.interrupted();}
         BranchWorkflowRun another=BranchWorkflowRun.open(root.toFile(),run.id);
         another.execute(another.ledger.read(),task->{throw new AssertionError("Completed run replay");},()->false,null,now::get,ms->now.addAndGet(ms));
         BranchWorkflowRun.delete(root.toFile(),run.id,result.snapshot.revision);
