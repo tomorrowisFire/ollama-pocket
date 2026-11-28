@@ -79,6 +79,15 @@ public final class LocalInferenceStreamTest {
         AtomicInteger pullEvents=new AtomicInteger();
         LocalInferenceStream.pull(reader("{\"status\":\"pulling manifest\"}\n{\"status\":\"pulling layer\",\"total\":100,\"completed\":100}\n{\"status\":\"success\"}\n"),m->pullEvents.incrementAndGet(),()->false);
         ok(pullEvents.get()==3);
+        for(String invalid:new String[]{
+            "{\"status\":\"pulling\",\"total\":100,\"completed\":101}",
+            "{\"status\":\"pulling\",\"total\":9223372036854775806,\"completed\":9223372036854775807}"
+        })rejects(()->LocalInferenceStream.pull(reader(invalid+"\n{\"status\":\"success\"}\n"),m->{throw new AssertionError("Invalid progress callback");},()->false));
+        LocalInferenceStream.pull(reader("{\"status\":\"pulling\",\"total\":0,\"completed\":10}\n{\"status\":\"success\"}\n"),m->pullEvents.incrementAndGet(),()->false);
+        ok(pullEvents.get()==5);
+        rejects(()->LocalInferenceStream.ndjson(reader("\n".repeat(LocalInferenceStream.MAX_LINES+1)),m->{throw new AssertionError("Blank callback");},false));
+        rejects(()->LocalInferenceStream.ndjson(reader("{'status':'pulling'}\n"),m->{throw new AssertionError("Invalid relaxed callback");},false));
+        rejects(()->LocalInferenceStream.sse(reader("data: {'choices':[]}\n\n"),m->{throw new AssertionError("Invalid relaxed SSE");},false));
         for(String bad:new String[]{"","{\"status\":\"pulling\"}\n","{\"status\":\"Success\"}\n",
             "{\"status\":\"writing manifest\"}\n","{\"status\":true}\n","{}\n","{\"status\":\"\",\"total\":0}\n",
             "{\"status\":\"success\",\"error\":\"bad\"}\n","{\"status\":\"pulling\",\"total\":\"100\"}\n",

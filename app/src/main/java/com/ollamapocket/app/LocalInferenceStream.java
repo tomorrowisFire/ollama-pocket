@@ -54,9 +54,9 @@ final class LocalInferenceStream {
     static void ndjson(BufferedReader reader,Listener listener,boolean requireDone,BooleanSupplier cancelled)throws Exception{
         Budget budget=new Budget();
         for(String row;(row=LocalStreamCancellation.line(reader,MAX_LINE,cancelled))!=null;){
-            if(requireDone)budget.add(row);
+            budget.add(row);
             if(row.trim().isEmpty())continue;
-            JSONObject message=requireDone?parseObject(row):new JSONObject(row);
+            JSONObject message=parseObject(row);
             if(message.has("error"))throw new IOException("LOCAL_ENGINE_ERROR");
             if(requireDone){
                 if(message.has("done")&&!(message.opt("done") instanceof Boolean))throw new IOException("LOCAL_ENGINE_PROTOCOL");
@@ -78,6 +78,16 @@ final class LocalInferenceStream {
         LocalStreamCancellation.check(cancelled);
         if(requireDone)throw new IOException("CHAT_STREAM_INCOMPLETE");
     }
+    private static long pullCount(JSONObject item,String key)throws IOException{
+        Object value=item.opt(key);
+        if(value==null||value==JSONObject.NULL)return -1;
+        if(!(value instanceof Number))throw new IOException("PULL_PROTOCOL");
+        try{
+            long n=new java.math.BigDecimal(value.toString()).longValueExact();
+            if(n<0)throw new IOException("PULL_PROTOCOL");
+            return n;
+        }catch(ArithmeticException|NumberFormatException invalid){throw new IOException("PULL_PROTOCOL",invalid);}
+    }
     /** Pulls may last for hours; bound each record, not the total progress event count. */
     static void pull(BufferedReader reader,Listener listener,BooleanSupplier cancelled)throws Exception{
         for(String row;(row=LocalStreamCancellation.line(reader,MAX_LINE,cancelled))!=null;){
@@ -89,14 +99,9 @@ final class LocalInferenceStream {
             Object raw=item.opt("status");
             if(!(raw instanceof String)||((String)raw).trim().isEmpty()||((String)raw).length()>1024)
                 throw new IOException("PULL_PROTOCOL");
-            for(String key:new String[]{"total","completed"}){
-                Object value=item.opt(key);
-                if(value==null||value==JSONObject.NULL)continue;
-                if(!(value instanceof Number))throw new IOException("PULL_PROTOCOL");
-                try{
-                    if(new java.math.BigDecimal(value.toString()).longValueExact()<0)throw new IOException("PULL_PROTOCOL");
-                }catch(ArithmeticException|NumberFormatException invalid){throw new IOException("PULL_PROTOCOL",invalid);}
-            }
+            long total=pullCount(item,"total"),completed=pullCount(item,"completed");
+            // Zero/missing total means unknown; a positive reported layer size is authoritative.
+            if(total>0&&completed>total)throw new IOException("PULL_PROTOCOL");
             LocalStreamCancellation.check(cancelled);
             listener.accept(item);
             LocalStreamCancellation.check(cancelled);
@@ -125,7 +130,7 @@ final class LocalInferenceStream {
                 if(requireTerminal&&!terminal)throw new IOException("CHAT_STREAM_INCOMPLETE");
                 return;
             }
-            JSONObject message=requireTerminal?parseObject(event):new JSONObject(event);
+            JSONObject message=parseObject(event);
             if(message.has("error"))throw new IOException("LOCAL_ENGINE_ERROR");
             JSONArray choices=message.optJSONArray("choices");
             if(choices==null){
