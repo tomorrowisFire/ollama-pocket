@@ -46,6 +46,14 @@ public final class ReviewedExecutionIntegrationTest {
         reject(()->ReviewedLocalPolicy.request(MODEL,null,"test",513,0));
         reject(()->ReviewedLocalPolicy.request(MODEL,null,"test",1,2001));
         reject(()->ReviewedLocalPolicy.request(MODEL,null," ",1,0));
+        String exact="한국어 日本語 中文 👩‍💻\r\n";
+        var exactResult=new ReviewedLocalPolicy.Result(exact,false);
+        ok(exactResult.text.equals(exact)&&exactResult.evidence().equals(ReviewedLocalPolicy.sha("stop\n"+exact)));
+        ok(!exactResult.evidence().equals(new ReviewedLocalPolicy.Result(exact,true).evidence()));
+        ok(new ReviewedLocalPolicy.Result("",true).text.isEmpty());
+        ok(new ReviewedLocalPolicy.Result(" \t\n",false).text.equals(" \t\n"));
+        for(String bad:new String[]{null,"a\ud800","\udc00b","a\u0000b","x\u007f","x\u0085","a".repeat(ReviewedLocalPolicy.MAX_OUTPUT+1)})
+            reject(()->new ReviewedLocalPolicy.Result(bad,false));
     }
     private static void branches(Path root)throws Exception{
         String raw=BranchWorkflowRun.example(MODEL,SHA);
@@ -114,6 +122,12 @@ public final class ReviewedExecutionIntegrationTest {
         BranchWorkflowRun uncertain=BranchWorkflowRun.create(root.toFile(),plan,now.get());
         var failure=uncertain.execute(uncertain.ledger.read(),task->{throw new IOException("Transport uncertain");},()->false,null,now::get,ms->now.addAndGet(ms));
         ok(failure.snapshot.value.last().outcome==WorkflowAttemptStore.Outcome.UNCERTAIN);
+        BranchWorkflowRun invalidResult=BranchWorkflowRun.create(root.toFile(),plan,now.get());
+        var invalidRun=invalidResult.execute(invalidResult.ledger.read(),
+                task->new ReviewedLocalPolicy.Result("true\u0000",false),()->false,null,now::get,ms->now.addAndGet(ms));
+        ok(invalidRun.snapshot.value.attempts.size()==1&&!invalidRun.snapshot.value.pending());
+        ok(invalidRun.snapshot.value.last().outcome==WorkflowAttemptStore.Outcome.UNCERTAIN&&
+                invalidRun.snapshot.value.last().evidence==null&&invalidRun.lastAnswer.isEmpty());
         BranchWorkflowRun expired=BranchWorkflowRun.create(root.toFile(),plan,now.get());
         var afterDeadline=expired.execute(expired.ledger.read(),task->{
             now.set(expired.started+WorkflowAttemptStore.WINDOW_MS);
