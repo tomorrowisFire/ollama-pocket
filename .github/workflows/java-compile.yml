@@ -361,7 +361,7 @@ jobs:
       - name: Test bounded local inference protocol
         run: |
           mkdir -p /tmp/local-stream-tests
-          javac -cp /tmp/cloud-stream-tests/json.jar -d /tmp/local-stream-tests app/src/main/java/com/ollamapocket/app/LocalChatTurns.java app/src/main/java/com/ollamapocket/app/LocalStreamCancellation.java app/src/main/java/com/ollamapocket/app/LocalInferenceStream.java tests/LocalStreamCancellationTest.java tests/LocalInferenceStreamTest.java
+          javac -cp /tmp/cloud-stream-tests/json.jar -d /tmp/local-stream-tests app/src/main/java/com/ollamapocket/app/LocalChatTurns.java app/src/main/java/com/ollamapocket/app/LocalStreamCancellation.java app/src/main/java/com/ollamapocket/app/LocalInferenceStream.java app/src/main/java/com/ollamapocket/app/ToolJsonPolicy.java tests/LocalStreamCancellationTest.java tests/LocalInferenceStreamTest.java
           java -cp /tmp/local-stream-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.LocalInferenceStreamTest
           javac --release 17 -cp /tmp/search-batch-tests:/tmp/cloud-stream-tests/json.jar -d /tmp/local-stream-tests app/src/main/java/com/ollamapocket/app/InstalledModelInventory.java tests/InstalledModelInventoryTest.java
           java -cp /tmp/local-stream-tests:/tmp/search-batch-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.InstalledModelInventoryTest

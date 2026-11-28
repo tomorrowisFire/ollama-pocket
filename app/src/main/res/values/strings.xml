@@ -637,6 +637,10 @@
     <string name="chat_save_failed">The completed turn could not be saved. Your original conversation is unchanged; copy the answer or retry the question.</string>
     <string name="chat_draft_recovered">The question is restored to the input box. Incomplete answers are not added to future context.</string>
     <string name="chat_stream_incomplete">The response stream ended without a completion signal.</string>
+    <string name="engine_invalid_response">The local engine returned an invalid response. The incomplete answer was not accepted.</string>
+    <string name="chat_stream_size_limit">The local response stream exceeded its safe size limit.</string>
+    <string name="model_pull_invalid_response">The engine returned invalid download progress. Refresh installed models before retrying.</string>
+    <string name="chat_request_cancelled">Request cancelled.</string>
     <string name="chat_reply_limit">The response exceeded the safe display limit. Copy the partial answer or ask a shorter question.</string>
     <string name="chat_empty_answer">No text answer was received.</string>
     <string name="chat_context_note">Local context uses recent complete turns; older saved messages remain in the conversation.</string>

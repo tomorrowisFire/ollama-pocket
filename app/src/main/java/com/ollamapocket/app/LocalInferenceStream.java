@@ -17,7 +17,7 @@ final class LocalInferenceStream {
             .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)));
     }
     private static JSONObject parseObject(String raw)throws IOException{
-        try{return new JSONObject(raw);}
+        try{ToolJsonPolicy.requireEngineObject(raw,MAX_LINE);return new JSONObject(raw);}
         catch(Exception malformed){throw new IOException("LOCAL_ENGINE_PROTOCOL",malformed);}
     }
     static void requireTextOnly(JSONObject message)throws IOException{
@@ -83,7 +83,8 @@ final class LocalInferenceStream {
         for(String row;(row=LocalStreamCancellation.line(reader,MAX_LINE,cancelled))!=null;){
             if(row.trim().isEmpty())continue;
             JSONObject item;
-            try{item=new JSONObject(row);}catch(Exception invalid){throw new IOException("PULL_PROTOCOL",invalid);}
+            try{ToolJsonPolicy.requireEngineObject(row,MAX_LINE);item=new JSONObject(row);}
+            catch(Exception invalid){throw new IOException("PULL_PROTOCOL",invalid);}
             if(item.has("error"))throw new IOException("LOCAL_ENGINE_ERROR");
             Object raw=item.opt("status");
             if(!(raw instanceof String)||((String)raw).trim().isEmpty()||((String)raw).length()>1024)

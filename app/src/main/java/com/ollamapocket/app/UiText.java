@@ -60,7 +60,12 @@ final class UiText {
         switch(value){
             case "MODEL_INSTALL_UNCONFIRMED":return c.getString(R.string.model_install_unconfirmed);
             case "PULL_INCOMPLETE":return c.getString(R.string.chat_stream_incomplete);
-            case "PULL_PROTOCOL":case "LOCAL_ENGINE_ERROR":return c.getString(R.string.error_connection);
+            case "PULL_PROTOCOL":return c.getString(R.string.model_pull_invalid_response);
+            case "LOCAL_ENGINE_PROTOCOL":return c.getString(R.string.engine_invalid_response);
+            case "CHAT_STREAM_LIMIT":return c.getString(R.string.chat_stream_size_limit);
+            case "CHAT_CANCELLED":return c.getString(R.string.chat_request_cancelled);
+            case "CHAT_STREAM_INCOMPLETE":return c.getString(R.string.chat_stream_incomplete);
+            case "LOCAL_ENGINE_ERROR":return c.getString(R.string.error_connection);
             case "연결 오류":return c.getString(R.string.error_connection);
             case "온라인 확인 실패":return c.getString(R.string.error_online_lookup);
             case "잘못된 모델명":return c.getString(R.string.model_tag_invalid);

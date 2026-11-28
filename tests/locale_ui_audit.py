@@ -54,3 +54,35 @@ for variant in variants:
     for key in ("brand_quick_actions","brand_app_preferences","brand_model_filters"):
         assert labels.get(key,"").strip(),f"{variant}: missing brand group {key}"
 print("OnHand quick-action, settings and model-filter captions verified")
+
+# All string keys, duplicate detection and Android printf argument signatures, not merely selected controls.
+from collections import Counter
+format_re=re.compile(r"%(?:\d+\$)?[-#+ 0,(<]*\d*(?:\.\d+)?[a-zA-Z%]")
+def signature(value):
+    return Counter(match.group(0) for match in format_re.finditer(value) if match.group(0)!="%%")
+def load_strings(variant):
+    nodes=ET.parse(res/variant/"strings.xml").getroot().findall("string")
+    names=[node.get("name") for node in nodes]
+    assert len(names)==len(set(names)),f"{variant}: duplicate string key"
+    return {node.get("name"):"".join(node.itertext()) for node in nodes}
+full_base=load_strings("values")
+localized_labels=("header_cloud","coop_worker_status","engine_invalid_response","chat_stream_size_limit",
+                  "model_pull_invalid_response","chat_request_cancelled")
+for variant in variants:
+    labels=load_strings(variant)
+    assert labels.keys()==full_base.keys(),f"{variant}: missing {full_base.keys()-labels.keys()} extra {labels.keys()-full_base.keys()}"
+    for key,original in full_base.items():
+        assert signature(labels[key])==signature(original),f"{variant}: format placeholder mismatch {key}"
+    for key in localized_labels:
+        assert labels[key].strip(),f"{variant}: blank {key}"
+        if variant!="values":
+            assert labels[key]!=full_base[key],f"{variant}: untranslated {key}"
+print(f"Full string resource parity: {len(variants)} locale sets, {len(full_base)} keys each; format signatures verified")
+ui=(root/"UiText.java").read_text(encoding="utf-8")
+main=(root/"MainActivity.java").read_text(encoding="utf-8")
+for code,key in (("LOCAL_ENGINE_PROTOCOL","engine_invalid_response"),("CHAT_STREAM_LIMIT","chat_stream_size_limit"),
+                 ("CHAT_CANCELLED","chat_request_cancelled"),("PULL_PROTOCOL","model_pull_invalid_response")):
+    assert f'case "{code}":return c.getString(R.string.{key});' in ui,f"Missing localized error: {code}"
+    if code!="PULL_PROTOCOL":
+        assert f'if("{code}".equals(error))return getString(R.string.{key});' in main,f"Missing chat error: {code}"
+print("Engine protocol, stream bound, cancellation and download errors use localized resources")

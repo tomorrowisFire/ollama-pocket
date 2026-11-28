@@ -637,6 +637,10 @@
     <string name="chat_save_failed">無法儲存已完成的對話。原記錄保持不變，請複製回答或重試問題。</string>
     <string name="chat_draft_recovered">問題已恢復至輸入框，未完成的回答不會加入後續上下文。</string>
     <string name="chat_stream_incomplete">回應串流未收到完成訊號即結束。</string>
+    <string name="engine_invalid_response">本機引擎傳回無效回應，未接受不完整的回答。</string>
+    <string name="chat_stream_size_limit">本機回應串流超出安全大小限制。</string>
+    <string name="model_pull_invalid_response">引擎傳回無效的下載進度資訊。請重新整理已安裝模型清單後再試。</string>
+    <string name="chat_request_cancelled">請求已取消。</string>
     <string name="chat_reply_limit">回答超出安全顯示上限。請複製部分回答或提出較短的問題。</string>
     <string name="chat_empty_answer">未收到文字回答。</string>
     <string name="chat_context_note">本機推論使用最近完成的對話，較早的記錄仍儲存在對話中。</string>
@@ -1368,7 +1372,7 @@
     <string name="brand_quick_actions">快速操作</string>
     <string name="brand_app_preferences">應用程式設定</string>
     <string name="brand_model_filters">尋找模型</string>
-    <string name="header_cloud">Cloud</string>
+    <string name="header_cloud">雲端</string>
     <string name="help">說明</string>
     <string name="help_title">OnHand AI 使用指南</string>
     <string name="help_body">4. 點選 OnHand AI 下方的模型名稱，選擇已安裝模型。\n5. 在主畫面使用輸入欄上方的四個快捷功能，或點選迴紋針附加檔案。\n6. 點選 Cloud 使用另行設定的雲端服務或 PC AI。API 可能產生費用，不會傳送本機對話記錄。\n7. 在設定中變更推論、語言、語音及顯示，並透過裝置診斷檢查相容性。</string>

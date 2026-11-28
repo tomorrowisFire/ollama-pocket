@@ -25,8 +25,12 @@ final class VoiceInteractionPolicy {
         StringBuilder result=new StringBuilder();
         int scanLimit=Math.min(text.length(),4096);
         for(int i=0;i<scanLimit&&result.length()<240;){
-            int cp=text.codePointAt(i);i+=Character.charCount(cp);
-            if(Character.isISOControl(cp)||Character.getType(cp)==Character.FORMAT||
+            int cp=text.codePointAt(i);
+            int width=Character.charCount(cp);
+            if(i+width>scanLimit)break;
+            i+=width;
+            if(Character.isISOControl(cp)||
+                Character.getType(cp)==Character.FORMAT&&cp!=0x200C&&cp!=0x200D||
                 cp>=0xD800&&cp<=0xDFFF)continue;
             if(result.length()+Character.charCount(cp)>240)break;
             result.appendCodePoint(cp);

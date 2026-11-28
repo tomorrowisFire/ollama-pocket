@@ -68,6 +68,13 @@ public final class VoiceQueuePolicyTest {
         check(exact.toString().equals(multilingual));
         check(VoiceQueuePolicy.mergeDictation("draft"," spoken ",30).equals("draft\nspoken"));
         check(VoiceQueuePolicy.mergeDictation("","spoken",30).equals("spoken"));
+        check(VoiceQueuePolicy.mergeDictation("old\n[attachment]","한글 👩‍💻",100).equals("old\n[attachment]\n한글 👩‍💻"));
+        for(String bad:new String[]{"\u00a0\u3000","\u200d","x\u0000","x\uD800","x\u202e"}){
+            try{VoiceQueuePolicy.mergeDictation("draft",bad,100);throw new AssertionError("Invalid recognition accepted");}
+            catch(IllegalArgumentException expected){}
+        }
+        try{VoiceQueuePolicy.mergeDictation(""," ".repeat(100)+"x",10);throw new AssertionError("Raw recognition exceeds budget");}
+        catch(IllegalArgumentException expected){}
         try{VoiceQueuePolicy.mergeDictation("old","new",6);throw new AssertionError();}catch(IllegalArgumentException expected){}
         System.out.println("PASS: voice queue, current callback, natural chunks, draft preservation and multilingual round-trip checks");
     }

@@ -108,6 +108,23 @@ public final class LocalInferenceStreamTest {
             "{\"choices\":[{\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"tool_calls\"}]}",
             "not JSON"
         })rejects(()->LocalInferenceStream.sse(reader("data: "+bad+"\n\n"),m->{throw new AssertionError("Bad callback");},true));
+        // JSONObject itself is lenient on some runtimes; the wire admission must not be.
+        for(String malformedRecord:new String[]{
+            "{\"done\":true} trailing","{'done':true}","{done:true}","{\"done\":true,}",
+            "{\"done\":false,\"done\":true}","{\"done\":false,\"\\u0064one\":true}",
+            "{\"done\":true,\"ignored\":01}","{\"done\":true,\"ignored\":"+"[".repeat(25)+"0"+"]".repeat(25)+"}"
+        })rejects(()->LocalInferenceStream.ndjson(reader(malformedRecord+"\n"),m->{throw new AssertionError("Invalid JSON callback");},true));
+        for(String malformedRecord:new String[]{
+            "{\"status\":\"success\"} trailing","{'status':'success'}","{\"status\":\"success\",}",
+            "{\"status\":\"pulling\",\"status\":\"success\"}","{\"status\":\"success\",\"ignored\":NaN}"
+        })rejects(()->LocalInferenceStream.pull(reader(malformedRecord+"\n"),m->{throw new AssertionError("Invalid pull callback");},()->false));
+        for(String malformedRecord:new String[]{
+            "{\"choices\":[{\"finish_reason\":\"stop\"}]} trailing",
+            "{'choices':[{'finish_reason':'stop'}]}",
+            "{\"choices\":[{\"finish_reason\":\"length\",\"finish_reason\":\"stop\"}]}",
+            "{\"choices\":[{\"finish_reason\":\"stop\",}]}"
+        })rejects(()->LocalInferenceStream.sse(reader("data: "+malformedRecord+"\n\n"),m->{throw new AssertionError("Invalid SSE callback");},true));
+        ok(nd("{\"message\":{\"content\":\""+"x".repeat(20000)+"\"},\"done\":true}\n").length()==20000);
         byte[] malformed={(byte)0xc3,0x28};
         rejects(()->LocalInferenceStream.line(LocalInferenceStream.strictUtf8(new java.io.ByteArrayInputStream(malformed)),16));
         ok(LocalInferenceStream.line(LocalInferenceStream.strictUtf8(new java.io.ByteArrayInputStream("한글😀\n".getBytes(java.nio.charset.StandardCharsets.UTF_8))),16).equals("한글😀"));

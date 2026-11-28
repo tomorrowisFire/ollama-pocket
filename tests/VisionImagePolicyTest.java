@@ -19,8 +19,17 @@ public final class VisionImagePolicyTest {
         CRC32 crc=new CRC32();crc.update(name);crc.update(bytes);d.writeInt((int)crc.getValue());return out.toByteArray();
     }
     private static byte[] ihdr(int w,int h)throws Exception{
+        return ihdr(w,h,8,2,0,0,0);
+    }
+    private static byte[] ihdr(int w,int h,int depth,int color,int compression,int filter,int interlace)throws Exception{
         ByteArrayOutputStream out=new ByteArrayOutputStream();DataOutputStream d=new DataOutputStream(out);
-        d.writeInt(w);d.writeInt(h);d.write(new byte[]{8,2,0,0,0});return chunk("IHDR",out.toByteArray());
+        d.writeInt(w);d.writeInt(h);d.write(new byte[]{(byte)depth,(byte)color,(byte)compression,(byte)filter,(byte)interlace});
+        return chunk("IHDR",out.toByteArray());
+    }
+    private static byte[] withHeader(byte[] header,byte[] data)throws Exception{
+        ByteArrayOutputStream out=new ByteArrayOutputStream();
+        out.write(new byte[]{(byte)137,80,78,71,13,10,26,10});out.write(header);out.write(data);out.write(chunk("IEND",new byte[0]));
+        return out.toByteArray();
     }
     private static byte[] png(int w,int h,byte[]... middle)throws Exception{
         ByteArrayOutputStream out=new ByteArrayOutputStream();out.write(new byte[]{(byte)137,80,78,71,13,10,26,10});out.write(ihdr(w,h));
@@ -36,6 +45,21 @@ public final class VisionImagePolicyTest {
         ok(j.format==VisionImagePolicy.Format.JPEG&&j.matchesDecoder("image/jpeg",100,100));
         ok(!p.matchesDecoder("image/jpeg",1,1)&&!p.matchesDecoder("image/png",2,1));
         ok(!j.matchesDecoder("image/jpeg",0,1)&&!j.matchesDecoder("image/jpeg",16384,16384));
+        for(int color=0;color<=7;color++)for(int depth:new int[]{0,1,2,4,8,16,32}){
+            boolean legal=color==0&&(depth==1||depth==2||depth==4||depth==8||depth==16)||
+                color==3&&(depth==1||depth==2||depth==4||depth==8)||
+                (color==2||color==4||color==6)&&(depth==8||depth==16);
+            byte[] candidate=withHeader(ihdr(1,1,depth,color,0,0,0),idat);
+            if(legal)ok(VisionImagePolicy.inspect(candidate).width==1);
+            else fails(IOException.class,()->VisionImagePolicy.inspect(candidate));
+        }
+        for(int[] invalid:new int[][]{{1,0,0},{0,1,0},{0,0,2},{255,0,0}})
+            fails(IOException.class,()->VisionImagePolicy.inspect(withHeader(ihdr(1,1,8,2,invalid[0],invalid[1],invalid[2]),idat)));
+        ok(VisionImagePolicy.inspect(withHeader(ihdr(1,1,8,2,0,0,1),idat)).height==1);
+        fails(InterruptedIOException.class,()->VisionImagePolicy.inspect(image,()->true));
+        fails(InterruptedIOException.class,()->VisionImagePolicy.inspect(jpeg,()->true));
+        java.util.concurrent.atomic.AtomicInteger headerPolls=new java.util.concurrent.atomic.AtomicInteger();
+        fails(InterruptedIOException.class,()->VisionImagePolicy.inspect(image,()->headerPolls.incrementAndGet()>=3));
         for(byte[] bad:new byte[][]{null,new byte[0],new byte[]{1,2,3,4},Arrays.copyOf(jpeg,jpeg.length-1),
             Arrays.copyOf(image,image.length-1),Arrays.copyOf(image,image.length+1),png(0,1,idat),png(-1,1,idat),
             png(16384,16384,idat),png(1,1),png(1,1,chunk("IDAT",new byte[0])),png(1,1,ihdr(1,1),idat),

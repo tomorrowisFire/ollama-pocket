@@ -359,7 +359,7 @@
     <string name="coop_node_count">연결 노드: %1$d / %2$d</string>
     <string name="coop_safe_total">안전 RAM 추정 합계: %1$d MiB (호스트 포함)</string>
     <string name="coop_connected_host">연결 호스트: %1$s</string>
-    <string name="coop_worker_status">RPC worker: %1$s</string>
+    <string name="coop_worker_status">RPC 작업 노드: %1$s</string>
     <string name="status_running">실행</string>
     <string name="status_stopped">중지</string>
     <string name="status_detail">상태: %1$s</string>
@@ -637,6 +637,10 @@
     <string name="chat_save_failed">완료된 대화를 저장하지 못했습니다. 원래 기록은 유지했습니다. 답변을 복사하거나 질문을 다시 시도하세요.</string>
     <string name="chat_draft_recovered">질문을 입력창에 복구했습니다. 미완료 답변은 이후 대화 문맥에 포함하지 않습니다.</string>
     <string name="chat_stream_incomplete">완료 신호 없이 응답 스트림이 종료됐습니다.</string>
+    <string name="engine_invalid_response">로컬 엔진이 잘못된 응답을 반환했습니다. 불완전한 답변은 승인되지 않았습니다.</string>
+    <string name="chat_stream_size_limit">로컬 응답 스트림이 안전 용량 한도를 초과했습니다.</string>
+    <string name="model_pull_invalid_response">엔진에서 잘못된 다운로드 진행 정보를 반환했습니다. 설치된 모델 목록을 새로고침한 후 다시 시도하세요.</string>
+    <string name="chat_request_cancelled">요청이 취소되었습니다.</string>
     <string name="chat_reply_limit">응답이 안전 표시 한도를 초과했습니다. 부분 답변을 복사하거나 더 짧게 질문하세요.</string>
     <string name="chat_empty_answer">텍스트 답변을 받지 못했습니다.</string>
     <string name="chat_context_note">로컬 추론에는 최근 완료된 대화를 사용하며 이전 기록은 저장된 대화에 남습니다.</string>
@@ -1368,7 +1372,7 @@
     <string name="brand_quick_actions">빠른 실행</string>
     <string name="brand_app_preferences">앱 설정</string>
     <string name="brand_model_filters">모델 찾기</string>
-    <string name="header_cloud">Cloud</string>
+    <string name="header_cloud">클라우드</string>
     <string name="help">도움말</string>
     <string name="help_title">OnHand AI 사용 방법</string>
     <string name="help_body">4. OnHand AI 아래 모델명을 누르면 설치된 모델을 선택할 수 있습니다.\n5. 홈 화면의 입력창 위 빠른 실행 4개를 이용하거나 클립 아이콘으로 파일을 첨부하세요.\n6. Cloud에서 별도로 설정한 클라우드 제공사 또는 PC AI를 이용할 수 있습니다. API 비용이 발생할 수 있으며 로컬 대화는 전송하지 않습니다.\n7. 설정에서 추론 방식, 언어, 음성, 화면을 변경하고 기기 연결 진단에서 호환성을 확인하세요.</string>

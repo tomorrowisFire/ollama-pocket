@@ -26,6 +26,10 @@ public final class VoiceInteractionPolicyTest {
         ok(VoiceInteractionPolicy.partial("\uD800x").equals("x"));
         ok(VoiceInteractionPolicy.partial("\u0000".repeat(4096)+"later").isEmpty());
         ok(VoiceInteractionPolicy.partial("\u0000".repeat(4095)+"a").equals("a"));
+        ok(VoiceInteractionPolicy.partial("\u0000".repeat(4095)+"😀").isEmpty());
+        ok(VoiceInteractionPolicy.partial("\u0000".repeat(4094)+"😀").equals("😀"));
+        ok(VoiceInteractionPolicy.partial("👩‍💻").equals("👩‍💻"));
+        ok(VoiceInteractionPolicy.partial("a\u200cb").equals("a\u200cb"));
         rejects(()->new VoiceInteractionPolicy.Playback("\u3000\u200d","x",16));
         rejects(()->new VoiceInteractionPolicy.Playback("bad\u0000text","x",16));
         rejects(()->new VoiceInteractionPolicy.Playback("bad\ud800","x",16));

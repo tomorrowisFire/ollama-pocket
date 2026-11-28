@@ -81,6 +81,22 @@ final class VisionImagePolicy {
         return true;
     }
     static Header inspect(byte[] b) throws IOException {
+        return inspect(b,null);
+    }
+    /** Check the static PNG format contract before Android allocates decoded pixels. */
+    private static boolean validPngHeader(byte[] b,int t){
+        int depth=b[t+12]&255,color=b[t+13]&255;
+        int compression=b[t+14]&255,filter=b[t+15]&255,interlace=b[t+16]&255;
+        if(compression!=0||filter!=0||interlace>1)return false;
+        switch(color){
+            case 0:return depth==1||depth==2||depth==4||depth==8||depth==16;
+            case 2:case 4:case 6:return depth==8||depth==16;
+            case 3:return depth==1||depth==2||depth==4||depth==8;
+            default:return false;
+        }
+    }
+    static Header inspect(byte[] b,BooleanSupplier cancelled) throws IOException {
+        check(cancelled);
         if (b==null || b.length<4 || b.length>MAX_SOURCE_BYTES) throw new IOException("Vision source size");
         if (jpeg(b)) return new Header(Format.JPEG,0,0);
         byte[] png={(byte)137,80,78,71,13,10,26,10};
@@ -89,6 +105,7 @@ final class VisionImagePolicy {
         int pos=8, chunks=0, w=0,h=0;
         boolean idat=false, positiveData=false, endedData=false;
         while(pos<b.length){
+            check(cancelled);
             if(++chunks>MAX_PNG_CHUNKS || b.length-pos<12) throw new IOException("PNG chunk bounds");
             long size=u32(b,pos), end=(long)pos+12+size;
             if(end>b.length) throw new IOException("Truncated PNG chunk");
@@ -98,9 +115,11 @@ final class VisionImagePolicy {
                 if(!((c>='A'&&c<='Z')||(c>='a'&&c<='z')))throw new IOException("Invalid PNG chunk type");
             }
             CRC32 crc=new CRC32();crc.update(b,t,4+n);
+            check(cancelled);
             if(crc.getValue()!=u32(b,t+4+n))throw new IOException("PNG checksum");
             if(chunks==1){
                 if(!type(b,t,"IHDR")||n!=13)throw new IOException("Missing PNG header");
+                if(!validPngHeader(b,t))throw new IOException("Invalid PNG encoding");
                 long width=u32(b,t+4),height=u32(b,t+8);
                 if(width>Integer.MAX_VALUE||height>Integer.MAX_VALUE||!validSource((int)width,(int)height))
                     throw new IOException("PNG source dimensions");

@@ -1,0 +1,7 @@
+# F10A89 — joint engine and localization integration
+
+Live base F10A87 586f8b5ae1d188d247808fb9543ec26fb272199b: FAST 46119706921 and FULL 46119706914 passed. Carry forward the exact detached F10A88 voice, vision and local engine source/test changes (56e32d610311d49907c32de0bf84b7a48e261c67) and add a separate localization increment in one integrated candidate.
+
+Five existing locale sets were inspected: 1,391 unique keys per set, no missing keys and no printf placeholder signature mismatch in the inspected source. Cloud shortcut and Korean RPC worker label now localized; brand, technical protocol identifiers and storage keys unchanged. Distinct localized errors for invalid local engine records, wire-size limit, cancellation and invalid pull progress. Existing measured header fallback and accessibility content descriptions remain. Expand locale audit to verify complete resource-key parity, duplicate keys and format signatures, selected labels and source wiring. Add four keys to each locale (1,395 keys per set).
+
+Simulated A/B/C scope: localization clarity, unchanged existing measured layout and engine semantics, exact resource parity and regression gates. No claim of full real-device translation, independent assessment or new score. F10A88 new Java fixtures and this increment require the exact combined FAST/FULL pass. Native source, ads, billing, signing, permissions and stored user data unchanged; physical tests and release deferred.

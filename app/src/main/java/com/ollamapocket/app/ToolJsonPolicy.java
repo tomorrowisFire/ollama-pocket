@@ -19,6 +19,11 @@ final class ToolJsonPolicy {
     static void requireReplyObject(String raw) {
         requireObject(raw,MAX_REPLY_CHARS,16,8192);
     }
+    /** Engine records have their own wire bounds; tool arguments and tool replies remain unchanged. */
+    static void requireEngineObject(String raw,int maxChars) {
+        if(maxChars<1||maxChars>1_000_000)throw new IllegalArgumentException("Engine JSON limit");
+        requireObject(raw,maxChars,24,65_536);
+    }
     private static void requireObject(String raw,int maxChars,int maxDepth,int maxNodes) {
         if (raw == null || raw.length() > maxChars) throw new IllegalArgumentException("Tool JSON size");
         Parser p = new Parser(raw,maxDepth,maxNodes);

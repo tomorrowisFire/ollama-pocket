@@ -1,6 +1,6 @@
 {
-  "stage": "F10A87-document-code-integration",
-  "revision": "F10A87",
-  "priorCandidate": "e6405b0287a460988d6631fce9b65fe9754f42fb",
-  "reason": "Unicode whitespace-only source, document evidence/citation accounting and bounded exact Markdown code fence improvements. Require exact FAST/FULL and packaging audit; physical device and production release deferred."
+  "stage": "F10A89-engine-locale-batch-integration",
+  "revision": "F10A89",
+  "priorCandidate": "586f8b5ae1d188d247808fb9543ec26fb272199b",
+  "reason": "Batch exact detached F10A88 voice, VLM and strict local stream validation with five-locale UI and error resource improvements; exact FAST and FULL packaging required. Physical tests and release deferred."
 }

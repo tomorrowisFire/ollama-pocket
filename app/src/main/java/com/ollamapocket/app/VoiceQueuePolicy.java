@@ -31,10 +31,12 @@ final class VoiceQueuePolicy {
         return space>start?space:end;
     }
     static String mergeDictation(String draft,String spoken,int max){
-        if(draft==null||spoken==null||spoken.trim().isEmpty()||max<1)throw new IllegalArgumentException();
-        String result=draft+(draft.isEmpty()?"":"\n")+spoken.trim();
-        if(result.length()>max)throw new IllegalArgumentException("Draft limit");
-        return result;
+        if(draft==null||max<1||draft.length()>max)throw new IllegalArgumentException("Draft limit");
+        String reviewed=VoiceInteractionPolicy.finalTranscript(spoken,max);
+        String separator=draft.isEmpty()?"":"\n";
+        if((long)draft.length()+separator.length()+reviewed.length()>max)
+            throw new IllegalArgumentException("Draft limit");
+        return draft+separator+reviewed;
     }
     // 20ms frames at 16kHz; conservative energy gate, not semantic speech recognition.
     static int bargeFrames(short[] frame,int count,int previous){

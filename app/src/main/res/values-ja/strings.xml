@@ -637,6 +637,10 @@
     <string name="chat_save_failed">完了した会話を保存できません。元の履歴は変更していません。回答をコピーするか、質問を再試行してください。</string>
     <string name="chat_draft_recovered">質問を入力欄に復元しました。未完了の回答は以後の文脈に含めません。</string>
     <string name="chat_stream_incomplete">完了信号なしで応答ストリームが終了しました。</string>
+    <string name="engine_invalid_response">ローカルエンジンから無効な応答が返されました。不完全な回答は受け付けられませんでした。</string>
+    <string name="chat_stream_size_limit">ローカル応答ストリームが安全なサイズ上限を超えました。</string>
+    <string name="model_pull_invalid_response">エンジンから無効なダウンロード進捗情報が返されました。インストール済みモデル一覧を更新してから再試行してください。</string>
+    <string name="chat_request_cancelled">リクエストはキャンセルされました。</string>
     <string name="chat_reply_limit">応答が安全な表示上限を超えました。部分回答をコピーするか、短い質問にしてください。</string>
     <string name="chat_empty_answer">テキスト回答を受信できませんでした。</string>
     <string name="chat_context_note">ローカル推論には直近の完了した会話を使用し、以前の履歴は保存済み会話に残ります。</string>
@@ -1368,7 +1372,7 @@
     <string name="brand_quick_actions">クイック操作</string>
     <string name="brand_app_preferences">アプリ設定</string>
     <string name="brand_model_filters">モデルを探す</string>
-    <string name="header_cloud">Cloud</string>
+    <string name="header_cloud">クラウド</string>
     <string name="help">ヘルプ</string>
     <string name="help_title">OnHand AI の使い方</string>
     <string name="help_body">4. OnHand AI の下のモデル名をタップしてインストール済みモデルを選択します。\n5. ホーム画面の入力欄の上にある4つのショートカットを使うか、クリップでファイルを添付します。\n6. Cloud から別途設定したサービスや PC AI を利用できます。API 料金が発生する場合があります。ローカル履歴は送信されません。\n7. 設定で推論方式、言語、音声、表示を変更し、機器診断で互換性を確認します。</string>

@@ -25,7 +25,7 @@ final class VisionImageInput {
         Bitmap bitmap = null, opaque = null;
         try {
             byte[] data = VisionImagePolicy.read(source,cancelled);
-            VisionImagePolicy.Header header = VisionImagePolicy.inspect(data);
+            VisionImagePolicy.Header header = VisionImagePolicy.inspect(data,cancelled);
             VisionImagePolicy.check(cancelled);
             BitmapFactory.Options bounds = new BitmapFactory.Options();
             bounds.inJustDecodeBounds = true;

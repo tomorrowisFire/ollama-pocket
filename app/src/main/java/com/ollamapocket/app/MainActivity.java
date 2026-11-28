@@ -4358,7 +4358,10 @@ public final class MainActivity extends Activity {
         });
     }
     private String localChatError(String error){
-        if("CHAT_STREAM_INCOMPLETE".equals(error)||"LOCAL_ENGINE_PROTOCOL".equals(error))return getString(R.string.chat_stream_incomplete);
+        if("CHAT_STREAM_INCOMPLETE".equals(error))return getString(R.string.chat_stream_incomplete);
+        if("LOCAL_ENGINE_PROTOCOL".equals(error))return getString(R.string.engine_invalid_response);
+        if("CHAT_STREAM_LIMIT".equals(error))return getString(R.string.chat_stream_size_limit);
+        if("CHAT_CANCELLED".equals(error))return getString(R.string.chat_request_cancelled);
         if("CHAT_REPLY_LIMIT".equals(error))return getString(R.string.chat_reply_limit);
         if("CHAT_EMPTY_ANSWER".equals(error))return getString(R.string.chat_empty_answer);
         if("CHAT_SAVE_FAILED".equals(error))return getString(R.string.chat_save_failed);
