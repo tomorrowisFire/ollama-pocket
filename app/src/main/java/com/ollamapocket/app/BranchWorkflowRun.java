@@ -249,6 +249,9 @@ final class BranchWorkflowRun {
                 Math.max(0L,WorkflowAttemptStore.WINDOW_MS-Math.max(0L,wall-started))*1_000_000L,
                 observer,System::currentTimeMillis,Thread::sleep);
     }
+    private boolean withinWindow(long now,long reserved){
+        return now>=reserved&&now>=started&&now-started<WorkflowAttemptStore.WINDOW_MS;
+    }
     Progress execute(ProjectTransactions.Snapshot<WorkflowAttemptStore.Ledger> reviewed,Generate generate,
                      BooleanSupplier stop,Consumer<Progress> observer,LongSupplier clock,Sleep sleep)throws Exception{
         if(reviewed==null||!id.equals(reviewed.value.runId)||!definition.graph.sha256.equals(reviewed.value.cursor.planSha256))
@@ -275,11 +278,14 @@ final class BranchWorkflowRun {
             WorkflowAttemptStore.Outcome outcome;String evidence=null;
             try{
                 if(observer!=null)observer.accept(new Progress(current,last));
-                if(stop.getAsBoolean()||Thread.currentThread().isInterrupted())throw new InterruptedIOException("Branch cancelled");
+                if(stop.getAsBoolean()||Thread.currentThread().isInterrupted()||!withinWindow(clock.getAsLong(),attempt.reserved))
+                    throw new InterruptedIOException("Branch cancelled");
                 Task dispatch=task.withPrevious(current.value.previousOutput());
                 dispatch.request(); // fail closed if reviewed input cannot fit; never silently truncate.
                 result=Objects.requireNonNull(generate.run(dispatch));
-                if(stop.getAsBoolean()||Thread.currentThread().isInterrupted())throw new InterruptedIOException("Branch cancelled");
+                final long received=clock.getAsLong();
+                if(stop.getAsBoolean()||Thread.currentThread().isInterrupted()||!withinWindow(received,attempt.reserved))
+                    throw new InterruptedIOException("Branch cancelled");
                 evidence=result.evidence();
                 boolean retry=current.value.currentAttempts<WorkflowAttemptStore.MAX_PER_NODE&&
                         current.value.attempts.size()<WorkflowAttemptStore.MAX_TOTAL;
@@ -287,7 +293,8 @@ final class BranchWorkflowRun {
                 if(definition.retainOutputs&&WorkflowAttemptStore.accepted(outcome)&&
                         !WorkflowAttemptStore.validRetainedText(result.text))
                     outcome=retry?WorkflowAttemptStore.Outcome.RETRY_SAFE:WorkflowAttemptStore.Outcome.BLOCKED;
-                if(outcome==WorkflowAttemptStore.Outcome.RETRY_SAFE&&clock.getAsLong()-started>=WorkflowAttemptStore.WINDOW_MS-4000L)
+                final long retryDelay=current.value.currentAttempts==1?2000L:4000L;
+                if(outcome==WorkflowAttemptStore.Outcome.RETRY_SAFE&&received-started>=WorkflowAttemptStore.WINDOW_MS-retryDelay)
                     outcome=WorkflowAttemptStore.Outcome.BLOCKED;
                 last=result.text;
             }catch(Exception failure){

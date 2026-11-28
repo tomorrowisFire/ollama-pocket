@@ -24,6 +24,11 @@ final class ToolJsonPolicy {
         if(maxChars<1||maxChars>1_000_000)throw new IllegalArgumentException("Engine JSON limit");
         requireObject(raw,maxChars,24,65_536);
     }
+    /** Provider JSON includes large catalogs; do not widen tool or local engine admission. */
+    static void requireCloudObject(String raw,int maxChars) {
+        if(maxChars<1||maxChars>2_000_000)throw new IllegalArgumentException("Cloud JSON limit");
+        requireObject(raw,maxChars,32,250_000);
+    }
     private static void requireObject(String raw,int maxChars,int maxDepth,int maxNodes) {
         if (raw == null || raw.length() > maxChars) throw new IllegalArgumentException("Tool JSON size");
         Parser p = new Parser(raw,maxDepth,maxNodes);

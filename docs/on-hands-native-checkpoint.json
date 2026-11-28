@@ -1,6 +1,24 @@
 {
-  "stage": "F11-2F-report-file-project-workspace",
-  "revision": "F11-2F",
-  "priorCandidate": "08e4fcc942e1a7f67992d44c2b6d1ab21d8359f4",
-  "reason": "Exact terminal report JSON/text and saved version text export; atomic project/report creation; FAST/FULL and final device validation required."
+  "stage": "F11-3-through-6-increment-1-integration-candidate",
+  "revision": "F11-3-6-r001",
+  "priorCandidate": "fe5be0a8037fa37d5c1cce77752c60946ec9216d",
+  "isolated": [
+    {
+      "stage": "F11-3",
+      "sha": "efb068abf1166394d319c362136c6228d57a963c"
+    },
+    {
+      "stage": "F11-4",
+      "sha": "7945f3066e33b2a7871deaaa6f690820a577a969"
+    },
+    {
+      "stage": "F11-5",
+      "sha": "558ab13de39d425644110d0dd6e5e72dc4628d64"
+    },
+    {
+      "stage": "F11-6",
+      "sha": "0a0b02527e9d2e4e252eea494ad40e5517578b3a"
+    }
+  ],
+  "reason": "Independent changes combined for candidate-only validation; predecessor and candidate exact FAST/FULL required; actual device and independent review pending."
 }

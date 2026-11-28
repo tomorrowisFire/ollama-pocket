@@ -80,6 +80,24 @@ public final class ReviewedExecutionIntegrationTest {
         BranchWorkflowRun uncertain=BranchWorkflowRun.create(root.toFile(),plan,now.get());
         var failure=uncertain.execute(uncertain.ledger.read(),task->{throw new IOException("Transport uncertain");},()->false,null,now::get,ms->now.addAndGet(ms));
         ok(failure.snapshot.value.last().outcome==WorkflowAttemptStore.Outcome.UNCERTAIN);
+        BranchWorkflowRun expired=BranchWorkflowRun.create(root.toFile(),plan,now.get());
+        var afterDeadline=expired.execute(expired.ledger.read(),task->{
+            now.set(expired.started+WorkflowAttemptStore.WINDOW_MS);
+            return new ReviewedLocalPolicy.Result("true",false);
+        },()->false,null,now::get,ms->now.addAndGet(ms));
+        ok(afterDeadline.snapshot.value.last().outcome==WorkflowAttemptStore.Outcome.CANCELLED);
+        ok(afterDeadline.lastAnswer.isEmpty()&&afterDeadline.snapshot.value.last().evidence==null);
+        BranchWorkflowRun beforeDispatch=BranchWorkflowRun.create(root.toFile(),plan,now.get());
+        var beforeDeadline=beforeDispatch.execute(beforeDispatch.ledger.read(),task->{throw new AssertionError("Expired dispatch");},
+                ()->false,event->{if(event.snapshot.value.pending())now.set(beforeDispatch.started+WorkflowAttemptStore.WINDOW_MS);},
+                now::get,ms->now.addAndGet(ms));
+        ok(beforeDeadline.snapshot.value.last().outcome==WorkflowAttemptStore.Outcome.CANCELLED);
+        BranchWorkflowRun rollback=BranchWorkflowRun.create(root.toFile(),plan,now.get());
+        var rolled=rollback.execute(rollback.ledger.read(),task->{
+            now.decrementAndGet();return new ReviewedLocalPolicy.Result("true",false);
+        },()->false,null,now::get,ms->now.addAndGet(ms));
+        ok(rolled.snapshot.value.last().outcome==WorkflowAttemptStore.Outcome.CANCELLED&&rolled.lastAnswer.isEmpty());
+        now.incrementAndGet();
         BranchWorkflowRun unresolved=BranchWorkflowRun.create(root.toFile(),plan,now.get());
         var pending=unresolved.ledger.reserve(unresolved.ledger.read(),now.get());
         BranchWorkflowRun recovered=BranchWorkflowRun.open(root.toFile(),unresolved.id);

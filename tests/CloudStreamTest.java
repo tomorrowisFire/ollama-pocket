@@ -25,6 +25,17 @@ public final class CloudStreamTest {
         for(String value:previews){check(value.startsWith(last)&&expected.startsWith(value));last=value;}
     }
     public static void main(String[] args)throws Exception{
+        for(String type:new String[]{"text/event-stream","Text/Event-Stream; charset=UTF-8"," text/event-stream ; charset=utf-8 "})
+            check(CloudApi.isEventStream(type));
+        for(String type:new String[]{null,"text/html; type=text/event-stream","application/text/event-stream","text/event-streaming",""})
+            check(!CloudApi.isEventStream(type));
+        check(CloudApi.parseWireObject("\ufeff{\"text\":\"한국어 中文 日本語 English 😀\"}",100).getString("text").equals("한국어 中文 日本語 English 😀"));
+        for(String malformed:new String[]{"{'type':'response.completed'}","{\"ok\":true,}","{\"ok\":true} trailing","{\"ok\":false,\"ok\":true}","{\"ok\":false,\"\\u006fk\":true}","{\"value\":01}","{\"value\":\"\\ud800\"}","{\"value\":"+"[".repeat(33)+"0"+"]".repeat(33)+"}"}){
+            try{CloudApi.parseWireObject(malformed,1_000_000);throw new AssertionError("Invalid cloud wire JSON");}
+            catch(CloudApi.StreamFailure expected){check(expected.incomplete);}
+        }
+        try{CloudApi.parseWireObject("{\"value\":\"123\"}",10);throw new AssertionError("Cloud wire limit");}
+        catch(CloudApi.StreamFailure expected){check(expected.incomplete);}
         String[] targets={"https://api.openai.com/v1/responses","https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
             "https://api.anthropic.com/v1/messages","https://api.x.ai/v1/responses","https://api.deepseek.com/chat/completions",
             "https://openrouter.ai/api/v1/chat/completions","http://192.168.1.9:1234/v1/chat/completions","http://192.168.1.9:1234/v1/chat/completions"};
@@ -70,6 +81,9 @@ public final class CloudStreamTest {
         check(parse(CloudApi.Provider.OPENAI,delta.replace("\n","\r\n")+end).text.equals("안녕"));
         rejects(CloudApi.Provider.OPENAI,event("{\"error\":{\"message\":\"test\"}}"));
         String more=event("{\"type\":\"response.output_text.delta\",\"delta\":\" 世界😀\"}");
+        rejects(CloudApi.Provider.OPENAI,delta+event("{\"type\":\"response.output_text.delta\",\"delta\":\"bad\",\"delta\":\"duplicate\"}")+end);
+        rejects(CloudApi.Provider.OPENAI,delta+event("{'type':'response.completed','response':{}}"));
+        rejects(CloudApi.Provider.OPENAI,delta+event("{\"type\":\"response.completed\",\"response\":{}} trailing"));
         for(CloudApi.Provider p:new CloudApi.Provider[]{CloudApi.Provider.OPENAI,CloudApi.Provider.XAI}){
             recovered(p,delta+more,"안녕 世界😀");
             recovered(p,delta+more+event("{\"type\":\"response.incomplete\"}"),"안녕 世界😀");
