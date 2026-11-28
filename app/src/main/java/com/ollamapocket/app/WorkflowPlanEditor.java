@@ -12,11 +12,21 @@ final class WorkflowPlanEditor {
         Row(String prompt,WorkflowPolicy.Gate gate,String required){this.prompt=prompt;this.gate=gate;this.required=required;}
     }
     private final List<Row> rows=new ArrayList<>();
+    private final List<WorkflowPolicy.Step> initial;
     WorkflowPlanEditor(String source,int format){
         if(source==null)throw new IllegalArgumentException("Missing draft");
-        if(!source.trim().isEmpty())for(WorkflowPolicy.Step step:WorkflowPolicy.parse(source,format))
-            rows.add(new Row(step.prompt,step.gate,step.required));
+        initial=source.trim().isEmpty()?Collections.emptyList():WorkflowPolicy.parse(source,format);
+        for(WorkflowPolicy.Step step:initial)rows.add(new Row(step.prompt,step.gate,step.required));
         if(rows.isEmpty())rows.add(blank());
+    }
+    /** A no-op visual edit must not reformat a reviewed plan or invalidate its resume identity. */
+    boolean unchanged(){
+        if(rows.size()!=initial.size())return false;
+        for(int i=0;i<rows.size();i++){
+            Row r=rows.get(i);WorkflowPolicy.Step s=initial.get(i);
+            if(r.gate!=s.gate||!s.prompt.equals(r.prompt)||!s.required.equals(r.required))return false;
+        }
+        return true;
     }
     private static Row blank(){return new Row("",WorkflowPolicy.Gate.MIN_CHARS,"80");}
     int size(){return rows.size();}

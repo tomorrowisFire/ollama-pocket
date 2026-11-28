@@ -4200,7 +4200,7 @@ public final class MainActivity extends Activity {
     private void sendChat(String approvedTransfer) {
         if(guestOnly||cloudMode)return;
         String prompt=chatInput.getText().toString().trim();
-        if(prompt.isEmpty())return;
+        if(!ChatWorkspacePolicy.hasDraftText(prompt))return;
         if(!LocalChatTurns.validPrompt(prompt)){toast(getString(R.string.chat_prompt_limit));return;}
         if(!historyReadable||!ownsLoadedScope()){toast(getString(R.string.chat_history_invalid));return;}
         if(currentModel.isEmpty()||!knownModels.contains(currentModel)){toast(getString(R.string.need_model));showTab(1);return;}

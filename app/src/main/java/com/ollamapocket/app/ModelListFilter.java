@@ -36,8 +36,17 @@ public final class ModelListFilter {
         }
     }
     public static String family(String name,String metadata) {
-        // Provider "Ollama" is not a Llama family; explicit identifier wins over descriptive metadata.
-        String found=knownFamily(name);
+        // A publisher/namespace is not a model family. Prefer the actual repository/tag,
+        // then the GGUF leaf name, then descriptive metadata.
+        String id=name==null?"":name;
+        if(id.regionMatches(true,0,"hf:",0,3))id=id.substring(3);
+        int hash=id.indexOf('#');
+        String repository=hash<0?id:id.substring(0,hash);
+        String found=knownFamily(repository.substring(repository.lastIndexOf('/')+1));
+        if(found==null&&hash>=0){
+            String file=id.substring(hash+1);
+            found=knownFamily(file.substring(file.lastIndexOf('/')+1));
+        }
         if(found==null)found=knownFamily(metadata);
         return found==null?"기타":found;
     }

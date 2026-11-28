@@ -47,7 +47,10 @@ public final class ModelDownloadBudget {
     }
     public static int layerPercent(long completed,long total){
         if(total<=0||completed<0||completed>total)return -1;
-        return (int)Math.max(0,Math.min(100,completed/(double)total*100));
+        // Exact floor: floating-point rounding can show 28 for 29/100, or 100 before completion.
+        if(completed<=Long.MAX_VALUE/100)return (int)(completed*100/total);
+        return java.math.BigInteger.valueOf(completed).multiply(java.math.BigInteger.valueOf(100))
+            .divide(java.math.BigInteger.valueOf(total)).intValueExact();
     }
     public static String layerLabel(String status,long completed,long total){
         int percent=layerPercent(completed,total);

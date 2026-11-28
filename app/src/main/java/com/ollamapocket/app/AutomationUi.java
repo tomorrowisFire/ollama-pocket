@@ -1295,7 +1295,9 @@ final class AutomationUi {
         trackDialog(d);
         d.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(v->{
             if(!valid(token)||busy()||!original.equals(plan.getText().toString())){d.dismiss();return;}
-            capture.run();int invalid=editor.firstInvalid();
+            capture.run();
+            if(editor.unchanged()){d.dismiss();return;}
+            int invalid=editor.firstInvalid();
             if(invalid>=0){index[0]=invalid;render.run();error.setText(owner.getString(R.string.auto_editor_invalid,Integer.toString(invalid+1)));return;}
             try{plan.setText(editor.encode());d.dismiss();}
             catch(IllegalArgumentException e){error.setText(R.string.auto_invalid_plan);}

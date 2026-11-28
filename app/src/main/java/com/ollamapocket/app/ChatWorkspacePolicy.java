@@ -36,12 +36,21 @@ final class ChatWorkspacePolicy {
     static boolean showDraftBudget(int chars,int max){
         return max>0&&chars>=Math.max(1,max*3L/4);
     }
+    /** Reject Unicode whitespace-only drafts while preserving mixed text and its exact budget. */
+    static boolean hasDraftText(String draft){
+        if(draft==null)return false;
+        for(int i=0;i<draft.length();i++){
+            char c=draft.charAt(i);
+            if(c>0x20&&c!=0x85&&!Character.isWhitespace(c)&&!Character.isSpaceChar(c))return true;
+        }
+        return false;
+    }
     static boolean canSend(String draft,int max){
-        return draft!=null&&!draft.trim().isEmpty()&&max>0&&draft.length()<=max;
+        return draft!=null&&max>0&&draft.length()<=max&&hasDraftText(draft);
     }
     /** Preserve the entire existing draft including its attachment suffix. */
     static String prependStarter(String draft,String starter,int max){
-        if(draft==null||starter==null||starter.trim().isEmpty()||max<1)throw new IllegalArgumentException("Invalid starter");
+        if(draft==null||!hasDraftText(starter)||max<1)throw new IllegalArgumentException("Invalid starter");
         String prefix=starter.trim();
         String next=prefix+(draft.isEmpty()?"":"\n\n"+draft);
         if(next.length()>max)throw new IllegalArgumentException("Draft limit");

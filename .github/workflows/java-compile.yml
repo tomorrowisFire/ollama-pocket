@@ -157,6 +157,11 @@ jobs:
           java -cp /tmp/search-batch-tests com.ollamapocket.app.ModelSearchBatchTest
           javac --release 17 -cp /tmp/search-batch-tests -d /tmp/search-batch-tests app/src/main/java/com/ollamapocket/app/ModelTileCatalog.java app/src/main/java/com/ollamapocket/app/ModelListFilter.java app/src/main/java/com/ollamapocket/app/ModelGroupings.java app/src/main/java/com/ollamapocket/app/ModelDownloadBudget.java app/src/main/java/com/ollamapocket/app/BenchmarkRecommendation.java tests/ModelTileCatalogTest.java tests/ModelListFilterTest.java tests/ModelVariantCatalogTest.java tests/ModelExperienceTest.java
           for test in ModelTileCatalogTest ModelListFilterTest ModelVariantCatalogTest ModelExperienceTest; do java -cp /tmp/search-batch-tests "$test"; done
+      - name: Test model-family ownership, Unicode draft and exact layer progress
+        run: |
+          mkdir -p /tmp/focused-independent-tests
+          javac --release 17 -d /tmp/focused-independent-tests app/src/main/java/com/ollamapocket/app/ChatWorkspacePolicy.java app/src/main/java/com/ollamapocket/app/ModelListFilter.java app/src/main/java/com/ollamapocket/app/ModelDownloadBudget.java tests/FocusedIndependentRegressionTest.java
+          java -cp /tmp/focused-independent-tests com.ollamapocket.app.FocusedIndependentRegressionTest
       - name: Test pinned fixture mirror and cache integrity without network
         run: python3 -m unittest discover -s tests -p test_pinned_test_jar.py
       - name: Test stage-scoped native build policy

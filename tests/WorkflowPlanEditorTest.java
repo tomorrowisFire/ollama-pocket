@@ -30,6 +30,15 @@ public final class WorkflowPlanEditorTest {
         rejects(()->WorkflowPolicy.parse("p | @jsonfields:a:unknown"));
         WorkflowPlanEditor e=new WorkflowPlanEditor("Draft | READY\nReview | @exact:OK",2);
         ok(e.size()==2&&e.firstInvalid()==-1);
+        ok(e.unchanged());
+        e.row(0).required="EDITED";ok(!e.unchanged());
+        e.row(0).required="READY";ok(e.unchanged());
+        e.move(0,1);ok(!e.unchanged());e.move(1,-1);ok(e.unchanged());
+        e.insertAfter(0);ok(!e.unchanged());e.remove(1);ok(e.unchanged());
+        ok(!new WorkflowPlanEditor("",2).unchanged());
+        ok(new WorkflowPlanEditor("  Draft | READY\r\n\nReview | @exact:OK  ",2).unchanged());
+        ok(new WorkflowPlanEditor("old | @exact:OK",1).unchanged());
+        ok(new WorkflowPlanEditor("old | "+"x".repeat(200),1).unchanged());
         ok(e.encode().equals("Draft | @contains:READY\nReview | @exact:OK"));
         e.insertAfter(0);ok(e.size()==3&&e.firstInvalid()==1);
         e.row(1).prompt="Middle | data";e.row(1).gate=WorkflowPolicy.Gate.JSON_FIELDS;e.row(1).required="result:string";

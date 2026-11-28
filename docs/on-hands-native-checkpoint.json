@@ -1,6 +1,6 @@
 {
-  "stage": "F10A85-eleventh-focused-integration",
-  "revision": "F10A85",
-  "priorCandidate": "e4c0834e8f38c42fd7c1d49ea0b0cefde639ee30",
-  "reason": "Independent local text-only protocol validation, Unicode input/output guards, bounded voice preview and reviewed playback validation, original-byte project transaction comparison and interrupt preservation. Exact parent FAST/FULL pass. Full ARM64 candidate CI; device acceptance deferred."
+  "stage": "F10A86-focused-quality-integration",
+  "revision": "F10A86",
+  "priorCandidate": "1edccbdd5f53fc3816295e8f4794236fcc2a8938",
+  "reason": "Integrate three locally checked independent quality fixes and preserve exact unchanged visual workflow drafts; require exact FAST and full ARM64 APK/QA AAB, native and release audit; device and production release deferred."
 }
