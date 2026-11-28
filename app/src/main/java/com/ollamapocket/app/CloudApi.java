@@ -218,6 +218,19 @@ final class CloudApi {
         if(status<200||status>=300)throw new HttpFailure(status); // Never expose response bodies containing secrets.
         return parseReply(provider,readJson(c));
     }
+    static boolean isEventStream(String contentType){
+        if(contentType==null)return false;
+        int separator=contentType.indexOf(';');
+        String media=(separator<0?contentType:contentType.substring(0,separator)).trim();
+        return "text/event-stream".equalsIgnoreCase(media);
+    }
+    static JSONObject parseWireObject(String raw,int limit)throws StreamFailure{
+        try{
+            String json=raw!=null&&raw.startsWith("\ufeff")?raw.substring(1):raw;
+            ToolJsonPolicy.requireCloudObject(json,limit);
+            return new JSONObject(json);
+        }catch(Exception invalid){throw incomplete();}
+    }
     interface Progress { void update(String text); }
     static final class StreamFailure extends java.io.IOException {
         final boolean incomplete;
@@ -234,7 +247,7 @@ final class CloudApi {
         checkCancelled();
         int status=c.getResponseCode();if(status<200||status>=300)throw new HttpFailure(status);
         String contentType=c.getContentType();
-        if(contentType==null||!contentType.toLowerCase(java.util.Locale.ROOT).contains("text/event-stream"))throw new java.io.IOException("Expected SSE");
+        if(!isEventStream(contentType))throw new java.io.IOException("Expected SSE");
         try(InputStream raw=c.getInputStream()){return parseStream(provider,raw,progress);}
     }
     static Reply parseStream(Provider provider,InputStream raw,Progress progress)throws Exception{
@@ -263,10 +276,9 @@ final class CloudApi {
                     if(event.length()>1000000)throw new java.io.IOException("Event limit");continue;
                 }
                 if(!row.isEmpty()||event.length()==0)continue;
-                String data=event.toString().trim();event.setLength(0);
-                if("[DONE]".equals(data)){complete=provider.protocol==1&&finishedChoice;break;}
-                JSONObject j;
-                try{j=new JSONObject(data);}catch(Exception invalid){throw incomplete();}
+                String data=event.toString();event.setLength(0);
+                if("[DONE]".equals(data.trim())){complete=provider.protocol==1&&finishedChoice;break;}
+                JSONObject j=parseWireObject(data,1_000_000);
                 String type=j.optString("type","");
                 if(!j.isNull("error")||"error".equals(type)||"response.failed".equals(type)||"response.incomplete".equals(type))throw new StreamFailure("Provider stream failed",true);
                 JSONObject usage=j.optJSONObject("usage");
@@ -360,7 +372,8 @@ final class CloudApi {
             String decoded=StandardCharsets.UTF_8.newDecoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
                 .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
                 .decode(java.nio.ByteBuffer.wrap(buffer.toByteArray())).toString();
-            return new JSONObject(decoded);
+            checkCancelled();
+            return parseWireObject(decoded,2_000_000);
         }
     }
 }
