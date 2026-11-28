@@ -1,0 +1,3 @@
+# F11-6 r006 — cloud stream deadline and cancellation at admission boundaries
+
+Use the same monotonic read budget as non-stream JSON, checking cancellation and elapsed time before/after reading, after event parsing and before committing a completed reply. Reject a stream cancelled or expired during preview delivery. Synthetic clock and input fixtures verify cancelled pre-read, expired read, deadline during preview and successful exact multilingual reply. Socket timeout remains the independent blocking-read limit. Valid partial text remains distinct from successful completion. Design perspectives: transport reliability, privacy, accounting integrity. Live API and device tests pending.
