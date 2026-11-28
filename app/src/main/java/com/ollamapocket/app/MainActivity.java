@@ -1280,7 +1280,8 @@ public final class MainActivity extends Activity {
         margin(heading,panel,0,8);
         deepRemainingView=text("",15,WHITE,true);
         margin(deepRemainingView,panel,0,8);
-        margin(text(getString(R.string.deep_chat_intro),14,MUTED,false),panel,0,12);
+        margin(text(getString(R.string.deep_chat_intro),14,MUTED,false),panel,0,8);
+        margin(text(getString(R.string.deep_zip_notice),12,MUTED,false),panel,0,12);
         deepWatchButton=button(getString(R.string.deep_reward_watch),true);
         deepWatchButton.setOnClickListener(v->chooseDeepReward());
         margin(deepWatchButton,panel,0,8);
@@ -1320,10 +1321,13 @@ public final class MainActivity extends Activity {
                 remaining==0?getString(R.string.deep_locked):getString(R.string.deep_remaining,seconds/60,seconds%60);
         if(!label.contentEquals(deepRemainingView.getText()))deepRemainingView.setText(label);
         deepWatchButton.setVisibility(remaining==Long.MAX_VALUE?View.GONE:View.VISIBLE);
-        int rewardLabel=remaining>0?R.string.deep_reward_renew:R.string.deep_reward_watch;
+        boolean loading=ads!=null&&ads.rewardLoading();
+        int rewardLabel=loading?R.string.cancel:remaining>0?R.string.deep_reward_renew:R.string.deep_reward_watch;
         String watch=getString(rewardLabel);
         if(!watch.contentEquals(deepWatchButton.getText()))deepWatchButton.setText(watch);
-        deepWatchButton.setEnabled(!busy);
+        deepWatchButton.setEnabled(loading||!busy&&ads!=null&&ads.isEnabled());
+        if(remaining==0&&!loading&&(ads==null||!ads.isEnabled()))
+            deepRemainingView.setText(R.string.deep_reward_unavailable);
         deepAnalyzeButton.setEnabled(!busy&&remaining>0);
     }
     private boolean rewardScopeEligible(){
@@ -1331,8 +1335,10 @@ public final class MainActivity extends Activity {
                 &&!isUiWorkBusy(false)&&(billing==null||!billing.busy());
     }
     private void chooseDeepReward(){
+        if(ads!=null&&ads.rewardLoading()){ads.cancelRewardLoad();refreshDeepMode();return;}
         if(!rewardScopeEligible()||ads==null||ads.rewardBusy())return;
         if(ads.deepRemaining()==Long.MAX_VALUE)return;
+        if(currentModel.isEmpty()||!knownModels.contains(currentModel)){toast(getString(R.string.need_model));showTab(1);return;}
         AlertDialog d=new AlertDialog.Builder(this).setTitle(R.string.deep_reward_watch).setMessage(R.string.deep_reward_notice)
                 .setNegativeButton(R.string.cancel,null)
                 .setPositiveButton(R.string.deep_reward_watch,(x,w)->{
@@ -4626,8 +4632,8 @@ public final class MainActivity extends Activity {
         if(deepMode){chooseDocumentBatch(loadedHistoryScope);return;}
         if(currentModel.isEmpty()){toast(getString(R.string.need_model));return;}
         final String scope=loadedHistoryScope;
-        String[] items=canRemoveLastAttachment()?new String[]{getString(R.string.attachment_select_range),getString(R.string.batch_title),getString(R.string.attachment_ocr),getString(R.string.integration_vision),getString(R.string.attachment_remove_last)}:
-            new String[]{getString(R.string.attachment_select_range),getString(R.string.batch_title),getString(R.string.attachment_ocr),getString(R.string.integration_vision)};
+        String[] items=canRemoveLastAttachment()?new String[]{getString(R.string.attachment_select_range),getString(R.string.chat_mode_deep),getString(R.string.attachment_ocr),getString(R.string.integration_vision),getString(R.string.attachment_remove_last)}:
+            new String[]{getString(R.string.attachment_select_range),getString(R.string.chat_mode_deep),getString(R.string.attachment_ocr),getString(R.string.integration_vision)};
         AlertDialog chooser=new AlertDialog.Builder(this).setTitle(R.string.attachment_pick).setItems(items,(d,w)->{
             if(w==0)chooseAttachmentRange(scope);else if(w==1)chooseDocumentBatch(scope);else if(w==2)chooseAttachmentOcr(scope);
             else if(w==3){if(scope.equals(loadedHistoryScope)&&ownsLoadedScope())pickVisionForAutomation();}

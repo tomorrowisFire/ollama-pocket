@@ -93,6 +93,10 @@ public final class AdSupport {
     long deepRemaining(){return DEEP_ACCESS.remaining(SystemClock.elapsedRealtime(),testAdFree);}
     boolean deepAuthorized(){return deepRemaining()>0;}
     boolean rewardBusy(){return rewardTicket!=null;}
+    boolean rewardLoading(){return rewardTicket!=null&&!rewardShowing;}
+    void cancelRewardLoad(){
+        if(rewardLoading())finishReward(rewardTicket,RewardOutcome.CLOSED);
+    }
     /** Called only after a separate, explicit user opt-in that discloses the 30-minute reward. */
     void requestDeepReward(BooleanSupplier eligible,Consumer<RewardOutcome> finished){
         if(disposed||!foreground||activity.isFinishing()||activity.isDestroyed()||!isEnabled()){

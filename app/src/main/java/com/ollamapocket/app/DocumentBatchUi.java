@@ -329,11 +329,26 @@ final class DocumentBatchUi {
     }
     private void showSourcePreview(){
         if(!visible()||busy()||sources==null)return;
-        LinearLayout panel=column();label(panel,coverage(sources),false);
-        for(int i=0;i<sources.size();i++){
-            DocumentBatchPolicy.Source file=sources.get(i);
-            label(panel,"\nD"+(i+1)+" · "+file.name+"\n"+file.text,true);
-        }
+        final List<DocumentBatchPolicy.Source> reviewed=new ArrayList<>(sources);
+        LinearLayout panel=column();label(panel,coverage(reviewed),false);
+        Spinner selector=new Spinner(owner);
+        List<String> labels=new ArrayList<>();
+        for(int i=0;i<reviewed.size();i++)labels.add("D"+(i+1)+" · "+reviewed.get(i).name);
+        selector.setAdapter(WorkbenchStyle.spinnerChoices(selector,labels.toArray(new String[0])));
+        OnHandGlyphs.spinner(selector);selector.setMinimumHeight(dp(48));
+        selector.setContentDescription(s(R.string.batch_preview));
+        panel.addView(selector,new LinearLayout.LayoutParams(-1,-2));
+        TextView selected=label(panel,"",false),excerpt=label(panel,"",true);
+        Runnable update=()->{
+            int index=selector.getSelectedItemPosition();
+            if(index<0||index>=reviewed.size())return;
+            selected.setText(labels.get(index));excerpt.setText(reviewed.get(index).text);
+        };
+        selector.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
+            public void onItemSelected(AdapterView<?> parent,View view,int position,long id){update.run();}
+            public void onNothingSelected(AdapterView<?> parent){selected.setText("");excerpt.setText("");}
+        });
+        update.run();
         ScrollView scroll=new ScrollView(owner);scroll.addView(panel);
         AlertDialog d=new AlertDialog.Builder(owner).setTitle(R.string.batch_preview).setView(scroll).setPositiveButton(R.string.close,null).create();
         confirmation=d;d.setOnDismissListener(x->{if(confirmation==d)confirmation=null;});d.show();secure(d);WorkbenchWindow.fit(owner,d);
