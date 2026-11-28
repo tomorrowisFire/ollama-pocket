@@ -1,0 +1,3 @@
+# F12 batch expansion — integration
+
+Actual metadata is checked before extraction and raw streams share a separate 2 GiB counter; per-file parser limits are still enforced. Errors fail the selection without starting inference. Sequential source loading retains bounded extracted prefixes only. Report source records optionally include actual raw input bytes. Dynamic run confirmation shows planned excerpts, request ceiling and time budget. Keep local-only review and explicit export. JSON report ceiling expands to 280,000 characters; existing artifact byte cap and project workspace size limits still apply, so oversized exports can be rejected. No data schema migrations. Physical large-batch throughput and SAF provider behavior remain unverified.

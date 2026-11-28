@@ -9,7 +9,7 @@ import org.json.JSONObject;
 
 /** In-memory, read-only snapshot of the actual completed prefix of one analysis plan. */
 final class DocumentBatchReport {
-    static final int MAX_JSON_CHARS=120000;
+    static final int MAX_JSON_CHARS=280000;
     final DocumentBatchPolicy.Plan plan;
     final DocumentBatchPolicy.Result result;
     final String model,stopReason;
@@ -62,7 +62,7 @@ final class DocumentBatchReport {
     }
 
     DocumentBatchPolicy.Note lookup(String id){
-        if(id==null||!id.matches("D[1-3]-S[1-9][0-9]?"))return null;
+        if(id==null||!id.matches("D(?:[1-9]|1[0-9]|20)-S(?:[1-9]|1[0-9]|2[0-4])"))return null;
         for(DocumentBatchPolicy.Note n:completed)if(n.unit.id().equals(id))return n;
         return null;
     }
@@ -93,6 +93,7 @@ final class DocumentBatchReport {
                 .put("citation_coverage_status",coverage.status.name());
             if(s.kind==DocumentBatchPolicy.Kind.PDF)source.put("pdf_pages",s.pages)
                 .put("pdf_examined_pages",s.examined).put("pdf_readable_pages",s.readable);
+            if(s.inputBytes>=0)source.put("input_bytes",s.inputBytes);
             sources.put(source);
         }
         for(DocumentBatchPolicy.Note note:completed){

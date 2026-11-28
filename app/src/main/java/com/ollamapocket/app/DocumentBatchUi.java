@@ -222,46 +222,74 @@ final class DocumentBatchUi {
         final String display;
         SourceFailure(String display){super("Source extraction failed");this.display=display;}
     }
+    private static final class SourceMeta {
+        final Uri uri;final String name;final long declared;
+        SourceMeta(Uri uri,String name,long declared){this.uri=uri;this.name=name;this.declared=declared;}
+    }
     private List<DocumentBatchPolicy.Source> load(List<Uri> selected,ProjectWorkGate.Lease lease,AlertDialog screen,Handler main)throws Exception{
         int limit=DocumentBatchPolicy.prefixLimit(selected.size());
-        List<DocumentBatchPolicy.Source> out=new ArrayList<>();
+        List<SourceMeta> metadata=new ArrayList<>();
+        long[] sizes=new long[selected.size()];
+        // Reject known oversized selections before opening any content streams.
         for(int i=0;i<selected.size();i++){
             check();String name=s(R.string.batch_unknown_file);
             try{
-                Uri uri=selected.get(i);if(!"content".equals(uri.getScheme()))throw new AttachmentText.Failure(AttachmentText.Problem.UNSUPPORTED);
+                Uri uri=selected.get(i);
+                if(uri==null||!"content".equals(uri.getScheme()))throw new AttachmentText.Failure(AttachmentText.Problem.UNSUPPORTED);
                 long bytes=-1;
                 try(Cursor cursor=owner.getContentResolver().query(uri,new String[]{OpenableColumns.DISPLAY_NAME,OpenableColumns.SIZE},null,null,null)){
                     if(cursor!=null&&cursor.moveToFirst()){
                         int ni=cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME),si=cursor.getColumnIndex(OpenableColumns.SIZE);
                         if(ni>=0&&!cursor.isNull(ni))name=AttachmentText.safeName(cursor.getString(ni));
-                        if(si>=0&&!cursor.isNull(si))bytes=cursor.getLong(si);
+                        if(si>=0&&!cursor.isNull(si))bytes=Math.max(-1L,cursor.getLong(si));
                     }
                 }
                 check();
+                if(!AttachmentText.supportsPlain(name)&&!OfficeText.supports(name)&&!PdfExcerpt.supports(name))
+                    throw new AttachmentText.Failure(AttachmentText.Problem.UNSUPPORTED);
+                if(PdfExcerpt.supports(name)&&Build.VERSION.SDK_INT<35)throw new AttachmentText.Failure(AttachmentText.Problem.PDF_VERSION);
                 if(bytes>AttachmentText.maxBytes(name))throw new AttachmentText.Failure(AttachmentText.Problem.TOO_LARGE);
-                try(InputStream input=owner.getContentResolver().openInputStream(uri)){
-                    if(input==null)throw new AttachmentText.Failure(AttachmentText.Problem.INVALID);
-                    activeInput=input;check();
-                    if(PdfExcerpt.supports(name)){
-                        if(Build.VERSION.SDK_INT<35)throw new AttachmentText.Failure(AttachmentText.Problem.PDF_VERSION);
-                        AttachmentText.Result pdf=PdfTextClient.read(owner,name,input,1);
-                        AttachmentText.Prefix prefix=new AttachmentText.Prefix(pdf.text,pdf.partial).bounded(limit);
-                        out.add(new DocumentBatchPolicy.Source(name,prefix.text,DocumentBatchPolicy.Kind.PDF,prefix.partial,pdf.pdfPages,pdf.pdfExamined,pdf.pdfTextPages));
-                    }else{
-                        AttachmentText.Prefix prefix=AttachmentText.readPrefix(name,input,encoding,limit);
-                        out.add(new DocumentBatchPolicy.Source(name,prefix.text,OfficeText.supports(name)?DocumentBatchPolicy.Kind.OFFICE:DocumentBatchPolicy.Kind.TEXT,prefix.partial,0,0,0));
-                    }
-                }finally{activeInput=null;}
+                metadata.add(new SourceMeta(uri,name,bytes));sizes[i]=bytes;
             }catch(Exception e){
-                check();
-                throw new SourceFailure("D"+(i+1)+" · "+name+"\n"+s(errorLabel(e)));
+                check();throw new SourceFailure("D"+(i+1)+" · "+name+"\n"+s(errorLabel(e)));
             }
+        }
+        try{DocumentBatchPolicy.validateDeclared(sizes);}
+        catch(DocumentBatchPolicy.InputLimit e){throw new SourceFailure(s(R.string.batch_total_limit));}
+        DocumentBatchPolicy.InputBudget budget=new DocumentBatchPolicy.InputBudget();
+        List<DocumentBatchPolicy.Source> out=new ArrayList<>();
+        for(int i=0;i<metadata.size();i++){
+            check();SourceMeta meta=metadata.get(i);String name=meta.name;
+            long before=budget.consumed();
+            try(InputStream input=owner.getContentResolver().openInputStream(meta.uri)){
+                if(input==null)throw new AttachmentText.Failure(AttachmentText.Problem.INVALID);
+                activeInput=input;check();
+                InputStream counted=budget.wrap(input);
+                if(PdfExcerpt.supports(name)){
+                    AttachmentText.Result pdf=PdfTextClient.read(owner,name,counted,1);
+                    AttachmentText.Prefix prefix=new AttachmentText.Prefix(pdf.text,pdf.partial).bounded(limit);
+                    out.add(new DocumentBatchPolicy.Source(name,prefix.text,DocumentBatchPolicy.Kind.PDF,prefix.partial,
+                            pdf.pdfPages,pdf.pdfExamined,pdf.pdfTextPages,budget.consumed()-before));
+                }else{
+                    AttachmentText.Prefix prefix=AttachmentText.readPrefix(name,counted,encoding,limit);
+                    out.add(new DocumentBatchPolicy.Source(name,prefix.text,OfficeText.supports(name)?DocumentBatchPolicy.Kind.OFFICE:DocumentBatchPolicy.Kind.TEXT,
+                            prefix.partial,0,0,0,budget.consumed()-before));
+                }
+            }catch(Exception e){
+                check();throw new SourceFailure("D"+(i+1)+" · "+name+"\n"+s(errorLabel(e)));
+            }finally{activeInput=null;}
             final int complete=i+1;
-            postProgress(lease,screen,main,()->progress.setProgress(complete));
+            final long bytes=budget.consumed();
+            postProgress(lease,screen,main,()->{
+                progress.setProgress(complete);
+                status.setText(owner.getString(R.string.batch_input_progress,complete,metadata.size(),bytes));
+            });
         }
         check();return out;
     }
     private int errorLabel(Exception e){
+        if(e instanceof DocumentBatchPolicy.InputLimit)return R.string.batch_total_limit;
+        if(e instanceof java.net.SocketTimeoutException)return R.string.batch_input_deadline;
         if(e instanceof AttachmentText.Failure)switch(((AttachmentText.Failure)e).problem){
             case UNSUPPORTED:return R.string.attachment_unsupported;
             case TOO_LARGE:return R.string.attachment_too_large;
@@ -276,6 +304,9 @@ final class DocumentBatchUi {
     }
     private String coverage(List<DocumentBatchPolicy.Source> files){
         StringBuilder b=new StringBuilder(s(R.string.batch_coverage));
+        long total=0;boolean known=true;
+        for(DocumentBatchPolicy.Source file:files){if(file.inputBytes<0)known=false;else total+=file.inputBytes;}
+        if(known)b.append('\n').append(owner.getString(R.string.batch_input_total,files.size(),total));
         for(int i=0;i<files.size();i++){
             DocumentBatchPolicy.Source f=files.get(i);
             b.append("\n\nD").append(i+1).append(" · ").append(f.name).append('\n')
@@ -401,7 +432,8 @@ final class DocumentBatchUi {
         final DocumentBatchPolicy.Plan plan;
         try{plan=new DocumentBatchPolicy.Plan(goal.getText().toString(),sources);}catch(IllegalArgumentException e){toast(R.string.batch_goal);return;}
         final String reviewed=goal.getText().toString();
-        confirm(R.string.batch_start,s(R.string.batch_run_notice)+"\n\n"+coverage(sources)+"\n\n"+plannedCoverage(plan)+"\n\n"+s(R.string.batch_goal)+": "+reviewed,()->{
+        confirm(R.string.batch_start,owner.getString(R.string.batch_run_notice,plan.units.size(),plan.maxTotal(),
+                DocumentBatchPolicy.runtimeLimit(plan.sources.size())/60000L)+"\n\n"+coverage(sources)+"\n\n"+plannedCoverage(plan)+"\n\n"+s(R.string.batch_goal)+": "+reviewed,()->{
             if(busy()||!eligible.getAsBoolean()||!reviewed.equals(goal.getText().toString()))return;
             if(!OllamaForegroundService.isRunning()){toast(R.string.test_need_server);return;}
             if(!"off".equals(CoopSession.get(owner).role())){toast(R.string.guest_stop_first);return;}

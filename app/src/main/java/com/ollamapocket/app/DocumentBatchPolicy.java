@@ -42,7 +42,7 @@ final class DocumentBatchPolicy {
         unitsPerSource(files);
         return files<=3?LEGACY_MILLIS:MAX_MILLIS;
     }
-    static final class InputLimit extends java.io.IOException {
+    static final class InputLimit extends java.io.InterruptedIOException {
         InputLimit(){super("Batch aggregate input limit");}
     }
     static void validateDeclared(long[] sizes)throws InputLimit{

@@ -18,6 +18,7 @@ final class DocumentBatchRunner {
     private final String model;
     private final DocumentRequestControl<Stop> control=new DocumentRequestControl<>();
     private volatile long deadline;
+    private int requestCeiling;
     // In-memory diagnostic counters: dispatched chat requests, including failed/cancelled streams.
     private volatile int requests;
     private volatile long elapsedMillis;
@@ -46,7 +47,8 @@ final class DocumentBatchRunner {
     DocumentBatchPolicy.Result run(DocumentBatchPolicy.Plan plan,IntConsumer progress){
         if(!control.begin())throw new IllegalStateException("Batch already used");
         long started=SystemClock.elapsedRealtime();
-        deadline=started+DocumentBatchPolicy.MAX_MILLIS;
+        deadline=started+DocumentBatchPolicy.runtimeLimit(plan.sources.size());
+        requestCeiling=plan.maxTotal();
         ScheduledExecutorService watch=Executors.newSingleThreadScheduledExecutor(r->{Thread t=new Thread(r,"document-batch-safety");t.setDaemon(true);return t;});
         try{
             if(!stopped()){GpuRunner.stop();DistributedRunner.stop();}
@@ -67,6 +69,7 @@ final class DocumentBatchRunner {
             throw new IllegalArgumentException("No fitting evidence");
         if(!control.begin())throw new IllegalStateException("Batch already used");
         long started=SystemClock.elapsedRealtime();deadline=started+KnowledgeAnswerPolicy.MAX_MILLIS;
+        requestCeiling=1;
         ScheduledExecutorService watch=Executors.newSingleThreadScheduledExecutor(r->{Thread t=new Thread(r,"knowledge-answer-safety");t.setDaemon(true);return t;});
         try{
             if(stopped())throw new IOException("Knowledge stopped");
@@ -84,7 +87,7 @@ final class DocumentBatchRunner {
             }catch(Exception ignored){}
         }
     }
-    private int planRequestCeiling(){return DocumentBatchPolicy.MAX_UNITS*2;}
+    private int planRequestCeiling(){return requestCeiling;}
     private String generate(String prompt,int maxChars,int maxTokens)throws Exception{
         if(stopped())throw new IOException("Batch stopped");
         JSONArray messages=new JSONArray().put(new JSONObject().put("role","user").put("content",prompt));

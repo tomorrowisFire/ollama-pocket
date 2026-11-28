@@ -129,6 +129,21 @@ public final class DocumentBatchReportTest {
         JSONObject sj=new JSONObject(new DocumentBatchReport(singleton,direct,"m",null,2,10).json());
         ok(sj.getInt("local_chat_request_attempts")==2&&sj.getInt("completed_reduction_groups")==0);
         rejects(()->new DocumentBatchReport(singleton,direct,"m",null,3,10));
+        java.util.ArrayList<DocumentBatchPolicy.Source> many=new java.util.ArrayList<>();
+        for(int i=1;i<=20;i++)many.add(new DocumentBatchPolicy.Source("doc"+i+".txt","a".repeat(5596),
+                DocumentBatchPolicy.Kind.TEXT,true,0,0,0,100L*i));
+        var wide=new DocumentBatchPolicy.Plan("Compare",many);
+        var attempts=new java.util.concurrent.atomic.AtomicInteger();
+        var wideResult=DocumentBatchPolicy.analyze(wide,(prompt,chars,tokens)->{
+            attempts.incrementAndGet();return prompt.contains("final analysis")?"Summary [D10-S2] [D20-S4]":"note";
+        },()->false,x->{});
+        ok(wideResult.status==DocumentBatchPolicy.Status.COMPLETED&&wideResult.notes.size()==80);
+        var wideReport=new DocumentBatchReport(wide,wideResult,"m",null,attempts.get(),100);
+        ok(wideReport.lookup("D10-S2")!=null&&wideReport.lookup("D20-S4")!=null&&wideReport.lookup("D21-S1")==null);
+        JSONObject wideJson=new JSONObject(wideReport.json());
+        ok(wideJson.getJSONArray("sources").length()==20&&wideJson.getJSONArray("notes").length()==80);
+        ok(wideJson.getJSONArray("sources").getJSONObject(19).getLong("input_bytes")==2000);
+        ok(wideReport.citationCoverage.get(19).referencedEvidence==1);
         System.out.println("PASS: "+n+" document report snapshot, citation lookup and JSON assertions");
     }
 }
