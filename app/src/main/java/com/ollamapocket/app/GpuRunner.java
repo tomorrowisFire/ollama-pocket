@@ -29,6 +29,8 @@ public final class GpuRunner {
     private static volatile boolean offloadConfirmed;
     private static final StringBuilder logBuffer = new StringBuilder();
     private static volatile int generation;
+    private static final EngineLoadPolicy.GpuRetryBudget retryBudget=new EngineLoadPolicy.GpuRetryBudget();
+    static final String AUTO_RETRY_DEFERRED="GPU_AUTO_RETRY_DEFERRED";
     private GpuRunner() { }
 
     public static boolean packaged(Context context) {
@@ -111,6 +113,12 @@ public final class GpuRunner {
         return ensure(context,model,reason,()->false);
     }
     public static boolean ensure(Context context,String model,StringBuilder reason,java.util.function.BooleanSupplier cancelled){
+        return ensure(context,model,reason,cancelled,false);
+    }
+    static boolean ensureAuto(Context context,String model,StringBuilder reason,java.util.function.BooleanSupplier cancelled){
+        return ensure(context,model,reason,cancelled,true);
+    }
+    private static boolean ensure(Context context,String model,StringBuilder reason,java.util.function.BooleanSupplier cancelled,boolean automatic){
         final int entryGeneration=generation;
         if(cancelled.getAsBoolean()||Thread.currentThread().isInterrupted())return false;
         InferenceSafetyPolicy.Reason risk=InferenceSafety.check(context);
@@ -121,19 +129,25 @@ public final class GpuRunner {
         File weights;String weightsKey;
         try { weights = modelFile(context, model);weightsKey=EngineLoadPolicy.weightKey(weights); }
         catch (Exception e) { reason.append(e.getMessage()); return false; }
+        final String retryKey=model+"|"+weightsKey;
         final Process resident;final int residentGeneration;
         synchronized(GpuRunner.class){
             if(entryGeneration!=generation)return false;
             resident=activeModel.equals(model)&&activeWeightsKey.equals(weightsKey)?process:null;
             residentGeneration=generation;
         }
-        if(ready(context,resident,residentGeneration,cancelled))return true;
+        if(ready(context,resident,residentGeneration,cancelled)){
+            synchronized(GpuRunner.class){if(generation==residentGeneration&&process==resident)retryBudget.succeeded(retryKey);}
+            return true;
+        }
         final int startup;
         synchronized (GpuRunner.class) {
             if(residentGeneration!=generation||cancelled.getAsBoolean()||Thread.currentThread().isInterrupted()||InferenceSafety.blocked(context))return false;
+            if(retryBudget.remainingMs(retryKey,SystemClock.elapsedRealtime(),automatic)>0){reason.append(AUTO_RETRY_DEFERRED);return false;}
             stopLocked(); startup=generation;
         }
         java.util.function.BooleanSupplier abort=EngineTransitionPolicy.abortSignal(startup,()->generation,cancelled,()->!InferenceSafety.blocked(context));
+        boolean attemptedLaunch=false;
         try {
             if(abort.getAsBoolean())return false;
             DistributedRunner.stop();
@@ -154,6 +168,7 @@ public final class GpuRunner {
             int myGeneration;
             synchronized (GpuRunner.class) {
                 if(abort.getAsBoolean())return false;
+                attemptedLaunch=true;
                 process = pb.start();
                 activeModel = model;activeWeightsKey=weightsKey;
                 offloadConfirmed = false;
@@ -182,7 +197,10 @@ public final class GpuRunner {
             while (SystemClock.elapsedRealtime() < end) {
                 if (process != current || !current.isAlive()||cancelled.getAsBoolean()||Thread.currentThread().isInterrupted()) break;
                 if(InferenceSafety.blocked(context)){reason.append("Unsafe inference resources");synchronized(GpuRunner.class){if(process==current)stopLocked();}return false;}
-                if(ready(context,current,myGeneration,cancelled))return true;
+                if(ready(context,current,myGeneration,cancelled)){
+                    synchronized(GpuRunner.class){if(generation==myGeneration&&process==current)retryBudget.succeeded(retryKey);}
+                    return true;
+                }
                 Thread.sleep(500);
             }
             if(abort.getAsBoolean()){
@@ -192,12 +210,16 @@ public final class GpuRunner {
             if (!current.isAlive()) reason.append("GPU 실행 파일이 종료됐습니다. Vulkan 드라이버·모델 호환 확인 필요");
             else if (healthy()) reason.append("서버는 시작됐지만 GPU 레이어 오프로드는 확인되지 않았습니다");
             else reason.append("GPU 서버 시작 실패 또는 시간 초과");
-            synchronized (GpuRunner.class) { if(generation==startup)stopLocked(); }
+            synchronized (GpuRunner.class) {
+                if(generation==startup){retryBudget.failed(retryKey,SystemClock.elapsedRealtime(),attemptedLaunch&&!abort.getAsBoolean());stopLocked();}
+            }
             return false;
         } catch (Exception e) {
             InferenceSafetyPolicy.restoreInterrupt(e);
             reason.append("GPU 실행 실패: ").append(e.getMessage());
-            synchronized (GpuRunner.class) { if(generation==startup)stopLocked(); } return false;
+            synchronized (GpuRunner.class) {
+                if(generation==startup){retryBudget.failed(retryKey,SystemClock.elapsedRealtime(),attemptedLaunch&&!abort.getAsBoolean());stopLocked();}
+            } return false;
         }
     }
 

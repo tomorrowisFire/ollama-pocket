@@ -259,6 +259,7 @@
     <string name="engine_gpu_verified">Engine: GPU · Vulkan layer offload verified</string>
     <string name="engine_cpu_verified">Engine: CPU · Ollama</string>
     <string name="engine_gpu_failed"> (GPU fallback)</string>
+    <string name="engine_gpu_retry_deferred">(GPU retry deferred · automatic)</string>
     <string name="engine_cpu_fallback">GPU inference failed · Switching to CPU Ollama</string>
     <string name="gguf_pick">Select a GGUF file.</string>
     <string name="gguf_importing">Importing GGUF · Keep this screen open</string>

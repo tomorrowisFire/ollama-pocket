@@ -4190,14 +4190,16 @@ public final class MainActivity extends Activity {
                 StringBuilder fallback = new StringBuilder();
                 if (tryGpu && !chatCancelled) {
                     ui.post(() -> activeEngineLabel.setText(getString(R.string.engine_gpu_test)));
-                    gpu = GpuRunner.ensure(getApplicationContext(), modelAtStart, fallback,()->chatCancelled);
+                    gpu = "auto".equals(choice)?GpuRunner.ensureAuto(getApplicationContext(),modelAtStart,fallback,()->chatCancelled):
+                        GpuRunner.ensure(getApplicationContext(),modelAtStart,fallback,()->chatCancelled);
                 }
                 checkChatCancelled();
                 final boolean verifiedGpu = gpu;
                 final String failedReason = fallback.toString();
+                final boolean deferredGpu=GpuRunner.AUTO_RETRY_DEFERRED.equals(failedReason);
                 ui.post(() -> activeEngineLabel.setText((verifiedGpu ?
                     getString(R.string.engine_gpu_verified):
-                    getString(R.string.engine_cpu_verified)+(failedReason.isEmpty()?"":" "+getString(R.string.engine_gpu_failed)))+
+                    getString(R.string.engine_cpu_verified)+(failedReason.isEmpty()?"":" "+getString(deferredGpu?R.string.engine_gpu_retry_deferred:R.string.engine_gpu_failed)))+
                     (measuredRoute!=null&&measuredRoute.equals(verifiedGpu?"gpu":"cpu")?" · "+getString(R.string.bench_auto_profile,measuredRoute.toUpperCase(Locale.ROOT)):"")));
                 if (gpu) {
                     try {

@@ -1,6 +1,6 @@
 {
-  "stage": "F10A73-quiet-peach-choice-states",
-  "revision": "F10A73",
-  "priorCandidate": "dd60d3a21616dd0c76e17e674166f4f9d77cdff9",
-  "reason": "User requested softer choice tone: separate pale selection palette from CTA, thin selected borders, plain unselected rows, readable check marks, separate strong keyboard focus. Extend to model badges and list/grid selection. Repair F10A72R1 compile failure by restoring no-argument compute dialog entry and synchronizing current control. Full ARM64 build."
+  "stage": "F10A74-P1A-auto-gpu-retry-budget",
+  "revision": "F10A74",
+  "priorCandidate": "0af9d591b0dfee727f9e1d0e8344e822124073df",
+  "reason": "Focused optimization phase 1A: avoid repeated failed GPU cold starts via bounded process-local per-model/weight retry cooldown (60/120/240/300s), retain manual/benchmark attempts, successful reset, monotonic expiry, no caching canceled/unsafe/stale starts. Five localized status messages. Full ARM64 build; no physical throughput/thermal claim."
 }

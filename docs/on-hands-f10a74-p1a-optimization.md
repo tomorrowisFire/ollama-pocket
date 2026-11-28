@@ -1,0 +1,8 @@
+# F10A74 — focused improvement P1A: automatic GPU retry budget
+Baseline 0af9d591b0dfee727f9e1d0e8344e822124073df (F10A73).
+
+Defect: automatic mode without a stable CPU-preferred benchmark can retry the same failed Vulkan startup on every chat. Each attempt can repeat model unloading and a 35–180 second startup window. The improvement targets repeated failed startup latency; it is not a measured speedup.
+
+Implementation: process-local LRU retry budget (16 exact model/weight identities); 60, 120, 240, 300-second cooldowns; failure history expires after 15 minutes; verified resident/cold success clears the entry; backwards monotonic clock invalidates the record. Only actual attempted launches with current generation and no cancellation, interruption or safety block count. Auto skips retries during cooldown, explicit GPU and benchmark attempts bypass cooldown only, all existing safety checks remain. CPU fallback is still subject to existing cancellation/partial-output/risk guards. A localized status distinguishes temporary deferral from fresh failure. No cloud, NPU execution, model changes, or production release claim.
+
+Gate: exact commit FAST/FULL CI and deterministic retry budget fixtures. Device-only cold/warm latency, GPU-driver failure/recovery, throughput, temperature, battery and long-session testing remain NOT_RUN and are deferred to final acceptance. No final quality score increase claimed. Next focused stages: bounded handoff and memory/thermal improvements; model recommendation/management; UI/UX; workflow; security and reliability. Preserve prior UI, billing, ads, data and all release gates.

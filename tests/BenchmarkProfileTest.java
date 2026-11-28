@@ -74,6 +74,32 @@ public final class BenchmarkProfileTest {
         ok(EngineLoadPolicy.gpuStartupMs(1024L*1024*1024)==67000);
         ok(EngineLoadPolicy.gpuStartupMs(Long.MAX_VALUE)==180000);
         ok(EngineLoadPolicy.hostThreads(1)==1&&EngineLoadPolicy.hostThreads(4)==2&&EngineLoadPolicy.hostThreads(12)==4);
+        EngineLoadPolicy.GpuRetryBudget retry=new EngineLoadPolicy.GpuRetryBudget();
+        String key="model|weights-v1",changed="model|weights-v2";
+        ok(retry.remainingMs(key,now,true)==0);
+        retry.failed(key,now,false);ok(retry.remainingMs(key,now,true)==0);
+        retry.failed(key,now,true);
+        ok(retry.remainingMs(key,now,true)==60000);
+        ok(retry.remainingMs(key,now,false)==0); // manual selection and benchmarks bypass only the cooldown
+        ok(retry.remainingMs(changed,now,true)==0);
+        ok(retry.remainingMs(key,now+59999,true)==1);
+        ok(retry.remainingMs(key,now+60000,true)==0);
+        retry.failed(key,now+60000,true);ok(retry.remainingMs(key,now+60000,true)==120000);
+        retry.failed(key,now+180000,true);ok(retry.remainingMs(key,now+180000,true)==240000);
+        retry.failed(key,now+420000,true);ok(retry.remainingMs(key,now+420000,true)==300000);
+        retry.failed(key,now+720000,true);ok(retry.remainingMs(key,now+720000,true)==300000);
+        retry.failed(key,now+720001,false);ok(retry.remainingMs(key,now+720001,true)==299999);
+        retry.succeeded(key);ok(retry.remainingMs(key,now+720001,true)==0);
+        retry.failed(key,now+720002,true);ok(retry.remainingMs(key,now+720002,true)==60000);
+        ok(retry.remainingMs(key,now+720001,true)==0); // backward clock invalidates evidence
+        retry.failed(key,now,true);
+        ok(retry.remainingMs(key,now+EngineLoadPolicy.GpuRetryBudget.RESET_MS,true)==0);
+        retry.failed(key,now+EngineLoadPolicy.GpuRetryBudget.RESET_MS,true);
+        ok(retry.remainingMs(key,now+EngineLoadPolicy.GpuRetryBudget.RESET_MS,true)==60000);
+        retry=new EngineLoadPolicy.GpuRetryBudget();
+        for(int i=0;i<17;i++)retry.failed("model-"+i,now,true);
+        ok(retry.remainingMs("model-0",now,true)==0);
+        ok(retry.remainingMs("model-16",now,true)==60000);
         File f=File.createTempFile("weight-policy",".gguf");
         try{
             Files.write(f.toPath(),new byte[]{1,2});

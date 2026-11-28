@@ -259,6 +259,7 @@
     <string name="engine_gpu_verified">実行エンジン: GPU · Vulkan オフロード確認済み</string>
     <string name="engine_cpu_verified">実行エンジン: CPU · Ollama</string>
     <string name="engine_gpu_failed">（GPU 切替失敗）</string>
+    <string name="engine_gpu_retry_deferred">（GPU再試行待機・自動）</string>
     <string name="engine_cpu_fallback">GPU 推論失敗 · CPU Ollama に切替</string>
     <string name="gguf_pick">GGUF ファイルを選択してください。</string>
     <string name="gguf_importing">GGUF をインポート中 · 画面を開いたままにしてください</string>

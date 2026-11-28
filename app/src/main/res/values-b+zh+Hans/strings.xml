@@ -259,6 +259,7 @@
     <string name="engine_gpu_verified">实际引擎：GPU · Vulkan 层卸载已验证</string>
     <string name="engine_cpu_verified">实际引擎：CPU · Ollama</string>
     <string name="engine_gpu_failed">（GPU 切换失败）</string>
+    <string name="engine_gpu_retry_deferred">（GPU重试等待 · 自动）</string>
     <string name="engine_cpu_fallback">GPU 推理失败 · 切换到 CPU Ollama</string>
     <string name="gguf_pick">请选择 GGUF 文件。</string>
     <string name="gguf_importing">正在导入 GGUF · 请保持此页面打开</string>

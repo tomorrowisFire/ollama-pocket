@@ -259,6 +259,7 @@
     <string name="engine_gpu_verified">실제 연산: GPU · Vulkan 레이어 오프로드 검증</string>
     <string name="engine_cpu_verified">실제 연산: CPU · Ollama</string>
     <string name="engine_gpu_failed"> (GPU 전환 실패)</string>
+    <string name="engine_gpu_retry_deferred">(GPU 재시도 대기 · 자동)</string>
     <string name="engine_cpu_fallback">GPU 추론 실패 · CPU Ollama로 전환</string>
     <string name="gguf_pick">GGUF 파일을 선택하세요</string>
     <string name="gguf_importing">GGUF 가져오는 중 · 화면을 유지하세요</string>
