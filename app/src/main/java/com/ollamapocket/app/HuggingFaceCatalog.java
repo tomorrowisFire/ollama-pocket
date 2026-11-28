@@ -161,6 +161,8 @@ public final class HuggingFaceCatalog {
             case "사용자가 다운로드를 중지했습니다.":case "취소되었습니다.":return activity.getString(R.string.download_stopped);
             case "받은 파일 크기가 목록과 다릅니다. 불완전한 파일 삭제.":return activity.getString(R.string.hf_size_mismatch);
             case "MODEL_INSTALL_UNCONFIRMED":return activity.getString(R.string.model_install_unconfirmed);
+            case "LOCAL_SERVER_NOT_READY":return activity.getString(R.string.download_server_timeout);
+            case "CHAT_CANCELLED":return activity.getString(R.string.download_stopped);
             case "등록 취소됨":return activity.getString(R.string.hf_registration_cancelled);
             default:
                 String prefix="Ollama 모델 등록 실패: ";
@@ -490,14 +492,17 @@ public final class HuggingFaceCatalog {
         if(!DOWNLOAD_LOCK.compareAndSet(false,true)){
             fail(activity.getString(R.string.hf_busy));return;
         }
-        if(!OllamaForegroundService.isRunning()){
-            DOWNLOAD_LOCK.set(false);
-            fail(activity.getString(R.string.hf_server_required));
-            return;
+        final boolean starting=!OllamaForegroundService.isRunning();
+        if(starting){
+            try{OllamaForegroundService.requestStart(activity);}
+            catch(Exception failure){
+                DOWNLOAD_LOCK.set(false);
+                fail(activity.getString(R.string.server_start_failed,failure.getMessage()));return;
+            }
         }
         stopped.set(false);activeDownload=this;
         LinearLayout panel=panel(activity);
-        TextView status=label(activity,activity.getString(R.string.model_download_preparing));add(panel,status);
+        TextView status=label(activity,activity.getString(starting?R.string.download_server_wait:R.string.model_download_preparing));add(panel,status);
         ProgressBar progress=new ProgressBar(activity,null,android.R.attr.progressBarStyleHorizontal);
         progress.setMax(100);add(panel,progress);
         add(panel,label(activity,activity.getString(R.string.ad_area)));
@@ -524,6 +529,9 @@ public final class HuggingFaceCatalog {
                 if(stopped.get())throw new java.io.InterruptedIOException("Download cancelled");
                 transfer=ModelDownloadBudget.tryTransfer();
                 if(transfer==null)throw new java.io.IOException(activity.getString(R.string.busy));
+                OllamaHttp.awaitReady(stopped::get);
+                LocalStreamCancellation.check(stopped::get);
+                onUi(()->{if(!stopped.get())status.setText(activity.getString(R.string.model_download_preparing));});
                 File folder=new File(activity.getFilesDir(),"imports");
                 if(!folder.isDirectory()&&!folder.mkdirs())throw new Exception("임시 폴더 생성 실패");
                 String slug=repo.id.replace('/','-').toLowerCase(Locale.ROOT)
@@ -570,6 +578,8 @@ public final class HuggingFaceCatalog {
                     new FileOutputStream(modelfile),StandardCharsets.UTF_8)){
                     writer.write("FROM "+gguf.getAbsolutePath()+"\n");
                 }
+                OllamaHttp.awaitReady(stopped::get);
+                LocalStreamCancellation.check(stopped::get);
                 onUi(()->status.setText(activity.getString(R.string.hf_registering)));
                 ProcessBuilder pb=new ProcessBuilder(
                     OllamaForegroundService.ollamaBinary(activity).getAbsolutePath(),

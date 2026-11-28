@@ -1,0 +1,7 @@
+# F10A92 — joint cold-start and direct GGUF transfer repair
+
+Live parent F10A90 2766996bca29ce08ab2739bf02e0946ff5c02b4e: FAST 46129117140 and FULL 46129117128 both passed. Preserve detached F10A91 330040a5ae4c5b63b903fde14cab01ab8618bfa5 and batch direct GGUF selection/import changes.
+
+GGUF picker no longer discards a selection because the daemon is stopped. After valid explicit selection, request foreground startup if necessary, await API readiness before copying and before registration, retain existing storage bounds and transfer mutex. Show cancellable indeterminate progress and cancel on explicit server stop, including destruction of an in-flight registration process. Retain temporary cleanup and confirmed installed-tag verification. A SAF read may block until its existing next cancellation checkpoint; no instant cancellation guarantee. No ad, billing, native binary, permission or user-data changes.
+
+Readiness gate rechecks cancellation and remaining budget after liveness probe and before API probe. Exact parent F10A91 readiness sources verified against local Git blob identities; Java --release 17 regression 17 baseline assertions passed, then 23 assertions passed with added deadline/cancellation fixtures. Expected updated readiness/test blobs d2cbf7a9b8f3b4006cf74c0c50bfa9d2db916b11 and 332bc03ca28ee5636b714b5f871fe4733fefd061. Android integration and physical downloads not locally executed; exact combined FAST/FULL CI required. No score or release claim.

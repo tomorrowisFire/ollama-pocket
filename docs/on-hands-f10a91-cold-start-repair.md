@@ -1,0 +1,7 @@
+# F10A91 — local Ollama model download cold-start repair
+
+User-reported failure: beginDownload started the foreground service and returned, discarding the already approved pull. HF download also rejected a cold daemon. A live process was not proof the loopback API accepted requests.
+
+Base F10A90 2766996bca29ce08ab2739bf02e0946ff5c02b4e. Preserve existing storage review, transfer mutex, ads, cancellation and installed-tag verification. After explicit download consent request foreground startup on the UI thread only when necessary, then await process liveness and a bounded successful /api/version response on the transfer worker. Proceed with the captured exact approved model; do not automatically repeat consent, download or service start. Both Ollama and HF transfers use the readiness gate; HF also checks it before registration. Explicit stop cancels current transfers. A failed launch or readiness timeout is not presented as an installation. Five localized wait and failure messages.
+
+Isolated Java 17-compatible readiness fixtures executed locally: 17 assertions passed for delayed process/API readiness, refusal, no process, timeout, cancellation, stale process and interrupt preservation. Full Android compilation, actual service process launch, registry downloads and device smoke remain unverified. No release or score claim. If parent mandatory CI remains pending, preserve this as an isolated commit until the parent passes.

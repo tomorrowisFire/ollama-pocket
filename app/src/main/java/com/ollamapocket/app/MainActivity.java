@@ -1439,7 +1439,7 @@ public final class MainActivity extends Activity {
         settingAction(importButton,OnHandGlyphs.Kind.EXPORT);margin(importButton,content,0,8);
         importButton.setOnClickListener(v->{
             if(isUiBusy()){toast(getString(R.string.busy));return;}
-            if(!OllamaForegroundService.isRunning()){toast(getString(R.string.start_ollama));return;}
+            // The selected GGUF is the explicit import action; request startup after selection.
             Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT);
             intent.addCategory(Intent.CATEGORY_OPENABLE);
             intent.setType("*/*");startActivityForResult(intent,PICK_GGUF);
@@ -1484,6 +1484,7 @@ public final class MainActivity extends Activity {
         cancelPullButton.setVisibility(View.GONE);
         cancelPullButton.setEnabled(false);
         cancelPullButton.setOnClickListener(v->{
+            if(ggufImportBusy){cancelGgufImport();return;}
             pullCancelled=true;if(pullConnection!=null)pullConnection.disconnect();
         });
         margin(downloadStatusRow,content,0,5);
@@ -2032,17 +2033,22 @@ public final class MainActivity extends Activity {
         dialog.show();WorkbenchWindow.fit(this,dialog);
     }
     private void startServer() {
-        Intent intent = new Intent(this, OllamaForegroundService.class).setAction(OllamaForegroundService.ACTION_START);
         try {
-            if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent);
-            else startService(intent);
+            OllamaForegroundService.requestStart(this);
             toast(getString(R.string.local_start_requested));
         } catch (Exception e) { toast(getString(R.string.server_start_failed,e.getMessage())); }
     }
+    private void cancelGgufImport(){
+        ggufImportCancelled=true;
+        Process registration=ggufRegistration;
+        if(registration!=null)registration.destroyForcibly();
+    }
     private void stopServer() {
+        if(ggufImportBusy)cancelGgufImport();
         if (chatBusy) stopChat();
         GpuRunner.stop();
         if (pullBusy) { pullCancelled = true; if (pullConnection != null) pullConnection.disconnect(); }
+        HuggingFaceCatalog.cancelFor(this);
         Intent intent = new Intent(this, OllamaForegroundService.class).setAction(OllamaForegroundService.ACTION_STOP);
         startService(intent);
     }
@@ -3164,10 +3170,12 @@ public final class MainActivity extends Activity {
             confirmDownload(model);return;
         }
         if(!hasDownloadStorage(Math.max(reviewedBytes,currentBytes)))return;
-        if (!OllamaForegroundService.isRunning()) {
-            toast(getString(R.string.download_server_wait));
-            startServer(); return;
+        final boolean starting=!OllamaForegroundService.isRunning();
+        if(starting){
+            try{OllamaForegroundService.requestStart(this);}
+            catch(Exception failure){toast(getString(R.string.server_start_failed,failure.getMessage()));return;}
         }
+        // The exact user-approved model survives the cold start; no second confirmation or duplicate pull.
         final long serial=++pullSerial;
         pullBusy = true; pullCancelled = false;
         lastFailedPullModel="";
@@ -3189,7 +3197,7 @@ public final class MainActivity extends Activity {
         ads.showBanner(downloadAdSlot);
         pullButton.setEnabled(false); pullButton.setAlpha(0.5f);
         cancelPullButton.setEnabled(true); cancelPullButton.setVisibility(View.VISIBLE);
-        progressStatus.setText(getString(R.string.download_prepare_model,model));
+        progressStatus.setText(starting?getString(R.string.download_server_wait):getString(R.string.download_prepare_model,model));
         io.execute(() -> {
             String error = null,confirmedTag=null;
             ModelDownloadBudget.TransferGate.Lease transfer=null;
@@ -3197,6 +3205,12 @@ public final class MainActivity extends Activity {
                 LocalStreamCancellation.check(()->pullCancelled);
                 transfer=ModelDownloadBudget.tryTransfer();
                 if(transfer==null)throw new java.io.IOException(getString(R.string.busy));
+                OllamaHttp.awaitReady(()->pullCancelled);
+                LocalStreamCancellation.check(()->pullCancelled);
+                ui.post(()->{
+                    if(isFinishing()||isDestroyed()||serial!=pullSerial||pullCancelled||!pullBusy)return;
+                    progressStatus.setText(getString(R.string.download_prepare_model,model));
+                });
                 HttpURLConnection connection = OllamaHttp.newPullConnection(); pullConnection = connection;
                 OllamaHttp.streamPull(connection, OllamaHttp.pullBody(model), item -> {
                     String status = item.optString("status", "진행 중");
@@ -4749,7 +4763,6 @@ public final class MainActivity extends Activity {
         if(code==EXPORT_CHAT){finishChatExport(result,data);return;}
         if (code != PICK_GGUF || result != RESULT_OK || data == null || data.getData() == null) return;
         if(!canStartModelImport()){toast(getString(R.string.busy));return;}
-        if(!OllamaForegroundService.isRunning()){toast(getString(R.string.start_ollama));return;}
         Uri uri = data.getData();
         String displayName = "model.gguf";
         try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
@@ -4761,9 +4774,18 @@ public final class MainActivity extends Activity {
         if (displayName == null || !displayName.toLowerCase().endsWith(".gguf")) {
             toast(getString(R.string.gguf_pick)); return;
         }
+        final boolean starting=!OllamaForegroundService.isRunning();
+        if(starting){
+            try{OllamaForegroundService.requestStart(this);}
+            catch(Exception failure){toast(getString(R.string.server_start_failed,failure.getMessage()));return;}
+        }
         final String modelName = "imported-" + System.currentTimeMillis();
         ggufImportBusy=true;ggufImportCancelled=false;
-        progressStatus.setText(getString(R.string.gguf_importing));
+        lastFailedPullModel="";
+        if(downloadRetryButton!=null)downloadRetryButton.setVisibility(View.GONE);
+        cancelPullButton.setEnabled(true);cancelPullButton.setVisibility(View.VISIBLE);
+        downloadProgress.setVisibility(View.VISIBLE);downloadProgress.setIndeterminate(true);
+        progressStatus.setText(getString(starting?R.string.download_server_wait:R.string.gguf_importing));
         io.execute(() -> {
             File copied = null, modelfile = null;
             Process registration=null;
@@ -4773,6 +4795,10 @@ public final class MainActivity extends Activity {
                 LocalStreamCancellation.check(()->ggufImportCancelled);
                 transfer=ModelDownloadBudget.tryTransfer();
                 if(transfer==null)throw new java.io.IOException(getString(R.string.busy));
+                OllamaHttp.awaitReady(()->ggufImportCancelled);
+                LocalStreamCancellation.check(()->ggufImportCancelled);
+                ui.post(()->{if(!isFinishing()&&!isDestroyed()&&ggufImportBusy&&!ggufImportCancelled)
+                    progressStatus.setText(getString(R.string.gguf_importing));});
                 File imports = new File(getFilesDir(), "imports");
                 if (!imports.exists() && !imports.mkdirs()) throw new Exception(getString(R.string.file_directory_failed));
                 copied = new File(imports, modelName + ".gguf");
@@ -4800,6 +4826,8 @@ public final class MainActivity extends Activity {
                 try (OutputStreamWriter w = new OutputStreamWriter(new FileOutputStream(modelfile), StandardCharsets.UTF_8)) {
                     w.write("FROM " + copied.getAbsolutePath() + "\n");
                 }
+                OllamaHttp.awaitReady(()->ggufImportCancelled);
+                LocalStreamCancellation.check(()->ggufImportCancelled);
                 ProcessBuilder pb = new ProcessBuilder(OllamaForegroundService.ollamaBinary(this).getAbsolutePath(),
                     "create", modelName, "-f", modelfile.getAbsolutePath());
                 OllamaForegroundService.configureEnvironment(this, pb);
@@ -4814,7 +4842,7 @@ public final class MainActivity extends Activity {
                         output.append(line).append('\n');
                         if(output.length()>3500)output.delete(0,output.length()-3500);
                         String now = line;
-                        ui.post(() -> {if(!isFinishing()&&!isDestroyed())progressStatus.setText(getString(R.string.gguf_register_progress,now));});
+                        ui.post(() -> {if(!isFinishing()&&!isDestroyed()&&ggufImportBusy&&!ggufImportCancelled)progressStatus.setText(getString(R.string.gguf_register_progress,now));});
                     }
                 }
                 int exit = p.waitFor();
@@ -4834,7 +4862,14 @@ public final class MainActivity extends Activity {
                 if(transfer!=null)transfer.close();
             }
             String finalResult = importStatus;
-            ui.post(() -> {ggufImportBusy=false;if(!isFinishing()&&!isDestroyed()){progressStatus.setText(finalResult);refreshModels();}});
+            ui.post(() -> {
+                ggufImportBusy=false;
+                if(isFinishing()||isDestroyed())return;
+                cancelPullButton.setEnabled(false);cancelPullButton.setVisibility(View.GONE);
+                downloadProgress.setIndeterminate(false);downloadProgress.setVisibility(View.GONE);
+                progressStatus.setText(ggufImportCancelled?getString(R.string.download_stopped):finalResult);
+                refreshModels();
+            });
         });
     }
 

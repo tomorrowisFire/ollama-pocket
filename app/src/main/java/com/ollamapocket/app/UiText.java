@@ -61,6 +61,7 @@ final class UiText {
             case "MODEL_INSTALL_UNCONFIRMED":return c.getString(R.string.model_install_unconfirmed);
             case "PULL_INCOMPLETE":return c.getString(R.string.chat_stream_incomplete);
             case "PULL_PROTOCOL":return c.getString(R.string.model_pull_invalid_response);
+            case "LOCAL_SERVER_NOT_READY":return c.getString(R.string.download_server_timeout);
             case "LOCAL_ENGINE_PROTOCOL":return c.getString(R.string.engine_invalid_response);
             case "CHAT_STREAM_LIMIT":return c.getString(R.string.chat_stream_size_limit);
             case "CHAT_CANCELLED":return c.getString(R.string.chat_request_cancelled);

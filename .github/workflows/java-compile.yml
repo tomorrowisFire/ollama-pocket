@@ -366,6 +366,11 @@ jobs:
           javac --release 17 -cp /tmp/search-batch-tests:/tmp/cloud-stream-tests/json.jar -d /tmp/local-stream-tests app/src/main/java/com/ollamapocket/app/InstalledModelInventory.java tests/InstalledModelInventoryTest.java
           java -cp /tmp/local-stream-tests:/tmp/search-batch-tests:/tmp/cloud-stream-tests/json.jar com.ollamapocket.app.InstalledModelInventoryTest
           java -cp /tmp/local-stream-tests com.ollamapocket.app.LocalStreamCancellationTest
+      - name: Test cold-start readiness and cancellation
+        run: |
+          mkdir -p /tmp/local-readiness-tests
+          javac --release 17 -d /tmp/local-readiness-tests app/src/main/java/com/ollamapocket/app/LocalServerReadiness.java tests/LocalServerReadinessTest.java
+          java -cp /tmp/local-readiness-tests com.ollamapocket.app.LocalServerReadinessTest
           javac -d /tmp/local-stream-tests app/src/main/java/com/ollamapocket/app/StructuredInferenceTerminal.java tests/StructuredInferenceTerminalTest.java
           java -cp /tmp/local-stream-tests com.ollamapocket.app.StructuredInferenceTerminalTest
           javac -cp /tmp/local-stream-tests:/tmp/cloud-stream-tests/json.jar -d /tmp/local-stream-tests app/src/main/java/com/ollamapocket/app/StructuredTextStream.java tests/StructuredTextStreamTest.java

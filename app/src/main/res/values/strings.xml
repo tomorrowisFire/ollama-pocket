@@ -248,7 +248,8 @@
     <string name="storage_low">Insufficient storage</string>
     <string name="download_data_title">Download · Data usage</string>
     <string name="download_confirm">Confirm and download</string>
-    <string name="download_server_wait">Local server is starting. Retry when connected.</string>
+    <string name="download_server_wait">Starting local Ollama. The approved download will begin when connected.</string>
+    <string name="download_server_timeout">Local Ollama did not respond. Check the server status and logs in Settings, then retry.</string>
     <string name="download_stopped">Download cancelled</string>
     <string name="model_ready">Model ready</string>
     <string name="stay_models">Stay on Models</string>

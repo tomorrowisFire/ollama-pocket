@@ -39,6 +39,20 @@ public final class OllamaHttp {
         try { return readSingle(conn); } finally { conn.disconnect(); }
     }
 
+    /** Process liveness alone is not sufficient: require a successful local version response. Worker only. */
+    static void awaitReady(BooleanSupplier cancelled)throws IOException{
+        LocalServerReadiness.await(OllamaForegroundService::isRunning,timeout->{
+            HttpURLConnection conn=open("/api/version","GET",timeout);
+            conn.setConnectTimeout(timeout);
+            try{
+                String payload=readText(checkedStream(conn),4096);
+                ToolJsonPolicy.requireEngineObject(payload,4096);
+                Object version=new JSONObject(payload).opt("version");
+                return version instanceof String&&!((String)version).trim().isEmpty();
+            }finally{conn.disconnect();}
+        },cancelled,android.os.SystemClock::elapsedRealtime,Thread::sleep);
+    }
+
     /** Verify the daemon's inventory before publishing a newly installed model. */
     static String confirmInstalledTag(String requested,BooleanSupplier cancelled)throws Exception{
         LocalStreamCancellation.check(cancelled);

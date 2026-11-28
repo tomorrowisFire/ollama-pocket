@@ -248,7 +248,8 @@
     <string name="storage_low">저장공간 부족</string>
     <string name="download_data_title">다운로드 · 데이터 요금 안내</string>
     <string name="download_confirm">확인 후 다운로드</string>
-    <string name="download_server_wait">로컬 서버 시작 중입니다. 연결되면 다시 다운로드하세요.</string>
+    <string name="download_server_wait">로컬 Ollama 시작 중입니다. 연결되면 승인한 다운로드가 자동으로 시작됩니다.</string>
+    <string name="download_server_timeout">로컬 Ollama가 응답하지 않습니다. 설정에서 서버 상태와 로그를 확인한 후 다시 시도하세요.</string>
     <string name="download_stopped">다운로드 중단</string>
     <string name="model_ready">모델 준비 완료</string>
     <string name="stay_models">모델 화면 유지</string>

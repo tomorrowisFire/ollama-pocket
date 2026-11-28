@@ -248,7 +248,8 @@
     <string name="storage_low">儲存空間不足</string>
     <string name="download_data_title">下載 · 數據費用提示</string>
     <string name="download_confirm">確認並下載</string>
-    <string name="download_server_wait">本機伺服器正在啟動，連線後重試。</string>
+    <string name="download_server_wait">正在啟動本機 Ollama。連線後將自動開始已確認的下載。</string>
+    <string name="download_server_timeout">本機 Ollama 未回應。請在設定中查看伺服器狀態與記錄後重試。</string>
     <string name="download_stopped">下載已取消</string>
     <string name="model_ready">模型已就緒</string>
     <string name="stay_models">停留在模型頁面</string>

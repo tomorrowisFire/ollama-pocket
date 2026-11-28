@@ -31,6 +31,13 @@ public final class OllamaForegroundService extends Service {
     private boolean destroyed;
     private static final StringBuilder recentLog = new StringBuilder();
 
+    /** Request Android foreground startup from an authorized UI action. */
+    static void requestStart(Context context){
+        Intent intent=new Intent(context,OllamaForegroundService.class).setAction(ACTION_START);
+        if(Build.VERSION.SDK_INT>=26)context.startForegroundService(intent);
+        else context.startService(intent);
+    }
+
     public static boolean isRunning() {
         Process p = processes.current();
         return p != null && p.isAlive();

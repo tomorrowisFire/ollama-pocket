@@ -1,6 +1,6 @@
 {
-  "stage": "F10A90-quality",
-  "revision": "F10A90",
-  "priorCandidate": "a635ad67feba4b069361f4724eed41d936242d80",
-  "reason": "Guard installed selection and observed size; finite benchmark arithmetic. Exact CI required."
+  "stage": "F10A92-transfer-readiness-integration",
+  "revision": "F10A92",
+  "priorCandidate": "2766996bca29ce08ab2739bf02e0946ff5c02b4e",
+  "reason": "Batch F10A91 cold-start repair with direct GGUF readiness/cancellation and deadline checks. Require exact FAST/FULL native gates; physical download and release deferred."
 }
