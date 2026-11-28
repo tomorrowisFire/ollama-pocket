@@ -82,6 +82,40 @@ ADDITIONS = frozenset([
   "docs/on-hands-f11-6-increment-6.md",
   "docs/on-hands-f11-4-r003-regression.md"
 ])
+F12_STAGE = "F12-file-intake-integration-candidate"
+F12_BASELINE = "0152869a25bfa63e1e6e94c5ebb079ccc0facba8"
+F12_MODIFIABLE = frozenset([
+  "app/src/main/java/com/ollamapocket/app/AttachmentText.java",
+  "app/src/main/java/com/ollamapocket/app/DocumentWindow.java",
+  "app/src/main/java/com/ollamapocket/app/ImageOcr.java",
+  "app/src/main/java/com/ollamapocket/app/MainActivity.java",
+  "app/src/main/java/com/ollamapocket/app/OcrPolicy.java",
+  "app/src/main/java/com/ollamapocket/app/OfficeText.java",
+  "app/src/main/java/com/ollamapocket/app/PdfExcerpt.java",
+  "app/src/main/java/com/ollamapocket/app/PdfTextClient.java",
+  "app/src/main/java/com/ollamapocket/app/VisionImagePolicy.java",
+  "app/src/main/res/values/strings.xml",
+  "app/src/main/res/values-ko/strings.xml",
+  "app/src/main/res/values-b+zh+Hans/strings.xml",
+  "app/src/main/res/values-b+zh+Hant/strings.xml",
+  "app/src/main/res/values-ja/strings.xml",
+  "tests/AttachmentTextTest.java",
+  "tests/DocumentWindowTest.java",
+  "tests/OcrPolicyTest.java",
+  "tests/OfficeTextTest.java",
+  "tests/PdfExcerptTest.java",
+  "tests/VisionImagePolicyTest.java",
+  "docs/on-hands-native-checkpoint.json",
+  "scripts/test_f11_scope.py",
+  "tests/test_f11_scope.py"
+])
+F12_ADDITIONS = frozenset([
+  "docs/on-hands-f12-file-import-text.md",
+  "docs/on-hands-f12-file-import-office.md",
+  "docs/on-hands-f12-file-import-media.md",
+  "docs/on-hands-f12-file-import-ui.md",
+  "docs/on-hands-f12-file-import-integration.md"
+])
 SHA = re.compile(r"[0-9a-f]{40}")
 
 def git(*args):
@@ -107,37 +141,44 @@ def read_tree(commit):
         raise ValueError("Empty Git tree")
     return entries
 
-def audit(before, after):
+def audit(before, after, modifiable=MODIFIABLE, additions=ADDITIONS):
     failures = []
     for path in sorted(set(before) | set(after)):
         old, new = before.get(path), after.get(path)
         if old == new:
             continue
         if old is None:
-            if path not in ADDITIONS or new[:2] != ("100644", "blob"):
+            if path not in additions or new[:2] != ("100644", "blob"):
                 failures.append("Unexpected addition: " + path)
         elif new is None:
             failures.append("Unexpected deletion: " + path)
-        elif path not in MODIFIABLE or old[:2] != new[:2] or new[1] != "blob":
+        elif path not in modifiable or old[:2] != new[:2] or new[1] != "blob":
             failures.append("Unexpected modification or mode: " + path)
     return failures
 
 def main():
     checkpoint = json.loads(Path(CHECKPOINT).read_text(encoding="utf-8"))
-    if checkpoint.get("stage") != STAGE:
+    stage=checkpoint.get("stage")
+    if stage not in (STAGE,F12_STAGE):
         print("F11 source scope: NOT_APPLICABLE (different checkpoint)")
         return 0
-    if checkpoint.get("scopeBaseline") != BASELINE:
-        print("F11 source scope: BLOCKED (baseline identity)")
+    baseline=BASELINE if stage==STAGE else F12_BASELINE
+    if checkpoint.get("scopeBaseline") != baseline:
+        print("Source scope: BLOCKED (baseline identity)")
         return 1
     head = git("rev-parse", "HEAD").decode("ascii").strip()
-    git("merge-base", "--is-ancestor", BASELINE, head)
-    before, after = read_tree(BASELINE), read_tree(head)
-    failures = audit(before, after)
+    git("merge-base", "--is-ancestor", baseline, head)
+    before, after = read_tree(baseline), read_tree(head)
+    if stage==F12_STAGE:
+        git("merge-base", "--is-ancestor", BASELINE, F12_BASELINE)
+        failures=audit(read_tree(BASELINE),before)
+        failures.extend(audit(before,after,F12_MODIFIABLE,F12_ADDITIONS))
+    else:
+        failures=audit(before,after)
     for failure in failures:
         print(failure)
     changed = sum(before.get(p) != after.get(p) for p in set(before) | set(after))
-    print("F11 exact tracked-tree scope:", "FAIL" if failures else "PASS",
+    print(stage+" exact tracked-tree scope:", "FAIL" if failures else "PASS",
           "changed", changed, "unchanged", len(set(before) & set(after))-sum(
               before[p] != after[p] for p in set(before) & set(after)))
     return int(bool(failures))

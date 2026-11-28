@@ -28,6 +28,22 @@ public final class AttachmentTextTest {
         ok(read("large.txt",edge).partial,"Exact larger byte cap");
         bad("large.txt",java.util.Arrays.copyOf(edge,edge.length+1),AttachmentText.Problem.TOO_LARGE);
         ok(AttachmentText.MAX_BYTES==16*1024*1024,"16 MiB text limit");
+        String lateUnicode="a".repeat(5999*300-1)+"😀"+"last";
+        byte[] unicodeBytes=bytes(lateUnicode);
+        var left=AttachmentText.read("late.py",new ByteArrayInputStream(unicodeBytes),300);
+        var right=AttachmentText.read("late.py",new ByteArrayInputStream(unicodeBytes),301);
+        ok(left.rangeEnd==right.rangeStart&&right.text.equals("😀last"),"Large Unicode window boundary");
+        InputStream stalled=new InputStream(){
+            @Override public int read(){return 0;}
+            @Override public int read(byte[] b,int off,int len){return 0;}
+        };
+        try{AttachmentText.read("stall.txt",stalled);throw new AssertionError("Stalled provider");}
+        catch(AttachmentText.Failure e){ok(e.problem==AttachmentText.Problem.INVALID,"No zero-progress loop");}
+        Thread.currentThread().interrupt();
+        try{
+            try{read("cancel.py",large);throw new AssertionError("Cancelled provider");}
+            catch(InterruptedIOException expected){n++;}
+        }finally{Thread.interrupted();}
         ok(read("a.txt","한글".getBytes(StandardCharsets.UTF_16)).text.equals("한글"),"UTF16 BOM");
         ok(read("a.md",bytes("x".repeat(7000))).partial,"excerpt limit");
         ok(read("a.txt",bytes("x".repeat(5999)+"😀")).text.length()==5999,"surrogate boundary");

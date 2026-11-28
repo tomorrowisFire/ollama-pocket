@@ -86,6 +86,9 @@ public final class OfficeTextTest {
         ok(OfficeText.MAX_BYTES==32*1024*1024,"32 MiB compressed cap");
         byte[] heavy=zip("word/document.xml",doc(para("large package")),"word/media/large.bin","x".repeat(10*1024*1024));
         ok(read("big.docx",heavy).text.contains("large package"),"Stream unretained large media");
+        // Actual compressed-byte cap includes bytes after the last local ZIP entry.
+        byte[] oversized=java.util.Arrays.copyOf(heavy,OfficeText.MAX_BYTES+1);
+        bad("big.docx",oversized,AttachmentText.Problem.TOO_LARGE);
         try{AttachmentText.read("a.docx",new ByteArrayInputStream(heavy),DocumentWindow.MAX_OFFICE_SEGMENTS+1);throw new AssertionError("Office range");}
         catch(AttachmentText.Failure e){ok(e.problem==AttachmentText.Problem.RANGE,"Office range cap");}
         bad("a.docx",new byte[OfficeText.MAX_BYTES+1],AttachmentText.Problem.TOO_LARGE);

@@ -134,14 +134,20 @@ final class AttachmentText {
             if(Thread.currentThread().isInterrupted())throw new InterruptedIOException("Attachment cancelled");
         }
         @Override public int read()throws IOException{
-            check();int value=in.read();check();
+            check();if(count>limit)throw new Failure(Problem.TOO_LARGE);
+            int value=in.read();check();
+            if(value < -1||value>255)throw new Failure(Problem.INVALID);
             if(value>=0&&++count>limit)throw new Failure(Problem.TOO_LARGE);
             return value;
         }
         @Override public int read(byte[] bytes,int offset,int length)throws IOException{
+            if(bytes==null)throw new NullPointerException();
+            if(offset<0||length<0||offset>bytes.length-length)throw new IndexOutOfBoundsException();
             check();if(length==0)return 0;
-            int n=in.read(bytes,offset,Math.min(length,limit-count+1));check();
-            if(n==0)throw new Failure(Problem.INVALID);
+            if(count>limit)throw new Failure(Problem.TOO_LARGE);
+            int requested=Math.min(length,limit-count+1);
+            int n=in.read(bytes,offset,requested);check();
+            if(n==0||n < -1||n>requested)throw new Failure(Problem.INVALID);
             if(n>0&&(count+=n)>limit)throw new Failure(Problem.TOO_LARGE);
             return n;
         }

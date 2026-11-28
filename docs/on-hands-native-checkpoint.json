@@ -1,11 +1,25 @@
 {
-  "stage": "F11-7-integration-candidate",
-  "revision": "F11-7-r001",
-  "priorCandidate": "105cf97060a37021c0f329f2343e611425114647",
-  "scopeBaseline": "fe5be0a8037fa37d5c1cce77752c60946ec9216d",
-  "isolated": [
-    "220dc9e2319ab19f01a57459e3ecd954cc78b33a",
-    "537a4531ccfe700d0d8ae409f51d259b8d3084f7"
+  "stage": "F12-file-intake-integration-candidate",
+  "revision": "F12-file-intake-r001",
+  "scopeBaseline": "0152869a25bfa63e1e6e94c5ebb079ccc0facba8",
+  "priorCandidate": "0152869a25bfa63e1e6e94c5ebb079ccc0facba8",
+  "modules": [
+    {
+      "stage": "A-text",
+      "sha": "fc24d6eafa7880be7816b7a0e75adfe37839eee8"
+    },
+    {
+      "stage": "B-office",
+      "sha": "1636f1c74bf5eb46b7b1ef2a6cc3ed62658c3040"
+    },
+    {
+      "stage": "C-media",
+      "sha": "e9b8fd0eed486324f0bd46419a6ca1b44a7d3a6a"
+    },
+    {
+      "stage": "D-ui",
+      "sha": "c2a8597b55e04b5d3505d1079ab9d61da47d483e"
+    }
   ],
-  "reason": "Host composition regression, exact tracked-tree scope and strict CI receipt evidence. Final device, live services, ten independent evaluations, signing and release gates are NOT_RUN or pending."
+  "reason": "User requested broad file extension and input size expansion. Preserve F11-7 exact scope and apply a separate F12 whitelist. FAST/FULL and physical acceptance pending."
 }

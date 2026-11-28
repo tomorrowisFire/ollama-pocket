@@ -93,6 +93,7 @@ final class OfficeText {
             return new AttachmentText.Prefix(out.text.toString(),out.partial);
         }catch(AttachmentText.Failure e){throw e;}
         catch(InterruptedIOException e){throw e;}
+        catch(OutOfMemoryError allocation){throw large();}
         catch(Exception e){
             if(Thread.currentThread().isInterrupted())throw new InterruptedIOException();
             throw invalid();

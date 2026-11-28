@@ -34,6 +34,15 @@ class ScopeTests(unittest.TestCase):
             self.assertEqual(len(gate.audit(self.before, {**self.before, self.file: (mode, kind, "b"*40)})), 1)
             self.assertEqual(len(gate.audit(self.before, {**self.before, self.new: (mode, kind, "b"*40)})), 1)
 
+    def test_f12_separate_approval(self):
+        attachment="app/src/main/java/com/ollamapocket/app/AttachmentText.java"
+        before={**self.before,attachment:self.old}
+        permitted={**before,attachment:self.updated}
+        self.assertEqual(len(gate.audit(before,permitted)),1)
+        self.assertEqual(gate.audit(before,permitted,gate.F12_MODIFIABLE,gate.F12_ADDITIONS),[])
+        self.assertEqual(len(gate.audit(before,{**permitted,self.file:self.updated},gate.F12_MODIFIABLE,gate.F12_ADDITIONS)),1)
+        self.assertEqual(len(gate.audit(before,{**permitted,self.protected:self.updated},gate.F12_MODIFIABLE,gate.F12_ADDITIONS)),1)
+
     def test_no_renaming_around_gate(self):
         self.assertEqual(len(gate.audit(self.before, {self.file: self.old, self.new: self.old})), 1)
 
