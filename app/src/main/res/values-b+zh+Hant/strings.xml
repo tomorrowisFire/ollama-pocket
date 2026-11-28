@@ -1422,4 +1422,5 @@
     <string name="project_report_artifact_name">報告成果名稱</string>
     <string name="workspace_file_export_notice">僅儲存所選內容：%1$s（%2$d 位元組）。目的地提供者可能同步檔案。開啟檔案選擇器會關閉工作區；請先將重要的未儲存報告存入專案。</string>
     <string name="integration_branch_budget">計畫上限：路徑 %1$d 個節點，含重試共 %2$d 次模型請求，輸出權杖共 %3$d 個。實際用量可能更低。</string>
+    <string name="integration_branch_remaining">已保留請求：%1$d 次。剩餘計畫上限（不含已保留請求及時間限制）：額外請求 %2$d 次，輸出權杖 %3$d 個。</string>
 </resources>

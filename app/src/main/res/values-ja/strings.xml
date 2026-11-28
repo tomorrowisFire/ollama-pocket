@@ -1422,4 +1422,5 @@
     <string name="project_report_artifact_name">レポート成果物の名前</string>
     <string name="workspace_file_export_notice">選択した内容のみを保存します：%1$s（%2$d バイト）。保存先の提供元がファイルを同期する場合があります。ファイル選択画面を開くと作業スペースが閉じます。重要な未保存レポートは先にプロジェクトに保存してください。</string>
     <string name="integration_branch_budget">計画上限：経路 %1$d ノード、再試行を含むモデル要求 %2$d 回、出力トークン合計 %3$d。実際の使用量は少なくなる場合があります。</string>
+    <string name="integration_branch_remaining">予約済み要求：%1$d 回。残りの計画上限（予約済み要求と時間制限を除く）：追加要求 %2$d 回、出力トークン %3$d。</string>
 </resources>

@@ -941,6 +941,8 @@ final class AutomationUi {
         StringBuilder text=new StringBuilder(s(R.string.integration_run_id)+": "+run.id+"\n"+
                 s(R.string.model_label)+": "+run.definition.model+"\n"+branchStatus(value.cursor.status)+"\n");
         text.append(branchBudget(run.definition)).append('\n');
+        text.append(owner.getString(R.string.integration_branch_remaining,value.attempts.size(),
+                run.definition.remainingRequests(value),run.definition.remainingOutputTokens(value))).append('\n');
         if(value.pending())text.append(s(R.string.integration_pending)).append('\n');
         if(value.cursor.nextNode!=null)text.append(s(R.string.integration_next_node)).append(": ").append(value.cursor.nextNode).append('\n');
         text.append(run.definition.retainOutputs?s(R.string.integration_retained_notice):s(R.string.integration_metadata_only)).append('\n');

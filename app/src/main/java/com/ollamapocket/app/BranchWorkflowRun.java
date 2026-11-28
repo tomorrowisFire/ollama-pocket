@@ -60,6 +60,18 @@ final class BranchWorkflowRun {
             return Math.min(WorkflowAttemptStore.MAX_TOTAL,graph.maxPathNodes()*WorkflowAttemptStore.MAX_PER_NODE);
         }
         int maxOutputTokens(){return maxRequests()*MAX_TASK_OUTPUT_TOKENS;}
+        /** Counts future reservations only, not the already-reserved in-flight attempt.
+         * Structural maximum, independent of the separate wall-clock execution gate. */
+        int remainingRequests(WorkflowAttemptStore.Ledger value){
+            if(value==null||!graph.sha256.equals(value.cursor.planSha256)||retainOutputs!=value.retainOutputs)
+                throw new IllegalArgumentException("Workflow budget identity");
+            if(value.cursor.status!=WorkflowBranchPlan.Status.READY)return 0;
+            int path=graph.maxPathNodesFrom(value.cursor.nextNode)*WorkflowAttemptStore.MAX_PER_NODE-value.currentAttempts;
+            return Math.max(0,Math.min(WorkflowAttemptStore.MAX_TOTAL-value.attempts.size(),path));
+        }
+        int remainingOutputTokens(WorkflowAttemptStore.Ledger value){
+            return remainingRequests(value)*MAX_TASK_OUTPUT_TOKENS;
+        }
     }
     static Definition parse(String raw)throws Exception{
         ToolJsonPolicy.requireObject(raw);
