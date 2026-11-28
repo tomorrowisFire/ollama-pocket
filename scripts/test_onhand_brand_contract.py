@@ -525,3 +525,14 @@ assert "ModelDownloadBudget.requiresReconfirmation(reviewedBytes,currentBytes)" 
 assert main.index("if(!hasDownloadStorage(Math.max(reviewedBytes,currentBytes)))return;") < main.index("pullBusy = true; pullCancelled = false;")
 assert "BenchmarkRecommendation.adjustment(profile.recommendableCpuRate(),profile.recommendableGpuRate())" in main
 assert "DocumentBatchPolicy.fits(WorkflowPolicy.firstPrompt(plan),WorkflowPolicy.MAX_TOKENS)" in workflow_source
+
+# F10A82: require a successful pull protocol and exact installed tag before showing chat action.
+assert "OllamaHttp.streamPull(connection, OllamaHttp.pullBody(model)" in main
+assert "ModelTileCatalog.resolveInstalledTag(model,knownModels)" in main
+assert "selectModel(installed);showTab(0)" in main
+assert "NativeWeightPreflight.validGguf(copied,total)" in main
+assert "ggufImportBusy||chatBusy" in main
+hf_source=(src/"HuggingFaceCatalog.java").read_text()
+assert "NativeWeightPreflight.validGguf(gguf,weight.size)" in hf_source
+assert "ModelDownloadBudget.registrationRequiredBytes(weight.size)" in hf_source
+assert "if(count>weight.size-downloaded)" in hf_source

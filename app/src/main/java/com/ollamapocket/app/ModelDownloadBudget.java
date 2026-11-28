@@ -11,6 +11,15 @@ public final class ModelDownloadBudget {
         long extra=modelBytes/5+(modelBytes%5==0?0:1);
         return modelBytes>Long.MAX_VALUE-RESERVE-extra?Long.MAX_VALUE:modelBytes+extra+RESERVE;
     }
+    /** Imported weight and registered blob can coexist; saturate instead of overflowing. */
+    public static long importRequiredBytes(long bytes){
+        if(bytes<=0)return 0;
+        return bytes>(Long.MAX_VALUE-RESERVE)/2?Long.MAX_VALUE:bytes*2+RESERVE;
+    }
+    public static long registrationRequiredBytes(long bytes){
+        if(bytes<=0)return 0;
+        return bytes>Long.MAX_VALUE-RESERVE?Long.MAX_VALUE:bytes+RESERVE;
+    }
     /** A larger or newly known estimate needs renewed user review. */
     public static boolean requiresReconfirmation(long reviewedBytes,long currentBytes){
         return currentBytes>0&&currentBytes>Math.max(0L,reviewedBytes);
@@ -19,7 +28,7 @@ public final class ModelDownloadBudget {
         return modelBytes<=0||availableBytes>=requiredBytes(modelBytes);
     }
     public static int layerPercent(long completed,long total){
-        if(total<=0||completed<0)return -1;
+        if(total<=0||completed<0||completed>total)return -1;
         return (int)Math.max(0,Math.min(100,completed/(double)total*100));
     }
     public static String layerLabel(String status,long completed,long total){

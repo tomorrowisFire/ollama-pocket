@@ -31,6 +31,7 @@ public final class NativeWeightPreflightTest {
                         boolean valid=size>MIN&&"GGUF".equals(magic)&&(declared<=0||declared==size);
                         File found=NativeWeightPreflight.resolve(root,digest,declared);
                         check(valid?weights.getCanonicalFile().equals(found):found==null);
+                        check(NativeWeightPreflight.validGguf(weights,declared)==valid);
                     }
                 }
             }
@@ -45,6 +46,7 @@ public final class NativeWeightPreflightTest {
             File outside=tmp.resolve("outside").toFile();make(outside,MIN+1,"GGUF");
             Files.createSymbolicLink(weights.toPath(),outside.toPath());
             check(NativeWeightPreflight.resolve(root,digest,-1)==null);
+            check(!NativeWeightPreflight.validGguf(weights,MIN+1));
             Files.delete(weights.toPath());Files.delete(blobs.toPath());
             Path other=Files.createDirectory(tmp.resolve("other"));
             make(other.resolve(weights.getName()).toFile(),MIN+1,"GGUF");

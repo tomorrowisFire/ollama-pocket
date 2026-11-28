@@ -92,6 +92,7 @@ public final class MainActivity extends Activity {
     private AlertDialog attachmentPreviewDialog;
     private AlertDialog workbenchDialog;
     private boolean attachmentReading;
+    private volatile boolean ggufImportBusy;
     private Button attachFileButton;
     private boolean guestOnly, foreground, speakNextAnswer;
     private OnHandsVoice voice;
@@ -562,7 +563,7 @@ public final class MainActivity extends Activity {
         if(projectWorkspaceUi!=null){projectWorkspaceUi.pause();projectWorkspaceUi=null;}
         if(knowledgeWorkspaceUi!=null){knowledgeWorkspaceUi.pause();knowledgeWorkspaceUi=null;}
         if(attachmentPreviewDialog!=null){attachmentPreviewDialog.dismiss();attachmentPreviewDialog=null;}
-        chatCancelled=true;
+        chatCancelled=true;pullCancelled=true;
         if(navigationDrawer!=null&&navigationDrawer.isShowing())navigationDrawer.dismiss();
         removeDockedSidebar();
         if (chatConnection != null) chatConnection.disconnect();
@@ -1433,6 +1434,7 @@ public final class MainActivity extends Activity {
         Button importButton=button(getString(R.string.import_gguf),false);
         settingAction(importButton,OnHandGlyphs.Kind.EXPORT);margin(importButton,content,0,8);
         importButton.setOnClickListener(v->{
+            if(isUiBusy()){toast(getString(R.string.busy));return;}
             if(!OllamaForegroundService.isRunning()){toast(getString(R.string.start_ollama));return;}
             Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT);
             intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -1626,9 +1628,11 @@ public final class MainActivity extends Activity {
     }
 
     private boolean isUiBusy(){
-        return KnowledgeWorkspaceUi.busy()||ProjectWorkspaceUi.busy()||AutomationUi.busy()||DocumentBatchUi.busy()||attachmentReading||chatBusy||pullBusy||diagnosticBusy||benchmarkBusy
+        return KnowledgeWorkspaceUi.busy()||ProjectWorkspaceUi.busy()||AutomationUi.busy()||DocumentBatchUi.busy()||attachmentReading||ggufImportBusy||chatBusy||pullBusy||diagnosticBusy||benchmarkBusy
                ||(cloudPanel!=null&&cloudPanel.isBusy())||HuggingFaceCatalog.isDownloading();
     }
+
+    boolean canStartModelImport(){return !isFinishing()&&!isDestroyed()&&!isUiBusy();}
 
     private void applySetting(String key,String value){
         if(isUiBusy()){toast(getString(R.string.busy));return;}
@@ -2073,7 +2077,8 @@ public final class MainActivity extends Activity {
         return getString(R.string.download_layer_percent,label,percent);
     }
 
-    private void refreshModels() {
+    private void refreshModels(){refreshModels(null);}
+    private void refreshModels(Runnable afterValidSnapshot) {
         final long sequence=++installedModelRefreshSerial;
         io.execute(()->{
             try {
@@ -2108,8 +2113,10 @@ public final class MainActivity extends Activity {
                 }
                 java.util.Collections.sort(names,String.CASE_INSENSITIVE_ORDER);
                 ui.post(()->{
-                    if(ModelTileCatalog.acceptSnapshot(sequence,installedModelRefreshSerial,isFinishing()||isDestroyed()))
+                    if(ModelTileCatalog.acceptSnapshot(sequence,installedModelRefreshSerial,isFinishing()||isDestroyed())){
                         updateModels(names,descriptions,quantizations,actualSizes,actualDigests);
+                        if(afterValidSnapshot!=null)afterValidSnapshot.run();
+                    }
                 });
             }catch(Exception error){
                 ui.post(()->{
@@ -3187,28 +3194,33 @@ public final class MainActivity extends Activity {
         io.execute(() -> {
             String error = null;
             try {
+                LocalStreamCancellation.check(()->pullCancelled);
                 HttpURLConnection connection = OllamaHttp.newPullConnection(); pullConnection = connection;
-                OllamaHttp.stream(connection, OllamaHttp.pullBody(model), item -> {
+                OllamaHttp.streamPull(connection, OllamaHttp.pullBody(model), item -> {
                     String status = item.optString("status", "진행 중");
                     long total = item.optLong("total", 0), completed = item.optLong("completed", 0);
                     String info=model+" · "+localizedLayerLabel(status,completed,total);
                     ui.post(() -> {
+                        if(isFinishing()||isDestroyed()||pullCancelled||!pullBusy||!model.equals(downloadingModel))return;
                         progressStatus.setText(info);
                         downloadingPercent=ModelDownloadBudget.layerPercent(completed,total);
                         updateTileDownloadProgress();
-                        if (total > 0) {
+                        if (downloadingPercent>=0) {
                             downloadProgress.setIndeterminate(false);
                             downloadProgress.setProgress(downloadingPercent);
                         } else {
                             downloadProgress.setIndeterminate(true);
                         }
                     });
-                });
-            } catch (Exception ex) { error = ex.getMessage(); }
-            finally { pullConnection = null; }
+                },()->pullCancelled);
+            } catch (Exception ex) {
+                InferenceSafetyPolicy.restoreInterrupt(ex);
+                error=ex.getMessage()==null?ex.getClass().getSimpleName():ex.getMessage();
+            } finally { pullConnection = null; }
             final String failure = error;
             ui.post(() -> {
                 pullBusy = false;
+                if(isFinishing()||isDestroyed())return;
                 downloadingModel="";
                 downloadingCardId="";
                 downloadingPercent=-1;
@@ -3223,11 +3235,23 @@ public final class MainActivity extends Activity {
                 if (failure == null && !pullCancelled) downloadProgress.setProgress(100);
                 else downloadProgress.setVisibility(View.GONE);
                 if (failure == null && !pullCancelled) {
-                    refreshModels();
-                    new AlertDialog.Builder(this).setTitle(getString(R.string.model_ready))
-                        .setMessage(getString(R.string.download_ready_message,model))
-                        .setNegativeButton(getString(R.string.stay_models), null)
-                        .setPositiveButton(getString(R.string.start_chat), (d,w) -> showTab(0)).show();
+                    refreshModels(()->{
+                        String installed=ModelTileCatalog.resolveInstalledTag(model,knownModels);
+                        if(installed==null){
+                            progressStatus.setText(getString(R.string.download_failed,getString(R.string.chat_stream_incomplete)));
+                            lastFailedPullModel=model;
+                            if(downloadRetryButton!=null)downloadRetryButton.setVisibility(View.VISIBLE);
+                            downloadProgress.setVisibility(View.GONE);
+                            return;
+                        }
+                        new AlertDialog.Builder(this).setTitle(getString(R.string.model_ready))
+                            .setMessage(getString(R.string.download_ready_message,installed))
+                            .setNegativeButton(getString(R.string.stay_models), null)
+                            .setPositiveButton(getString(R.string.start_chat), (d,w) -> {
+                                if(isUiBusy()||!knownModels.contains(installed)){toast(getString(R.string.need_model));return;}
+                                selectModel(installed);showTab(0);
+                            }).show();
+                    });
                 }
             });
         });
@@ -4717,6 +4741,8 @@ public final class MainActivity extends Activity {
         if(code==PICK_DOCUMENT_BATCH){finishDocumentBatch(result,data);return;}
         if(code==EXPORT_CHAT){finishChatExport(result,data);return;}
         if (code != PICK_GGUF || result != RESULT_OK || data == null || data.getData() == null) return;
+        if(!canStartModelImport()){toast(getString(R.string.busy));return;}
+        if(!OllamaForegroundService.isRunning()){toast(getString(R.string.start_ollama));return;}
         Uri uri = data.getData();
         String displayName = "model.gguf";
         try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
@@ -4729,9 +4755,11 @@ public final class MainActivity extends Activity {
             toast(getString(R.string.gguf_pick)); return;
         }
         final String modelName = "imported-" + System.currentTimeMillis();
+        ggufImportBusy=true;
         progressStatus.setText(getString(R.string.gguf_importing));
         io.execute(() -> {
             File copied = null, modelfile = null;
+            Process registration=null;
             String importStatus = "";
             try {
                 File imports = new File(getFilesDir(), "imports");
@@ -4746,27 +4774,34 @@ public final class MainActivity extends Activity {
                     byte[] buf = new byte[1024 * 1024];
                     int n;
                     while ((n = in.read(buf)) != -1) {
+                        if(Thread.currentThread().isInterrupted())throw new InterruptedException("Import cancelled");
+                        if(n>Long.MAX_VALUE-total)throw new java.io.IOException(getString(R.string.storage_low));
                         total += n;
-                        if (total > available - (256L * 1024 * 1024))
-                            throw new Exception(getString(R.string.storage_low));
+                        if(available<ModelDownloadBudget.importRequiredBytes(total))
+                            throw new java.io.IOException(getString(R.string.storage_low));
                         out.write(buf, 0, n);
                     }
                 }
+                if(Thread.currentThread().isInterrupted())throw new InterruptedException("Import cancelled");
+                if(!NativeWeightPreflight.validGguf(copied,total))throw new java.io.IOException(getString(R.string.gguf_pick));
+                if(new StatFs(imports.getAbsolutePath()).getAvailableBytes()<ModelDownloadBudget.registrationRequiredBytes(total))
+                    throw new java.io.IOException(getString(R.string.storage_low));
                 try (OutputStreamWriter w = new OutputStreamWriter(new FileOutputStream(modelfile), StandardCharsets.UTF_8)) {
                     w.write("FROM " + copied.getAbsolutePath() + "\n");
                 }
                 ProcessBuilder pb = new ProcessBuilder(OllamaForegroundService.ollamaBinary(this).getAbsolutePath(),
                     "create", modelName, "-f", modelfile.getAbsolutePath());
                 OllamaForegroundService.configureEnvironment(this, pb);
-                Process p = pb.start();
+                Process p = pb.start();registration=p;
                 StringBuilder output = new StringBuilder();
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
                     String line;
-                    while ((line = reader.readLine()) != null) {
-                        if (output.length() > 3500) output.delete(0, 1500);
+                    while ((line = GpuOffloadEvidence.readDiagnosticLine(reader)) != null) {
+                        if(Thread.currentThread().isInterrupted())throw new InterruptedException("Import cancelled");
                         output.append(line).append('\n');
+                        if(output.length()>3500)output.delete(0,output.length()-3500);
                         String now = line;
-                        ui.post(() -> progressStatus.setText(getString(R.string.gguf_register_progress,now)));
+                        ui.post(() -> {if(!isFinishing()&&!isDestroyed())progressStatus.setText(getString(R.string.gguf_register_progress,now));});
                     }
                 }
                 int exit = p.waitFor();
@@ -4774,13 +4809,16 @@ public final class MainActivity extends Activity {
                 importStatus = getString(R.string.gguf_register_done,modelName);
                 // The created Ollama model has its own blob, so remove the temporary copy.
                 if (copied != null) copied.delete();
-            } catch (Exception e) { importStatus = getString(R.string.gguf_import_error,e.getMessage()); }
-            finally {
+            } catch (Exception e) {
+                InferenceSafetyPolicy.restoreInterrupt(e);
+                importStatus = getString(R.string.gguf_import_error,UiText.error(this,e.getMessage()));
+            } finally {
+                if(registration!=null&&registration.isAlive())registration.destroyForcibly();
                 if (modelfile != null) modelfile.delete();
                 if (copied != null) copied.delete();
             }
             String finalResult = importStatus;
-            ui.post(() -> { progressStatus.setText(finalResult); refreshModels(); });
+            ui.post(() -> {ggufImportBusy=false;if(!isFinishing()&&!isDestroyed()){progressStatus.setText(finalResult);refreshModels();}});
         });
     }
 

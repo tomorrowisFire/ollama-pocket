@@ -49,6 +49,16 @@ public final class ModelTileCatalog {
         return true;
     }
 
+    /** Do not auto-select another variant after a successful pull. Only exact tag or implicit latest. */
+    public static String resolveInstalledTag(String requested,List<String> installed){
+        if(requested==null||requested.isEmpty()||installed==null)return null;
+        if(installed.contains(requested))return requested;
+        if(requested.lastIndexOf(':')<=requested.lastIndexOf('/')){
+            String latest=requested+":latest";
+            if(installed.contains(latest))return latest;
+        }
+        return null;
+    }
     public static String familyName(String id) {
         String base=id==null?"":id.split(":",2)[0].toLowerCase(Locale.ROOT);
         switch(base){

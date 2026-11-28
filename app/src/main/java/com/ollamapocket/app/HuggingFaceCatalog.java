@@ -85,7 +85,7 @@ public final class HuggingFaceCatalog {
         new HuggingFaceCatalog(activity,installed).showSearch();
     }
     private void onUi(Runnable r) {
-        activity.runOnUiThread(()->{if(!activity.isFinishing())r.run();});
+        activity.runOnUiThread(()->{if(!activity.isFinishing()&&!activity.isDestroyed())r.run();});
     }
     private static TextView label(Activity a,String text) {
         TextView t=new TextView(a);t.setText(text);t.setTextSize(13);
@@ -462,7 +462,7 @@ public final class HuggingFaceCatalog {
         long free=new StatFs(activity.getFilesDir().getAbsolutePath()).getAvailableBytes();
         // Registration through Ollama creates another blob; the temp GGUF and its
         // destination may coexist. 2x model size is a conservative minimum.
-        final long needed=weight.size*2+512*MIB;
+        final long needed=ModelDownloadBudget.importRequiredBytes(weight.size);
         if(free<needed) {
             fail(activity.getString(R.string.hf_storage_low,size(needed),size(free)));
             return;
@@ -474,6 +474,13 @@ public final class HuggingFaceCatalog {
             .show();
     }
     private void startDownload(Model repo,Weight weight){
+        if(activity.isFinishing()||activity.isDestroyed())return;
+        if(activity instanceof MainActivity&&!((MainActivity)activity).canStartModelImport()){
+            fail(activity.getString(R.string.busy));return;
+        }
+        long free=new StatFs(activity.getFilesDir().getAbsolutePath()).getAvailableBytes();
+        long needed=ModelDownloadBudget.importRequiredBytes(weight.size);
+        if(weight.size<=0||free<needed){fail(activity.getString(R.string.hf_storage_low,size(needed),size(free)));return;}
         if(!DOWNLOAD_LOCK.compareAndSet(false,true)){
             fail(activity.getString(R.string.hf_busy));return;
         }
@@ -507,6 +514,7 @@ public final class HuggingFaceCatalog {
         io.execute(()->{
             File gguf=null,modelfile=null;
             try {
+                if(stopped.get())throw new java.io.InterruptedIOException("Download cancelled");
                 File folder=new File(activity.getFilesDir(),"imports");
                 if(!folder.isDirectory()&&!folder.mkdirs())throw new Exception("임시 폴더 생성 실패");
                 String slug=repo.id.replace('/','-').toLowerCase(Locale.ROOT)
@@ -531,9 +539,10 @@ public final class HuggingFaceCatalog {
                     long last=0;
                     while((count=input.read(buffer))!=-1) {
                         if(stopped.get())throw new Exception("사용자가 다운로드를 중지했습니다.");
+                        if(count>weight.size-downloaded)throw new java.io.IOException(activity.getString(R.string.hf_size_mismatch));
                         output.write(buffer,0,count);downloaded+=count;
                         if(System.currentTimeMillis()-last>350){
-                            final int pct=(int)Math.min(100,downloaded*100/weight.size);
+                            final int pct=ModelDownloadBudget.layerPercent(downloaded,weight.size);
                             final String txt=size(downloaded)+" / "+size(weight.size);
                             onUi(()->{progress.setProgress(pct);
                                 status.setText(activity.getString(R.string.hf_progress,pct,txt));});
@@ -543,6 +552,10 @@ public final class HuggingFaceCatalog {
                 } finally { conn.disconnect();downloading=null; }
                 if(stopped.get())throw new Exception("취소되었습니다.");
                 if(downloaded!=weight.size)throw new Exception("받은 파일 크기가 목록과 다릅니다. 불완전한 파일 삭제.");
+                if(!NativeWeightPreflight.validGguf(gguf,weight.size))throw new java.io.IOException(activity.getString(R.string.gguf_pick));
+                long registrationFree=new StatFs(folder.getAbsolutePath()).getAvailableBytes();
+                long registrationNeed=ModelDownloadBudget.registrationRequiredBytes(weight.size);
+                if(registrationFree<registrationNeed)throw new java.io.IOException(activity.getString(R.string.hf_storage_low,size(registrationNeed),size(registrationFree)));
                 try(OutputStreamWriter writer=new OutputStreamWriter(
                     new FileOutputStream(modelfile),StandardCharsets.UTF_8)){
                     writer.write("FROM "+gguf.getAbsolutePath()+"\n");
@@ -552,14 +565,16 @@ public final class HuggingFaceCatalog {
                     OllamaForegroundService.ollamaBinary(activity).getAbsolutePath(),
                     "create",modelName,"-f",modelfile.getAbsolutePath());
                 OllamaForegroundService.configureEnvironment(activity,pb);
+                if(stopped.get())throw new java.io.InterruptedIOException("Registration cancelled");
                 Process p=pb.start();registration=p;
+                if(stopped.get()){p.destroyForcibly();throw new java.io.InterruptedIOException("Registration cancelled");}
                 StringBuilder output=new StringBuilder();
                 try(BufferedReader br=new BufferedReader(new InputStreamReader(
                         p.getInputStream(),StandardCharsets.UTF_8))){
                     String line;
-                    while((line=br.readLine())!=null){
-                        if(stopped.get()){p.destroyForcibly();throw new Exception("등록 취소됨");}
-                        if(output.length()<2500)output.append(line).append('\n');
+                    while((line=GpuOffloadEvidence.readDiagnosticLine(br))!=null){
+                        if(stopped.get()||Thread.currentThread().isInterrupted()){p.destroyForcibly();throw new Exception("등록 취소됨");}
+                        if(output.length()<2500)output.append(line,0,Math.min(line.length(),2499-output.length())).append('\n');
                     }
                 }
                 int exit=p.waitFor();
@@ -577,7 +592,9 @@ public final class HuggingFaceCatalog {
                 fail(activity.getString(R.string.hf_download_error,errorLabel(activity,e.getMessage())));
                 onUi(dialog::dismiss);
             } finally {
-                downloading=null;registration=null;
+                downloading=null;
+                Process remaining=registration;registration=null;
+                if(remaining!=null&&remaining.isAlive())remaining.destroyForcibly();
                 if(gguf!=null)gguf.delete();
                 if(modelfile!=null)modelfile.delete();
                 DOWNLOAD_LOCK.set(false);

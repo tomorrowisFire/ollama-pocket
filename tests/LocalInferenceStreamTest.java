@@ -76,6 +76,18 @@ public final class LocalInferenceStreamTest {
         LocalInferenceStream.sse(reader(event("ok","stop")),m->callbacks.incrementAndGet(),true,stop::get);
         LocalInferenceStream.ndjson(reader("{\"status\":\"pulling\"}\n"),m->callbacks.incrementAndGet(),false);
         ok(callbacks.get()==5);
-        System.out.println("PASS: "+n+" local inference protocol assertions");
+        AtomicInteger pullEvents=new AtomicInteger();
+        LocalInferenceStream.pull(reader("{\"status\":\"pulling manifest\"}\n{\"status\":\"pulling layer\",\"total\":100,\"completed\":100}\n{\"status\":\"success\"}\n"),m->pullEvents.incrementAndGet(),()->false);
+        ok(pullEvents.get()==3);
+        for(String bad:new String[]{"","{\"status\":\"pulling\"}\n","{\"status\":\"Success\"}\n",
+            "{\"status\":\"writing manifest\"}\n","{\"status\":true}\n","{}\n","{\"status\":\"\",\"total\":0}\n",
+            "{\"status\":\"success\",\"error\":\"bad\"}\n","{\"status\":\"pulling\",\"total\":\"100\"}\n",
+            "{\"status\":\"pulling\",\"completed\":-1}\n","{\"status\":\"pulling\",\"total\":1.5}\n",
+            "{\"status\":\"pulling\",\"total\":9223372036854775808}\n","not JSON\n"})
+            rejects(()->LocalInferenceStream.pull(reader(bad),m->{},()->false));
+        cancelled(()->LocalInferenceStream.pull(reader("{\"status\":\"success\"}\n"),m->{throw new AssertionError("Cancelled pull callback");},()->true));
+        AtomicBoolean pullStopped=new AtomicBoolean();
+        cancelled(()->LocalInferenceStream.pull(reader("{\"status\":\"success\"}\n"),m->pullStopped.set(true),pullStopped::get));
+        System.out.println("PASS: "+n+" local inference and model pull protocol assertions");
     }
 }

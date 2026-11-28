@@ -41,6 +41,12 @@ public final class ModelTileCatalogTest {
         ok(!ModelTileCatalog.validInstalledTag(null)&&!ModelTileCatalog.validInstalledTag(""),"missing tag");
         ok(!ModelTileCatalog.validInstalledTag("model name")&&!ModelTileCatalog.validInstalledTag("model\nname"),"invalid whitespace");
         ok(!ModelTileCatalog.validInstalledTag("x".repeat(257)),"tag bound");
-        System.out.println("PASS: ModelTileCatalog (27 assertions)");
+        List<String> tags=Arrays.asList("qwen:latest","qwen:4b","org/name:latest");
+        ok("qwen:4b".equals(ModelTileCatalog.resolveInstalledTag("qwen:4b",tags)),"exact tag");
+        ok("qwen:latest".equals(ModelTileCatalog.resolveInstalledTag("qwen",tags)),"implicit latest only");
+        ok("org/name:latest".equals(ModelTileCatalog.resolveInstalledTag("org/name",tags)),"qualified implicit latest");
+        ok(ModelTileCatalog.resolveInstalledTag("qwen:8b",tags)==null,"no substitute variant");
+        ok(ModelTileCatalog.resolveInstalledTag("other",tags)==null,"missing model");
+        System.out.println("PASS: ModelTileCatalog (32 assertions)");
     }
 }

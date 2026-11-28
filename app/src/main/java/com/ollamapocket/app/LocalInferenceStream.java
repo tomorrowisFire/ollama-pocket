@@ -56,6 +56,32 @@ final class LocalInferenceStream {
         LocalStreamCancellation.check(cancelled);
         if(requireDone)throw new IOException("CHAT_STREAM_INCOMPLETE");
     }
+    /** Pulls may last for hours; bound each record, not the total progress event count. */
+    static void pull(BufferedReader reader,Listener listener,BooleanSupplier cancelled)throws Exception{
+        for(String row;(row=LocalStreamCancellation.line(reader,MAX_LINE,cancelled))!=null;){
+            if(row.trim().isEmpty())continue;
+            JSONObject item;
+            try{item=new JSONObject(row);}catch(Exception invalid){throw new IOException("PULL_PROTOCOL",invalid);}
+            if(item.has("error"))throw new IOException("LOCAL_ENGINE_ERROR");
+            Object raw=item.opt("status");
+            if(!(raw instanceof String)||((String)raw).trim().isEmpty()||((String)raw).length()>1024)
+                throw new IOException("PULL_PROTOCOL");
+            for(String key:new String[]{"total","completed"}){
+                Object value=item.opt(key);
+                if(value==null||value==JSONObject.NULL)continue;
+                if(!(value instanceof Number))throw new IOException("PULL_PROTOCOL");
+                try{
+                    if(new java.math.BigDecimal(value.toString()).longValueExact()<0)throw new IOException("PULL_PROTOCOL");
+                }catch(ArithmeticException|NumberFormatException invalid){throw new IOException("PULL_PROTOCOL",invalid);}
+            }
+            LocalStreamCancellation.check(cancelled);
+            listener.accept(item);
+            LocalStreamCancellation.check(cancelled);
+            if("success".equals(raw))return;
+        }
+        LocalStreamCancellation.check(cancelled);
+        throw new IOException("PULL_INCOMPLETE");
+    }
     static void sse(BufferedReader reader,Listener listener,boolean requireTerminal)throws Exception{
         sse(reader,listener,requireTerminal,requireTerminal?()->false:null);
     }

@@ -137,7 +137,20 @@ public final class OllamaHttp {
         } finally { conn.disconnect(); }
     }
 
-    /** Only interactive chat requires a normal terminal marker. Pulls and diagnostics keep their existing API. */
+    /** A dedicated model-pull protocol: EOF alone never means installation success. */
+    public static void streamPull(HttpURLConnection connection,JSONObject request,ChunkListener listener,BooleanSupplier cancelled)throws Exception{
+        try{
+            LocalStreamCancellation.check(cancelled);
+            write(connection,request);
+            LocalStreamCancellation.check(cancelled);
+            try(BufferedReader reader=new BufferedReader(new InputStreamReader(checkedStream(connection),StandardCharsets.UTF_8))){
+                LocalInferenceStream.pull(reader,listener::onChunk,cancelled);
+            }
+            LocalStreamCancellation.check(cancelled);
+        }finally{connection.disconnect();}
+    }
+
+    /** Interactive chat requires a normal terminal marker; legacy diagnostic streams retain their API. */
     public static void streamChat(HttpURLConnection connection,JSONObject request,ChunkListener listener)throws Exception{
         streamChat(connection,request,listener,()->false);
     }
@@ -210,7 +223,7 @@ public final class OllamaHttp {
     }
 
     public static HttpURLConnection newChatConnection() throws Exception { return open("/api/chat", "POST", 300_000); }
-    public static HttpURLConnection newPullConnection() throws Exception { return open("/api/pull", "POST", 0); }
+    public static HttpURLConnection newPullConnection() throws Exception { return open("/api/pull", "POST", 120_000); }
 
     public static JSONObject chatBody(String model, JSONArray history) throws Exception {
         JSONObject body = new JSONObject();

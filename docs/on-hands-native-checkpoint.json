@@ -1,6 +1,6 @@
 {
-  "stage": "F10A81-seventh-focused-integration",
-  "revision": "F10A81",
-  "priorCandidate": "975691ca643fd672207b4ecda3c744a53c443d6d",
-  "reason": "Integrate latest-only installed model snapshots, reject invalid response identity, revalidate storage and larger estimates before dispatch, exact integer download reserve, use resource-stable benchmark rates for model ranking and cross-model estimates, and preflight new workflow before replacing checkpoint. Preserve existing permissions, data, design and production locks. Full ARM64 CI; final device acceptance deferred."
+  "stage": "F10A82-eighth-focused-integration",
+  "revision": "F10A82",
+  "priorCandidate": "7168219527a7a56504cbf96d39a291bf78b4941c",
+  "reason": "Integrate terminal model pull and cancellation handling; exact installed tag before ready action; two-copy and registration storage checks; GGUF header and byte-size preflight for local/HF imports; bounded registration diagnostics and stale UI guards. Parent Java PASS, full pending. Exact FAST/FULL candidate; physical tests deferred."
 }

@@ -37,6 +37,12 @@ public final class ModelExperienceTest{
         ok(ModelDownloadBudget.requiresReconfirmation(0,10),"new estimate needs review");
         ok(ModelDownloadBudget.requiresReconfirmation(10,11),"higher estimate needs review");
         ok(!ModelDownloadBudget.requiresReconfirmation(10,10)&&!ModelDownloadBudget.requiresReconfirmation(10,0),"unchanged and unknown estimate");
-        System.out.println("PASS: ModelExperience (24 checks)");
+        ok(ModelDownloadBudget.importRequiredBytes(100)==reserve+200,"two copy import reserve");
+        ok(ModelDownloadBudget.registrationRequiredBytes(100)==reserve+100,"registration headroom");
+        ok(ModelDownloadBudget.importRequiredBytes(Long.MAX_VALUE)==Long.MAX_VALUE,"import overflow saturates");
+        ok(ModelDownloadBudget.registrationRequiredBytes(Long.MAX_VALUE)==Long.MAX_VALUE,"registration overflow saturates");
+        ok(ModelDownloadBudget.importRequiredBytes(-1)==0,"unknown import size");
+        ok(ModelDownloadBudget.layerPercent(101,100)==-1,"invalid progress is not falsely 100 percent");
+        System.out.println("PASS: ModelExperience (30 checks)");
     }
 }
