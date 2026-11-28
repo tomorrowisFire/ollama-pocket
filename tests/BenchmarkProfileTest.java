@@ -16,6 +16,12 @@ public final class BenchmarkProfileTest {
         BenchmarkProfile.Measurement gpu=m(20,600,4,512,0,1);
         BenchmarkProfile p=new BenchmarkProfile(model,"sha256:"+digest,runtime,now,cpu,gpu);
         ok("gpu".equals(p.preferredLocalMode()));
+        ok(p.recommendableCpuRate()==10&&p.recommendableGpuRate()==20);
+        BenchmarkProfile unstable=new BenchmarkProfile(model,digest,runtime,now,m(99,100,21,1024,0,1),m(100,100,0,255,0,1));
+        ok(unstable.cpuRate()==99&&unstable.gpuRate()==100);
+        ok(unstable.recommendableCpuRate()==null&&unstable.recommendableGpuRate()==null);
+        BenchmarkProfile mixed=new BenchmarkProfile(model,digest,runtime,now,cpu,m(50,100,0,1024,-1,-1));
+        ok(mixed.recommendableCpuRate()==10&&mixed.recommendableGpuRate()==null);
         ok(p.fresh(model,digest,runtime,now+BenchmarkProfile.MAX_AGE_MS));
         ok(!p.fresh(model,digest,runtime,now+BenchmarkProfile.MAX_AGE_MS+1));
         ok(!p.fresh(model,digest,runtime,now-1));

@@ -1,6 +1,6 @@
 {
-  "stage": "F10A80-sixth-focused-integration",
-  "revision": "F10A80",
-  "priorCandidate": "43657639b13f4725957a8c0cf598cb2bc8f584e2",
-  "reason": "Sixth integration: GPU retry history clears only on complete validated inference/full benchmark; reject stale generation CPU fallback; local installed metadata authoritative for selection and ranking; expire cache on insertion; disable resume when exact draft/model/budget mismatch. Preserve prior features, ads, billing, data and release gates. Exact FULL ARM64 checkpoint; final device validation deferred."
+  "stage": "F10A81-seventh-focused-integration",
+  "revision": "F10A81",
+  "priorCandidate": "975691ca643fd672207b4ecda3c744a53c443d6d",
+  "reason": "Integrate latest-only installed model snapshots, reject invalid response identity, revalidate storage and larger estimates before dispatch, exact integer download reserve, use resource-stable benchmark rates for model ranking and cross-model estimates, and preflight new workflow before replacing checkpoint. Preserve existing permissions, data, design and production locks. Full ARM64 CI; final device acceptance deferred."
 }

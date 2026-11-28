@@ -166,6 +166,7 @@ final class WorkflowPolicy {
             default:return "Required literal in the output: "+step.required;
         }
     }
+    static String firstPrompt(String plan){return prompt(parse(plan).get(0),"",false);}
     static String prompt(Step step,String previous,boolean retry){
         if(previous==null||previous.length()>MAX_OUTPUT)throw new IllegalArgumentException("Invalid prior output");
         return step.prompt+"\n\n"+condition(step)+

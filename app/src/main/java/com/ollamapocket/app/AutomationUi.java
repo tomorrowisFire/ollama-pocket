@@ -1099,10 +1099,18 @@ final class AutomationUi {
         buttons[0]=button(l,R.string.auto_start,()->{
             if(busy())return;final String spec=plan.getText().toString();
             if(checkpoint[0]!=null&&checkpoint[0].format==1&&checkpoint[0].plan.equals(spec)){toast(R.string.auto_legacy_convert);return;}
-            try{WorkflowPolicy.parse(spec);}catch(Exception e){toast(R.string.auto_invalid_plan);return;}
+            try{
+                if(!DocumentBatchPolicy.fits(WorkflowPolicy.firstPrompt(spec),WorkflowPolicy.MAX_TOKENS)){
+                    toast(R.string.attachment_context_limit);return;
+                }
+            }catch(Exception e){toast(R.string.auto_invalid_plan);return;}
             if(model==null||model.isEmpty()||!OllamaForegroundService.isRunning()){toast(R.string.test_need_model);return;}
             confirm(s(R.string.auto_start),s(R.string.auto_workflow_notice)+"\n\n"+s(R.string.auto_history_notice)+"\n\n"+spec,()->{
                 if(busy()||!spec.equals(plan.getText().toString()))return;
+                if(!OllamaForegroundService.isRunning()){toast(R.string.test_need_server);return;}
+                if(!"off".equals(CoopSession.get(owner).role())){toast(R.string.guest_stop_first);return;}
+                InferenceSafetyPolicy.Reason risk=InferenceSafety.check(owner);
+                if(risk!=InferenceSafetyPolicy.Reason.NONE){toast(InferenceSafety.label(risk));return;}
                 try{checkpoint[0]=runner.create(spec,model);start.accept(checkpoint[0]);}catch(Exception e){toast(R.string.auto_checkpoint_error);}
             });
         });

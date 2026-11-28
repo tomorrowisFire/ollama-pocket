@@ -228,6 +228,7 @@ public final class MainActivity extends Activity {
     private String recommendationError="";
     private int lastModelGridWidth=0;
     private long onlineSearchSerial = 0;
+    private long installedModelRefreshSerial;
     private boolean onlineSearchPending = false;
     private String onlineSearchError = "";
     private Runnable onlineSearchRunnable;
@@ -2073,20 +2074,24 @@ public final class MainActivity extends Activity {
     }
 
     private void refreshModels() {
+        final long sequence=++installedModelRefreshSerial;
         io.execute(()->{
             try {
                 JSONObject result=OllamaHttp.get("/api/tags");
                 JSONArray list=result.optJSONArray("models");
+                if(list==null||!ModelTileCatalog.validSnapshotCount(list.length()))throw new java.io.IOException("Invalid model snapshot");
                 List<String> names=new ArrayList<>();
+                java.util.Set<String> seenNames=new java.util.HashSet<>();
                 Map<String,String> descriptions=new HashMap<>();
                 Map<String,String> quantizations=new HashMap<>();
                 Map<String,Long> actualSizes=new HashMap<>();
                 Map<String,String> actualDigests=new HashMap<>();
-                if(list!=null)for(int i=0;i<list.length();i++){
+                for(int i=0;i<list.length();i++){
                     JSONObject item=list.optJSONObject(i);
-                    if(item==null)continue;
-                    String name=item.optString("name","");
-                    if(name.isEmpty())continue;
+                    Object rawName=item==null?null:item.opt("name");
+                    if(!(rawName instanceof String)||!ModelTileCatalog.validInstalledTag((String)rawName)||!seenNames.add((String)rawName))
+                        throw new java.io.IOException("Invalid model identity");
+                    String name=(String)rawName;
                     names.add(name);
                     JSONObject detail=item.optJSONObject("details");
                     String p=detail==null?"":detail.optString("parameter_size","");
@@ -2102,11 +2107,14 @@ public final class MainActivity extends Activity {
                     actualDigests.put(name,BenchmarkProfile.normalizeDigest(item.optString("digest","")));
                 }
                 java.util.Collections.sort(names,String.CASE_INSENSITIVE_ORDER);
-                ui.post(()->updateModels(names,descriptions,quantizations,actualSizes,actualDigests));
+                ui.post(()->{
+                    if(ModelTileCatalog.acceptSnapshot(sequence,installedModelRefreshSerial,isFinishing()||isDestroyed()))
+                        updateModels(names,descriptions,quantizations,actualSizes,actualDigests);
+                });
             }catch(Exception error){
                 ui.post(()->{
-                    if(modelRows==null)return;
-                    renderInstalledModels(); // Online catalog remains usable while the local server starts.
+                    if(modelRows==null||!ModelTileCatalog.acceptSnapshot(sequence,installedModelRefreshSerial,isFinishing()||isDestroyed()))return;
+                    renderInstalledModels(); // Keep the last valid installed snapshot on an invalid or failed response.
                 });
             }
         });
@@ -2224,7 +2232,7 @@ public final class MainActivity extends Activity {
             deviceProfile.freeStorageGb,deviceProfile.cores);
         if(!hf){
             BenchmarkProfile profile=recentBenchmark(id);
-            if(profile!=null)score+=BenchmarkRecommendation.adjustment(profile.cpuRate(),profile.gpuRate());
+            if(profile!=null)score+=BenchmarkRecommendation.adjustment(profile.recommendableCpuRate(),profile.recommendableGpuRate());
         }
         return score;
     }
@@ -2372,7 +2380,7 @@ public final class MainActivity extends Activity {
                 long bytes=modelBytes.getOrDefault(reference,0L);
                 if(bytes<=0)continue;
                 BenchmarkProfile referenceProfile=recentBenchmark(reference);
-                Double tps=referenceProfile==null?null:referenceProfile.cpuRate();
+                Double tps=referenceProfile==null?null:referenceProfile.recommendableCpuRate();
                 double referenceSize=bytes/(1024.0*1024.0*1024.0);
                 double ratio=sizeGiB/referenceSize;
                 double distance=Math.abs(Math.log(ratio));
@@ -3108,32 +3116,49 @@ public final class MainActivity extends Activity {
         if (isUiBusy()) {
             toast(getString(R.string.busy));return;
         }
-        long featuredBytes=modelBytes.getOrDefault(model,0L);
-        if(featuredBytes<=0)for(ModelVariantCatalog.Variant v:onlineVariants)if(!v.hf()&&v.model.equals(model)){featuredBytes=v.bytes;break;}
-        if(featuredBytes<=0)for(ModelVariantCatalog.Variant v:recommendedVariants)
-            if(!v.hf()&&v.model.equals(model)){featuredBytes=v.bytes;break;}
+        confirmDownload(model);
+    }
+
+    private long downloadEstimate(String model){
+        long bytes=modelBytes.getOrDefault(model,0L);
+        if(bytes<=0)for(ModelVariantCatalog.Variant v:onlineVariants)if(!v.hf()&&v.model.equals(model)){bytes=v.bytes;break;}
+        if(bytes<=0)for(ModelVariantCatalog.Variant v:recommendedVariants)
+            if(!v.hf()&&v.model.equals(model)){bytes=v.bytes;break;}
+        return Math.max(0L,bytes);
+    }
+    private boolean hasDownloadStorage(long bytes){
         long availableBytes;
         try{availableBytes=new StatFs(getFilesDir().getAbsolutePath()).getAvailableBytes();}
         catch(Exception e){availableBytes=-1;}
-        long reserved=ModelDownloadBudget.requiredBytes(featuredBytes);
-        if(availableBytes>=0&&featuredBytes>0&&!ModelDownloadBudget.enough(availableBytes,featuredBytes)){
+        if(availableBytes>=0&&bytes>0&&!ModelDownloadBudget.enough(availableBytes,bytes)){
             new AlertDialog.Builder(this).setTitle(getString(R.string.storage_low))
-                .setMessage(getString(R.string.storage_required,installedSize(reserved),installedSize(availableBytes)))
+                .setMessage(getString(R.string.storage_required,installedSize(ModelDownloadBudget.requiredBytes(bytes)),installedSize(availableBytes)))
                 .setPositiveButton(R.string.ok,null).show();
-            return;
+            return false;
         }
+        return true;
+    }
+    private void confirmDownload(String model){
+        final long featuredBytes=downloadEstimate(model);
+        if(!hasDownloadStorage(featuredBytes))return;
+        long reserved=ModelDownloadBudget.requiredBytes(featuredBytes);
         String storageHint=featuredBytes>0?getString(R.string.download_storage_hint,installedSize(featuredBytes),installedSize(reserved)):getString(R.string.download_size_unknown);
         String memoryHint=featuredBytes>0?getString(R.string.download_ram_hint,suitabilityLabel(advise(model,featuredBytes/(1024.0*1024.0*1024.0)).suitability)):"\n";
         new AlertDialog.Builder(this)
             .setTitle(getString(R.string.download_data_title))
             .setMessage(getString(R.string.download_confirm_body,model,storageHint,memoryHint))
             .setNegativeButton(getString(R.string.cancel), null)
-            .setPositiveButton(getString(R.string.download_confirm), (d,w) -> beginDownload(model))
+            .setPositiveButton(getString(R.string.download_confirm), (d,w) -> beginDownload(model,featuredBytes))
             .show();
     }
 
-    private void beginDownload(String model) {
+    private void beginDownload(String model,long reviewedBytes) {
         if(isUiBusy()){toast(getString(R.string.busy));return;}
+        long currentBytes=downloadEstimate(model);
+        if(ModelDownloadBudget.requiresReconfirmation(reviewedBytes,currentBytes)){
+            confirmDownload(model);return;
+        }
+        if(!hasDownloadStorage(Math.max(reviewedBytes,currentBytes)))return;
         if (!OllamaForegroundService.isRunning()) {
             toast(getString(R.string.download_server_wait));
             startServer(); return;

@@ -28,6 +28,15 @@ public final class ModelExperienceTest{
         ok(BenchmarkRecommendation.adjustment(30.0,null)<BenchmarkRecommendation.adjustment(2.0,null),"measured speed prioritization");
         ok(BenchmarkRecommendation.adjustment(null,null)==0,"no fabricated benchmarks");
         ok(BenchmarkRecommendation.bestMeasured(10.0,22.0)==22.0,"best measured CPU/GPU");
-        System.out.println("PASS: ModelExperience (16 checks)");
+        long reserve=512L*1024*1024;
+        ok(ModelDownloadBudget.requiredBytes(1)==reserve+2,"round up exact reserve");
+        ok(ModelDownloadBudget.requiredBytes(5)==reserve+6,"20 percent exact");
+        ok(ModelDownloadBudget.requiredBytes(Long.MAX_VALUE)==Long.MAX_VALUE,"saturating reserve");
+        ok(ModelDownloadBudget.requiredBytes(0)==0,"unknown size");
+        ok(!ModelDownloadBudget.enough(reserve+1,1)&&ModelDownloadBudget.enough(reserve+2,1),"byte boundary");
+        ok(ModelDownloadBudget.requiresReconfirmation(0,10),"new estimate needs review");
+        ok(ModelDownloadBudget.requiresReconfirmation(10,11),"higher estimate needs review");
+        ok(!ModelDownloadBudget.requiresReconfirmation(10,10)&&!ModelDownloadBudget.requiresReconfirmation(10,0),"unchanged and unknown estimate");
+        System.out.println("PASS: ModelExperience (24 checks)");
     }
 }

@@ -8,8 +8,12 @@ public final class ModelDownloadBudget {
     /** Returns zero for unknown model size: show a warning, do not fabricate a size. */
     public static long requiredBytes(long modelBytes){
         if(modelBytes<=0)return 0;
-        double needed=modelBytes*1.20+RESERVE;
-        return needed>=Long.MAX_VALUE?Long.MAX_VALUE:(long)needed;
+        long extra=modelBytes/5+(modelBytes%5==0?0:1);
+        return modelBytes>Long.MAX_VALUE-RESERVE-extra?Long.MAX_VALUE:modelBytes+extra+RESERVE;
+    }
+    /** A larger or newly known estimate needs renewed user review. */
+    public static boolean requiresReconfirmation(long reviewedBytes,long currentBytes){
+        return currentBytes>0&&currentBytes>Math.max(0L,reviewedBytes);
     }
     public static boolean enough(long availableBytes,long modelBytes){
         return modelBytes<=0||availableBytes>=requiredBytes(modelBytes);

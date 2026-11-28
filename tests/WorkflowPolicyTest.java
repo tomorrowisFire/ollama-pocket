@@ -64,6 +64,9 @@ public final class WorkflowPolicyTest {
             ok(WorkflowPolicy.sample(invalid,"",true)==WorkflowPolicy.Sample.INVALID_CONDITION);
             ok(WorkflowPolicy.decide(invalid,"OK",false,1)==WorkflowPolicy.Decision.BLOCK);
         }
+        ok(WorkflowPolicy.firstPrompt("first | @exact:OK\nsecond | @contains:NEXT").equals(
+            WorkflowPolicy.prompt(WorkflowPolicy.parse("first | @exact:OK").get(0),"",false)));
+        ok(!WorkflowPolicy.firstPrompt("first | @exact:OK\nsecond | @contains:NEXT").contains("NEXT"));
         StringBuilder ten=new StringBuilder();
         for(int i=1;i<=10;i++)ten.append("Step ").append(i).append(" | @jsonvalues:{\"step\":").append(i).append("}\n");
         java.util.List<WorkflowPolicy.Step> chain=WorkflowPolicy.parse(ten.toString());

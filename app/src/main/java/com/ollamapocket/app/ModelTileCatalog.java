@@ -33,6 +33,22 @@ public final class ModelTileCatalog {
         return value==null||value.trim().isEmpty()?"미확인":value.trim().toUpperCase(Locale.ROOT);
     }
 
+    /** Malformed or stale lists cannot replace a previously observed installed snapshot. */
+    public static boolean validSnapshotCount(int count){return count>=0&&count<=4096;}
+    public static boolean acceptSnapshot(long candidate,long latest,boolean closed){
+        return !closed&&candidate==latest;
+    }
+    public static boolean validInstalledTag(String tag){
+        if(tag==null||tag.isEmpty()||tag.length()>256)return false;
+        for(int i=0;i<tag.length();){
+            int cp=tag.codePointAt(i);
+            if(Character.isWhitespace(cp)||Character.isSpaceChar(cp)||Character.isISOControl(cp)||
+                Character.getType(cp)==Character.FORMAT||Character.getType(cp)==Character.SURROGATE)return false;
+            i+=Character.charCount(cp);
+        }
+        return true;
+    }
+
     public static String familyName(String id) {
         String base=id==null?"":id.split(":",2)[0].toLowerCase(Locale.ROOT);
         switch(base){

@@ -118,7 +118,8 @@ final class LocalWorkflow {
     }
     void clearHistory()throws Exception{if(!store.edit().remove("history").commit())throw new IOException("History removal failed");}
     Checkpoint create(String plan,String model)throws Exception{
-        WorkflowPolicy.parse(plan);
+        if(!DocumentBatchPolicy.fits(WorkflowPolicy.firstPrompt(plan),WorkflowPolicy.MAX_TOKENS))
+            throw new IOException("Initial workflow context limit");
         if(model==null||model.isEmpty()||model.length()>200)throw new IOException("Model required");
         Checkpoint c=new Checkpoint();c.plan=plan;c.model=model;c.id=java.util.UUID.randomUUID().toString();
         c.started=System.currentTimeMillis();c.updated=c.started;c.status="QUEUED";c.reason=WorkflowRunJournal.Reason.NONE;

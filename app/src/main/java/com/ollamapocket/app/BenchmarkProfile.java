@@ -63,6 +63,8 @@ final class BenchmarkProfile {
     }
     Double cpuRate(){return cpu==null?null:cpu.decode;}
     Double gpuRate(){return gpu==null?null:gpu.decode;}
+    Double recommendableCpuRate(){return cpu!=null&&cpu.stableCandidate()?cpu.decode:null;}
+    Double recommendableGpuRate(){return gpu!=null&&gpu.stableCandidate()?gpu.decode:null;}
     String encode()throws Exception{
         JSONObject j=new JSONObject().put("schema",1).put("model",model).put("digest",digest).put("runtime",runtime).put("measuredAt",measuredAt);
         if(cpu!=null)j.put("cpu",cpu.json());

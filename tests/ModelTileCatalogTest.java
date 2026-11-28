@@ -33,6 +33,14 @@ public final class ModelTileCatalogTest {
         ok("Q8_0".equals(ModelTileCatalog.displayQuant(true,"Q4_K_M","q8_0")),"local observed quant");
         ok("미확인".equals(ModelTileCatalog.displayQuant(true,"Q4_K_M",null)),"unknown local quant");
         ok("Q4_K_M".equals(ModelTileCatalog.displayQuant(false,"q4_k_m","Q8_0")),"advertised quant for absent model");
-        System.out.println("PASS: ModelTileCatalog (19 assertions)");
+        ok(ModelTileCatalog.validSnapshotCount(0)&&ModelTileCatalog.validSnapshotCount(4096),"valid empty and maximum list");
+        ok(!ModelTileCatalog.validSnapshotCount(-1)&&!ModelTileCatalog.validSnapshotCount(4097),"snapshot limit");
+        ok(ModelTileCatalog.acceptSnapshot(7,7,false),"latest active refresh");
+        ok(!ModelTileCatalog.acceptSnapshot(6,7,false)&&!ModelTileCatalog.acceptSnapshot(7,7,true),"reject stale and closed refresh");
+        ok(ModelTileCatalog.validInstalledTag("org/qwen:4b-q4_K_M"),"qualified model tag");
+        ok(!ModelTileCatalog.validInstalledTag(null)&&!ModelTileCatalog.validInstalledTag(""),"missing tag");
+        ok(!ModelTileCatalog.validInstalledTag("model name")&&!ModelTileCatalog.validInstalledTag("model\nname"),"invalid whitespace");
+        ok(!ModelTileCatalog.validInstalledTag("x".repeat(257)),"tag bound");
+        System.out.println("PASS: ModelTileCatalog (27 assertions)");
     }
 }

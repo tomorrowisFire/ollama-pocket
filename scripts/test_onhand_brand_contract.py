@@ -515,3 +515,13 @@ assert "ModelTileCatalog.displayBytes(variantInstalled(v)" in main
 assert "ModelTileCatalog.displayQuant(variantInstalled(v)" in main
 assert "return !v.hf()&&knownModels.contains(v.model)" in main
 assert "WorkflowPolicy.resumeChoiceEnabled(idle,current.resumable()" in (src/"AutomationUi.java").read_text()
+
+# F10A81: preserve the last valid installed snapshot and recheck download consent.
+assert "final long sequence=++installedModelRefreshSerial" in main
+assert "ModelTileCatalog.acceptSnapshot(sequence,installedModelRefreshSerial" in main
+assert "list==null||!ModelTileCatalog.validSnapshotCount(list.length())" in main
+assert "beginDownload(model,featuredBytes)" in main
+assert "ModelDownloadBudget.requiresReconfirmation(reviewedBytes,currentBytes)" in main
+assert main.index("if(!hasDownloadStorage(Math.max(reviewedBytes,currentBytes)))return;") < main.index("pullBusy = true; pullCancelled = false;")
+assert "BenchmarkRecommendation.adjustment(profile.recommendableCpuRate(),profile.recommendableGpuRate())" in main
+assert "DocumentBatchPolicy.fits(WorkflowPolicy.firstPrompt(plan),WorkflowPolicy.MAX_TOKENS)" in workflow_source
